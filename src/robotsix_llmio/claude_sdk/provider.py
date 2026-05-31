@@ -101,7 +101,8 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
             t = pydantic_ai.Tool(t)
 
         name: str = t.name
-        description: str | None = t.description
+        # The SDK's @tool wants a str description; pydantic-ai's may be None.
+        description: str = t.description or ""
         schema: dict[str, Any] = t.tool_def.parameters_json_schema
         fn = t.function_schema.function
         is_async: bool = t.function_schema.is_async
