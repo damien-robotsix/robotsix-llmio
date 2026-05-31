@@ -17,7 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Layer 2 — OpenRouter transport. pydantic-ai's OpenAIChatModel backs it.
-openrouter = ["openai"]
+openrouter = []
 # Layer 3 — derived DeepSeek provider. Chains the openrouter extra.
 openrouter_deepseek = ["robotsix-llmio[openrouter]"]
 # Optional: emit cost/usage onto the active OpenTelemetry span.
