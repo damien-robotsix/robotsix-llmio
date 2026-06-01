@@ -5,6 +5,8 @@ modules:
       - src/robotsix_llmio/core/**
       - src/robotsix_llmio/py.typed
       - tests/core/test_core_retry.py
+      - tests/core/test_tracing.py
+      - tests/core/test_tracing_live.py
   - id: robotsix_llmio-openrouter
     description: >
       OpenRouter transport layer — base model-family-agnostic provider.
