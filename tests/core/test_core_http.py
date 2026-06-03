@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import httpx
+import pytest
 
 from robotsix_llmio.core import constants
 from robotsix_llmio.core import http as http_module
@@ -92,7 +93,7 @@ def test_close_async_client_closes_open_client():
     assert client.is_closed is True
 
 
-# --- §3 _close_async_client swallows errors --------------------------------
+# --- §3 _close_async_client exception handling -----------------------------
 
 
 def test_close_async_client_swallows_aclose_exception():
@@ -107,10 +108,14 @@ def test_close_async_client_swallows_aclose_exception():
     assert _close_async_client(_Boom()) is None
 
 
-def test_close_async_client_swallows_attributeerror():
-    """The finalizer can be called against an unexpected referent that has
-    no ``aclose`` attribute at all; it must still not raise."""
-    assert _close_async_client(object()) is None
+def test_close_async_client_propagates_attributeerror():
+    """The finalizer narrows its swallow to ``(RuntimeError, OSError)`` — the
+    expected event-loop/transport teardown errors. A referent with no
+    ``aclose`` attribute raises ``AttributeError``, which is deliberately
+    *not* swallowed so a genuinely broken referent surfaces instead of being
+    masked (see the production handler comment)."""
+    with pytest.raises(AttributeError):
+        _close_async_client(object())
 
 
 def test_close_async_client_swallows_event_loop_runtime_error(monkeypatch):
