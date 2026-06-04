@@ -167,6 +167,11 @@ def test_record_cost_absent_optional_fields_skipped(mock_get_span):
     record_openrouter_cost(resp)
     recorded = {c.args[0] for c in span.set_attribute.call_args_list}
     assert "gen_ai.usage.cost" in recorded
+    assert "langfuse.observation.cost_details" in recorded
+    assert "gen_ai.operation.name" in recorded
+    assert "gen_ai.provider.name" in recorded
+    assert "gen_ai.system" in recorded
+    assert "langfuse.observation.metadata.provider" in recorded
     assert "gen_ai.request.model" not in recorded
     assert "gen_ai.usage.input_tokens" not in recorded
     assert "gen_ai.usage.output_tokens" not in recorded
