@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import types
+from typing import Any
 
 import pytest
 
@@ -112,15 +113,16 @@ def test_reasoning_text_skips_non_str_content():
 # --- _map_model_response ---------------------------------------------------
 
 
-def _patch_parent(monkeypatch, canned: dict) -> None:
+def _patch_parent(monkeypatch, canned: Any) -> None:
     """Stub the MRO parent (``OpenAIChatModel._map_model_response``) to return a
     FRESH copy of ``canned`` each call so pop()/assign mutations under test do
-    not leak between assertions."""
+    not leak between assertions. A non-dict ``canned`` is returned as-is so the
+    non-dict short-circuit branch can be exercised too."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from pydantic_ai.models.openai import OpenAIChatModel
 
     def _fake_parent(self, message):
-        return dict(canned)
+        return dict(canned) if isinstance(canned, dict) else canned
 
     monkeypatch.setattr(OpenAIChatModel, "_map_model_response", _fake_parent)
 
@@ -146,6 +148,9 @@ def test_map_model_response_passes_non_assistant_unchanged(monkeypatch):
         "role": "user",
         "content": "hi",
     }
+    # A non-dict parent result also short-circuits unchanged.
+    _patch_parent(monkeypatch, ["not", "a", "dict"])
+    assert m._map_model_response(_thinking_message("t")) == ["not", "a", "dict"]
 
 
 def test_map_model_response_always_drops_array_forms(monkeypatch):
