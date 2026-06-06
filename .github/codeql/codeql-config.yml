@@ -1,0 +1,10 @@
+# CodeQL analysis configuration.
+#
+# Exclude test code from analysis. Tests deliberately contain patterns the
+# security-and-quality suite flags — hostname-substring assertions
+# (py/incomplete-url-substring-sanitization), dual import styles
+# (py/import-and-import-from), intentionally unclosed handles, etc. The real
+# security surface is src/, so analysis there stays strict; only test noise
+# is suppressed at the source.
+paths-ignore:
+  - tests
