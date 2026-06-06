@@ -1,3 +1,7 @@
 # Per-repo periodic workflow: presence enables it for this repo.
 # Name-only → inherits the built-in langfuse_cleanup params.
 name: langfuse_cleanup
+
+# TODO: Does this cleanup concern the robotsix-mill related data in Langfuse, or the one of this own repo tests?
+# TODO: For the Langfuse storage related to this repo tests, it should be cleaned up at the end of each test run.
+# For the one related to the robotsix-mill, it should be configured only once in robotsix-mill, only retention period should be per-repo byt defined in robotsix-mill repo.yaml configuration
