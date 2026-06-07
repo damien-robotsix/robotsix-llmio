@@ -54,6 +54,11 @@ class OpenRouterProvider(LLMProvider):
 
     # --- core API -----------------------------------------------------------
     def new_model(self, tier: Tier = Tier.DEFAULT) -> tuple[Any, Any]:
+        """Build a model for *tier*, returning ``(model, http_client)``.
+
+        The returned ``http_client`` is the timeout-configured client backing
+        the model; the caller owns closing it.
+        """
         from pydantic_ai.providers.openrouter import (
             OpenRouterProvider as _PydOpenRouterProvider,
         )

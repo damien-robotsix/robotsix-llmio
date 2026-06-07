@@ -179,14 +179,20 @@ class ClaudeSDKModel(Model):
 
     @property
     def model_name(self) -> str:
+        """The model name reported to pydantic-ai (the SDK model id, or its
+        override)."""
         return self._model_name
 
     @property
     def system(self) -> str:
+        """The provider/system identifier for this model (always
+        ``"anthropic"``)."""
         return "anthropic"
 
     @property
     def provider(self) -> None:
+        """The HTTP provider for this model (always ``None``: the ``claude`` CLI
+        subprocess is the transport, not an HTTP client)."""
         # No HTTP provider: the `claude` CLI subprocess is the transport, and
         # the SDK tears it down per call. The base ``__aenter__``/``__aexit__``
         # short-circuit on a None provider.
@@ -298,6 +304,13 @@ class ClaudeSDKModel(Model):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
+        """Run *messages* through the Claude Agent SDK and return the final
+        :class:`ModelResponse`.
+
+        Rejects unsupported request parameters (function tools, non-text output
+        modes), renders the conversation into a single prompt plus system text,
+        and invokes the SDK to obtain the assistant's final text and usage.
+        """
         self._reject_unsupported(model_request_parameters)
         system_text = self._system_text(messages, model_request_parameters)
         prompt = render_prompt(messages)
