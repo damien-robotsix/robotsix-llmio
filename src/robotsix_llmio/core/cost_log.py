@@ -67,4 +67,6 @@ class CostLogSource(Protocol):
     backend.
     """
 
-    def fetch_logged_cost(self, window: CostWindow) -> LoggedCost: ...
+    def fetch_logged_cost(self, window: CostWindow) -> LoggedCost:
+        """Return the logged cost recorded over *window*."""
+        ...

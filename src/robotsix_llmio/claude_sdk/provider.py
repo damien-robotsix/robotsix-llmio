@@ -697,6 +697,11 @@ class ClaudeSDKProvider(LLMProvider):
         self._models = {Tier.DEFAULT: default_model, Tier.CHEAP: cheap_model}
 
     def new_model(self, tier: Tier = Tier.DEFAULT) -> tuple[Any, Any]:
+        """Build a model for *tier*, returning ``(model, http_client)``.
+
+        The ``http_client`` is always ``None`` here: the ``claude`` CLI
+        subprocess is the transport and there is no HTTP client to manage.
+        """
         from .model import ClaudeSDKModel
 
         # No http_client to manage — the CLI subprocess is the transport, and

@@ -310,6 +310,8 @@ class TraceSpan:
 
     @property
     def trace_id(self) -> str | None:
+        """The 32-hex-char trace id of the root span, or ``None`` when there is
+        no active span."""
         if self._span is None:
             return None
         ctx = self._span.get_span_context()
@@ -317,10 +319,12 @@ class TraceSpan:
         return format(tid, "032x") if tid else None
 
     def set_input(self, value: Any) -> None:
+        """Record *value* as the trace-level input (no-op when not recording)."""
         if self._span is not None and self._span.is_recording():
             self._span.set_attribute("langfuse.observation.input", _to_text(value))
 
     def set_output(self, value: Any) -> None:
+        """Record *value* as the trace-level output (no-op when not recording)."""
         if self._span is not None and self._span.is_recording():
             self._span.set_attribute("langfuse.observation.output", _to_text(value))
 

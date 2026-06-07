@@ -47,7 +47,9 @@ class ProviderCost:
 class ProviderCostSource(Protocol):
     """Backend-neutral read interface for provider-billed cost over a window."""
 
-    def fetch_provider_cost(self, window: CostWindow) -> ProviderCost: ...
+    def fetch_provider_cost(self, window: CostWindow) -> ProviderCost:
+        """Return the provider-billed cost over *window*."""
+        ...
 
 
 @dataclass(frozen=True)
