@@ -22,6 +22,7 @@ from .retry import (
 )
 from .tracing import (
     TraceSpan,
+    active_routing_key,
     current_session,
     flush_tracing,
     get_recording_span,
@@ -50,6 +51,7 @@ __all__ = [
     "ProviderCostSource",
     "Tier",
     "TraceSpan",
+    "active_routing_key",
     "build_agent",
     "call_with_retry",
     "call_with_retry_and_fallback",

@@ -28,7 +28,10 @@ import base64
 import contextlib
 import contextvars
 import json
+import logging
 import os
+import threading
+import time
 import uuid
 from collections.abc import Callable, Iterator
 from typing import Any
@@ -55,6 +58,19 @@ _current_public_key: contextvars.ContextVar[str | None] = contextvars.ContextVar
     "robotsix_llmio_langfuse_public_key", default=None
 )
 
+# Trace-level routing: maps trace_id (int) → public_key so child spans
+# inherit the routing key even when the contextvar is lost across thread
+# or async task boundaries.
+_trace_routing: dict[int, str] = {}
+_trace_routing_lock = threading.Lock()
+
+# Throttled logging for unroutable spans — at most one message of each
+# level per 10 seconds to avoid log spam in multi-tenant hot paths.
+_logger = logging.getLogger(__name__)
+_warn_last_ts: float = 0.0
+_debug_last_ts: float = 0.0
+_throttle_lock = threading.Lock()
+
 
 def _langfuse_otlp_endpoint(base_url: str) -> str:
     """The Langfuse OTLP traces endpoint for a base URL."""
@@ -65,6 +81,26 @@ def _basic_auth_header(public_key: str, secret_key: str) -> str:
     """Build the ``Basic <base64>`` Authorization header value Langfuse expects."""
     token = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode()
     return f"Basic {token}"
+
+
+def _throttled_warning(msg: str) -> None:
+    """Emit a WARNING at most once per 10 seconds."""
+    global _warn_last_ts
+    now = time.monotonic()
+    with _throttle_lock:
+        if now - _warn_last_ts >= 10.0:
+            _warn_last_ts = now
+            _logger.warning(msg)
+
+
+def _throttled_debug(msg: str) -> None:
+    """Emit a DEBUG log at most once per 10 seconds."""
+    global _debug_last_ts
+    now = time.monotonic()
+    with _throttle_lock:
+        if now - _debug_last_ts >= 10.0:
+            _debug_last_ts = now
+            _logger.debug(msg)
 
 
 def _active_public_key() -> str | None:
@@ -139,12 +175,46 @@ def setup_langfuse_tracing(
                 if sid:
                     span.set_attribute("session.id", sid)
                     span.set_attribute("langfuse.session.id", sid)
-                pk = _active_public_key()
+
+                # Three-tier routing key resolution:
+                ctx = span.get_span_context()
+                trace_id = ctx.trace_id
+
+                # Tier 1: active contextvar (fast path for synchronous code)
+                pk = _current_public_key.get()
+
+                # Tier 2: trace-level inheritance (cross-thread / cross-task
+                # bridge — survives contextvar loss)
+                if pk is None:
+                    with _trace_routing_lock:
+                        pk = _trace_routing.get(trace_id)
+
+                # Tier 3: single-tenant default — only when ≤1 project is
+                # registered.  In multi-tenant mode this would route
+                # everything to the wrong project, so we skip it.
+                if pk is None and len(_projects) <= 1:
+                    pk = _default_public_key
+
                 if pk:
                     span.set_attribute("langfuse.public_key", pk)
+                    # Record so children can inherit via trace-level routing.
+                    with _trace_routing_lock:
+                        _trace_routing[trace_id] = pk
+                else:
+                    _throttled_warning(
+                        "Cannot route span to any Langfuse project: no "
+                        "contextvar, no trace-level routing, and multi-tenant "
+                        "mode (≥2 projects). Span will be dropped by all "
+                        "exporters."
+                    )
 
             def on_end(self, span):  # type: ignore[no-untyped-def]
-                pass
+                # When a root span ends, remove its trace-level routing entry
+                # so the mapping doesn't grow unbounded.
+                if span.parent is None:
+                    trace_id = span.get_span_context().trace_id
+                    with _trace_routing_lock:
+                        _trace_routing.pop(trace_id, None)
 
             def shutdown(self):  # type: ignore[no-untyped-def]
                 pass
@@ -170,6 +240,12 @@ def setup_langfuse_tracing(
 
         def on_end(self, span):  # type: ignore[no-untyped-def]
             attrs = span.attributes or {}
+            if "langfuse.public_key" not in attrs:
+                _throttled_debug(
+                    f"Span {span.name!r} has no langfuse.public_key "
+                    f"attribute — will be dropped by all exporters."
+                )
+                return
             if attrs.get("langfuse.public_key") != self._target:
                 return  # belongs to a different project
             super().on_end(span)
@@ -248,6 +324,16 @@ def langfuse_project(public_key: str) -> Iterator[None]:
 def current_session() -> str | None:
     """The session id active in the current context, or ``None``."""
     return _current_session.get()
+
+
+def active_routing_key() -> str | None:
+    """The active Langfuse public key from the current context, or ``None``.
+
+    Unlike the internal ``_active_public_key``, this does **not** fall back
+    to the default project — it only returns what was set via
+    :func:`langfuse_project`.  Use this to introspect which project the
+    current context routes to without triggering the silent default."""
+    return _current_public_key.get()
 
 
 def make_session_id(kind: str) -> str:
