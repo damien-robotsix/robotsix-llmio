@@ -18,6 +18,12 @@ dependencies = [
     "httpx",
 ]
 
+[project.urls]
+Homepage      = "https://github.com/damien-robotsix/robotsix-llmio"
+Source        = "https://github.com/damien-robotsix/robotsix-llmio"
+Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
+Documentation = "https://github.com/damien-robotsix/robotsix-llmio#readme"
+
 [project.optional-dependencies]
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
 # The `openrouter` extra already pulls `openai` transitively (it's what
