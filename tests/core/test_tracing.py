@@ -341,16 +341,15 @@ def test_trace_routing_inheritance_from_root(monkeypatch):
 
     tracer = trace.get_tracer("test")
 
-    with tracing.langfuse_project("pk-root"):
-        with tracer.start_as_current_span("root") as root:
-            # Clear the contextvar inside the root span (simulating a
-            # thread-pool task that lost it), then create a child.
-            token = tracing._current_public_key.set(None)
-            try:
-                with tracer.start_as_current_span("child"):
-                    pass
-            finally:
-                tracing._current_public_key.reset(token)
+    with tracing.langfuse_project("pk-root"), tracer.start_as_current_span("root"):
+        # Clear the contextvar inside the root span (simulating a
+        # thread-pool task that lost it), then create a child.
+        token = tracing._current_public_key.set(None)
+        try:
+            with tracer.start_as_current_span("child"):
+                pass
+        finally:
+            tracing._current_public_key.reset(token)
 
     root_span = _get_span_by_name(mem, "root")
     child_span = _get_span_by_name(mem, "child")

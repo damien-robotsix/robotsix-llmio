@@ -702,6 +702,9 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
 
     base = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
 
+    # Reset tracing state to known-clean (earlier live tests may have
+    # registered projects, etc.).
+    import robotsix_llmio.core.tracing as _t
     from robotsix_llmio.core import (
         Tier,
         flush_tracing,
@@ -710,10 +713,6 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
         setup_langfuse_tracing,
     )
     from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
-
-    # Reset tracing state to known-clean (earlier live tests may have
-    # registered projects, etc.).
-    import robotsix_llmio.core.tracing as _t
 
     _t._provider = None
     _t._projects.clear()
@@ -739,13 +738,12 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
         name="mt-agent-a",
     )
     try:
-        with langfuse_project(pk_a):
-            with langfuse_session(session_a):
-                result = provider.call_with_retry(
-                    lambda: agent_a.run_sync(
-                        "What is 3+3?", model_settings={"max_tokens": 20}
-                    )
+        with langfuse_project(pk_a), langfuse_session(session_a):
+            result = provider.call_with_retry(
+                lambda: agent_a.run_sync(
+                    "What is 3+3?", model_settings={"max_tokens": 20}
                 )
+            )
         assert "6" in str(result.output)
     finally:
         agent_a.close()
@@ -757,13 +755,12 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
         name="mt-agent-b",
     )
     try:
-        with langfuse_project(pk_b):
-            with langfuse_session(session_b):
-                result = provider.call_with_retry(
-                    lambda: agent_b.run_sync(
-                        "What is 4+4?", model_settings={"max_tokens": 20}
-                    )
+        with langfuse_project(pk_b), langfuse_session(session_b):
+            result = provider.call_with_retry(
+                lambda: agent_b.run_sync(
+                    "What is 4+4?", model_settings={"max_tokens": 20}
                 )
+            )
         assert "8" in str(result.output)
     finally:
         agent_b.close()
