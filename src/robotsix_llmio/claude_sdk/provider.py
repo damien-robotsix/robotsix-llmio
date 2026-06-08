@@ -32,69 +32,6 @@ if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
 log = logging.getLogger("robotsix_llmio.claude_sdk")
 
 
-def _short(value: Any, limit: int = 200) -> str:
-    """One-line, length-capped repr of a tool input / text for logging."""
-    s = value if isinstance(value, str) else json.dumps(value, default=str)
-    s = " ".join(s.split())
-    return s if len(s) <= limit else s[:limit] + "…"
-
-
-def _log_stream_message(message: Any, turn: list[int], label: str) -> None:
-    """Emit a concise INFO line for one streamed Claude SDK message.
-
-    Gives live feedback on what the agent is doing — turns, tool calls, tool
-    results, the final result — even when Langfuse spans haven't flushed yet
-    (a stuck agent never completes its span, so this is the only signal).
-    *turn* is a 1-element list used as a mutable counter across the loop.
-    """
-    cls = type(message).__name__
-    try:
-        if cls == "AssistantMessage":
-            turn[0] += 1
-            for block in getattr(message, "content", []) or []:
-                bcls = type(block).__name__
-                if bcls == "TextBlock":
-                    txt = getattr(block, "text", "") or ""
-                    if txt.strip():
-                        log.info("%s turn %d: text — %s", label, turn[0], _short(txt))
-                elif bcls == "ToolUseBlock":
-                    log.info(
-                        "%s turn %d: tool_use %s(%s)",
-                        label,
-                        turn[0],
-                        getattr(block, "name", "?"),
-                        _short(getattr(block, "input", {})),
-                    )
-                elif bcls == "ThinkingBlock":
-                    log.info(
-                        "%s turn %d: thinking (%d chars)",
-                        label,
-                        turn[0],
-                        len(getattr(block, "thinking", "") or ""),
-                    )
-        elif cls in ("UserMessage", "ToolResultMessage"):
-            for block in getattr(message, "content", []) or []:
-                if type(block).__name__ == "ToolResultBlock":
-                    is_err = bool(getattr(block, "is_error", False))
-                    log.info(
-                        "%s tool_result%s — %s",
-                        label,
-                        " [ERROR]" if is_err else "",
-                        _short(getattr(block, "content", "")),
-                    )
-        elif cls == "ResultMessage":
-            log.info(
-                "%s result: subtype=%s is_error=%s turns=%d duration_ms=%s",
-                label,
-                getattr(message, "subtype", "?"),
-                getattr(message, "is_error", "?"),
-                turn[0],
-                getattr(message, "duration_ms", "?"),
-            )
-    except Exception:
-        pass
-
-
 _TRACER_NAME = "robotsix_llmio.claude_sdk"
 
 # Baked tier→model map. Values are Claude Code model aliases passed straight to
@@ -559,48 +496,9 @@ class _SdkToolAgentHandle:
         ``ResultMessage.result`` fallback) and the captured ``ResultMessage``.
         Converts a wall-clock timeout into :class:`ClaudeSDKQueryTimeout`.
         """
-        from claude_agent_sdk import (  # type: ignore[import-not-found]
-            AssistantMessage,
-            ResultMessage,
-            TextBlock,
-            query,
-        )
+        from ._stream import _stream_query
 
-        from ..core import constants
-        from .model import ClaudeSDKQueryTimeout
-
-        chunks: list[str] = []
-        result: Any = None
-        turn = [0]
-
-        async def _consume() -> None:
-            nonlocal result
-            async for message in query(prompt=prompt, options=options):
-                _log_stream_message(message, turn, self._name)
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            chunks.append(block.text)
-                elif isinstance(message, ResultMessage):
-                    result = message
-
-        try:
-            # Hard wall-clock cap so a stalled CLI subprocess fails fast and
-            # retryable instead of hanging on the SDK's own ~2h backstop.
-            await asyncio.wait_for(_consume(), timeout=constants.SDK_QUERY_TIMEOUT)
-        except TimeoutError as exc:
-            raise ClaudeSDKQueryTimeout(
-                f"Claude Agent SDK query exceeded the "
-                f"{constants.SDK_QUERY_TIMEOUT:.0f}s per-call wall-clock cap "
-                f"({self._name}, model={self._sdk_model!r}) — the call "
-                f"stalled without completing. Treated as transient so the "
-                f"bounded retry re-runs it."
-            ) from exc
-
-        text = "".join(chunks).strip()
-        if not text and result is not None:
-            text = (getattr(result, "result", None) or "").strip()
-        return text, result
+        return await _stream_query(prompt, options, self._name)
 
     def _record_generation_span(
         self, system_prompt: str, prompt: str, text: str, result: Any

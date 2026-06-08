@@ -21,7 +21,6 @@ Runtime requirements (beyond the ``claude_sdk`` extra): Node.js and the
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from pydantic_ai.exceptions import UserError
@@ -39,7 +38,6 @@ from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
-from ..core import constants
 from .transient import is_claude_sdk_turn_limit
 
 PROVIDER_NAME = "claude-sdk"
@@ -238,12 +236,10 @@ class ClaudeSDKModel(Model):
 
     async def _invoke(self, prompt: str, system_text: str | None) -> tuple[str, Any]:
         from claude_agent_sdk import (  # type: ignore[import-not-found]
-            AssistantMessage,
             ClaudeAgentOptions,
-            ResultMessage,
-            TextBlock,
-            query,
         )
+
+        from ._stream import _stream_query
 
         options = ClaudeAgentOptions(
             system_prompt=system_text,
@@ -254,49 +250,12 @@ class ClaudeSDKModel(Model):
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
         )
 
-        chunks: list[str] = []
-        result: Any = None
-        from .provider import _log_stream_message  # live per-turn feedback
-
-        turn = [0]
-
-        async def _consume() -> None:
-            nonlocal result
-            async for message in query(prompt=prompt, options=options):
-                _log_stream_message(message, turn, f"claude:{self._model_name}")
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            chunks.append(block.text)
-                elif isinstance(message, ResultMessage):
-                    result = message
-
-        try:
-            # Hard wall-clock cap so a stalled CLI subprocess fails fast and
-            # retryable instead of hanging on the SDK's own ~2h backstop.
-            await asyncio.wait_for(_consume(), timeout=constants.SDK_QUERY_TIMEOUT)
-        except TimeoutError as exc:
-            raise ClaudeSDKQueryTimeout(
-                f"Claude Agent SDK query exceeded the "
-                f"{constants.SDK_QUERY_TIMEOUT:.0f}s per-call wall-clock cap "
-                f"(model={self._model_name!r}) — the call stalled without "
-                f"completing. Treated as transient so the bounded retry re-runs it."
-            ) from exc
-        except Exception as exc:
-            if is_claude_sdk_turn_limit(exc):
-                raise ClaudeSDKTurnLimitError(
-                    f"Claude Agent SDK hit the {_MAX_TURNS}-turn cap without "
-                    f"producing a final answer (model={self._model_name!r}). The "
-                    f"agent loop did not converge — it kept taking turns instead "
-                    f"of terminating. This is a hard failure; retrying the "
-                    f"identical request would hit the cap again. SDK error: {exc}"
-                ) from exc
-            raise
-
-        text = "".join(chunks).strip()
-        if not text and result is not None:
-            text = (getattr(result, "result", None) or "").strip()
-        return text, result
+        return await _stream_query(
+            prompt,
+            options,
+            f"claude:{self._model_name}",
+            extra_transient=is_claude_sdk_turn_limit,
+        )
 
     async def request(
         self,
