@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. openrouter_deepseek)."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 authors = [{ name = "Damien SIX", email = "damien.robotsix@gmail.com" }]
 dependencies = [
     # SLIM, not the full meta-package: the meta pulls every provider SDK plus
