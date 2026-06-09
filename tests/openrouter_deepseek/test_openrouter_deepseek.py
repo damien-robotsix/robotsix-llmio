@@ -206,6 +206,43 @@ def test_map_model_response_reasoning_tier_no_tool_calls_strips(monkeypatch):
     assert "reasoning_content" not in result
 
 
+def test_map_model_response_thinking_only_content_reasoning_tier(monkeypatch):
+    """Reasoning tier: a thinking-only turn (no content, no tool_calls) gets
+    ``content`` set to a present string so DeepSeek does not reject it."""
+    m = _model(Tier.DEFAULT)
+    _patch_parent(monkeypatch, {"role": "assistant"})
+    result = m._map_model_response(_thinking_message("Good"))
+    assert isinstance(result.get("content"), str)
+    assert "tool_calls" not in result
+
+
+def test_map_model_response_thinking_only_content_disabled_tier(monkeypatch):
+    """Disabled tier: a thinking-only turn (no content, no tool_calls) also gets
+    ``content`` set to a present string — the guard is independent of
+    ``_echo_reasoning``."""
+    m = _model(Tier.CHEAP)
+    _patch_parent(monkeypatch, {"role": "assistant"})
+    result = m._map_model_response(_thinking_message("Good"))
+    assert isinstance(result.get("content"), str)
+    assert "tool_calls" not in result
+
+
+def test_map_model_response_does_not_clobber_real_content(monkeypatch):
+    """A turn carrying actual text keeps its content untouched."""
+    m = _model(Tier.DEFAULT)
+    _patch_parent(monkeypatch, {"role": "assistant", "content": "real text"})
+    result = m._map_model_response(_thinking_message("t"))
+    assert result["content"] == "real text"
+
+
+def test_map_model_response_does_not_add_content_to_tool_call_turn(monkeypatch):
+    """A tool-call turn with no content stays content-free (tool_calls is valid)."""
+    m = _model(Tier.DEFAULT)
+    _patch_parent(monkeypatch, {"role": "assistant", "tool_calls": [{"id": "1"}]})
+    result = m._map_model_response(_thinking_message("t"))
+    assert "content" not in result
+
+
 def test_map_model_response_disabled_tier_strips_with_tool_calls(monkeypatch):
     """Disabled tier strips reasoning_content even with tool_calls present."""
     m = _model(Tier.CHEAP)

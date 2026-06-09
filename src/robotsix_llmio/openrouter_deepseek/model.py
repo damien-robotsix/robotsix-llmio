@@ -120,4 +120,10 @@ class OpenRouterDeepseekModel(OpenRouterModel):
             param["reasoning_content"] = _reasoning_text(message)  # type: ignore[typeddict-unknown-key]  # DeepSeek-specific field not in OpenAI stubs
         else:
             param.pop("reasoning_content", None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
+
+        # DeepSeek rejects an assistant message with neither content nor
+        # tool_calls (a thinking-only turn maps to no text and no tool calls). A
+        # present empty string keeps such turns valid; this holds on every tier.
+        if not param.get("tool_calls") and not param.get("content"):
+            param["content"] = ""
         return param
