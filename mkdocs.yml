@@ -1,0 +1,15 @@
+site_name: robotsix-llmio
+site_description: Provider-agnostic LLM I/O for pydantic-ai agents
+repo_url: https://github.com/damien-robotsix/robotsix-llmio
+
+theme:
+  name: material
+
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Core: core/index.md
+  - OpenRouter: openrouter/index.md
+  - OpenRouter DeepSeek: openrouter_deepseek/index.md
+  - Claude SDK: claude_sdk/index.md
