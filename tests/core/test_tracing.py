@@ -311,9 +311,10 @@ def _setup_tracing_pipeline(monkeypatch):
     # contaminated.
     old_provider = otel_trace.get_tracer_provider()
 
-    assert tracing.setup_langfuse_tracing(
-        public_key="pk-test", secret_key="sk-test"
-    ) is True
+    assert (
+        tracing.setup_langfuse_tracing(public_key="pk-test", secret_key="sk-test")
+        is True
+    )
 
     mem = InMemorySpanExporter()
     tracing._provider.add_span_processor(SimpleSpanProcessor(mem))
@@ -369,9 +370,10 @@ def test_trace_routing_no_fallback_multi_tenant(monkeypatch):
     from opentelemetry import trace
 
     # Register a second project.
-    assert tracing.setup_langfuse_tracing(
-        public_key="pk-extra", secret_key="sk-extra"
-    ) is True
+    assert (
+        tracing.setup_langfuse_tracing(public_key="pk-extra", secret_key="sk-extra")
+        is True
+    )
 
     tracer = trace.get_tracer("test")
     with tracer.start_as_current_span("orphan"):
@@ -431,8 +433,7 @@ def test_unrouted_span_warning(monkeypatch, caplog):
 
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
     assert any(
-        "Cannot route span" in r.message
-        and "multi-tenant" in r.message
+        "Cannot route span" in r.message and "multi-tenant" in r.message
         for r in warnings
     ), f"expected throttled multi-tenant warning, got: {[r.message for r in warnings]}"
 

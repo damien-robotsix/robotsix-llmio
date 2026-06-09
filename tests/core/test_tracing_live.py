@@ -719,12 +719,12 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     _t._default_public_key = None
     _t._trace_routing.clear()
 
-    assert setup_langfuse_tracing(
-        public_key=pk_a, secret_key=sk_a, base_url=base
-    ) is True
-    assert setup_langfuse_tracing(
-        public_key=pk_b, secret_key=sk_b, base_url=base
-    ) is True
+    assert (
+        setup_langfuse_tracing(public_key=pk_a, secret_key=sk_a, base_url=base) is True
+    )
+    assert (
+        setup_langfuse_tracing(public_key=pk_b, secret_key=sk_b, base_url=base) is True
+    )
 
     session_a = f"llmio-mt-a-{uuid.uuid4().hex[:12]}"
     session_b = f"llmio-mt-b-{uuid.uuid4().hex[:12]}"
@@ -786,9 +786,5 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     traces_a_in_b = _langfuse_traces_for_project(session_a, pk_b, sk_b, base)
     traces_b_in_a = _langfuse_traces_for_project(session_b, pk_a, sk_a, base)
 
-    assert not traces_a_in_b, (
-        f"session A traces leaked into project B: {traces_a_in_b}"
-    )
-    assert not traces_b_in_a, (
-        f"session B traces leaked into project A: {traces_b_in_a}"
-    )
+    assert not traces_a_in_b, f"session A traces leaked into project B: {traces_a_in_b}"
+    assert not traces_b_in_a, f"session B traces leaked into project A: {traces_b_in_a}"
