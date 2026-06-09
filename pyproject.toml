@@ -43,6 +43,7 @@ tracing = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
 ]
+docs = ["mkdocs", "mkdocs-material"]
 dev = ["pytest", "pytest-cov", "ruff", "mypy", "bandit", "pip-audit"]
 
 [tool.hatch.build.targets.wheel]
