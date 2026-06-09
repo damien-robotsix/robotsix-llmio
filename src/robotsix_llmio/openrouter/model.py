@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic_ai.models.openai import OpenAIChatModel
 
-from robotsix_llmio.core.tracing import get_recording_span
+from robotsix_llmio.core.tracing import OP_CHAT, get_recording_span
 
 PROVIDER_NAME: str = "openrouter"
 
@@ -75,7 +75,7 @@ def record_openrouter_cost(response: Any) -> None:
     usage_obj = getattr(response, "usage", None)
     span.set_attribute("gen_ai.usage.cost", cost)
     span.set_attribute("langfuse.observation.cost_details", json.dumps({"total": cost}))
-    span.set_attribute("gen_ai.operation.name", "chat")
+    span.set_attribute("gen_ai.operation.name", OP_CHAT)
     span.set_attribute("gen_ai.provider.name", PROVIDER_NAME)
     span.set_attribute("gen_ai.system", PROVIDER_NAME)
     # Provider tag Langfuse indexes onto the observation's metadata, so a

@@ -36,8 +36,16 @@ import uuid
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from ._otel import get_recording_span as get_recording_span
-from ._otel import get_tracer, start_span
+from ._otel import (
+    OP_CHAT as OP_CHAT,
+)
+from ._otel import (
+    get_recording_span as get_recording_span,
+)
+from ._otel import (
+    get_tracer,
+    start_span,
+)
 
 _DEFAULT_BASE_URL = "https://cloud.langfuse.com"
 
