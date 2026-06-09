@@ -262,3 +262,44 @@ def test_pro_resume_from_pending_tool_return_does_not_400() -> None:
         assert result.output is not None
     finally:
         agent.close()
+
+
+@pytest.mark.live
+def test_pro_thinking_only_assistant_turn_does_not_400() -> None:
+    """Echoing an assistant turn whose ONLY part is a ``ThinkingPart`` (no text,
+    no tool call) must not raise DeepSeek's ``Invalid assistant message: content
+    or tool_calls must be set`` 400.
+
+    Repro of mill ticket 2b1b (model deepseek/deepseek-v4-pro). The capable tier
+    runs in thinking mode and can emit an assistant response whose parts are only
+    ``[ThinkingPart(...)]`` (finish_reason ``stop``). That turn maps to an
+    assistant param with neither ``content`` nor ``tool_calls``, which DeepSeek
+    rejects when the history is echoed back. FAILS before the fix; the fix sets
+    ``content`` to an empty string for such turns.
+    """
+    _require_key()
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ThinkingPart,
+        UserPromptPart,
+    )
+
+    provider = _make_provider()
+    agent = provider.build_agent(
+        tier=Tier.DEFAULT,
+        system_prompt="You are a helpful assistant. Answer concisely.",
+    )
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="Say hi.")]),
+        ModelResponse(parts=[ThinkingPart(content="Good")]),
+    ]
+    try:
+        result = agent.run_sync(
+            "What is 2+2? Answer with just the number.",
+            message_history=history,
+            model_settings={"max_tokens": 50},
+        )
+        assert result.output is not None
+    finally:
+        agent.close()
