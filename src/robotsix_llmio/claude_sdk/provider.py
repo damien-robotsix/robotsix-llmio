@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..core.provider import LLMProvider, Tier
-from ..core.tracing import get_tracer, start_span
+from ..core.tracing import OP_CHAT, get_tracer, start_span
 from .transient import is_claude_sdk_transient
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
@@ -520,7 +520,7 @@ class _SdkToolAgentHandle:
             get_tracer(_TRACER_NAME),
             f"chat {self._sdk_model}",
             {
-                "gen_ai.operation.name": "chat",
+                "gen_ai.operation.name": OP_CHAT,
                 "gen_ai.system": "anthropic",
                 "gen_ai.request.model": self._sdk_model,
                 # Record system + user as chat messages so the system prompt
