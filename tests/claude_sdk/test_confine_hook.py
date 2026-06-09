@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import asyncio
 
-from robotsix_llmio.claude_sdk.provider import (
-    ClaudeSDKProvider,
+from robotsix_llmio.claude_sdk._tool_agent import (
     _is_within,
     _make_confine_hook,
+)
+from robotsix_llmio.claude_sdk.provider import (
+    ClaudeSDKProvider,
 )
 
 
