@@ -20,9 +20,9 @@ from typing import Any
 
 import httpx
 
+from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from .cost_log import CostRecord, CostWindow, LoggedCost
 
-_DEFAULT_BASE_URL = "https://cloud.langfuse.com"
 _PAGE_LIMIT = 100
 _TIMEOUT = 20
 

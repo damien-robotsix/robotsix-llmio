@@ -37,6 +37,9 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 from ._otel import (
+    _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL,
+)
+from ._otel import (
     OP_CHAT as OP_CHAT,
 )
 from ._otel import (
@@ -46,8 +49,6 @@ from ._otel import (
     get_tracer,
     start_span,
 )
-
-_DEFAULT_BASE_URL = "https://cloud.langfuse.com"
 
 # The installed SDK TracerProvider (set once), the registered projects (public
 # key -> {base_url, project_id}, also the dedup set), and the default project

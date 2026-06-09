@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 # Semantic-convention operation names (OpenTelemetry GenAI conventions v1.37+)
 OP_CHAT = "chat"
 
+_DEFAULT_LANGFUSE_BASE_URL = "https://cloud.langfuse.com"
+
 if TYPE_CHECKING:
     from opentelemetry.trace import Span
 
