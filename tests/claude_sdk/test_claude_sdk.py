@@ -30,6 +30,14 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import Tool as PydanticTool
 
+from robotsix_llmio.claude_sdk._tool_agent import (
+    _chat_messages_input,
+    _convert_tools,
+    _extract_json_object,
+    _parse_output,
+    _SdkToolAgentHandle,
+    _SdkToolResult,
+)
 from robotsix_llmio.claude_sdk.model import (
     ClaudeSDKModel,
     _map_usage,
@@ -37,12 +45,6 @@ from robotsix_llmio.claude_sdk.model import (
 )
 from robotsix_llmio.claude_sdk.provider import (
     ClaudeSDKProvider,
-    _chat_messages_input,
-    _convert_tools,
-    _extract_json_object,
-    _parse_output,
-    _SdkToolAgentHandle,
-    _SdkToolResult,
 )
 from robotsix_llmio.claude_sdk.transient import (
     is_claude_sdk_transient,
@@ -563,7 +565,7 @@ def test_generation_span_input_includes_system_prompt(monkeypatch):
         InMemorySpanExporter,
     )
 
-    import robotsix_llmio.claude_sdk.provider as prov
+    import robotsix_llmio.claude_sdk._tool_agent as _ta
 
     exporter = InMemorySpanExporter()
     provider_obj = TracerProvider()
@@ -571,7 +573,7 @@ def test_generation_span_input_includes_system_prompt(monkeypatch):
     tracer = provider_obj.get_tracer("test")
     # Route the module's spans to our isolated, recording provider (the offline
     # suite installs no global TracerProvider).
-    monkeypatch.setattr(prov, "get_tracer", lambda _name: tracer)
+    monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
 
     fake = _install_fake_sdk(monkeypatch)
 
