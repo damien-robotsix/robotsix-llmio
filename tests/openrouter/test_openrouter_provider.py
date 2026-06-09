@@ -10,6 +10,10 @@ explicitly via ``monkeypatch``.
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
 
 from robotsix_llmio.core.provider import Tier
@@ -46,3 +50,118 @@ def test_env_var_fallback_succeeds(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-env")
     provider = _Concrete(api_key=None)
     assert provider._api_key == "sk-env"
+
+
+# ---------------------------------------------------------------------------
+# Tests for ``new_model()``
+# ---------------------------------------------------------------------------
+
+
+class _NewModelProvider(OpenRouterProvider):
+    """Concrete provider for ``new_model`` tests.
+
+    Overrides every hook so the test can control inputs and observe side
+    effects without touching the network or pydantic-ai internals.
+    """
+
+    def __init__(self, *, api_key: str = "sk-test"):
+        super().__init__(api_key=api_key)
+        self._post_build_calls: list[tuple] = []
+        self._model_cls_mock = MagicMock()
+
+    def _tier_models(self) -> dict[Tier, str]:
+        return {Tier.DEFAULT: "test-model-default", Tier.CHEAP: "cheap-model"}
+
+    def _model_class(self):
+        return self._model_cls_mock
+
+    def _post_build_model(self, model, tier):
+        self._post_build_calls.append((model, tier))
+
+
+def _install_fake_pydantic_openrouter(monkeypatch) -> MagicMock:
+    """Inject a fake ``pydantic_ai.providers.openrouter`` module so the
+    lazy import inside ``new_model()`` succeeds.
+
+    Returns the mock ``OpenRouterProvider`` class so tests can assert it
+    was called with the expected arguments.
+    """
+    mock_provider_cls = MagicMock()
+    fake_openrouter = SimpleNamespace(OpenRouterProvider=mock_provider_cls)
+    for key, val in [
+        ("pydantic_ai", SimpleNamespace()),
+        ("pydantic_ai.providers", SimpleNamespace()),
+        ("pydantic_ai.providers.openrouter", fake_openrouter),
+    ]:
+        sys.modules[key] = val
+        monkeypatch.setitem(sys.modules, key, val)
+    return mock_provider_cls
+
+
+def test_new_model_returns_model_and_http_client(monkeypatch):
+    """``new_model()`` returns a ``(model, http_client)`` 2-tuple."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    model, http_client = provider.new_model(Tier.DEFAULT)
+
+    assert http_client is mock_http
+    assert model is not None
+
+
+def test_new_model_passes_correct_model_name(monkeypatch):
+    """``new_model()`` passes the tier's model name as the first positional
+    argument to the model-class constructor."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    provider.new_model(Tier.DEFAULT)
+
+    provider._model_cls_mock.assert_called_once()
+    args = provider._model_cls_mock.call_args[0]
+    assert args[0] == "test-model-default"
+
+
+def test_new_model_returns_http_client_from_timeout_client(monkeypatch):
+    """The ``http_client`` returned by ``new_model()`` is the exact object
+    created by ``timeout_http_client()``."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    _, http_client = provider.new_model(Tier.DEFAULT)
+
+    assert http_client is mock_http
+
+
+def test_new_model_calls_post_build_model(monkeypatch):
+    """``new_model()`` invokes ``_post_build_model`` with the constructed
+    model and the requested tier."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    model, _ = provider.new_model(Tier.CHEAP)
+
+    assert len(provider._post_build_calls) == 1
+    called_model, called_tier = provider._post_build_calls[0]
+    assert called_model is model
+    assert called_tier == Tier.CHEAP
