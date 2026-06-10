@@ -144,6 +144,10 @@ The flow is:
    to PyPI via **Trusted Publishing (OIDC)** — no API token is stored or
    required.
 
+Record user-facing changes under the `## [Unreleased]` section of `CHANGELOG.md`
+as part of your PR. When cutting a release, rename `[Unreleased]` to the new
+version with the release date.
+
 ### One-time maintainer setup
 
 Trusted Publishing must be registered once by a project maintainer at

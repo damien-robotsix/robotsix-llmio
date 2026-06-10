@@ -13,3 +13,4 @@ nav:
   - OpenRouter: openrouter/index.md
   - OpenRouter DeepSeek: openrouter_deepseek/index.md
   - Claude SDK: claude_sdk/index.md
+  - Changelog: changelog.md
