@@ -40,14 +40,18 @@ from ._otel import (
     _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL,
 )
 from ._otel import (
+    LANGFUSE_OBSERVATION_INPUT,
+    LANGFUSE_OBSERVATION_OUTPUT,
+    LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SESSION_ID,
+    get_tracer,
+    start_span,
+)
+from ._otel import (
     OP_CHAT as OP_CHAT,
 )
 from ._otel import (
     get_recording_span as get_recording_span,
-)
-from ._otel import (
-    get_tracer,
-    start_span,
 )
 
 # The installed SDK TracerProvider (set once), the registered projects (public
@@ -183,7 +187,7 @@ def setup_langfuse_tracing(
                 sid = _current_session.get()
                 if sid:
                     span.set_attribute("session.id", sid)
-                    span.set_attribute("langfuse.session.id", sid)
+                    span.set_attribute(LANGFUSE_SESSION_ID, sid)
 
                 # Three-tier routing key resolution:
                 ctx = span.get_span_context()
@@ -205,7 +209,7 @@ def setup_langfuse_tracing(
                     pk = _default_public_key
 
                 if pk:
-                    span.set_attribute("langfuse.public_key", pk)
+                    span.set_attribute(LANGFUSE_PUBLIC_KEY, pk)
                     # Record so children can inherit via trace-level routing.
                     with _trace_routing_lock:
                         _trace_routing[trace_id] = pk
@@ -249,13 +253,13 @@ def setup_langfuse_tracing(
 
         def on_end(self, span):  # type: ignore[no-untyped-def]
             attrs = span.attributes or {}
-            if "langfuse.public_key" not in attrs:
+            if LANGFUSE_PUBLIC_KEY not in attrs:
                 _throttled_debug(
                     f"Span {span.name!r} has no langfuse.public_key "
                     f"attribute — will be dropped by all exporters."
                 )
                 return
-            if attrs.get("langfuse.public_key") != self._target:
+            if attrs.get(LANGFUSE_PUBLIC_KEY) != self._target:
                 return  # belongs to a different project
             super().on_end(span)
 
@@ -416,12 +420,12 @@ class TraceSpan:
     def set_input(self, value: Any) -> None:
         """Record *value* as the trace-level input (no-op when not recording)."""
         if self._span is not None and self._span.is_recording():
-            self._span.set_attribute("langfuse.observation.input", _to_text(value))
+            self._span.set_attribute(LANGFUSE_OBSERVATION_INPUT, _to_text(value))
 
     def set_output(self, value: Any) -> None:
         """Record *value* as the trace-level output (no-op when not recording)."""
         if self._span is not None and self._span.is_recording():
-            self._span.set_attribute("langfuse.observation.output", _to_text(value))
+            self._span.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, _to_text(value))
 
 
 @contextlib.contextmanager

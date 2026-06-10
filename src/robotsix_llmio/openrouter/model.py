@@ -13,6 +13,20 @@ from typing import Any
 
 from pydantic_ai.models.openai import OpenAIChatModel
 
+from robotsix_llmio.core._otel import (
+    GEN_AI_OPERATION_NAME,
+    GEN_AI_PROVIDER_NAME,
+    GEN_AI_REQUEST_MODEL,
+    GEN_AI_SYSTEM,
+    GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+    GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+    GEN_AI_USAGE_COST,
+    GEN_AI_USAGE_INPUT_TOKENS,
+    GEN_AI_USAGE_OUTPUT_TOKENS,
+    GEN_AI_USAGE_REASONING_TOKENS,
+    LANGFUSE_OBSERVATION_COST_DETAILS,
+    LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+)
 from robotsix_llmio.core.tracing import OP_CHAT, get_recording_span
 
 PROVIDER_NAME: str = "openrouter"
@@ -73,26 +87,26 @@ def record_openrouter_cost(response: Any) -> None:
         return
 
     usage_obj = getattr(response, "usage", None)
-    span.set_attribute("gen_ai.usage.cost", cost)
-    span.set_attribute("langfuse.observation.cost_details", json.dumps({"total": cost}))
-    span.set_attribute("gen_ai.operation.name", OP_CHAT)
-    span.set_attribute("gen_ai.provider.name", PROVIDER_NAME)
-    span.set_attribute("gen_ai.system", PROVIDER_NAME)
+    span.set_attribute(GEN_AI_USAGE_COST, cost)
+    span.set_attribute(LANGFUSE_OBSERVATION_COST_DETAILS, json.dumps({"total": cost}))
+    span.set_attribute(GEN_AI_OPERATION_NAME, OP_CHAT)
+    span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
+    span.set_attribute(GEN_AI_SYSTEM, PROVIDER_NAME)
     # Provider tag Langfuse indexes onto the observation's metadata, so a
     # consumer can sum logged cost PER PROVIDER (cost reconciliation filters
     # the logged side to "openrouter" to match an OpenRouter key's scope).
-    span.set_attribute("langfuse.observation.metadata.provider", PROVIDER_NAME)
+    span.set_attribute(LANGFUSE_OBSERVATION_METADATA_PROVIDER, PROVIDER_NAME)
 
     model = getattr(response, "model", None)
     if model:
-        span.set_attribute("gen_ai.request.model", model)
+        span.set_attribute(GEN_AI_REQUEST_MODEL, model)
     if usage_obj is not None:
         prompt_tokens = getattr(usage_obj, "prompt_tokens", None)
         if prompt_tokens is not None:
-            span.set_attribute("gen_ai.usage.input_tokens", prompt_tokens)
+            span.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, prompt_tokens)
         completion_tokens = getattr(usage_obj, "completion_tokens", None)
         if completion_tokens is not None:
-            span.set_attribute("gen_ai.usage.output_tokens", completion_tokens)
+            span.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, completion_tokens)
         prompt_details = getattr(usage_obj, "prompt_tokens_details", None)
         if prompt_details is not None:
             if isinstance(prompt_details, dict):
@@ -104,10 +118,10 @@ def record_openrouter_cost(response: Any) -> None:
                     prompt_details, "cache_creation_input_tokens", None
                 )
             if cached is not None:
-                span.set_attribute("gen_ai.usage.cache_read_input_tokens", cached)
+                span.set_attribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, cached)
             if cache_creation is not None:
                 span.set_attribute(
-                    "gen_ai.usage.cache_creation_input_tokens", cache_creation
+                    GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, cache_creation
                 )
         completion_details = getattr(usage_obj, "completion_tokens_details", None)
         if completion_details is not None:
@@ -116,7 +130,7 @@ def record_openrouter_cost(response: Any) -> None:
             else:
                 reasoning = getattr(completion_details, "reasoning_tokens", None)
             if reasoning is not None:
-                span.set_attribute("gen_ai.usage.reasoning_tokens", reasoning)
+                span.set_attribute(GEN_AI_USAGE_REASONING_TOKENS, reasoning)
 
 
 class OpenRouterModel(OpenAIChatModel):

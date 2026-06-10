@@ -13,7 +13,14 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from ._otel import OP_CHAT, get_recording_span
+from ._otel import (
+    GEN_AI_OPERATION_NAME,
+    GEN_AI_USAGE_COST,
+    LANGFUSE_OBSERVATION_COST_DETAILS,
+    LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+    OP_CHAT,
+    get_recording_span,
+)
 
 
 def record_cost(
@@ -37,12 +44,12 @@ def record_cost(
     span = get_recording_span()
     if span is None:
         return
-    span.set_attribute("gen_ai.usage.cost", cost)
-    span.set_attribute("gen_ai.operation.name", OP_CHAT)
+    span.set_attribute(GEN_AI_USAGE_COST, cost)
+    span.set_attribute(GEN_AI_OPERATION_NAME, OP_CHAT)
     # Langfuse cost rollup (harmless span attribute for other backends).
-    span.set_attribute("langfuse.observation.cost_details", json.dumps({"total": cost}))
+    span.set_attribute(LANGFUSE_OBSERVATION_COST_DETAILS, json.dumps({"total": cost}))
     if provider:
-        span.set_attribute("langfuse.observation.metadata.provider", provider)
+        span.set_attribute(LANGFUSE_OBSERVATION_METADATA_PROVIDER, provider)
 
 
 def flush_current_provider() -> None:

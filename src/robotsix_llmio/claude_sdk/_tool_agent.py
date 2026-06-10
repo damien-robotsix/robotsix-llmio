@@ -16,6 +16,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ..core._otel import (
+    GEN_AI_OPERATION_NAME,
+    GEN_AI_REQUEST_MODEL,
+    GEN_AI_SYSTEM,
+    GEN_AI_TOOL_NAME,
+    GEN_AI_USAGE_INPUT_TOKENS,
+    GEN_AI_USAGE_OUTPUT_TOKENS,
+    LANGFUSE_OBSERVATION_INPUT,
+    LANGFUSE_OBSERVATION_OUTPUT,
+    OP_EXECUTE_TOOL,
+    OP_INVOKE_AGENT,
+)
 from ..core.tracing import OP_CHAT, get_tracer, start_span
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
@@ -207,9 +219,9 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
                 get_tracer(_TRACER_NAME),
                 _name,
                 {
-                    "gen_ai.operation.name": "execute_tool",
-                    "gen_ai.tool.name": _name,
-                    "langfuse.observation.input": json.dumps(args, default=str),
+                    GEN_AI_OPERATION_NAME: OP_EXECUTE_TOOL,
+                    GEN_AI_TOOL_NAME: _name,
+                    LANGFUSE_OBSERVATION_INPUT: json.dumps(args, default=str),
                 },
             ) as sp:
                 if _is_async:
@@ -217,7 +229,7 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
                 else:
                     result = _fn(**args)
                 if sp is not None:
-                    sp.set_attribute("langfuse.observation.output", str(result))
+                    sp.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, str(result))
                 return {"content": [{"type": "text", "text": str(result)}]}
 
         wrapped.append(_wrapper)
@@ -508,25 +520,23 @@ class _SdkToolAgentHandle:
             get_tracer(_TRACER_NAME),
             f"chat {self._sdk_model}",
             {
-                "gen_ai.operation.name": OP_CHAT,
-                "gen_ai.system": "anthropic",
-                "gen_ai.request.model": self._sdk_model,
+                GEN_AI_OPERATION_NAME: OP_CHAT,
+                GEN_AI_SYSTEM: "anthropic",
+                GEN_AI_REQUEST_MODEL: self._sdk_model,
                 # Record system + user as chat messages so the system prompt
                 # (sent to the SDK, but previously absent from traces) shows
                 # up on the generation in Langfuse.
-                "langfuse.observation.input": _chat_messages_input(
-                    system_prompt, prompt
-                ),
-                "langfuse.observation.output": text,
+                LANGFUSE_OBSERVATION_INPUT: _chat_messages_input(system_prompt, prompt),
+                LANGFUSE_OBSERVATION_OUTPUT: text,
             },
         ) as gen:
             if gen is not None and isinstance(usage_obj, dict):
                 in_tok = usage_obj.get("input_tokens")
                 out_tok = usage_obj.get("output_tokens")
                 if in_tok is not None:
-                    gen.set_attribute("gen_ai.usage.input_tokens", int(in_tok))
+                    gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
                 if out_tok is not None:
-                    gen.set_attribute("gen_ai.usage.output_tokens", int(out_tok))
+                    gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
             record_cost(
                 result,
                 lambda r: getattr(r, "total_cost_usd", None),
@@ -539,12 +549,12 @@ class _SdkToolAgentHandle:
         prompt, system_prompt = self._prepare_prompt(user_prompt, message_history)
         options = self._build_options(system_prompt)
         root_attrs = {
-            "gen_ai.operation.name": "invoke_agent",
-            "gen_ai.system": "anthropic",
-            "gen_ai.request.model": self._sdk_model,
+            GEN_AI_OPERATION_NAME: OP_INVOKE_AGENT,
+            GEN_AI_SYSTEM: "anthropic",
+            GEN_AI_REQUEST_MODEL: self._sdk_model,
             # This span becomes the trace, so render system + user as chat messages
             # here too — system prompt then shows at the trace root, not just child.
-            "langfuse.observation.input": _chat_messages_input(system_prompt, prompt),
+            LANGFUSE_OBSERVATION_INPUT: _chat_messages_input(system_prompt, prompt),
         }
         with start_span(get_tracer(_TRACER_NAME), self._name, root_attrs) as root:
             log.info(
@@ -555,7 +565,7 @@ class _SdkToolAgentHandle:
             )
             text, result = await self._invoke_query(prompt, options)
             if root is not None:
-                root.set_attribute("langfuse.observation.output", text)
+                root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
             self._record_generation_span(system_prompt, prompt, text, result)
         from pydantic_ai.messages import ModelResponse, TextPart
 
