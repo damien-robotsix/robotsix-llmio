@@ -10,6 +10,7 @@ modules:
       - tests/core/test_core_http.py
       - tests/core/test_core_cost.py
       - tests/core/test_core_cost_log.py
+      - tests/core/test_langfuse_client.py
       - tests/core/test_langfuse_cost.py
       - tests/core/test_core_provider_cost.py
       - tests/core/test_otel.py

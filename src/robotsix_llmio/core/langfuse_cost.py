@@ -1,9 +1,12 @@
 """Langfuse implementation of the neutral :class:`CostLogSource` read seam.
 
-The **only** module that knows about the Langfuse REST API on the read path
-(the counterpart to the OTLP write export in :mod:`robotsix_llmio.core.tracing`).
-Self-contained: depends only on ``httpx`` and the public Langfuse REST API — no
-Langfuse SDK, no ``tracing`` extra.
+The window-aggregate read adapter: a thin
+:class:`~robotsix_llmio.core.cost_log.CostLogSource` over Langfuse, composing
+:class:`~robotsix_llmio.core.langfuse_client.LangfuseReadClient` for the actual
+Langfuse REST protocol (auth, base-URL, pagination, parsing). The client — not
+this module — is the one place that knows the Langfuse REST API on the read path
+(the counterpart to the OTLP write export in
+:mod:`robotsix_llmio.core.tracing`).
 
 ``LangfuseCostLogSource`` reads logged trace cost back over a time window via
 ``GET /api/public/traces``, paging through all results and aggregating
@@ -13,18 +16,22 @@ the consumer always constructs it with explicit keys.
 
 from __future__ import annotations
 
-import base64
-from collections.abc import Iterator
 from datetime import datetime
 from typing import Any
 
 import httpx
 
-from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from .cost_log import CostRecord, CostWindow, LoggedCost
+from .langfuse_client import (
+    _PAGE_LIMIT,
+    _TIMEOUT,
+    LangfuseReadClient,
+    _observation_cost,
+    _observation_provider,
+    _parse_timestamp,
+)
 
-_PAGE_LIMIT = 100
-_TIMEOUT = 20
+__all__ = ["LangfuseCostLogSource"]
 
 
 class LangfuseCostLogSource:
@@ -32,7 +39,9 @@ class LangfuseCostLogSource:
 
     Implements :class:`~robotsix_llmio.core.cost_log.CostLogSource`. Credentials
     are always passed in explicitly — the adapter reads no ``LANGFUSE_*`` env
-    vars (env defaulting, if any, belongs to the consumer).
+    vars (env defaulting, if any, belongs to the consumer). The Langfuse REST
+    kernel (auth, base-URL, pagination) is delegated to
+    :class:`~robotsix_llmio.core.langfuse_client.LangfuseReadClient`.
     """
 
     def __init__(
@@ -42,54 +51,11 @@ class LangfuseCostLogSource:
         secret_key: str,
         base_url: str | None = None,
     ) -> None:
-        self._public_key = public_key
-        self._secret_key = secret_key
-        self._base_url = (base_url or _DEFAULT_BASE_URL).rstrip("/")
-
-    def _auth_header(self) -> str:
-        """Build the ``Basic <base64(public:secret)>`` Authorization header."""
-        token = base64.b64encode(
-            f"{self._public_key}:{self._secret_key}".encode()
-        ).decode()
-        return f"Basic {token}"
-
-    def _iter_pages(
-        self,
-        url: str,
-        base_params: dict[str, Any],
-        headers: dict[str, str],
-        error_label: str,
-    ) -> Iterator[list[dict[str, Any]]]:
-        """Paginate ``url`` (1-based ``page``), yielding each page's ``data``.
-
-        Owns the ``httpx.Client``, the page loop, the non-2xx ``RuntimeError``
-        (labelled with *error_label*), the empty-``data`` break, and the
-        ``meta.totalPages`` termination.
-        """
-        with httpx.Client(timeout=_TIMEOUT) as client:
-            page = 1
-            while True:
-                resp = client.get(
-                    url,
-                    params={**base_params, "page": page},
-                    headers=headers,
-                )
-                if not (200 <= resp.status_code < 300):
-                    raise RuntimeError(
-                        f"Langfuse {error_label} failed: "
-                        f"HTTP {resp.status_code}: {resp.text[:200]}"
-                    )
-                body = resp.json()
-                data = body.get("data") or []
-                if not data:
-                    break
-                yield data
-                meta = body.get("meta")
-                if isinstance(meta, dict):
-                    total_pages = meta.get("totalPages")
-                    if isinstance(total_pages, int) and page >= total_pages:
-                        break
-                page += 1
+        self._client = LangfuseReadClient(
+            public_key=public_key,
+            secret_key=secret_key,
+            base_url=base_url,
+        )
 
     def fetch_logged_cost(self, window: CostWindow) -> LoggedCost:
         """Fetch and aggregate logged trace cost over *window*.
@@ -100,8 +66,7 @@ class LangfuseCostLogSource:
         :class:`CostRecord` per trace. Raises ``RuntimeError`` on any non-2xx
         response rather than silently returning zero.
         """
-        url = f"{self._base_url}/api/public/traces"
-        headers = {"Authorization": self._auth_header()}
+        url = f"{self._client.base_url}/api/public/traces"
         base_params: dict[str, Any] = {
             "fromTimestamp": window.start.isoformat(),
             "toTimestamp": window.end.isoformat(),
@@ -109,7 +74,9 @@ class LangfuseCostLogSource:
         }
 
         all_traces: list[dict[str, Any]] = []
-        for data in self._iter_pages(url, base_params, headers, "traces request"):
+        for data in self._client.iter_pages(
+            url, base_params, error_label="traces request"
+        ):
             all_traces.extend(data)
 
         records = [self._to_record(trace) for trace in all_traces]
@@ -134,8 +101,7 @@ class LangfuseCostLogSource:
         no server-side metadata filter, so paginate ``type=GENERATION`` over the
         window and filter client-side. Raises ``RuntimeError`` on non-2xx.
         """
-        url = f"{self._base_url}/api/public/observations"
-        headers = {"Authorization": self._auth_header()}
+        url = f"{self._client.base_url}/api/public/observations"
         base_params: dict[str, Any] = {
             "type": "GENERATION",
             "fromStartTime": window.start.isoformat(),
@@ -144,7 +110,9 @@ class LangfuseCostLogSource:
         }
 
         matched: list[dict[str, Any]] = []
-        for data in self._iter_pages(url, base_params, headers, "observations request"):
+        for data in self._client.iter_pages(
+            url, base_params, error_label="observations request"
+        ):
             for obs in data:
                 if _observation_provider(obs) == provider:
                     matched.append(obs)
@@ -167,8 +135,8 @@ class LangfuseCostLogSource:
         them in pages until none remain. Returns the count deleted; raises
         ``RuntimeError`` on any non-2xx response.
         """
-        url = f"{self._base_url}/api/public/traces"
-        headers = {"Authorization": self._auth_header()}
+        url = f"{self._client.base_url}/api/public/traces"
+        headers = {"Authorization": self._client.auth_header()}
         deleted = 0
         with httpx.Client(timeout=_TIMEOUT) as client:
             while True:
@@ -236,43 +204,3 @@ class LangfuseCostLogSource:
             session_id=obs.get("traceId"),
             name=obs.get("name"),
         )
-
-
-def _observation_provider(obs: dict[str, Any]) -> str | None:
-    """Pull the ``provider`` tag out of a Langfuse observation's metadata.
-
-    The write path stamps ``langfuse.observation.metadata.provider``, which
-    Langfuse surfaces under the observation's ``metadata`` dict.
-    """
-    metadata = obs.get("metadata")
-    if isinstance(metadata, dict):
-        provider = metadata.get("provider")
-        if provider is not None:
-            return str(provider)
-    return None
-
-
-def _observation_cost(obs: dict[str, Any]) -> float:
-    """USD cost of one Langfuse observation.
-
-    Prefers Langfuse's server-computed ``calculatedTotalCost``, then a raw
-    ``totalCost``, then ``costDetails.total`` (mirrors the write-side rollup).
-    """
-    for key in ("calculatedTotalCost", "totalCost"):
-        value = obs.get(key)
-        if value is not None:
-            return float(value or 0)
-    cost_details = obs.get("costDetails")
-    if isinstance(cost_details, dict) and cost_details.get("total") is not None:
-        return float(cost_details["total"] or 0)
-    return 0.0
-
-
-def _parse_timestamp(value: Any) -> datetime:
-    """Parse an ISO-8601 timestamp (tolerating a trailing ``Z``)."""
-    if isinstance(value, datetime):
-        return value
-    text = str(value or "")
-    if text.endswith("Z"):
-        text = f"{text[:-1]}+00:00"
-    return datetime.fromisoformat(text)
