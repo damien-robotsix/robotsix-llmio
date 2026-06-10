@@ -317,17 +317,9 @@ class _SdkToolResult:
     @property
     def usage(self) -> Any:
         """Aggregate token usage from the final ``ResultMessage``."""
-        from pydantic_ai.usage import RequestUsage
+        from ._usage import map_usage_dict
 
-        u = self._usage
-        if not isinstance(u, dict):
-            return RequestUsage()
-        return RequestUsage(
-            input_tokens=int(u.get("input_tokens") or 0),
-            output_tokens=int(u.get("output_tokens") or 0),
-            cache_read_tokens=int(u.get("cache_read_input_tokens") or 0),
-            cache_write_tokens=int(u.get("cache_creation_input_tokens") or 0),
-        )
+        return map_usage_dict(self._usage)
 
 
 class _SdkToolAgentHandle:
