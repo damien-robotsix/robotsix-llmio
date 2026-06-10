@@ -16,11 +16,14 @@ from .provider_cost import (
     reconcile,
 )
 from .retry import (
+    acall_with_retry,
+    acall_with_retry_and_fallback,
     call_with_retry,
     call_with_retry_and_fallback,
     is_rate_limited,
     is_transient,
 )
+from .run import arun_agent, run_agent
 from .tracing import (
     TraceSpan,
     active_routing_key,
@@ -53,7 +56,10 @@ __all__ = [
     "ProviderCostSource",
     "Tier",
     "TraceSpan",
+    "acall_with_retry",
+    "acall_with_retry_and_fallback",
     "active_routing_key",
+    "arun_agent",
     "build_agent",
     "call_with_retry",
     "call_with_retry_and_fallback",
@@ -69,6 +75,7 @@ __all__ = [
     "langfuse_trace_url",
     "make_session_id",
     "reconcile",
+    "run_agent",
     "setup_langfuse_tracing",
     "start_span",
     "start_trace",

@@ -18,10 +18,11 @@ tunable per call.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from typing import TypeVar
 
 from pydantic_ai import UsageLimitExceeded
@@ -226,6 +227,123 @@ def call_with_retry_and_fallback(
         _safe_flush()
         try:
             return call_with_retry(
+                fallback,
+                what=f"{what} (fallback)",
+                sleep=sleep,
+                is_transient_fn=is_transient_fallback,
+            )
+        except Exception as fallback_exc:
+            # Chain the primary cause so the original failure isn't lost when the
+            # fallback also fails.
+            raise fallback_exc from primary_exc
+
+
+async def acall_with_retry(
+    fn: Callable[[], Awaitable[T]],
+    *,
+    what: str = "model call",
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    fallback_fn: Callable[[], Awaitable[T]] | None = None,
+    is_transient_fn: Callable[[BaseException], bool] = is_transient,
+) -> T:
+    """Async mirror of :func:`call_with_retry`.
+
+    Identical retry/backoff/classification/one-shot-fallback semantics, except
+    ``fn``/``fallback_fn`` are awaited and ``sleep`` defaults to
+    :func:`asyncio.sleep` (kept injectable so tests can pass a no-op).
+    """
+    attempts = max(0, constants.TRANSIENT_RETRIES)
+    using_fallback = False
+    rate_limit_count = 0
+    cumulative_backoff = 0.0
+
+    for attempt in range(attempts + 1):
+        try:
+            if using_fallback:
+                assert fallback_fn is not None  # type-narrowing
+                return await fallback_fn()
+            return await fn()
+        except Exception as e:
+            if attempt >= attempts:
+                _safe_flush()
+                raise
+
+            if is_transient_fn(e):
+                delay = min(
+                    constants.TRANSIENT_BACKOFF_CAP,
+                    constants.TRANSIENT_BACKOFF_BASE * (2**attempt),
+                )
+                delay += random.uniform(0, delay / 2)  # jitter
+                cumulative_backoff += delay
+                log.warning(
+                    "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
+                    what,
+                    type(e).__name__,
+                    attempt + 1,
+                    attempts,
+                    delay,
+                )
+                _safe_flush()
+                await sleep(delay)
+                continue
+
+            if is_rate_limited(e):
+                rate_limit_count += 1
+                if not using_fallback and fallback_fn is not None:
+                    using_fallback = True
+                    log.warning(
+                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
+                        what,
+                    )
+                    _record_rate_limit_span(
+                        count=rate_limit_count,
+                        cumulative_backoff=cumulative_backoff,
+                        fallback_activated=True,
+                    )
+                    continue  # try fallback immediately, same attempt slot
+                _safe_flush()
+                raise
+
+            # non-retryable
+            _safe_flush()
+            raise
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+async def acall_with_retry_and_fallback(
+    primary: Callable[[], Awaitable[T]],
+    fallback: Callable[[], Awaitable[T]] | None,
+    *,
+    what: str = "model call",
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    is_transient_primary: Callable[[BaseException], bool] = is_transient,
+    is_transient_fallback: Callable[[BaseException], bool] = is_transient,
+    should_fallback: Callable[[BaseException], bool] = lambda _e: True,
+) -> T:
+    """Async mirror of :func:`call_with_retry_and_fallback`.
+
+    Retries *primary* locally through :func:`acall_with_retry`, then falls back
+    to *fallback* only when that whole session fails AND *should_fallback* of
+    the error is true. Same "retry locally first, fall back only when local
+    retries failed" semantics, including ``raise fallback_exc from primary_exc``
+    chaining when the fallback also fails.
+    """
+    try:
+        return await acall_with_retry(
+            primary, what=what, sleep=sleep, is_transient_fn=is_transient_primary
+        )
+    except Exception as primary_exc:
+        if fallback is None or not should_fallback(primary_exc):
+            raise
+        log.warning(
+            "%s: primary failed after local retries (%s) — falling back to the "
+            "secondary model",
+            what,
+            type(primary_exc).__name__,
+        )
+        _safe_flush()
+        try:
+            return await acall_with_retry(
                 fallback,
                 what=f"{what} (fallback)",
                 sleep=sleep,
