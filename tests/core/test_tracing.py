@@ -446,3 +446,74 @@ def test_active_routing_key():
         assert tracing.active_routing_key() == "pk-x"
 
     assert tracing.active_routing_key() is None
+
+
+# ---------------------------------------------------------------------------
+# Direct-construction unit test for the relocated _StampProcessor — no
+# TracerProvider, just a fake span. Gated on the tracing extra.
+# ---------------------------------------------------------------------------
+
+
+class _FakeSpanContext:
+    def __init__(self, trace_id: int) -> None:
+        self.trace_id = trace_id
+
+
+class _FakeSpan:
+    """Minimal span exposing what _StampProcessor reads/writes."""
+
+    def __init__(self, trace_id: int, parent=None) -> None:
+        self.attributes: dict = {}
+        self._ctx = _FakeSpanContext(trace_id)
+        self.parent = parent
+
+    def set_attribute(self, key, value):
+        self.attributes[key] = value
+
+    def get_span_context(self):
+        return self._ctx
+
+
+def test_stamp_processor_direct_construction_tiers(monkeypatch):
+    """Construct _StampProcessor directly (no OTel pipeline) and drive each
+    of the three routing tiers plus the on_end cleanup path."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+
+    proc = _StampProcessor()
+
+    # Tier 1: contextvar set → stamps session + that public key.
+    sess_token = tracing._current_session.set("sess-1")
+    pk_token = tracing._current_public_key.set("pk-ctx")
+    try:
+        span1 = _FakeSpan(trace_id=111)
+        proc.on_start(span1)
+    finally:
+        tracing._current_public_key.reset(pk_token)
+        tracing._current_session.reset(sess_token)
+    assert span1.attributes["session.id"] == "sess-1"
+    assert span1.attributes["langfuse.session.id"] == "sess-1"
+    assert span1.attributes["langfuse.public_key"] == "pk-ctx"
+    assert tracing._trace_routing[111] == "pk-ctx"
+
+    # Tier 2: contextvar None but trace-level routing pre-populated.
+    monkeypatch.setattr(tracing, "_trace_routing", {222: "pk-inherited"})
+    span2 = _FakeSpan(trace_id=222)
+    proc.on_start(span2)
+    assert span2.attributes["langfuse.public_key"] == "pk-inherited"
+    assert "session.id" not in span2.attributes
+
+    # Tier 3: contextvar None, no trace entry, single-tenant default.
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    span3 = _FakeSpan(trace_id=333)
+    proc.on_start(span3)
+    assert span3.attributes["langfuse.public_key"] == "pk-x"
+    assert tracing._trace_routing[333] == "pk-x"
+
+    # on_end on a root span (parent=None) removes the trace_id mapping.
+    proc.on_end(span3)
+    assert 333 not in tracing._trace_routing
