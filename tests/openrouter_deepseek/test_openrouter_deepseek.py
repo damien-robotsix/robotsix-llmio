@@ -256,3 +256,15 @@ def test_map_model_response_disabled_tier_strips_with_tool_calls(monkeypatch):
     )
     result = m._map_model_response(_thinking_message("t"))
     assert "reasoning_content" not in result
+
+
+# --- response key constants ------------------------------------------------
+
+
+def test_deepseek_response_key_constants_pin_wire_values():
+    """The extracted constants must keep their exact DeepSeek wire strings."""
+    from robotsix_llmio.openrouter_deepseek import model as ds_model
+
+    assert ds_model._REASONING_KEY == "reasoning"
+    assert ds_model._REASONING_CONTENT_KEY == "reasoning_content"
+    assert ds_model._TOOL_CALLS_KEY == "tool_calls"
