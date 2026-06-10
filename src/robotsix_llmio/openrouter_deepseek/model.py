@@ -39,6 +39,9 @@ from ..openrouter.model import OpenRouterModel, _resolve_model_settings
 
 _PINNED_PROVIDER = "DeepSeek"
 _PIN_MODEL_PREFIX = "deepseek/"
+_REASONING_KEY = "reasoning"
+_REASONING_CONTENT_KEY = "reasoning_content"
+_TOOL_CALLS_KEY = "tool_calls"
 
 
 def _reasoning_text(message: Any) -> str:
@@ -111,19 +114,19 @@ class OpenRouterDeepseekModel(OpenRouterModel):
             return param
 
         # Always clear the array/alias forms — DeepSeek only accepts the string.
-        param.pop("reasoning", None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
+        param.pop(_REASONING_KEY, None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
         param.pop("reasoning_details", None)  # type: ignore[typeddict-item,misc]  # DeepSeek-specific field not in OpenAI stubs
 
-        if self._echo_reasoning and param.get("tool_calls"):
+        if self._echo_reasoning and param.get(_TOOL_CALLS_KEY):
             # Present-but-possibly-empty string keeps the tool-call turn valid in
             # thinking mode even when the turn is synthetic/reconstructed.
-            param["reasoning_content"] = _reasoning_text(message)  # type: ignore[typeddict-unknown-key]  # DeepSeek-specific field not in OpenAI stubs
+            param[_REASONING_CONTENT_KEY] = _reasoning_text(message)  # type: ignore[typeddict-unknown-key]  # DeepSeek-specific field not in OpenAI stubs
         else:
-            param.pop("reasoning_content", None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
+            param.pop(_REASONING_CONTENT_KEY, None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
 
         # DeepSeek rejects an assistant message with neither content nor
         # tool_calls (a thinking-only turn maps to no text and no tool calls). A
         # present empty string keeps such turns valid; this holds on every tier.
-        if not param.get("tool_calls") and not param.get("content"):
+        if not param.get(_TOOL_CALLS_KEY) and not param.get("content"):
             param["content"] = ""
         return param
