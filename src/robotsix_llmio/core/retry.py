@@ -24,6 +24,8 @@ import time
 from collections.abc import Callable, Iterator
 from typing import TypeVar
 
+from pydantic_ai import UsageLimitExceeded
+
 from . import constants
 from ._otel import get_recording_span
 from .cost import flush_current_provider
@@ -75,7 +77,7 @@ def is_transient(exc: BaseException) -> bool:
 
     for cur in _walk_cause_chain(exc):
         name = type(cur).__name__
-        if name == "UsageLimitExceeded":
+        if isinstance(cur, UsageLimitExceeded):
             return False  # budget cap — never transient
         if isinstance(cur, (httpx.TimeoutException, httpx.TransportError)):
             return True
@@ -90,10 +92,7 @@ def is_transient(exc: BaseException) -> bool:
 def is_rate_limited(exc: BaseException) -> bool:
     """True only for ``UsageLimitExceeded`` (the pydantic-ai budget-cap
     exception). Walks the cause/context chain."""
-    for cur in _walk_cause_chain(exc):
-        if type(cur).__name__ == "UsageLimitExceeded":
-            return True
-    return False
+    return any(isinstance(cur, UsageLimitExceeded) for cur in _walk_cause_chain(exc))
 
 
 def _record_rate_limit_span(
