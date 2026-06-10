@@ -38,6 +38,7 @@ from robotsix_llmio.claude_sdk._tool_agent import (
     _SdkToolAgentHandle,
     _SdkToolResult,
 )
+from robotsix_llmio.claude_sdk._usage import map_usage_dict
 from robotsix_llmio.claude_sdk.model import (
     ClaudeSDKModel,
     _map_usage,
@@ -155,6 +156,46 @@ def test_map_usage_handles_none_and_partial():
         usage: ClassVar = {"input_tokens": 4}
 
     assert _map_usage(_R()).output_tokens == 0
+
+
+def test_map_usage_dict_full():
+    u = map_usage_dict(
+        {
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "cache_read_input_tokens": 3,
+            "cache_creation_input_tokens": 7,
+        }
+    )
+    assert (u.input_tokens, u.output_tokens) == (10, 5)
+    # key renames: cache_read_input_tokens -> cache_read_tokens,
+    # cache_creation_input_tokens -> cache_write_tokens
+    assert (u.cache_read_tokens, u.cache_write_tokens) == (3, 7)
+
+
+def test_map_usage_dict_partial_defaults_to_zero():
+    u = map_usage_dict({"input_tokens": 4})
+    assert u.input_tokens == 4
+    assert (u.output_tokens, u.cache_read_tokens, u.cache_write_tokens) == (0, 0, 0)
+
+
+def test_map_usage_dict_empty():
+    u = map_usage_dict({})
+    assert (u.input_tokens, u.output_tokens) == (0, 0)
+    assert (u.cache_read_tokens, u.cache_write_tokens) == (0, 0)
+
+
+def test_map_usage_dict_none():
+    u = map_usage_dict(None)
+    assert (u.input_tokens, u.output_tokens) == (0, 0)
+    assert (u.cache_read_tokens, u.cache_write_tokens) == (0, 0)
+
+
+def test_map_usage_dict_non_dict():
+    for bad in (["input_tokens", 1], "input_tokens=1"):
+        u = map_usage_dict(bad)
+        assert (u.input_tokens, u.output_tokens) == (0, 0)
+        assert (u.cache_read_tokens, u.cache_write_tokens) == (0, 0)
 
 
 # --- model identity --------------------------------------------------------

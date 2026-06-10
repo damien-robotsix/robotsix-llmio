@@ -38,6 +38,7 @@ from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
+from ._usage import map_usage_dict
 from .transient import is_claude_sdk_turn_limit
 
 PROVIDER_NAME = "claude-sdk"
@@ -147,14 +148,7 @@ def _map_usage(result: Any) -> RequestUsage:
     """Map a Claude Agent SDK ``ResultMessage.usage`` dict onto pydantic-ai's
     :class:`RequestUsage`. Defensive: a missing/partial dict yields zeros."""
     usage = getattr(result, "usage", None) if result is not None else None
-    if not isinstance(usage, dict):
-        return RequestUsage()
-    return RequestUsage(
-        input_tokens=int(usage.get("input_tokens") or 0),
-        output_tokens=int(usage.get("output_tokens") or 0),
-        cache_read_tokens=int(usage.get("cache_read_input_tokens") or 0),
-        cache_write_tokens=int(usage.get("cache_creation_input_tokens") or 0),
-    )
+    return map_usage_dict(usage)
 
 
 class ClaudeSDKModel(Model):
