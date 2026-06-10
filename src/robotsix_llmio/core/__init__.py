@@ -5,6 +5,7 @@ from __future__ import annotations
 from .agent import AgentHandle, build_agent
 from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
 from .http import timeout_http_client
+from .langfuse_client import LangfuseReadClient
 from .langfuse_cost import LangfuseCostLogSource
 from .provider import LLMProvider, Tier
 from .provider_cost import (
@@ -46,6 +47,7 @@ __all__ = [
     "Discrepancy",
     "LLMProvider",
     "LangfuseCostLogSource",
+    "LangfuseReadClient",
     "LoggedCost",
     "ProviderCost",
     "ProviderCostSource",
