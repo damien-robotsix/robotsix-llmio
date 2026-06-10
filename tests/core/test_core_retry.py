@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from pydantic_ai import UsageLimitExceeded
 
 from robotsix_llmio.core.retry import (
     _status,
@@ -17,10 +18,6 @@ from robotsix_llmio.core.retry import (
 class _HTTPErr(Exception):
     def __init__(self, status_code):
         self.status_code = status_code
-
-
-class UsageLimitExceeded(Exception):
-    """Name must match pydantic-ai's class — the detector keys on __name__."""
 
 
 def test_status_from_attr():
