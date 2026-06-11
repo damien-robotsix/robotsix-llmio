@@ -81,11 +81,14 @@ never leaves your machine.
 
 ## Use
 
-```python
-from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
-from robotsix_llmio.core import Tier
+Obtain a provider through `get_provider` and pick a `Tier` — **never** import a
+concrete provider class. The tier vocabulary is **normal** (`Tier.DEFAULT`) vs
+**light** (`Tier.CHEAP`).
 
-provider = OpenRouterDeepseekProvider(api_key="sk-or-...")  # or OPENROUTER_API_KEY env
+```python
+from robotsix_llmio.core import get_provider, Tier
+
+provider = get_provider(api_key="sk-or-...")  # or OPENROUTER_API_KEY env
 
 agent = provider.build_agent(
     tier=Tier.CHEAP,
@@ -98,9 +101,36 @@ result = provider.call_with_retry(lambda: agent.run_sync("Review this diff: ..."
 agent.close()
 ```
 
-The only knobs are the provider you import and the tier you pass. Everything
-else — reasoning policy, retry/backoff, timeouts, cost instrumentation — is
-fixed at values proven in production.
+The backend is resolved from config — no consumer code change is needed to swap
+it. By default `get_provider` resolves `openrouter-deepseek`; override it with
+the `LLMIO_PROVIDER` environment variable (e.g. `LLMIO_PROVIDER=claude-sdk`) or
+the explicit `provider=` argument (argument > env var > default). `get_provider`
+forwards any extra keyword arguments to the chosen backend's constructor, so
+pass the kwargs that backend accepts (e.g. `api_key=` for `openrouter-deepseek`,
+nothing for `claude-sdk`).
+
+Register a new backend name once with `register_provider`, then select it like
+any built-in:
+
+```python
+from robotsix_llmio.core import register_provider, get_provider
+
+register_provider(
+    "my-backend",
+    module="my_pkg.my_provider",
+    class_name="MyProvider",
+    extra="my_backend",
+)
+provider = get_provider(provider="my-backend")
+```
+
+The only knobs are the backend name (from config) and the tier you pass.
+Everything else — reasoning policy, retry/backoff, timeouts, cost
+instrumentation — is fixed at values proven in production.
+
+Importing a concrete provider class directly still works (e.g.
+`from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider`),
+but `get_provider` is the preferred entry point.
 
 ## Tracing & cost (Langfuse)
 
