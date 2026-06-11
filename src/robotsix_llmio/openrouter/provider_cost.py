@@ -21,8 +21,8 @@ import httpx
 
 from ..core.cost_log import CostWindow
 from ..core.provider_cost import ProviderCost
+from ._base import _DEFAULT_BASE_URL
 
-_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 _TIMEOUT = 20
 
 
