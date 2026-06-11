@@ -2,6 +2,7 @@
 
 from .agent import AgentHandle, build_agent
 from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
+from .factory import get_provider, register_provider
 from .http import timeout_http_client
 from .langfuse_client import LangfuseReadClient
 from .langfuse_cost import LangfuseCostLogSource
@@ -63,6 +64,7 @@ __all__ = [
     "call_with_retry_and_fallback",
     "current_session",
     "flush_tracing",
+    "get_provider",
     "get_recording_span",
     "get_tracer",
     "install_signal_handlers",
@@ -73,6 +75,7 @@ __all__ = [
     "langfuse_trace_url",
     "make_session_id",
     "reconcile",
+    "register_provider",
     "run_agent",
     "setup_langfuse_tracing",
     "start_span",
