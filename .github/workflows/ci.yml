@@ -32,40 +32,11 @@ jobs:
       - run: uv run mypy src/
 
   security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          python-version: '3.13'
-      - name: Install package + extras
-        run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra dev
-      - name: Dependency vulnerability audit
-        run: |
-          uv run pip-audit --format cyclonedx-json --output sbom.json || true
-          uv run pip-audit || true  # for human-readable report
-      - name: Upload SBOM artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.json
-          if-no-files-found: error
-
-  secrets-scan:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: TruffleHog secret scan
-        uses: trufflesecurity/trufflehog@main
-        with:
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --results=verified,unknown
+    uses: damien-robotsix/robotsix-mill/.github/workflows/python-security.yml@main
+    with:
+      install-extras: "openrouter_deepseek claude_sdk dev"
+      trufflehog-pr-diff: true
+      trufflehog-extra-args: "--results=verified,unknown"
 
   codeql:
     runs-on: ubuntu-latest
