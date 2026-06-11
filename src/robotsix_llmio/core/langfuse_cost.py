@@ -9,8 +9,9 @@ this module — is the one place that knows the Langfuse REST API on the read pa
 :mod:`robotsix_llmio.core.tracing`).
 
 ``LangfuseCostLogSource`` reads logged trace cost back over a time window via
-``GET /api/public/traces``, paging through all results and aggregating
-trace-level ``totalCost`` into a :class:`LoggedCost`. It bakes no credentials:
+``GET`` on the public traces endpoint, paging through all results and
+aggregating trace-level ``totalCost`` into a :class:`LoggedCost`. It bakes no
+credentials:
 the consumer always constructs it with explicit keys.
 """
 
@@ -24,7 +25,9 @@ import httpx
 from .constants import HTTP_CLIENT_TIMEOUT
 from .cost_log import CostRecord, CostWindow, LoggedCost
 from .langfuse_client import (
+    _OBSERVATIONS_PATH,
     _PAGE_LIMIT,
+    _TRACES_PATH,
     LangfuseReadClient,
     _observation_cost,
     _observation_provider,
@@ -60,13 +63,13 @@ class LangfuseCostLogSource:
     def fetch_logged_cost(self, window: CostWindow) -> LoggedCost:
         """Fetch and aggregate logged trace cost over *window*.
 
-        Pages through ``/api/public/traces`` (1-based ``page`` + ``limit``)
+        Pages through the public traces endpoint (1-based ``page`` + ``limit``)
         until a page returns no data (or the response's ``meta.totalPages`` is
         reached), then sums trace-level ``totalCost`` and builds a
         :class:`CostRecord` per trace. Raises ``RuntimeError`` on any non-2xx
         response rather than silently returning zero.
         """
-        url = f"{self._client.base_url}/api/public/traces"
+        url = f"{self._client.base_url}{_TRACES_PATH}"
         base_params: dict[str, Any] = {
             "fromTimestamp": window.start.isoformat(),
             "toTimestamp": window.end.isoformat(),
@@ -101,7 +104,7 @@ class LangfuseCostLogSource:
         no server-side metadata filter, so paginate ``type=GENERATION`` over the
         window and filter client-side. Raises ``RuntimeError`` on non-2xx.
         """
-        url = f"{self._client.base_url}/api/public/observations"
+        url = f"{self._client.base_url}{_OBSERVATIONS_PATH}"
         base_params: dict[str, Any] = {
             "type": "GENERATION",
             "fromStartTime": window.start.isoformat(),
@@ -135,7 +138,7 @@ class LangfuseCostLogSource:
         them in pages until none remain. Returns the count deleted; raises
         ``RuntimeError`` on any non-2xx response.
         """
-        url = f"{self._client.base_url}/api/public/traces"
+        url = f"{self._client.base_url}{_TRACES_PATH}"
         headers = {"Authorization": self._client.auth_header()}
         deleted = 0
         with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:

@@ -45,6 +45,14 @@ def _client() -> LangfuseReadClient:
 
 
 # --------------------------------------------------------------------------- #
+# REST read-path constants (wire contract)
+# --------------------------------------------------------------------------- #
+def test_rest_path_constants_match_wire_strings():
+    assert langfuse_client_module._TRACES_PATH == "/api/public/traces"
+    assert langfuse_client_module._OBSERVATIONS_PATH == "/api/public/observations"
+
+
+# --------------------------------------------------------------------------- #
 # auth_header / base_url / url
 # --------------------------------------------------------------------------- #
 def test_auth_header_is_basic_base64():
