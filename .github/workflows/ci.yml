@@ -5,25 +5,31 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  ci:
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python: ["3.11", "3.12", "3.13"]
+    uses: damien-robotsix/robotsix-mill/.github/workflows/python-ci.yml@main
+    with:
+      python-version: ${{ matrix.python }}
+      install-extras: "openrouter_deepseek claude_sdk tracing dev"
+      cov-package: src/robotsix_llmio
+      coverage-threshold: "90"
+      pytest-args: '-m "not live"'
+      run-deptry: false
+      run-bandit: true
+      mypy-advisory: true
+
+  mypy:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
-      - name: Install package + extras
-        run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra tracing --extra dev
-      - name: Lint (ruff)
-        run: uv run ruff check .
-      - name: Type-check (mypy)
-        run: uv run mypy src/
-      - name: Test with coverage
-        run: uv run pytest --cov=src/robotsix_llmio --cov-report=term-missing --cov-fail-under=90
+          python-version: '3.13'
+      - run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra tracing --extra dev
+      - run: uv run mypy src/
 
   security:
     runs-on: ubuntu-latest
@@ -35,8 +41,6 @@ jobs:
           python-version: '3.13'
       - name: Install package + extras
         run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra dev
-      - name: Bandit security scan
-        run: uv run bandit -r src/ -ll
       - name: Dependency vulnerability audit
         run: |
           uv run pip-audit --format cyclonedx-json --output sbom.json || true
