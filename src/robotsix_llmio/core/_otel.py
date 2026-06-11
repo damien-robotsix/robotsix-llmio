@@ -31,6 +31,7 @@ LANGFUSE_PUBLIC_KEY = "langfuse.public_key"
 LANGFUSE_OBSERVATION_INPUT = "langfuse.observation.input"
 LANGFUSE_OBSERVATION_OUTPUT = "langfuse.observation.output"
 LANGFUSE_OBSERVATION_COST_DETAILS = "langfuse.observation.cost_details"
+LANGFUSE_COST_DETAILS_TOTAL_KEY = "total"
 LANGFUSE_OBSERVATION_METADATA_PROVIDER = "langfuse.observation.metadata.provider"
 
 _DEFAULT_LANGFUSE_BASE_URL = "https://cloud.langfuse.com"

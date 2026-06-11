@@ -30,6 +30,7 @@ from typing import Any
 import httpx
 
 from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
+from ._otel import LANGFUSE_COST_DETAILS_TOTAL_KEY
 from .constants import HTTP_CLIENT_TIMEOUT
 
 _PAGE_LIMIT = 100
@@ -156,8 +157,11 @@ def _observation_cost(obs: dict[str, Any]) -> float:
         if value is not None:
             return float(value or 0)
     cost_details = obs.get("costDetails")
-    if isinstance(cost_details, dict) and cost_details.get("total") is not None:
-        return float(cost_details["total"] or 0)
+    if (
+        isinstance(cost_details, dict)
+        and cost_details.get(LANGFUSE_COST_DETAILS_TOTAL_KEY) is not None
+    ):
+        return float(cost_details[LANGFUSE_COST_DETAILS_TOTAL_KEY] or 0)
     return 0.0
 
 

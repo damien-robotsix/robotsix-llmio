@@ -16,6 +16,7 @@ from typing import Any
 from ._otel import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_USAGE_COST,
+    LANGFUSE_COST_DETAILS_TOTAL_KEY,
     LANGFUSE_OBSERVATION_COST_DETAILS,
     LANGFUSE_OBSERVATION_METADATA_PROVIDER,
     OP_CHAT,
@@ -47,7 +48,10 @@ def record_cost(
     span.set_attribute(GEN_AI_USAGE_COST, cost)
     span.set_attribute(GEN_AI_OPERATION_NAME, OP_CHAT)
     # Langfuse cost rollup (harmless span attribute for other backends).
-    span.set_attribute(LANGFUSE_OBSERVATION_COST_DETAILS, json.dumps({"total": cost}))
+    span.set_attribute(
+        LANGFUSE_OBSERVATION_COST_DETAILS,
+        json.dumps({LANGFUSE_COST_DETAILS_TOTAL_KEY: cost}),
+    )
     if provider:
         span.set_attribute(LANGFUSE_OBSERVATION_METADATA_PROVIDER, provider)
 
