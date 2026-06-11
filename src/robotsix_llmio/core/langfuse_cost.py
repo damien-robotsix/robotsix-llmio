@@ -21,10 +21,10 @@ from typing import Any
 
 import httpx
 
+from .constants import HTTP_CLIENT_TIMEOUT
 from .cost_log import CostRecord, CostWindow, LoggedCost
 from .langfuse_client import (
     _PAGE_LIMIT,
-    _TIMEOUT,
     LangfuseReadClient,
     _observation_cost,
     _observation_provider,
@@ -138,7 +138,7 @@ class LangfuseCostLogSource:
         url = f"{self._client.base_url}/api/public/traces"
         headers = {"Authorization": self._client.auth_header()}
         deleted = 0
-        with httpx.Client(timeout=_TIMEOUT) as client:
+        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             while True:
                 # page=1 + asc: after each delete the oldest shifts forward, so
                 # page 1 keeps yielding the next oldest batch ≤ cutoff.

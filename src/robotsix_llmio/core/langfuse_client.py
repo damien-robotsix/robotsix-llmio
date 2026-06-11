@@ -30,9 +30,9 @@ from typing import Any
 import httpx
 
 from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
+from .constants import HTTP_CLIENT_TIMEOUT
 
 _PAGE_LIMIT = 100
-_TIMEOUT = 20
 
 
 class LangfuseReadClient:
@@ -88,7 +88,7 @@ class LangfuseReadClient:
         target = url if "://" in url else self.url(url)
         base_params = dict(params or {})
         headers = {"Authorization": self.auth_header()}
-        with httpx.Client(timeout=_TIMEOUT) as client:
+        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             page = 1
             while True:
                 resp = client.get(

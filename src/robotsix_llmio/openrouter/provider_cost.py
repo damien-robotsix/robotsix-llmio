@@ -19,11 +19,10 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from ..core.constants import HTTP_CLIENT_TIMEOUT
 from ..core.cost_log import CostWindow
 from ..core.provider_cost import ProviderCost
 from ._base import _DEFAULT_BASE_URL
-
-_TIMEOUT = 20
 
 
 @dataclass(frozen=True)
@@ -61,7 +60,7 @@ class OpenRouterKeyCostSource:
         """
         url = f"{self._base_url}/auth/key"
         headers = {"Authorization": f"Bearer {self._key}"}
-        with httpx.Client(timeout=_TIMEOUT) as client:
+        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             resp = client.get(url, headers=headers)
         if not (200 <= resp.status_code < 300):
             raise RuntimeError(
@@ -104,7 +103,7 @@ class OpenRouterProviderCostSource:
         headers = {"Authorization": f"Bearer {self._key}"}
         url = f"{self._base_url}/activity"
 
-        with httpx.Client(timeout=_TIMEOUT) as client:
+        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             for date_str in _utc_dates(window):
                 resp = client.get(url, params={"date": date_str}, headers=headers)
                 if not (200 <= resp.status_code < 300):
