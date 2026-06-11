@@ -24,6 +24,7 @@ from robotsix_llmio.core._otel import (
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
     GEN_AI_USAGE_REASONING_TOKENS,
+    LANGFUSE_COST_DETAILS_TOTAL_KEY,
     LANGFUSE_OBSERVATION_COST_DETAILS,
     LANGFUSE_OBSERVATION_METADATA_PROVIDER,
 )
@@ -88,7 +89,10 @@ def record_openrouter_cost(response: Any) -> None:
 
     usage_obj = getattr(response, "usage", None)
     span.set_attribute(GEN_AI_USAGE_COST, cost)
-    span.set_attribute(LANGFUSE_OBSERVATION_COST_DETAILS, json.dumps({"total": cost}))
+    span.set_attribute(
+        LANGFUSE_OBSERVATION_COST_DETAILS,
+        json.dumps({LANGFUSE_COST_DETAILS_TOTAL_KEY: cost}),
+    )
     span.set_attribute(GEN_AI_OPERATION_NAME, OP_CHAT)
     span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
     span.set_attribute(GEN_AI_SYSTEM, PROVIDER_NAME)
