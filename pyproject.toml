@@ -93,7 +93,17 @@ testpaths = ["tests"]
 # Live tests are opt-in: deselected by default so a plain `pytest` (and CI)
 # never hits the network. Run them explicitly with `pytest -m live` (which
 # overrides this) — they still self-skip without OPENROUTER_API_KEY.
-addopts = "-m 'not live'"
+addopts = ["-m", "not live", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    # tests/core/test_core_http.py::test_finalizer_closes_client_on_gc
+    # deliberately drops a client and forces GC, leaving asyncio to emit a
+    # ResourceWarning ("unclosed event loop") from a non-deterministic GC
+    # point. Quarantine just this runtime noise; keep `error` for everything
+    # else.
+    "ignore:unclosed event loop:ResourceWarning",
+]
 markers = [
     "live: tests that require a live API connection and OPENROUTER_API_KEY",
 ]
