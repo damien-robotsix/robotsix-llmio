@@ -1,7 +1,5 @@
 """Provider-agnostic LLM I/O base."""
 
-from __future__ import annotations
-
 from .agent import AgentHandle, build_agent
 from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
 from .http import timeout_http_client
