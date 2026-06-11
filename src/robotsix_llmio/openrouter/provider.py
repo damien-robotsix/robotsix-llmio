@@ -12,10 +12,9 @@ from typing import Any
 
 from ..core import timeout_http_client
 from ..core.provider import LLMProvider, Tier
+from ._base import _DEFAULT_BASE_URL
 from .model import OpenRouterModel
 from .transient import is_openrouter_transient
-
-_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 class OpenRouterProvider(LLMProvider):
