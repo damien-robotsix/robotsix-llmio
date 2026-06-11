@@ -15,6 +15,10 @@ from __future__ import annotations
 MODEL_REQUEST_TIMEOUT: float = 900.0
 CONNECT_TIMEOUT: float = 15.0
 
+# Default timeout (seconds) for synchronous httpx.Client calls to
+# external REST APIs (Langfuse metadata, OpenRouter cost endpoints).
+HTTP_CLIENT_TIMEOUT: float = 20.0
+
 # Claude Agent SDK — hard per-call wall-clock cap on a single ``query()`` (the
 # whole agent loop: subprocess spawn + every turn). The SDK has no equivalent of
 # the HTTP timeout above; a stalled CLI subprocess (e.g. startup contention when
