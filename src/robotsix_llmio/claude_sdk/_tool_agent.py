@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..core._otel import (
     GEN_AI_OPERATION_NAME,
+    GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
     GEN_AI_SYSTEM,
     GEN_AI_TOOL_NAME,
@@ -513,6 +514,7 @@ class _SdkToolAgentHandle:
             f"chat {self._sdk_model}",
             {
                 GEN_AI_OPERATION_NAME: OP_CHAT,
+                GEN_AI_PROVIDER_NAME: PROVIDER_NAME,
                 GEN_AI_SYSTEM: "anthropic",
                 GEN_AI_REQUEST_MODEL: self._sdk_model,
                 # Record system + user as chat messages so the system prompt
@@ -538,10 +540,13 @@ class _SdkToolAgentHandle:
     async def _run(
         self, user_prompt: str, message_history: list[Any] | None = None
     ) -> _SdkToolResult:
+        from .model import PROVIDER_NAME
+
         prompt, system_prompt = self._prepare_prompt(user_prompt, message_history)
         options = self._build_options(system_prompt)
         root_attrs = {
             GEN_AI_OPERATION_NAME: OP_INVOKE_AGENT,
+            GEN_AI_PROVIDER_NAME: PROVIDER_NAME,
             GEN_AI_SYSTEM: "anthropic",
             GEN_AI_REQUEST_MODEL: self._sdk_model,
             # This span becomes the trace, so render system + user as chat messages

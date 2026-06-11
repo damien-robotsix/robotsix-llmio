@@ -653,6 +653,60 @@ def test_generation_span_input_includes_system_prompt(monkeypatch):
     assert root[1]["role"] == "user" and "USER_MARKER" in root[1]["content"]
 
 
+def test_spans_set_gen_ai_provider_name(monkeypatch):
+    """Both the ``chat`` generation span and the root agent-run span stamp
+    ``gen_ai.provider.name`` with the transport provider, matching the
+    OpenRouter transport's span attributes."""
+    pytest.importorskip("opentelemetry.sdk")
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    import robotsix_llmio.claude_sdk._tool_agent as _ta
+    from robotsix_llmio.claude_sdk.model import PROVIDER_NAME
+
+    exporter = InMemorySpanExporter()
+    provider_obj = TracerProvider()
+    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider_obj.get_tracer("test")
+    monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("the answer")
+        yield fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+
+    fake.query = _fake_query
+
+    handle = ClaudeSDKProvider().build_agent(
+        tier=Tier.CHEAP,
+        system_prompt="be precise",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    handle.run_sync("hi")
+    handle.close()
+
+    spans = exporter.get_finished_spans()
+
+    chat = next((s for s in spans if s.name.startswith("chat ")), None)
+    assert chat is not None, f"no chat span in {[s.name for s in spans]}"
+    assert chat.attributes.get("gen_ai.provider.name") == PROVIDER_NAME
+
+    root = next(
+        (
+            s
+            for s in spans
+            if s.attributes.get("gen_ai.operation.name") == "invoke_agent"
+        ),
+        None,
+    )
+    assert root is not None, f"no root span in {[s.name for s in spans]}"
+    assert root.attributes.get("gen_ai.provider.name") == PROVIDER_NAME
+
+
 def test_notools_path_returns_agent_handle():
     """When *tools* is None/empty, ``build_agent`` returns a standard
     ``AgentHandle`` wrapping a pydantic-ai ``Agent`` — the existing
