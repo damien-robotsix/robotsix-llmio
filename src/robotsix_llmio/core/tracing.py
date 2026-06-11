@@ -40,6 +40,7 @@ from ._otel import (
     _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL,
 )
 from ._otel import (
+    _LANGFUSE_OTEL_TRACES_PATH,
     LANGFUSE_OBSERVATION_INPUT,
     LANGFUSE_OBSERVATION_OUTPUT,
     get_tracer,
@@ -85,7 +86,7 @@ _throttle_lock = threading.Lock()
 
 def _langfuse_otlp_endpoint(base_url: str) -> str:
     """The Langfuse OTLP traces endpoint for a base URL."""
-    return f"{base_url.rstrip('/')}/api/public/otel/v1/traces"
+    return f"{base_url.rstrip('/')}{_LANGFUSE_OTEL_TRACES_PATH}"
 
 
 def _basic_auth_header(public_key: str, secret_key: str) -> str:

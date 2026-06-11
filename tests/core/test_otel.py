@@ -37,6 +37,8 @@ EXPECTED: dict[str, str] = {
     "LANGFUSE_OBSERVATION_OUTPUT": "langfuse.observation.output",
     "LANGFUSE_OBSERVATION_COST_DETAILS": "langfuse.observation.cost_details",
     "LANGFUSE_OBSERVATION_METADATA_PROVIDER": "langfuse.observation.metadata.provider",
+    # Langfuse OTLP wire path.
+    "_LANGFUSE_OTEL_TRACES_PATH": "/api/public/otel/v1/traces",
 }
 
 

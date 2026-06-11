@@ -34,6 +34,7 @@ LANGFUSE_OBSERVATION_COST_DETAILS = "langfuse.observation.cost_details"
 LANGFUSE_OBSERVATION_METADATA_PROVIDER = "langfuse.observation.metadata.provider"
 
 _DEFAULT_LANGFUSE_BASE_URL = "https://cloud.langfuse.com"
+_LANGFUSE_OTEL_TRACES_PATH = "/api/public/otel/v1/traces"
 
 if TYPE_CHECKING:
     from opentelemetry.trace import Span

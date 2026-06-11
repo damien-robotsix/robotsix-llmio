@@ -2,8 +2,8 @@
 
 The reusable Langfuse-protocol kernel: ``Basic`` auth-header construction,
 ``https://cloud.langfuse.com`` base-URL resolution, paginated ``GET`` over the
-public endpoints (``/api/public/traces``, ``/api/public/observations``), and
-the trace/observation parsing helpers (``totalCost`` / ISO-8601 timestamps).
+public traces and observations endpoints, and the trace/observation parsing
+helpers (``totalCost`` / ISO-8601 timestamps).
 
 This is the single module in the fleet that speaks the Langfuse REST read
 protocol. Higher-level adapters compose :class:`LangfuseReadClient` rather than
@@ -33,6 +33,8 @@ from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from .constants import HTTP_CLIENT_TIMEOUT
 
 _PAGE_LIMIT = 100
+_TRACES_PATH = "/api/public/traces"
+_OBSERVATIONS_PATH = "/api/public/observations"
 
 
 class LangfuseReadClient:
@@ -61,7 +63,7 @@ class LangfuseReadClient:
         return self._base_url
 
     def url(self, path: str) -> str:
-        """Join *path* (e.g. ``/api/public/traces``) onto the base URL."""
+        """Join *path* (e.g. :data:`_TRACES_PATH`) onto the base URL."""
         return f"{self._base_url}/{path.lstrip('/')}"
 
     def auth_header(self) -> str:
