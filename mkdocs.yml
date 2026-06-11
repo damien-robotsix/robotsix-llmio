@@ -7,10 +7,33 @@ theme:
 
 docs_dir: docs
 
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            separate_signature: true
+            members_order: source
+            signature_crossrefs: true
+            filters: ["!^_"]
+            show_source: false
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+
 nav:
   - Home: index.md
   - Core: core/index.md
   - OpenRouter: openrouter/index.md
   - OpenRouter DeepSeek: openrouter_deepseek/index.md
   - Claude SDK: claude_sdk/index.md
+  - API Reference:
+      - Core: reference/core.md
+      - OpenRouter: reference/openrouter.md
+      - OpenRouter DeepSeek: reference/openrouter_deepseek.md
+      - Claude SDK: reference/claude_sdk.md
   - Changelog: changelog.md
