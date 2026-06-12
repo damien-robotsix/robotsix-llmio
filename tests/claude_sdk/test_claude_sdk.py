@@ -222,6 +222,33 @@ def test_plain_value_error_not_transient():
     assert is_claude_sdk_transient(ValueError("nope")) is False
 
 
+def test_degenerate_success_is_transient_but_not_turn_limit():
+    # The upstream SDK collapses a self-contradictory frame
+    # (is_error=True, errors=[], subtype="success") into a bare
+    # Exception("Claude Code returned an error result: success"). A re-run
+    # clears it, so it must be retried locally — but it is NOT a turn-cap.
+    e = Exception("Claude Code returned an error result: success")
+    assert is_claude_sdk_transient(e) is True
+    assert is_claude_sdk_turn_limit(e) is False
+
+
+def test_genuine_error_subtypes_not_transient():
+    # The match stays narrow: only the literal subtype="success" message is
+    # transient. Genuine error subtypes must surface immediately.
+    for subtype in ("error_during_execution", "error_max_turns"):
+        e = Exception(f"Claude Code returned an error result: {subtype}")
+        assert is_claude_sdk_transient(e) is False
+
+
+def test_degenerate_success_matched_case_insensitively_through_chain():
+    # Detected case-insensitively and through the cause/context chain.
+    cause = RuntimeError("Claude Code RETURNED AN ERROR RESULT: SUCCESS")
+    try:
+        raise Exception("wrapper") from cause
+    except Exception as e:
+        assert is_claude_sdk_transient(e) is True
+
+
 # --- turn-limit: hard failure, never retried -------------------------------
 
 
