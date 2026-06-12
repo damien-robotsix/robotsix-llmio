@@ -20,6 +20,7 @@ modules:
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
       - docs/core/
+      - docs/reference/core.md
       - docs/modules.yaml
   - id: robotsix_llmio-openrouter
     description: >
@@ -30,6 +31,7 @@ modules:
       - tests/openrouter/test_openrouter_provider.py
       - tests/openrouter/test_openrouter_provider_cost.py
       - docs/openrouter/
+      - docs/reference/openrouter.md
   - id: robotsix_llmio-openrouter-deepseek
     description: >
       Derived DeepSeek layer that pins the generic OpenRouter transport
@@ -39,6 +41,7 @@ modules:
       - tests/openrouter_deepseek/test_openrouter_deepseek.py
       - tests/openrouter_deepseek/test_openrouter_deepseek_live.py
       - docs/openrouter_deepseek/
+      - docs/reference/openrouter_deepseek.md
   - id: robotsix_llmio-claude-sdk
     paths:
       - src/robotsix_llmio/claude_sdk/**
@@ -46,3 +49,4 @@ modules:
       - tests/claude_sdk/test_confine_hook.py
       - tests/claude_sdk/test_stream.py
       - docs/claude_sdk/
+      - docs/reference/claude_sdk.md
