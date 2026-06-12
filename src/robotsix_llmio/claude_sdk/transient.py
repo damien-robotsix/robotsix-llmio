@@ -23,6 +23,29 @@ _SDK_TRANSIENT_NAMES = {
 # a final answer ("Reached maximum number of turns (N)").
 _TURN_LIMIT_SIGNATURE = "maximum number of turns"
 
+# claude_agent_sdk collapses a self-contradictory frame
+# (is_error=True, errors=[], subtype="success") into the message
+# "; ".join(errors) or str(subtype) -> "success". A re-run clears it.
+_DEGENERATE_SUCCESS_SIGNATURE = "returned an error result: success"
+
+
+def is_claude_sdk_degenerate_success(exc: BaseException) -> bool:
+    """True if *exc* (or anything in its cause/context chain) is the upstream
+    ``claude_agent_sdk`` degenerate-success frame — a self-contradictory
+    ``is_error=True``/``errors=[]``/``subtype="success"`` result that collapses
+    into the bare message ``"Claude Code returned an error result: success"``.
+    A re-run clears it, so it should be treated as transient. Matched
+    case-insensitively, walking the bounded cause/context chain like the other
+    helpers."""
+    cur: BaseException | None = exc
+    seen = 0
+    while cur is not None and seen < 10:
+        if _DEGENERATE_SUCCESS_SIGNATURE in str(cur).lower():
+            return True
+        cur = cur.__cause__ or cur.__context__
+        seen += 1
+    return False
+
 
 def is_claude_sdk_turn_limit(exc: BaseException) -> bool:
     """True if *exc* (or anything in its cause/context chain) is the Claude Agent
@@ -51,6 +74,8 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     than burn retries and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
         return False
+    if is_claude_sdk_degenerate_success(exc):
+        return True
     if _core_is_transient(exc):
         return True
     cur: BaseException | None = exc
