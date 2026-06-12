@@ -31,6 +31,15 @@ class OpenRouterProvider(LLMProvider):
         api_key: str | None = None,
         base_url: str = _DEFAULT_BASE_URL,
     ) -> None:
+        """Configure auth and the OpenRouter REST endpoint.
+
+        Args:
+            api_key: OpenRouter API key. Falls back to ``OPENROUTER_API_KEY``
+                when omitted.
+            base_url: OpenRouter-compatible REST endpoint. Defaults to the
+                public OpenRouter API; pass a custom value to route requests
+                through a proxy or mirror.
+        """
         self._api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
         if not self._api_key:
             raise RuntimeError(
@@ -64,9 +73,19 @@ class OpenRouterProvider(LLMProvider):
 
         model_name = self._tier_models()[tier]
         http_client = timeout_http_client()
-        pyd_provider = _PydOpenRouterProvider(
-            api_key=self._api_key, http_client=http_client
-        )
+        if self._base_url == _DEFAULT_BASE_URL:
+            pyd_provider = _PydOpenRouterProvider(
+                api_key=self._api_key, http_client=http_client
+            )
+        else:
+            from openai import AsyncOpenAI
+
+            openai_client = AsyncOpenAI(
+                base_url=self._base_url,
+                api_key=self._api_key,
+                http_client=http_client,
+            )
+            pyd_provider = _PydOpenRouterProvider(openai_client=openai_client)
         model = self._model_class()(model_name, provider=pyd_provider)
         self._post_build_model(model, tier)
         return model, http_client

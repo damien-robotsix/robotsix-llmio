@@ -148,6 +148,53 @@ def test_new_model_returns_http_client_from_timeout_client(monkeypatch):
     assert http_client is mock_http
 
 
+def test_new_model_default_base_url_uses_api_key_path(monkeypatch):
+    """With the default ``base_url``, ``new_model()`` constructs the pydantic-ai
+    provider from ``api_key``/``http_client`` and does not build an
+    ``openai_client``."""
+    mock_provider_cls = _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    provider.new_model(Tier.DEFAULT)
+
+    _, kwargs = mock_provider_cls.call_args
+    assert kwargs["api_key"] == "sk-test"
+    assert kwargs["http_client"] is mock_http
+    assert "openai_client" not in kwargs
+
+
+def test_new_model_custom_base_url_builds_openai_client(monkeypatch):
+    """A custom ``base_url`` is wired into an ``AsyncOpenAI`` client that is
+    passed to the pydantic-ai provider via ``openai_client=``."""
+    mock_provider_cls = _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    mock_openai_cls = MagicMock()
+    fake_openai = SimpleNamespace(AsyncOpenAI=mock_openai_cls)
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+
+    provider = _NewModelProvider()
+    provider._base_url = "https://proxy.example/api/v1"
+    provider.new_model(Tier.DEFAULT)
+
+    _, openai_kwargs = mock_openai_cls.call_args
+    assert openai_kwargs["base_url"] == "https://proxy.example/api/v1"
+    assert openai_kwargs["api_key"] == "sk-test"
+    assert openai_kwargs["http_client"] is mock_http
+
+    _, prov_kwargs = mock_provider_cls.call_args
+    assert prov_kwargs["openai_client"] is mock_openai_cls.return_value
+
+
 def test_new_model_calls_post_build_model(monkeypatch):
     """``new_model()`` invokes ``_post_build_model`` with the constructed
     model and the requested tier."""
