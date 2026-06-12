@@ -79,6 +79,15 @@ The API key can be passed directly to the provider constructor or set via the
 replace the placeholder with a real key — `.env` is git-ignored so the secret
 never leaves your machine.
 
+To route requests through a custom OpenRouter-compatible endpoint (e.g. a proxy
+or mirror), pass `base_url=` when constructing the provider:
+
+```python
+provider = get_provider(api_key="sk-...", base_url="https://proxy.example/api/v1")
+```
+
+The default endpoint is `https://openrouter.ai/api/v1`.
+
 ## Use
 
 Obtain a provider through `get_provider` and pick a `Tier` — **never** import a
