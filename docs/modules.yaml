@@ -22,6 +22,8 @@ modules:
       - docs/core/
       - docs/reference/core.md
       - docs/modules.yaml
+      - docs/index.md
+      - docs/changelog.md
   - id: robotsix_llmio-openrouter
     description: >
       OpenRouter transport layer — base model-family-agnostic provider.
