@@ -3,6 +3,7 @@ modules:
     paths:
       - src/robotsix_llmio/__init__.py
       - src/robotsix_llmio/exceptions.py
+      - src/robotsix_llmio/logging.py
       - src/robotsix_llmio/core/**
       - src/robotsix_llmio/py.typed
       - tests/core/test_core_agent.py
@@ -20,8 +21,10 @@ modules:
       - tests/core/test_otel.py
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
+      - tests/core/test_logging.py
       - docs/core/
       - docs/reference/core.md
+      - docs/reference/logging.md
       - docs/modules.yaml
       - docs/index.md
       - docs/changelog.md

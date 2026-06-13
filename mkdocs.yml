@@ -33,6 +33,7 @@ nav:
   - Claude SDK: claude_sdk/index.md
   - API Reference:
       - Core: reference/core.md
+      - Logging: reference/logging.md
       - OpenRouter: reference/openrouter.md
       - OpenRouter DeepSeek: reference/openrouter_deepseek.md
       - Claude SDK: reference/claude_sdk.md
