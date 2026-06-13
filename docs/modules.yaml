@@ -2,6 +2,7 @@ modules:
   - id: robotsix_llmio-core
     paths:
       - src/robotsix_llmio/__init__.py
+      - src/robotsix_llmio/exceptions.py
       - src/robotsix_llmio/core/**
       - src/robotsix_llmio/py.typed
       - tests/core/test_core_agent.py

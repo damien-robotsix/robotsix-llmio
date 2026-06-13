@@ -38,6 +38,7 @@ from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
+from ..exceptions import RobotsixLLMIOError
 from ._usage import map_usage_dict
 from .transient import is_claude_sdk_turn_limit
 
@@ -63,7 +64,7 @@ _TEXT_OUTPUT_MODES = {"text", "prompted"}
 _MAX_TURNS = 100
 
 
-class ClaudeSDKTurnLimitError(RuntimeError):
+class ClaudeSDKTurnLimitError(RobotsixLLMIOError):
     """The Claude Agent SDK loop hit its turn cap (``_MAX_TURNS``) without
     returning a final answer.
 
@@ -73,7 +74,7 @@ class ClaudeSDKTurnLimitError(RuntimeError):
     :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`)."""
 
 
-class ClaudeSDKQueryTimeout(TimeoutError):
+class ClaudeSDKQueryTimeout(RobotsixLLMIOError):
     """A single Claude Agent SDK ``query()`` exceeded the per-call wall-clock cap
     (:data:`~robotsix_llmio.core.constants.SDK_QUERY_TIMEOUT`).
 
