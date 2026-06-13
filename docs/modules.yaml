@@ -22,7 +22,7 @@ modules:
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
       - tests/core/test_logging.py
-      - docs/core/
+      - docs/core/**
       - docs/reference/core.md
       - docs/reference/logging.md
       - docs/modules.yaml
@@ -36,7 +36,7 @@ modules:
       - tests/openrouter/test_openrouter.py
       - tests/openrouter/test_openrouter_provider.py
       - tests/openrouter/test_openrouter_provider_cost.py
-      - docs/openrouter/
+      - docs/openrouter/**
       - docs/reference/openrouter.md
   - id: robotsix_llmio-openrouter-deepseek
     description: >
@@ -46,7 +46,7 @@ modules:
       - src/robotsix_llmio/openrouter_deepseek/**
       - tests/openrouter_deepseek/test_openrouter_deepseek.py
       - tests/openrouter_deepseek/test_openrouter_deepseek_live.py
-      - docs/openrouter_deepseek/
+      - docs/openrouter_deepseek/**
       - docs/reference/openrouter_deepseek.md
   - id: robotsix_llmio-claude-sdk
     paths:
@@ -54,5 +54,5 @@ modules:
       - tests/claude_sdk/test_claude_sdk.py
       - tests/claude_sdk/test_confine_hook.py
       - tests/claude_sdk/test_stream.py
-      - docs/claude_sdk/
+      - docs/claude_sdk/**
       - docs/reference/claude_sdk.md
