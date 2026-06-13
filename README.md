@@ -141,6 +141,24 @@ Importing a concrete provider class directly still works (e.g.
 `from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider`),
 but `get_provider` is the preferred entry point.
 
+## Error handling
+
+All library-specific exceptions inherit from `RobotsixLLMIOError`, so you can
+catch all library errors with a single clause:
+
+```python
+from robotsix_llmio import RobotsixLLMIOError
+
+try:
+    result = provider.call_with_retry(lambda: agent.run_sync("..."))
+except RobotsixLLMIOError as e:
+    print(f"Library error: {e}")
+```
+
+Specific exceptions include:
+- `ClaudeSDKTurnLimitError` — Claude Agent SDK loop hit its turn cap without returning an answer.
+- `ClaudeSDKQueryTimeout` — A Claude Agent SDK query exceeded the per-call timeout (a stall, typically transient).
+
 ## Tracing & cost (Langfuse)
 
 Every provider model already stamps per-call cost onto the active OpenTelemetry
