@@ -278,6 +278,31 @@ class ClaudeSDKModel(Model):
             lambda r: getattr(r, "total_cost_usd", None),
             provider=PROVIDER_NAME,
         )
+        # Stamp provider/model identity and token usage on the active span,
+        # independently of whether cost was recorded, so the span shape is
+        # consistent with the tool-loop path and the OpenRouter provider.
+        from ..core._otel import (
+            GEN_AI_PROVIDER_NAME,
+            GEN_AI_REQUEST_MODEL,
+            GEN_AI_SYSTEM,
+            GEN_AI_USAGE_INPUT_TOKENS,
+            GEN_AI_USAGE_OUTPUT_TOKENS,
+            get_recording_span,
+        )
+
+        span = get_recording_span()
+        if span is not None:
+            span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
+            span.set_attribute(GEN_AI_SYSTEM, self.system)
+            span.set_attribute(GEN_AI_REQUEST_MODEL, self._sdk_model)
+            usage = getattr(result, "usage", None) if result is not None else None
+            if isinstance(usage, dict):
+                in_tok = usage.get("input_tokens")
+                out_tok = usage.get("output_tokens")
+                if in_tok is not None:
+                    span.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
+                if out_tok is not None:
+                    span.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
         return ModelResponse(
             parts=[TextPart(content=text)],
             usage=_map_usage(result),
