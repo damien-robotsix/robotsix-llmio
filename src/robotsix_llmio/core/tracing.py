@@ -41,10 +41,6 @@ from ._otel import (
 )
 from ._otel import (
     _LANGFUSE_OTEL_TRACES_PATH,
-    LANGFUSE_OBSERVATION_INPUT,
-    LANGFUSE_OBSERVATION_OUTPUT,
-    get_tracer,
-    start_span,
 )
 
 # Public re-exports of the OTel/Langfuse semantic-convention constants so
@@ -92,7 +88,13 @@ from ._otel import (
     LANGFUSE_OBSERVATION_COST_DETAILS as LANGFUSE_OBSERVATION_COST_DETAILS,
 )
 from ._otel import (
+    LANGFUSE_OBSERVATION_INPUT as LANGFUSE_OBSERVATION_INPUT,
+)
+from ._otel import (
     LANGFUSE_OBSERVATION_METADATA_PROVIDER as LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+)
+from ._otel import (
+    LANGFUSE_OBSERVATION_OUTPUT as LANGFUSE_OBSERVATION_OUTPUT,
 )
 from ._otel import (
     OP_CHAT as OP_CHAT,
@@ -105,6 +107,12 @@ from ._otel import (
 )
 from ._otel import (
     get_recording_span as get_recording_span,
+)
+from ._otel import (
+    get_tracer as get_tracer,
+)
+from ._otel import (
+    start_span as start_span,
 )
 
 # The installed SDK TracerProvider (set once), the registered projects (public

@@ -65,8 +65,14 @@ select = [
 
 [tool.mypy]
 python_version = "3.11"
+strict = true
 ignore_missing_imports = false
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = "robotsix_llmio.openrouter_deepseek.*"

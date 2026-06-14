@@ -25,7 +25,7 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
     def _model_class(self) -> type[OpenRouterDeepseekModel]:
         return OpenRouterDeepseekModel
 
-    def _post_build_model(self, model: OpenRouterDeepseekModel, tier: Tier) -> None:  # type: ignore[override]
+    def _post_build_model(self, model: OpenRouterDeepseekModel, tier: Tier) -> None:
         if tier == Tier.CHEAP:
             # Verdict/generation work — no chain-of-thought.
             model.reasoning_setting = {"enabled": False}

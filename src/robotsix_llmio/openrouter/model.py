@@ -34,7 +34,7 @@ from robotsix_llmio.core.tracing import (
 PROVIDER_NAME: str = "openrouter"
 
 
-def _resolve_model_settings(args: tuple, kwargs: dict) -> Any:
+def _resolve_model_settings(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
     """Return the mutable ``model_settings`` dict from the parent call.
     Parent signature: ``(messages, stream, model_settings, params)``."""
     if "model_settings" in kwargs:
@@ -44,7 +44,7 @@ def _resolve_model_settings(args: tuple, kwargs: dict) -> Any:
     return None
 
 
-def _inject_usage_include(args: tuple, kwargs: dict) -> None:
+def _inject_usage_include(args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
     """Merge ``extra_body.usage.include = True`` onto ``model_settings`` without
     trampling a caller-supplied ``extra_body``."""
     settings = _resolve_model_settings(args, kwargs)
