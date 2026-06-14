@@ -29,6 +29,41 @@ from robotsix_llmio.core.tracing import (
     start_trace,
 )
 
+# --- public re-export contract ---------------------------------------------
+
+# Semconv constants consumed by sibling packages (claude_sdk, openrouter) must
+# stay importable from the public ``core.tracing`` module and resolve to the
+# identical values defined in the private ``core._otel`` single source of truth.
+_REEXPORTED_SEMCONV_NAMES = (
+    "OP_CHAT",
+    "OP_EXECUTE_TOOL",
+    "OP_INVOKE_AGENT",
+    "GEN_AI_OPERATION_NAME",
+    "GEN_AI_PROVIDER_NAME",
+    "GEN_AI_REQUEST_MODEL",
+    "GEN_AI_SYSTEM",
+    "GEN_AI_TOOL_NAME",
+    "GEN_AI_USAGE_COST",
+    "GEN_AI_USAGE_INPUT_TOKENS",
+    "GEN_AI_USAGE_OUTPUT_TOKENS",
+    "GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS",
+    "GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS",
+    "GEN_AI_USAGE_REASONING_TOKENS",
+    "LANGFUSE_OBSERVATION_INPUT",
+    "LANGFUSE_OBSERVATION_OUTPUT",
+    "LANGFUSE_OBSERVATION_COST_DETAILS",
+    "LANGFUSE_OBSERVATION_METADATA_PROVIDER",
+    "LANGFUSE_COST_DETAILS_TOTAL_KEY",
+)
+
+
+@pytest.mark.parametrize("name", _REEXPORTED_SEMCONV_NAMES)
+def test_semconv_constants_reexported_from_tracing(name):
+    from robotsix_llmio.core import _otel
+
+    assert hasattr(tracing, name), f"{name} not re-exported from core.tracing"
+    assert getattr(tracing, name) == getattr(_otel, name)
+
 
 def test_otlp_endpoint_path():
     assert (

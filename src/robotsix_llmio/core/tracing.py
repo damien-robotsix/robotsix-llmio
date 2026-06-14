@@ -46,8 +46,62 @@ from ._otel import (
     get_tracer,
     start_span,
 )
+
+# Public re-exports of the OTel/Langfuse semantic-convention constants so
+# sibling packages consume them through this public module rather than reaching
+# into the private ``._otel``. ``_otel`` stays the single source of truth; these
+# are identity re-exports (``NAME as NAME``) so linters treat them as
+# intentional public surface.
+from ._otel import (
+    GEN_AI_OPERATION_NAME as GEN_AI_OPERATION_NAME,
+)
+from ._otel import (
+    GEN_AI_PROVIDER_NAME as GEN_AI_PROVIDER_NAME,
+)
+from ._otel import (
+    GEN_AI_REQUEST_MODEL as GEN_AI_REQUEST_MODEL,
+)
+from ._otel import (
+    GEN_AI_SYSTEM as GEN_AI_SYSTEM,
+)
+from ._otel import (
+    GEN_AI_TOOL_NAME as GEN_AI_TOOL_NAME,
+)
+from ._otel import (
+    GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS as GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,  # noqa: E501
+)
+from ._otel import (
+    GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS as GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+)
+from ._otel import (
+    GEN_AI_USAGE_COST as GEN_AI_USAGE_COST,
+)
+from ._otel import (
+    GEN_AI_USAGE_INPUT_TOKENS as GEN_AI_USAGE_INPUT_TOKENS,
+)
+from ._otel import (
+    GEN_AI_USAGE_OUTPUT_TOKENS as GEN_AI_USAGE_OUTPUT_TOKENS,
+)
+from ._otel import (
+    GEN_AI_USAGE_REASONING_TOKENS as GEN_AI_USAGE_REASONING_TOKENS,
+)
+from ._otel import (
+    LANGFUSE_COST_DETAILS_TOTAL_KEY as LANGFUSE_COST_DETAILS_TOTAL_KEY,
+)
+from ._otel import (
+    LANGFUSE_OBSERVATION_COST_DETAILS as LANGFUSE_OBSERVATION_COST_DETAILS,
+)
+from ._otel import (
+    LANGFUSE_OBSERVATION_METADATA_PROVIDER as LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+)
 from ._otel import (
     OP_CHAT as OP_CHAT,
+)
+from ._otel import (
+    OP_EXECUTE_TOOL as OP_EXECUTE_TOOL,
+)
+from ._otel import (
+    OP_INVOKE_AGENT as OP_INVOKE_AGENT,
 )
 from ._otel import (
     get_recording_span as get_recording_span,

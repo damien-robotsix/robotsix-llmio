@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..core._otel import (
+from ..core.tracing import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
@@ -26,10 +26,12 @@ from ..core._otel import (
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
     LANGFUSE_OBSERVATION_OUTPUT,
+    OP_CHAT,
     OP_EXECUTE_TOOL,
     OP_INVOKE_AGENT,
+    get_tracer,
+    start_span,
 )
-from ..core.tracing import OP_CHAT, get_tracer, start_span
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
     from claude_agent_sdk import (  # type: ignore[import-not-found]
