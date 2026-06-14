@@ -21,7 +21,7 @@ Runtime requirements (beyond the ``claude_sdk`` extra): Node.js and the
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from pydantic_ai.exceptions import UserError
 from pydantic_ai.messages import (
@@ -91,7 +91,7 @@ def _content_to_text(content: Any) -> str:
         return content
     if isinstance(content, (list, tuple)):
         out: list[str] = []
-        for item in content:  # type: ignore[misc]  # heterogeneous content parts
+        for item in content:  # heterogeneous content parts
             text = getattr(item, "text", None)
             out.append(text if isinstance(text, str) else str(item))
         return "\n".join(out)
@@ -104,7 +104,7 @@ def _retry_text(part: RetryPromptPart) -> str:
     model_response = getattr(part, "model_response", None)
     if callable(model_response):
         try:
-            return model_response()
+            return cast(str, model_response())
         except Exception:  # pragma: no cover - defensive
             pass
     return _content_to_text(getattr(part, "content", ""))
@@ -230,7 +230,7 @@ class ClaudeSDKModel(Model):
         return combined or None
 
     async def _invoke(self, prompt: str, system_text: str | None) -> tuple[str, Any]:
-        from claude_agent_sdk import (  # type: ignore[import-not-found]
+        from claude_agent_sdk import (
             ClaudeAgentOptions,
         )
 

@@ -69,7 +69,7 @@ class OpenRouterDeepseekModel(OpenRouterModel):
     ``reasoning_setting`` (no separate flag needed).
     """
 
-    reasoning_setting: ClassVar[dict] = {"effort": "xhigh"}
+    reasoning_setting: ClassVar[dict[str, Any]] = {"effort": "xhigh"}
 
     @property
     def _echo_reasoning(self) -> bool:
@@ -77,7 +77,7 @@ class OpenRouterDeepseekModel(OpenRouterModel):
         i.e. every tier except the cheap one's ``{"enabled": False}``."""
         return self.reasoning_setting.get("enabled", True) is not False
 
-    def _inject_pin(self, args: tuple, kwargs: dict) -> None:
+    def _inject_pin(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         model_name = str(getattr(self, "model_name", "") or "")
         if not model_name.startswith(_PIN_MODEL_PREFIX):
             return
@@ -114,15 +114,15 @@ class OpenRouterDeepseekModel(OpenRouterModel):
             return param
 
         # Always clear the array/alias forms — DeepSeek only accepts the string.
-        param.pop(_REASONING_KEY, None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
-        param.pop("reasoning_details", None)  # type: ignore[typeddict-item,misc]  # DeepSeek-specific field not in OpenAI stubs
+        param.pop(_REASONING_KEY, None)
+        param.pop("reasoning_details", None)
 
         if self._echo_reasoning and param.get(_TOOL_CALLS_KEY):
             # Present-but-possibly-empty string keeps the tool-call turn valid in
             # thinking mode even when the turn is synthetic/reconstructed.
-            param[_REASONING_CONTENT_KEY] = _reasoning_text(message)  # type: ignore[typeddict-unknown-key]  # DeepSeek-specific field not in OpenAI stubs
+            param[_REASONING_CONTENT_KEY] = _reasoning_text(message)
         else:
-            param.pop(_REASONING_CONTENT_KEY, None)  # type: ignore[typeddict-item]  # DeepSeek-specific field not in OpenAI stubs
+            param.pop(_REASONING_CONTENT_KEY, None)
 
         # DeepSeek rejects an assistant message with neither content nor
         # tool_calls (a thinking-only turn maps to no text and no tool calls). A

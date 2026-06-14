@@ -63,7 +63,7 @@ def flush_current_provider() -> None:
     when OTel is absent or the provider can't flush.
     """
     try:
-        from opentelemetry import trace as otel_trace  # type: ignore[import-untyped]
+        from opentelemetry import trace as otel_trace
     except ImportError:
         return
     try:

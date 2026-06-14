@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import weakref
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from . import constants
+
+if TYPE_CHECKING:
+    import httpx
 
 
 def _close_async_client(client: Any) -> None:
@@ -27,7 +30,7 @@ def _close_async_client(client: Any) -> None:
         pass
 
 
-def timeout_http_client():
+def timeout_http_client() -> httpx.AsyncClient:
     """A fresh ``httpx.AsyncClient`` with a hard per-request timeout, so a
     hung/glacial provider connection raises instead of blocking forever.
     Pass to the provider as its ``http_client``.
