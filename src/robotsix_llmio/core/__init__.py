@@ -23,6 +23,7 @@ from .retry import (
     is_transient,
 )
 from .run import arun_agent, run_agent
+from .text_utils import html_to_text
 from .tracing import (
     TraceSpan,
     active_routing_key,
@@ -67,6 +68,7 @@ __all__ = [
     "get_provider",
     "get_recording_span",
     "get_tracer",
+    "html_to_text",
     "install_signal_handlers",
     "is_rate_limited",
     "is_transient",

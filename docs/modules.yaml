@@ -10,6 +10,7 @@ modules:
       - tests/core/test_core_retry.py
       - tests/core/test_core_run.py
       - tests/core/test_constants.py
+      - tests/core/test_text_utils.py
       - tests/core/test_core_provider.py
       - tests/core/test_factory.py
       - tests/core/test_core_http.py
