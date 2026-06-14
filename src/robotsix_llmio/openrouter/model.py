@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic_ai.models.openai import OpenAIChatModel
 
-from robotsix_llmio.core._otel import (
+from robotsix_llmio.core.tracing import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
@@ -27,8 +27,9 @@ from robotsix_llmio.core._otel import (
     LANGFUSE_COST_DETAILS_TOTAL_KEY,
     LANGFUSE_OBSERVATION_COST_DETAILS,
     LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+    OP_CHAT,
+    get_recording_span,
 )
-from robotsix_llmio.core.tracing import OP_CHAT, get_recording_span
 
 PROVIDER_NAME: str = "openrouter"
 
