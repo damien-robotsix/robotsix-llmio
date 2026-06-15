@@ -413,7 +413,11 @@ def _fake_sdk_module() -> SimpleNamespace:
 def _install_fake_sdk(monkeypatch) -> SimpleNamespace:
     """Install a fake ``claude_agent_sdk`` module and return its namespace."""
     fake = _fake_sdk_module()
-    sys.modules["claude_agent_sdk"] = fake
+    # Install via monkeypatch ONLY: a preceding raw
+    # `sys.modules["claude_agent_sdk"] = fake` would make monkeypatch record
+    # the fake as the "original" and restore it (not remove it) on teardown,
+    # leaking the incomplete stub into later tests (e.g. test_confine_hook's
+    # `from claude_agent_sdk import create_sdk_mcp_server`).
     monkeypatch.setitem(sys.modules, "claude_agent_sdk", fake)
     return fake
 
