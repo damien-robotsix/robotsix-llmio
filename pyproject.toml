@@ -85,6 +85,14 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "robotsix_llmio.core._tracing_processors"
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
+module = "claude_agent_sdk.*"
+ignore_missing_imports = true
+
 [tool.coverage.run]
 source = ["src/robotsix_llmio"]
 
