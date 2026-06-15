@@ -177,13 +177,12 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     gc.collect()
 
     assert len(finalizers) == 1
-    # GC alone cannot fire the finalize under the production registration
-    # shape (``info.args`` strong-refs the client); explicitly invoking the
-    # captured finalize is the equivalent of the weakref callback path.
-    finalizers[0]()
+    # On CPython < 3.13 gc.collect() alone cannot fire the finalize under
+    # the production registration shape (``info.args`` strong-refs the
+    # client), so we explicitly invoke the captured finalize.  On >= 3.13
+    # gc.collect() *may* fire the finalizer during collection; when it has
+    # already done so we skip the manual invocation.
+    if len(calls) == 0:
+        finalizers[0]()
     assert len(calls) == 1
     assert id(calls[0]) == client_id
-    # ``_ref`` captured to document the GC-on-collect contract; the
-    # recorded-call assertion above is the reliable signal per the ticket
-    # Note, so its liveness is intentionally not asserted.
-    assert _ref is not None
