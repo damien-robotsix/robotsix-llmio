@@ -12,48 +12,14 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from conftest import install_transport, make_adapter, make_window
 
-from robotsix_llmio.core import langfuse_cost as langfuse_cost_module
-from robotsix_llmio.core.cost_log import CostWindow, LoggedCost
+from robotsix_llmio.core.cost_log import LoggedCost
 from robotsix_llmio.core.langfuse_cost import (
-    LangfuseCostLogSource,
     _observation_cost,
     _observation_provider,
     _parse_timestamp,
 )
-
-
-def _install_transport(monkeypatch, handler) -> list[httpx.Request]:
-    """Patch ``httpx.Client`` so the adapter uses a ``MockTransport`` running
-    *handler*. Returns a list that captures every request the adapter sends."""
-    captured: list[httpx.Request] = []
-
-    def _handler(request: httpx.Request) -> httpx.Response:
-        captured.append(request)
-        return handler(request)
-
-    transport = httpx.MockTransport(_handler)
-    real_client = httpx.Client
-
-    def _client(*args, **kwargs):
-        kwargs["transport"] = transport
-        return real_client(*args, **kwargs)
-
-    monkeypatch.setattr(langfuse_cost_module.httpx, "Client", _client)
-    return captured
-
-
-def _window() -> CostWindow:
-    return CostWindow(
-        start=datetime(2026, 6, 3, 10, 0, tzinfo=UTC),
-        end=datetime(2026, 6, 3, 11, 0, tzinfo=UTC),
-    )
-
-
-def _adapter() -> LangfuseCostLogSource:
-    return LangfuseCostLogSource(
-        public_key="pub", secret_key="sec", base_url="https://lf.example.com"
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -70,8 +36,8 @@ def test_fetch_logged_cost_single_page(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": data if page == 1 else []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert isinstance(result, LoggedCost)
     assert result.record_count == 2
@@ -90,8 +56,8 @@ def test_fetch_logged_cost_multi_page_break(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": pages[page]})
 
-    captured = _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    captured = install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert result.record_count == 2
     assert result.total_cost == pytest.approx(3.0)
@@ -122,8 +88,8 @@ def test_fetch_logged_cost_record_aggregation(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": data if page == 1 else []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert result.total_cost == pytest.approx(1.0)
     first = result.records[0]
@@ -140,8 +106,8 @@ def test_fetch_logged_cost_empty_data(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert result == LoggedCost(total_cost=0.0, record_count=0, records=[])
 
@@ -150,9 +116,9 @@ def test_fetch_logged_cost_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="boom")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler)
     with pytest.raises(RuntimeError, match="500"):
-        _adapter().fetch_logged_cost(_window())
+        make_adapter().fetch_logged_cost(make_window())
 
 
 # --------------------------------------------------------------------------- #
@@ -196,8 +162,8 @@ def test_fetch_by_provider_filters_and_paginates(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": pages[page]})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost_by_provider(_window(), "openrouter")
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost_by_provider(make_window(), "openrouter")
 
     assert result.record_count == 2
     assert result.total_cost == pytest.approx(1.0)
@@ -238,8 +204,8 @@ def test_fetch_by_provider_cost_extraction_order(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": data if page == 1 else []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost_by_provider(_window(), "p")
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost_by_provider(make_window(), "p")
 
     assert result.total_cost == pytest.approx(6.0)
     by_id = {r.id: r.cost for r in result.records}
@@ -254,9 +220,9 @@ def test_fetch_by_provider_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, text="forbidden")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler)
     with pytest.raises(RuntimeError, match="403"):
-        _adapter().fetch_logged_cost_by_provider(_window(), "openrouter")
+        make_adapter().fetch_logged_cost_by_provider(make_window(), "openrouter")
 
 
 # --------------------------------------------------------------------------- #
@@ -285,8 +251,8 @@ def test_prune_before_deletes_and_counts(monkeypatch):
         deleted_bodies.append(body["traceIds"])
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
-    count = _adapter().prune_before(cutoff)
+    install_transport(monkeypatch, handler)
+    count = make_adapter().prune_before(cutoff)
 
     assert count == 3
     assert deleted_bodies == [["t1", "t2"], ["t3"]]
@@ -300,8 +266,8 @@ def test_prune_before_empty_returns_zero(monkeypatch):
         assert request.method == "GET"
         return httpx.Response(200, json={"data": []})
 
-    _install_transport(monkeypatch, handler)
-    count = _adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
+    install_transport(monkeypatch, handler)
+    count = make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
     assert count == 0
 
@@ -310,9 +276,9 @@ def test_prune_before_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, text="unavailable")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler)
     with pytest.raises(RuntimeError, match="503"):
-        _adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
+        make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
 def test_prune_before_delete_non_2xx_raises(monkeypatch):
@@ -321,9 +287,9 @@ def test_prune_before_delete_non_2xx_raises(monkeypatch):
             return httpx.Response(200, json={"data": [{"id": "t1"}]})
         return httpx.Response(500, text="delete-failed")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler)
     with pytest.raises(RuntimeError, match="delete"):
-        _adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
+        make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
 # --------------------------------------------------------------------------- #
