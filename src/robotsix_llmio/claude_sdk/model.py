@@ -21,7 +21,7 @@ Runtime requirements (beyond the ``claude_sdk`` extra): Node.js and the
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from pydantic_ai.exceptions import UserError
 from pydantic_ai.messages import (
@@ -38,6 +38,7 @@ from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
+from ..exceptions import RobotsixLLMIOError
 from ._usage import map_usage_dict
 from .transient import is_claude_sdk_turn_limit
 
@@ -63,7 +64,7 @@ _TEXT_OUTPUT_MODES = {"text", "prompted"}
 _MAX_TURNS = 100
 
 
-class ClaudeSDKTurnLimitError(RuntimeError):
+class ClaudeSDKTurnLimitError(RobotsixLLMIOError):
     """The Claude Agent SDK loop hit its turn cap (``_MAX_TURNS``) without
     returning a final answer.
 
@@ -73,7 +74,7 @@ class ClaudeSDKTurnLimitError(RuntimeError):
     :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`)."""
 
 
-class ClaudeSDKQueryTimeout(TimeoutError):
+class ClaudeSDKQueryTimeout(RobotsixLLMIOError):
     """A single Claude Agent SDK ``query()`` exceeded the per-call wall-clock cap
     (:data:`~robotsix_llmio.core.constants.SDK_QUERY_TIMEOUT`).
 
@@ -90,7 +91,7 @@ def _content_to_text(content: Any) -> str:
         return content
     if isinstance(content, (list, tuple)):
         out: list[str] = []
-        for item in content:  # type: ignore[misc]  # heterogeneous content parts
+        for item in content:  # heterogeneous content parts
             text = getattr(item, "text", None)
             out.append(text if isinstance(text, str) else str(item))
         return "\n".join(out)
@@ -103,7 +104,7 @@ def _retry_text(part: RetryPromptPart) -> str:
     model_response = getattr(part, "model_response", None)
     if callable(model_response):
         try:
-            return model_response()
+            return cast(str, model_response())
         except Exception:  # pragma: no cover - defensive
             pass
     return _content_to_text(getattr(part, "content", ""))
@@ -229,7 +230,7 @@ class ClaudeSDKModel(Model):
         return combined or None
 
     async def _invoke(self, prompt: str, system_text: str | None) -> tuple[str, Any]:
-        from claude_agent_sdk import (  # type: ignore[import-not-found]
+        from claude_agent_sdk import (
             ClaudeAgentOptions,
         )
 
@@ -277,6 +278,31 @@ class ClaudeSDKModel(Model):
             lambda r: getattr(r, "total_cost_usd", None),
             provider=PROVIDER_NAME,
         )
+        # Stamp provider/model identity and token usage on the active span,
+        # independently of whether cost was recorded, so the span shape is
+        # consistent with the tool-loop path and the OpenRouter provider.
+        from ..core._otel import (
+            GEN_AI_PROVIDER_NAME,
+            GEN_AI_REQUEST_MODEL,
+            GEN_AI_SYSTEM,
+            GEN_AI_USAGE_INPUT_TOKENS,
+            GEN_AI_USAGE_OUTPUT_TOKENS,
+            get_recording_span,
+        )
+
+        span = get_recording_span()
+        if span is not None:
+            span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
+            span.set_attribute(GEN_AI_SYSTEM, self.system)
+            span.set_attribute(GEN_AI_REQUEST_MODEL, self._sdk_model)
+            usage = getattr(result, "usage", None) if result is not None else None
+            if isinstance(usage, dict):
+                in_tok = usage.get("input_tokens")
+                out_tok = usage.get("output_tokens")
+                if in_tok is not None:
+                    span.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
+                if out_tok is not None:
+                    span.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
         return ModelResponse(
             parts=[TextPart(content=text)],
             usage=_map_usage(result),

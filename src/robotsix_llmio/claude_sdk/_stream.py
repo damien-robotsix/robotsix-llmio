@@ -93,7 +93,7 @@ async def _stream_query(
     If *extra_transient* is given and returns ``True`` for a non-timeout
     exception, that exception is wrapped in :class:`ClaudeSDKTurnLimitError`.
     """
-    from claude_agent_sdk import (  # type: ignore[import-not-found]
+    from claude_agent_sdk import (
         AssistantMessage,
         ResultMessage,
         TextBlock,

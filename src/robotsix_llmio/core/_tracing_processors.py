@@ -18,7 +18,11 @@ import contextlib
 
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 
 from . import tracing as _t
 from ._otel import LANGFUSE_PUBLIC_KEY, LANGFUSE_SESSION_ID
@@ -86,7 +90,7 @@ class _FilteredBatchSpanProcessor(BatchSpanProcessor):
     """Forward a span to this project's exporter only when the span's
     ``langfuse.public_key`` matches — the multi-tenant routing seam."""
 
-    def __init__(self, exporter, *, target_public_key):  # type: ignore[no-untyped-def]
+    def __init__(self, exporter: SpanExporter, *, target_public_key: str) -> None:
         super().__init__(exporter)
         self._target = target_public_key
 

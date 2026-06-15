@@ -222,6 +222,33 @@ def test_plain_value_error_not_transient():
     assert is_claude_sdk_transient(ValueError("nope")) is False
 
 
+def test_degenerate_success_is_transient_but_not_turn_limit():
+    # The upstream SDK collapses a self-contradictory frame
+    # (is_error=True, errors=[], subtype="success") into a bare
+    # Exception("Claude Code returned an error result: success"). A re-run
+    # clears it, so it must be retried locally — but it is NOT a turn-cap.
+    e = Exception("Claude Code returned an error result: success")
+    assert is_claude_sdk_transient(e) is True
+    assert is_claude_sdk_turn_limit(e) is False
+
+
+def test_genuine_error_subtypes_not_transient():
+    # The match stays narrow: only the literal subtype="success" message is
+    # transient. Genuine error subtypes must surface immediately.
+    for subtype in ("error_during_execution", "error_max_turns"):
+        e = Exception(f"Claude Code returned an error result: {subtype}")
+        assert is_claude_sdk_transient(e) is False
+
+
+def test_degenerate_success_matched_case_insensitively_through_chain():
+    # Detected case-insensitively and through the cause/context chain.
+    cause = RuntimeError("Claude Code RETURNED AN ERROR RESULT: SUCCESS")
+    try:
+        raise Exception("wrapper") from cause
+    except Exception as e:
+        assert is_claude_sdk_transient(e) is True
+
+
 # --- turn-limit: hard failure, never retried -------------------------------
 
 
@@ -386,7 +413,11 @@ def _fake_sdk_module() -> SimpleNamespace:
 def _install_fake_sdk(monkeypatch) -> SimpleNamespace:
     """Install a fake ``claude_agent_sdk`` module and return its namespace."""
     fake = _fake_sdk_module()
-    sys.modules["claude_agent_sdk"] = fake
+    # Install via monkeypatch ONLY: a preceding raw
+    # `sys.modules["claude_agent_sdk"] = fake` would make monkeypatch record
+    # the fake as the "original" and restore it (not remove it) on teardown,
+    # leaking the incomplete stub into later tests (e.g. test_confine_hook's
+    # `from claude_agent_sdk import create_sdk_mcp_server`).
     monkeypatch.setitem(sys.modules, "claude_agent_sdk", fake)
     return fake
 
@@ -705,6 +736,127 @@ def test_spans_set_gen_ai_provider_name(monkeypatch):
     )
     assert root is not None, f"no root span in {[s.name for s in spans]}"
     assert root.attributes.get("gen_ai.provider.name") == PROVIDER_NAME
+
+
+# --- no-tools request() span attributes (regression) -----------------------
+
+
+def test_notools_request_stamps_gen_ai_attributes(monkeypatch):
+    """After ``ClaudeSDKModel.request()`` runs with a recording span active, that
+    span carries provider.model identity, system, and token-usage attributes
+    — independently of whether cost was recorded, and consistent with the
+    tool-loop path."""
+    pytest.importorskip("opentelemetry.sdk")
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("hello world")
+        yield fake.ResultMessage({"input_tokens": 10, "output_tokens": 5})
+
+    fake.query = _fake_query
+
+    exporter = InMemorySpanExporter()
+    provider_obj = TracerProvider()
+    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider_obj.get_tracer("test")
+
+    model = ClaudeSDKModel("opus")
+
+    async def _run():
+        with tracer.start_as_current_span("root"):
+            return await model.request(
+                [ModelRequest(parts=[UserPromptPart(content="hi")])],
+                model_settings=None,
+                model_request_parameters=ModelRequestParameters(output_mode="text"),
+            )
+
+    asyncio.run(_run())
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1, f"expected 1 span, got {[s.name for s in spans]}"
+    attrs = spans[0].attributes
+    assert attrs["gen_ai.provider.name"] == "claude-sdk"
+    assert attrs["gen_ai.system"] == "anthropic"
+    assert attrs["gen_ai.request.model"] == "opus"
+    assert attrs["gen_ai.usage.input_tokens"] == 10
+    assert attrs["gen_ai.usage.output_tokens"] == 5
+
+
+def test_notools_request_skips_missing_usage(monkeypatch):
+    """When the SDK ResultMessage has no usage dict, token attributes are not set
+    (no spurious zeros), but identity attributes are still stamped."""
+    pytest.importorskip("opentelemetry.sdk")
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("hello")
+        yield fake.ResultMessage()  # no usage
+
+    fake.query = _fake_query
+
+    exporter = InMemorySpanExporter()
+    provider_obj = TracerProvider()
+    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider_obj.get_tracer("test")
+
+    model = ClaudeSDKModel("sonnet")
+
+    async def _run():
+        with tracer.start_as_current_span("root"):
+            return await model.request(
+                [ModelRequest(parts=[UserPromptPart(content="hi")])],
+                model_settings=None,
+                model_request_parameters=ModelRequestParameters(output_mode="text"),
+            )
+
+    asyncio.run(_run())
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    attrs = spans[0].attributes
+    # Identity always set.
+    assert attrs["gen_ai.provider.name"] == "claude-sdk"
+    assert attrs["gen_ai.system"] == "anthropic"
+    assert attrs["gen_ai.request.model"] == "sonnet"
+    # Token keys absent entirely.
+    assert "gen_ai.usage.input_tokens" not in attrs
+    assert "gen_ai.usage.output_tokens" not in attrs
+
+
+def test_no_span_recording_is_noop(monkeypatch):
+    """When no span is recording (OpenTelemetry absent or no TracerProvider),
+    ``request()`` behaves exactly as before — no exception, no writes."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("ok")
+        yield fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+
+    fake.query = _fake_query
+
+    model = ClaudeSDKModel("haiku")
+    # No OTel tracer installed — get_recording_span() returns None.
+    response = asyncio.run(
+        model.request(
+            [ModelRequest(parts=[UserPromptPart(content="hi")])],
+            model_settings=None,
+            model_request_parameters=ModelRequestParameters(output_mode="text"),
+        )
+    )
+    assert response.model_name == "haiku"
+    assert response.parts[0].content == "ok"
 
 
 def test_notools_path_returns_agent_handle():

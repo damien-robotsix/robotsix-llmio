@@ -14,9 +14,9 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from ..core._otel import (
+from ..core.tracing import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
@@ -26,14 +26,17 @@ from ..core._otel import (
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
     LANGFUSE_OBSERVATION_OUTPUT,
+    OP_CHAT,
     OP_EXECUTE_TOOL,
     OP_INVOKE_AGENT,
+    get_tracer,
+    start_span,
 )
-from ..core.tracing import OP_CHAT, get_tracer, start_span
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
-    from claude_agent_sdk import (  # type: ignore[import-not-found]
+    from claude_agent_sdk import (
         ClaudeAgentOptions,
+        HookCallback,
     )
 
 log = logging.getLogger("robotsix_llmio.claude_sdk")
@@ -118,7 +121,7 @@ def _balanced_objects(text: str) -> list[str]:
     return out
 
 
-def _extract_json_object(text: str) -> dict | None:
+def _extract_json_object(text: str) -> dict[str, Any] | None:
     """Best-effort extraction of a JSON object from model *text*.
 
     Tries, in order: (1) the whole text as JSON; (2) each ```-fenced block,
@@ -187,10 +190,10 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         to ``ClaudeAgentOptions.mcp_servers``.
     """
     import pydantic_ai
-    from claude_agent_sdk import (  # type: ignore[import-not-found]
+    from claude_agent_sdk import (
         create_sdk_mcp_server,
     )
-    from claude_agent_sdk import tool as sdk_tool  # type: ignore[import-not-found]
+    from claude_agent_sdk import tool as sdk_tool
 
     wrapped: list[Any] = []
     allowed: list[str] = []
@@ -254,7 +257,7 @@ def _is_within(root: str, target: str) -> bool:
     return rp == root or rp.startswith(root + os.sep)
 
 
-def _make_confine_hook(workspace_root: str):
+def _make_confine_hook(workspace_root: str) -> HookCallback:
     """Build a ``PreToolUse`` hook that denies built-in edits outside
     *workspace_root*.
 
@@ -293,7 +296,7 @@ def _make_confine_hook(workspace_root: str):
             }
         }
 
-    return _hook
+    return cast("HookCallback", _hook)
 
 
 @dataclass
@@ -448,7 +451,7 @@ class _SdkToolAgentHandle:
         """Build the ``ClaudeAgentOptions`` for the SDK call, wiring in the
         workspace-confinement ``PreToolUse`` hook when a workspace root is set.
         """
-        from claude_agent_sdk import (  # type: ignore[import-not-found]
+        from claude_agent_sdk import (
             ClaudeAgentOptions,
         )
 
@@ -457,7 +460,7 @@ class _SdkToolAgentHandle:
         # Write/Edit/MultiEdit/NotebookEdit through a PreToolUse hook.
         extra: dict[str, Any] = {}
         if self._workspace_root:
-            from claude_agent_sdk import HookMatcher  # type: ignore[import-not-found]
+            from claude_agent_sdk import HookMatcher
 
             extra["cwd"] = self._workspace_root
             extra["hooks"] = {

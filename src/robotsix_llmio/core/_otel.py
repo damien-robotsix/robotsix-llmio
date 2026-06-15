@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 def get_recording_span() -> "Span | None":
     """Return the current OTel span if recording, else None. No-op without OTel."""
     try:
-        from opentelemetry import trace as otel_trace  # type: ignore[import-untyped]
+        from opentelemetry import trace as otel_trace
     except ImportError:
         return None
     span = otel_trace.get_current_span()
@@ -56,7 +56,7 @@ def get_tracer(name: str) -> Any | None:
     installed. The tracer late-binds to whatever provider is active when a span
     is started, so it's safe to fetch before tracing is configured."""
     try:
-        from opentelemetry import trace as otel_trace  # type: ignore[import-untyped]
+        from opentelemetry import trace as otel_trace
     except ImportError:
         return None
     return otel_trace.get_tracer(name)

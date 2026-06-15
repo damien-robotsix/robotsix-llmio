@@ -45,7 +45,7 @@ class LLMProvider(ABC):
         *,
         tier: Tier = Tier.DEFAULT,
         system_prompt: str,
-        tools: list | None = None,
+        tools: list[Any] | None = None,
         output_type: Any = str,
         name: str | None = None,
         retries: int = 2,
