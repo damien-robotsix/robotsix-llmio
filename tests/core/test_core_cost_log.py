@@ -126,4 +126,3 @@ def test_meta_total_pages_stops_pagination(monkeypatch):
 
     assert result.record_count == 1
     assert len(captured) == 1
-    assert len(captured) == 1
