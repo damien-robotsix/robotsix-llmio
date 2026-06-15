@@ -281,7 +281,7 @@ class ClaudeSDKModel(Model):
         # Stamp provider/model identity and token usage on the active span,
         # independently of whether cost was recorded, so the span shape is
         # consistent with the tool-loop path and the OpenRouter provider.
-        from ..core._otel import (
+        from ..core.tracing import (
             GEN_AI_PROVIDER_NAME,
             GEN_AI_REQUEST_MODEL,
             GEN_AI_SYSTEM,
