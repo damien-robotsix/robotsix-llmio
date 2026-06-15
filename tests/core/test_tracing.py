@@ -494,13 +494,23 @@ class _FakeSpanContext:
         self.trace_id = trace_id
 
 
+class _FakeTraceFlags:
+    sampled = True
+
+
+class _FakeContext:
+    trace_flags = _FakeTraceFlags()
+
+
 class _FakeSpan:
     """Minimal span exposing what _StampProcessor reads/writes."""
 
-    def __init__(self, trace_id: int, parent=None) -> None:
+    def __init__(self, trace_id: int, parent=None, name: str = "fake-span") -> None:
         self.attributes: dict = {}
         self._ctx = _FakeSpanContext(trace_id)
         self.parent = parent
+        self.name = name
+        self.context = _FakeContext()
 
     def set_attribute(self, key, value):
         self.attributes[key] = value
@@ -552,3 +562,77 @@ def test_stamp_processor_direct_construction_tiers(monkeypatch):
     # on_end on a root span (parent=None) removes the trace_id mapping.
     proc.on_end(span3)
     assert 333 not in tracing._trace_routing
+
+
+# --- _FilteredBatchSpanProcessor unit tests --------------------------------
+
+
+class _ListSpanExporter:
+    """Fake exporter that records spans passed to ``export()``."""
+
+    def __init__(self):
+        self.exported: list = []
+
+    def export(self, spans):
+        self.exported.extend(spans)
+        from opentelemetry.sdk.trace.export import SpanExportResult
+
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self):
+        pass
+
+
+def test_filtered_batch_processor_matching_key_passes_through(monkeypatch):
+    """Span with a matching ``langfuse.public_key`` reaches the exporter."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _FilteredBatchSpanProcessor
+
+    exporter = _ListSpanExporter()
+    proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+
+    span = _FakeSpan(trace_id=1)
+    span.attributes["langfuse.public_key"] = "pk-a"
+    proc.on_end(span)
+    proc.force_flush()
+
+    assert len(exporter.exported) == 1
+    assert exporter.exported[0] is span
+
+
+def test_filtered_batch_processor_mismatched_key_is_dropped(monkeypatch):
+    """Span with a different ``langfuse.public_key`` is silently dropped."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _FilteredBatchSpanProcessor
+
+    exporter = _ListSpanExporter()
+    proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+
+    span = _FakeSpan(trace_id=2)
+    span.attributes["langfuse.public_key"] = "pk-b"
+    proc.on_end(span)
+    proc.force_flush()
+
+    assert len(exporter.exported) == 0
+
+
+def test_filtered_batch_processor_missing_key_logs_and_drops(monkeypatch):
+    """Span with no ``langfuse.public_key`` logs throttled-debug and is dropped."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _FilteredBatchSpanProcessor
+
+    debug_calls = []
+    monkeypatch.setattr(tracing, "_throttled_debug", debug_calls.append)
+
+    exporter = _ListSpanExporter()
+    proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+
+    span = _FakeSpan(trace_id=3, name="my-span")
+    # No langfuse.public_key set — simulate a span that was never stamped.
+    proc.on_end(span)
+    proc.force_flush()
+
+    assert len(exporter.exported) == 0
+    assert len(debug_calls) == 1
+    assert "my-span" in debug_calls[0]
+    assert "langfuse.public_key" in debug_calls[0]
