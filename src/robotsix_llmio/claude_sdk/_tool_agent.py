@@ -190,6 +190,7 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         to ``ClaudeAgentOptions.mcp_servers``.
     """
     import pydantic_ai
+
     try:
         from claude_agent_sdk import (
             create_sdk_mcp_server,
