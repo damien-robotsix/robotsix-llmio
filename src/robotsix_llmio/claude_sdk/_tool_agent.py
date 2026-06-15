@@ -451,16 +451,30 @@ class _SdkToolAgentHandle:
         """Build the ``ClaudeAgentOptions`` for the SDK call, wiring in the
         workspace-confinement ``PreToolUse`` hook when a workspace root is set.
         """
-        from claude_agent_sdk import (
-            ClaudeAgentOptions,
-        )
+        try:
+            from claude_agent_sdk import (
+                ClaudeAgentOptions,
+            )
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
+                "Install with: pip install 'robotsix-llmio[claude_sdk]' "
+                "(also needs Node.js and a logged-in `claude` CLI)."
+            ) from exc
 
         # Confine built-in edits to the workspace when a root is set: run the
         # SDK there (so relative paths + Bash default into it) and gate every
         # Write/Edit/MultiEdit/NotebookEdit through a PreToolUse hook.
         extra: dict[str, Any] = {}
         if self._workspace_root:
-            from claude_agent_sdk import HookMatcher
+            try:
+                from claude_agent_sdk import HookMatcher
+            except ImportError as exc:  # pragma: no cover
+                raise ImportError(
+                    "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
+                    "Install with: pip install 'robotsix-llmio[claude_sdk]' "
+                    "(also needs Node.js and a logged-in `claude` CLI)."
+                ) from exc
 
             extra["cwd"] = self._workspace_root
             extra["hooks"] = {
