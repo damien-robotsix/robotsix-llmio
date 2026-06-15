@@ -190,10 +190,18 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         to ``ClaudeAgentOptions.mcp_servers``.
     """
     import pydantic_ai
-    from claude_agent_sdk import (
-        create_sdk_mcp_server,
-    )
-    from claude_agent_sdk import tool as sdk_tool
+
+    try:
+        from claude_agent_sdk import (
+            create_sdk_mcp_server,
+        )
+        from claude_agent_sdk import tool as sdk_tool
+    except ImportError as exc:
+        raise ImportError(
+            "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
+            "Install with: pip install 'robotsix-llmio[claude_sdk]' "
+            "(also needs Node.js and a logged-in `claude` CLI)."
+        ) from exc
 
     wrapped: list[Any] = []
     allowed: list[str] = []

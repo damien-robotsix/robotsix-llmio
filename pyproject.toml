@@ -34,7 +34,7 @@ openrouter_deepseek = ["robotsix-llmio[openrouter]"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
-claude_sdk = ["claude-agent-sdk>=0.2"]
+claude_sdk = ["claude-agent-sdk>=0.2.97"]
 # Optional: emit cost/usage onto the active OpenTelemetry span AND export the
 # resulting traces to Langfuse (core.setup_langfuse_tracing). Trace export is
 # pure OTLP — no langfuse SDK needed.
