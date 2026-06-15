@@ -781,6 +781,7 @@ def test_notools_request_stamps_gen_ai_attributes(monkeypatch):
     spans = exporter.get_finished_spans()
     assert len(spans) == 1, f"expected 1 span, got {[s.name for s in spans]}"
     attrs = spans[0].attributes
+    assert attrs["gen_ai.operation.name"] == "chat"
     assert attrs["gen_ai.provider.name"] == "claude-sdk"
     assert attrs["gen_ai.system"] == "anthropic"
     assert attrs["gen_ai.request.model"] == "opus"

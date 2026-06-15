@@ -282,16 +282,19 @@ class ClaudeSDKModel(Model):
         # independently of whether cost was recorded, so the span shape is
         # consistent with the tool-loop path and the OpenRouter provider.
         from ..core.tracing import (
+            GEN_AI_OPERATION_NAME,
             GEN_AI_PROVIDER_NAME,
             GEN_AI_REQUEST_MODEL,
             GEN_AI_SYSTEM,
             GEN_AI_USAGE_INPUT_TOKENS,
             GEN_AI_USAGE_OUTPUT_TOKENS,
+            OP_CHAT,
             get_recording_span,
         )
 
         span = get_recording_span()
         if span is not None:
+            span.set_attribute(GEN_AI_OPERATION_NAME, OP_CHAT)
             span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
             span.set_attribute(GEN_AI_SYSTEM, self.system)
             span.set_attribute(GEN_AI_REQUEST_MODEL, self._sdk_model)
