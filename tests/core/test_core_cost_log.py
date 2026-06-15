@@ -9,43 +9,9 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from conftest import install_transport, make_adapter, make_window
 
-from robotsix_llmio.core import langfuse_cost as langfuse_cost_module
-from robotsix_llmio.core.cost_log import CostLogSource, CostWindow, LoggedCost
-from robotsix_llmio.core.langfuse_cost import LangfuseCostLogSource
-
-
-def _install_transport(monkeypatch, handler) -> list[httpx.Request]:
-    """Patch ``httpx.Client`` so the adapter uses a ``MockTransport`` running
-    *handler*. Returns a list that captures every request the adapter sends."""
-    captured: list[httpx.Request] = []
-
-    def _handler(request: httpx.Request) -> httpx.Response:
-        captured.append(request)
-        return handler(request)
-
-    transport = httpx.MockTransport(_handler)
-    real_client = httpx.Client
-
-    def _client(*args, **kwargs):
-        kwargs["transport"] = transport
-        return real_client(*args, **kwargs)
-
-    monkeypatch.setattr(langfuse_cost_module.httpx, "Client", _client)
-    return captured
-
-
-def _window() -> CostWindow:
-    return CostWindow(
-        start=datetime(2026, 6, 3, 10, 0, tzinfo=UTC),
-        end=datetime(2026, 6, 3, 11, 0, tzinfo=UTC),
-    )
-
-
-def _adapter() -> LangfuseCostLogSource:
-    return LangfuseCostLogSource(
-        public_key="pub", secret_key="sec", base_url="https://lf.example.com"
-    )
+from robotsix_llmio.core.cost_log import CostLogSource, LoggedCost
 
 
 def test_multi_page_aggregation(monkeypatch):
@@ -64,8 +30,8 @@ def test_multi_page_aggregation(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": pages[page]})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert isinstance(result, LoggedCost)
     assert result.record_count == 3
@@ -87,8 +53,8 @@ def test_per_record_population(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json={"data": data if page == 1 else []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert len(result.records) == 1
     record = result.records[0]
@@ -103,8 +69,8 @@ def test_empty_window_zero_result(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": []})
 
-    _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert result == LoggedCost(total_cost=0.0, record_count=0, records=[])
 
@@ -113,13 +79,13 @@ def test_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, text="unauthorized")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler)
     with pytest.raises(RuntimeError, match="401"):
-        _adapter().fetch_logged_cost(_window())
+        make_adapter().fetch_logged_cost(make_window())
 
 
 def test_runtime_protocol_conformance():
-    assert isinstance(_adapter(), CostLogSource)
+    assert isinstance(make_adapter(), CostLogSource)
 
 
 def test_request_shape(monkeypatch):
@@ -136,8 +102,8 @@ def test_request_shape(monkeypatch):
             },
         )
 
-    captured = _install_transport(monkeypatch, handler)
-    _adapter().fetch_logged_cost(_window())
+    captured = install_transport(monkeypatch, handler)
+    make_adapter().fetch_logged_cost(make_window())
 
     first = captured[0]
     assert first.url.path == "/api/public/traces"
@@ -155,8 +121,9 @@ def test_meta_total_pages_stops_pagination(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": data, "meta": {"totalPages": 1}})
 
-    captured = _install_transport(monkeypatch, handler)
-    result = _adapter().fetch_logged_cost(_window())
+    captured = install_transport(monkeypatch, handler)
+    result = make_adapter().fetch_logged_cost(make_window())
 
     assert result.record_count == 1
+    assert len(captured) == 1
     assert len(captured) == 1
