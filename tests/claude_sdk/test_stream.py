@@ -154,7 +154,11 @@ def _install_stream_fake_sdk(monkeypatch) -> SimpleNamespace:
     fake.ResultMessage = _FakeResultMessage
     fake.query = None  # to be set by each test
 
-    sys.modules["claude_agent_sdk"] = fake
+    # Install via monkeypatch ONLY: a preceding raw
+    # `sys.modules["claude_agent_sdk"] = fake` would make monkeypatch record
+    # the fake as the "original" and restore it (not remove it) on teardown,
+    # leaking the incomplete stub into later tests (e.g. test_confine_hook's
+    # `from claude_agent_sdk import create_sdk_mcp_server`).
     monkeypatch.setitem(sys.modules, "claude_agent_sdk", fake)
     return fake
 
