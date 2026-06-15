@@ -54,6 +54,9 @@ _REEXPORTED_SEMCONV_NAMES = (
     "LANGFUSE_OBSERVATION_COST_DETAILS",
     "LANGFUSE_OBSERVATION_METADATA_PROVIDER",
     "LANGFUSE_COST_DETAILS_TOTAL_KEY",
+    "get_recording_span",
+    "get_tracer",
+    "start_span",
 )
 
 
