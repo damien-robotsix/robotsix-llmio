@@ -150,11 +150,10 @@ def call_with_tier_fallback(
         except Exception as exc:
             next_level = _next_unvisited_tier(current_level, frozenset(visited))
 
-            exhausted = (
-                not fallback_enabled
-                or promotions >= max_fallback_depth
-                or next_level is None
-            )
+            if next_level is None:
+                raise
+
+            exhausted = not fallback_enabled or promotions >= max_fallback_depth
             if exhausted:
                 raise
 
@@ -215,11 +214,10 @@ async def acall_with_tier_fallback(
         except Exception as exc:
             next_level = _next_unvisited_tier(current_level, frozenset(visited))
 
-            exhausted = (
-                not fallback_enabled
-                or promotions >= max_fallback_depth
-                or next_level is None
-            )
+            if next_level is None:
+                raise
+
+            exhausted = not fallback_enabled or promotions >= max_fallback_depth
             if exhausted:
                 raise
 
