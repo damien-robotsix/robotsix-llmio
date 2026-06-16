@@ -15,7 +15,9 @@ from robotsix_llmio.core.cost_log import CostWindow
 from robotsix_llmio.core.langfuse_cost import LangfuseCostLogSource
 
 
-def install_transport(monkeypatch, handler, module=langfuse_cost_module) -> list[httpx.Request]:
+def install_transport(
+    monkeypatch, handler, module=langfuse_cost_module
+) -> list[httpx.Request]:
     """Patch ``httpx.Client`` so the adapter uses a ``MockTransport`` running
     *handler*. Returns a list that captures every request the adapter sends."""
     captured: list[httpx.Request] = []
