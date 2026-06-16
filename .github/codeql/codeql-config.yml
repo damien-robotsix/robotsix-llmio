@@ -7,5 +7,5 @@
 # security surface is src/, so analysis there stays strict; only test noise
 # is suppressed at the source.
 paths-ignore:
-  - tests
+  - tests/**
   - vulture_whitelist.py
