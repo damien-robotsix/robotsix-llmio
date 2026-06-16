@@ -573,8 +573,10 @@ def test_config_dict_with_tier_level_config_object(monkeypatch: pytest.MonkeyPat
     )
     # Pass level2 as a TierLevelConfig object instead of a dict.
     cfg = load_tier_config(
-        {"level1": {"provider": "p1", "model": "m1"},
-         "level2": TierLevelConfig(provider="obj-p2", model="obj-m2")}
+        {
+            "level1": {"provider": "p1", "model": "m1"},
+            "level2": TierLevelConfig(provider="obj-p2", model="obj-m2"),
+        }
     )
     assert cfg.level1.provider == "p1"
     assert cfg.level2.provider == "obj-p2"
@@ -594,22 +596,22 @@ def test_to_dict_fallback_to_pydantic_v1_dict(monkeypatch: pytest.MonkeyPatch):
         LLMIO_LEVEL1_MODEL="m",
     )
     cfg = load_tier_config(
-        {"level1": {"provider": "p1", "model": "m1"},
-         "level2": V1Style()}
+        {"level1": {"provider": "p1", "model": "m1"}, "level2": V1Style()}
     )
     assert cfg.level2.provider == "v1-p"
     assert cfg.level2.model == "v1-m"
 
 
 def test_to_dict_unmergeable_value_raises(monkeypatch: pytest.MonkeyPatch):
-    """A value that is neither a dict nor a pydantic model raises TierConfigLoadError."""
+    """A value neither a dict nor a pydantic model raises TierConfigLoadError."""
     set_env(
         monkeypatch,
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
     )
     with pytest.raises(TierConfigLoadError) as exc_info:
-        load_tier_config({"level1": {"provider": "p1", "model": "m1"},
-                           "level2": 42})  # int — not mergeable
+        load_tier_config(
+            {"level1": {"provider": "p1", "model": "m1"}, "level2": 42}
+        )  # int — not mergeable
     msg = str(exc_info.value)
     assert "Cannot merge" in msg or "int" in msg

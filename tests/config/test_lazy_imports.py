@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from robotsix_llmio.config import tier as _tier
 from robotsix_llmio.config import loader as _loader
+from robotsix_llmio.config import tier as _tier
 
 
 def test_re_export_legacy_tier_map():
@@ -87,4 +87,4 @@ def test_unknown_attribute_raises():
     import robotsix_llmio.config as _pkg
 
     with pytest.raises(AttributeError):
-        _pkg._nonexistent_name  # noqa: SLF001
+        _ = _pkg._nonexistent_name
