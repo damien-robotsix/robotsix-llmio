@@ -6,40 +6,29 @@ so it is exercised with ``httpx.MockTransport`` (no network, no respx dependency
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from datetime import UTC, datetime
 
 import httpx
 
-from robotsix_llmio.core.cost_log import CostWindow, LoggedCost
+from robotsix_llmio.core.cost_log import LoggedCost
 from robotsix_llmio.core.provider_cost import (
     DEFAULT_TOLERANCE,
     ProviderCost,
     reconcile,
 )
 
-
-def _window(start: str, end: str) -> CostWindow:
-    return CostWindow(
-        start=datetime.fromisoformat(start).replace(tzinfo=UTC),
-        end=datetime.fromisoformat(end).replace(tzinfo=UTC),
-    )
-
-
-def _mock_client_factory(monkeypatch, module, handler):
-    """Patch *module*.httpx.Client to use a MockTransport(handler).
-
-    ``module.httpx`` is the shared httpx module, so patching its ``Client``
-    affects every reference — capture the real class FIRST so the factory
-    doesn't recurse into itself.
-    """
-    real_client = httpx.Client
-
-    def _make(*args, **kwargs):
-        kwargs.pop("transport", None)
-        return real_client(transport=httpx.MockTransport(handler), **kwargs)
-
-    monkeypatch.setattr(module.httpx, "Client", _make)
+# Load the shared helpers from the top-level tests/conftest.py (importing
+# "conftest" directly would resolve to tests/core/conftest.py instead).
+_spec = importlib.util.spec_from_file_location(
+    "_tests_conftest",
+    __import__("pathlib").Path(__file__).resolve().parent.parent / "conftest.py",
+)
+_tests_conftest = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_tests_conftest)
+_window = _tests_conftest._window
+_mock_client_factory = _tests_conftest._mock_client_factory
 
 
 # --- reconcile (pure) --------------------------------------------------------
