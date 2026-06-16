@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 def _parse_anchor_time(anchor_time: str) -> tuple[int, int]:
     """Parse ``HH:MM`` into ``(hour, minute)``."""
     parts = anchor_time.split(":")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid anchor time format: {anchor_time!r}")
     return int(parts[0]), int(parts[1])
 
 

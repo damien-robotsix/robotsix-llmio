@@ -23,23 +23,28 @@ __all__ = [
     "WeeklyPaceConfig",
 ]
 
-_MODULES: dict[str, str] = {
-    "LEGACY_TIER_MAP": "tier",
-    "LEVEL1_DEFAULT": "tier",
-    "LEVEL2_DEFAULT": "tier",
-    "LEVEL3_DEFAULT": "tier",
-    "ModelWeightConfig": "weekly_pace",
-    "TierConfig": "tier",
-    "TierLevel": "tier",
-    "TierLevelConfig": "tier",
-    "WeeklyPaceConfig": "weekly_pace",
-}
+_TIER_NAMES: frozenset[str] = frozenset(
+    {
+        "LEGACY_TIER_MAP",
+        "LEVEL1_DEFAULT",
+        "LEVEL2_DEFAULT",
+        "LEVEL3_DEFAULT",
+        "TierConfig",
+        "TierLevel",
+        "TierLevelConfig",
+    }
+)
+
+_WEEKLY_PACE_NAMES: frozenset[str] = frozenset(
+    {"ModelWeightConfig", "WeeklyPaceConfig"}
+)
 
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
-    if name in _MODULES:
-        from importlib import import_module
-
-        mod = import_module(f".{_MODULES[name]}", __package__)
-        return getattr(mod, name)
+    if name in _TIER_NAMES:
+        from . import tier  # intentional lazy import (PEP 562)
+        return getattr(tier, name)
+    if name in _WEEKLY_PACE_NAMES:
+        from . import weekly_pace  # intentional lazy import (PEP 562)
+        return getattr(weekly_pace, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -179,10 +179,8 @@ class PaceGovernor:
             return 0.0
 
         now_mono = _time.monotonic()
-        cache_expired = (
-            self._cached_weekly_cost is None
-            or self._cache_timestamp is None
-            or (now_mono - self._cache_timestamp) >= self._config.cache_ttl_seconds
+        cache_expired = self._cache_timestamp is None or (
+            (now_mono - self._cache_timestamp) >= self._config.cache_ttl_seconds
         )
 
         if self._cost_source is not None and cache_expired:
