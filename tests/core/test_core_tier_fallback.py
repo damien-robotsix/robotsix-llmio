@@ -46,6 +46,7 @@ def _factory_that_succeeds(
     expected_tier: str | None = None,
 ):
     """Return a factory that returns a callable that succeeds."""
+
     def factory(tlc: TierLevelConfig):
         if tracking is not None:
             tracking.setdefault("factory_calls", []).append(tlc.model)
@@ -95,6 +96,7 @@ def _exhausted_failing_factory(
     tracking: dict | None = None,
 ):
     """Return a factory whose callable always raises."""
+
     def factory(tlc: TierLevelConfig):
         if tracking is not None:
             tracking.setdefault("factory_calls", []).append(tlc.model)
@@ -112,6 +114,7 @@ def _exhausted_failing_factory(
 # --------------------------------------------------------------------------- #
 #  _next_unvisited_tier                                                       #
 # --------------------------------------------------------------------------- #
+
 
 def test_next_unvisited_from_level1_no_visited():
     assert _next_unvisited_tier(TierLevel.LEVEL1, frozenset()) == TierLevel.LEVEL2
@@ -218,11 +221,14 @@ def test_fallback_level1_to_level2_on_failure():
     def factory(tlc: TierLevelConfig):
         tracking.setdefault("factory_calls", []).append(tlc.model)
         if tlc.model == "model-l1":
+
             def fn():
                 raise RuntimeError("l1-fail")
         else:
+
             def fn():
                 return "l2-ok"
+
         return fn
 
     out = call_with_tier_fallback(
@@ -507,9 +513,7 @@ def test_logging_output(caplog):
         "test-op: trying level2 (provider=prov-l2, model=model-l2)" in msg
         for msg in info_messages
     )
-    assert any(
-        "test-op: level2 succeeded" in msg for msg in info_messages
-    )
+    assert any("test-op: level2 succeeded" in msg for msg in info_messages)
 
     # Check WARNING messages
     warn_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
@@ -704,15 +708,9 @@ def test_acall_logging_output(caplog):
     )
 
     info_messages = [r.message for r in caplog.records if r.levelno == logging.INFO]
-    assert any(
-        "async-op: trying level1" in msg for msg in info_messages
-    )
-    assert any(
-        "async-op: trying level2" in msg for msg in info_messages
-    )
-    assert any(
-        "async-op: level2 succeeded" in msg for msg in info_messages
-    )
+    assert any("async-op: trying level1" in msg for msg in info_messages)
+    assert any("async-op: trying level2" in msg for msg in info_messages)
+    assert any("async-op: level2 succeeded" in msg for msg in info_messages)
 
     warn_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
     assert any(
