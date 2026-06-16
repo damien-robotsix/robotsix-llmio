@@ -104,10 +104,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import tier as _config_tier
 
         return getattr(_config_tier, name)
-    if name in ("TierConfigLoadError", "load_tier_config"):
+    if name == "TierConfigLoadError":
         from robotsix_llmio.config import loader as _config_loader
 
-        return getattr(_config_loader, name)
+        return _config_loader.TierConfigLoadError
+    if name == "load_tier_config":
+        from robotsix_llmio.config import loader as _config_loader
+
+        return _config_loader.load_tier_config
     if name in (
         "DEFAULT_TOLERANCE",
         "Discrepancy",

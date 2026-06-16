@@ -143,12 +143,18 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     """
     if isinstance(obj, dict):
         return obj
-    if hasattr(obj, "model_dump"):
+    try:
         result: Any = obj.model_dump()
+    except AttributeError:
+        pass
+    else:
         if isinstance(result, dict):
             return result
-    if hasattr(obj, "dict"):
+    try:
         result = obj.dict()
+    except AttributeError:
+        pass
+    else:
         if isinstance(result, dict):
             return result
     raise TierConfigLoadError(
