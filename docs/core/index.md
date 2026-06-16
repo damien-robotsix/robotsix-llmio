@@ -12,12 +12,36 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `AgentHandle` — wraps a pydantic-ai Agent with its httpx client, exposing `close()` for cleanup
 - `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type
 
+### Config-tier re-exports
+
+- `LEGACY_TIER_MAP` — maps legacy `Tier.CHEAP`/`Tier.DEFAULT` values to the new three-tier levels
+- `LEVEL1_DEFAULT` — default `TierLevelConfig` for level 1 (fast/cheap)
+- `LEVEL2_DEFAULT` — default `TierLevelConfig` for level 2 (capable)
+- `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)
+- `TierConfig` — pydantic model for three-tier provider+model configuration
+- `TierConfigLoadError` — raised when tier configuration cannot be loaded
+- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3` tier-selector values
+- `TierLevelConfig` — pydantic model binding a single tier's provider and model
+- `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
+
+### Agent runners
+
+- `run_agent` — runs an `AgentHandle` under a trace span with bounded retry, always closing the handle
+- `arun_agent` — async mirror of `run_agent`
+
+### Factory
+
+- `get_provider` — resolves and instantiates a provider by registry name
+- `register_provider` — registers a provider name→class mapping for use with `get_provider`
+
 ### Retry & transient errors
 
 - `call_with_retry` — bounded retry on transient/rate-limit errors with optional fallback
 - `call_with_retry_and_fallback` — retries locally then activates a fallback model on failure
 - `is_rate_limited` — detects pydantic-ai `UsageLimitExceeded` (budget cap) exceptions
 - `is_transient` — detects retryable infrastructure failures (httpx timeouts, 429/5xx, transport errors)
+- `acall_with_retry` — async mirror of `call_with_retry`
+- `acall_with_retry_and_fallback` — async mirror of `call_with_retry_and_fallback`
 
 ### Cost recording
 
@@ -54,7 +78,12 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 ### Langfuse cost log
 
 - `LangfuseCostLogSource` — concrete `CostLogSource` fetching logged cost from Langfuse's REST API
+- `LangfuseReadClient` — low-level Langfuse REST client for reading trace and session data
 
 ### HTTP
 
 - `timeout_http_client` — returns a fresh `httpx.AsyncClient` with a hard per-request timeout
+
+### Text utilities
+
+- `html_to_text` — strips HTML markup down to whitespace-collapsed plaintext
