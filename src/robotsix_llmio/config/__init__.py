@@ -17,15 +17,18 @@ __all__ = [
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
     "MODEL_LEVEL_TO_TIER",
+    "PROVIDER_MODELS",
     "TRANSPORT_ALIASES",
     "ModelWeightConfig",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
+    "UnknownModelError",
     "WeeklyPaceConfig",
     "create_model",
     "load_tier_config",
+    "validate_model",
 ]
 
 
@@ -86,4 +89,16 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import transport
 
         return transport.MODEL_LEVEL_TO_TIER
+    if name == "PROVIDER_MODELS":
+        from . import model_registry
+
+        return model_registry.PROVIDER_MODELS
+    if name == "UnknownModelError":
+        from . import model_registry
+
+        return model_registry.UnknownModelError
+    if name == "validate_model":
+        from . import model_registry
+
+        return model_registry.validate_model
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
