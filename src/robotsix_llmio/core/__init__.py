@@ -34,11 +34,13 @@ __all__ = [
     "TraceSpan",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
+    "acall_with_tier_fallback",
     "active_routing_key",
     "arun_agent",
     "build_agent",
     "call_with_retry",
     "call_with_retry_and_fallback",
+    "call_with_tier_fallback",
     "current_session",
     "flush_tracing",
     "get_provider",
@@ -188,6 +190,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import retry
 
         return retry.call_with_retry_and_fallback
+    if name == "acall_with_tier_fallback":
+        from . import tier_fallback
+
+        return tier_fallback.acall_with_tier_fallback
+    if name == "call_with_tier_fallback":
+        from . import tier_fallback
+
+        return tier_fallback.call_with_tier_fallback
     if name == "is_rate_limited":
         from . import retry
 
