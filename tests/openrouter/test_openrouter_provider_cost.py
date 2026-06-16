@@ -6,7 +6,6 @@ are exercised with ``httpx.MockTransport`` (no network, no respx dependency).
 
 from __future__ import annotations
 
-import importlib.util
 import os
 
 import httpx
@@ -18,18 +17,7 @@ from robotsix_llmio.openrouter.provider_cost import (
     OpenRouterProviderCostSource,
     _utc_dates,
 )
-
-# Load the shared helpers from the top-level tests/conftest.py (importing
-# "conftest" directly may resolve to tests/core/conftest.py instead).
-_spec = importlib.util.spec_from_file_location(
-    "_tests_conftest",
-    __import__("pathlib").Path(__file__).resolve().parent.parent / "conftest.py",
-)
-_tests_conftest = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_tests_conftest)
-_window = _tests_conftest._window
-_mock_client_factory = _tests_conftest._mock_client_factory
-
+from tests.conftest import _mock_client_factory, _window
 
 # --- _utc_dates (pure) -------------------------------------------------------
 
