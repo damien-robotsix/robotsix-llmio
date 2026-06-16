@@ -12,10 +12,13 @@ from datetime import datetime, timedelta
 
 def _parse_anchor_time(anchor_time: str) -> tuple[int, int]:
     """Parse ``HH:MM`` into ``(hour, minute)``."""
-    parts = anchor_time.split(":")
-    if len(parts) != 2:
+    hour_str, sep, minute_str = anchor_time.partition(":")
+    if sep != ":":
         raise ValueError(f"Invalid anchor time format: {anchor_time!r}")
-    return int(parts[0]), int(parts[1])
+    try:
+        return int(hour_str), int(minute_str)
+    except ValueError:
+        raise ValueError(f"Invalid anchor time format: {anchor_time!r}") from None
 
 
 def _current_week_window(

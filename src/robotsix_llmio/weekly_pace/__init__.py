@@ -213,4 +213,12 @@ class PaceGovernor:
         if model is None:
             return 1.0
         weights = self._config.model_weights
-        return getattr(weights, model, 1.0)
+        # Only resolve known model fields (avoids dynamic getattr on
+        # arbitrary strings).
+        if model == "opus":
+            return weights.opus
+        if model == "sonnet":
+            return weights.sonnet
+        if model == "haiku":
+            return weights.haiku
+        return 1.0
