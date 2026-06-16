@@ -18,9 +18,11 @@ __all__ = [
     "LEVEL3_DEFAULT",
     "ModelWeightConfig",
     "TierConfig",
+    "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
     "WeeklyPaceConfig",
+    "load_tier_config",
 ]
 
 _TIER_NAMES: frozenset[str] = frozenset(
@@ -37,6 +39,10 @@ _TIER_NAMES: frozenset[str] = frozenset(
 
 _WEEKLY_PACE_NAMES: frozenset[str] = frozenset(
     {"ModelWeightConfig", "WeeklyPaceConfig"}
+)
+
+_LOADER_NAMES: frozenset[str] = frozenset(
+    {"TierConfigLoadError", "load_tier_config"}
 )
 
 
@@ -67,4 +73,8 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         if name == "WeeklyPaceConfig":
             return weekly_pace.WeeklyPaceConfig
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name in _LOADER_NAMES:
+        from . import loader  # intentional lazy import (PEP 562)
+
+        return getattr(loader, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
