@@ -99,9 +99,9 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "TierLevel",
         "TierLevelConfig",
     ):
-        from robotsix_llmio import config
+        from robotsix_llmio.config import tier as _config_tier
 
-        return getattr(config, name)
+        return getattr(_config_tier, name)
     if name in (
         "DEFAULT_TOLERANCE",
         "Discrepancy",

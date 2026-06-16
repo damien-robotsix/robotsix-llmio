@@ -80,7 +80,9 @@ def test_tier_level_config_minimal_construction():
 
 def test_tier_level_config_with_provider_kwargs():
     """``provider_kwargs`` can be supplied explicitly."""
-    cfg = TierLevelConfig(provider="p", model="m", provider_kwargs={"base_url": "https://x"})
+    cfg = TierLevelConfig(
+        provider="p", model="m", provider_kwargs={"base_url": "https://x"}
+    )
     assert cfg.provider_kwargs == {"base_url": "https://x"}
 
 

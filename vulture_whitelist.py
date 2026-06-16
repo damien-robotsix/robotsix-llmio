@@ -86,3 +86,18 @@ signum
 
 OpenRouterKeyCostSource.fetch_key_usage
 OpenRouterProviderCostSource.fetch_provider_cost
+
+# ---------------------------------------------------------------------------
+# config/tier.py — Pydantic model fields and StrEnum members
+# ---------------------------------------------------------------------------
+
+# StrEnum members referenced via TierLevel.LEVEL3 externally; LEVEL1/LEVEL2
+# are used within LEGACY_TIER_MAP in the same file.
+TierLevel.LEVEL3
+
+# Pydantic model fields accessed by pydantic's metaclass machinery, not by
+# direct Python name access that vulture would detect.
+TierLevelConfig.provider_kwargs
+TierConfig.level1
+TierConfig.level2
+TierConfig.level3
