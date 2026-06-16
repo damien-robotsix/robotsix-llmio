@@ -162,8 +162,7 @@ class PaceGovernor:
             if self._config.fail_open:
                 logger.warning(
                     "Pace governor: Langfuse query failed, failing open "
-                    "(defaulting to Claude): %s",
-                    exc,
+                    "(defaulting to Claude)"
                 )
                 return None
             raise
