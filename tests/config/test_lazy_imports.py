@@ -70,12 +70,15 @@ def test_re_export_load_tier_config():
 @pytest.mark.parametrize(
     "attr_name",
     [
+        "MODEL_LEVEL_TO_TIER",
+        "TRANSPORT_ALIASES",
         "ModelWeightConfig",
         "WeeklyPaceConfig",
+        "create_model",
     ],
 )
-def test_re_export_weekly_pace_names(attr_name: str):
-    """Every weekly-pace name in __all__ resolves via __getattr__."""
+def test_re_export_names(attr_name: str):
+    """Every name in __all__ resolves via __getattr__."""
     import robotsix_llmio.config as _pkg
 
     obj = getattr(_pkg, attr_name)

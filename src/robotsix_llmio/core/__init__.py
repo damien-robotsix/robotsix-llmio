@@ -15,6 +15,8 @@ __all__ = [
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
+    "MODEL_LEVEL_TO_TIER",
+    "TRANSPORT_ALIASES",
     "AgentHandle",
     "CostLogSource",
     "CostRecord",
@@ -41,6 +43,7 @@ __all__ = [
     "call_with_retry",
     "call_with_retry_and_fallback",
     "call_with_tier_fallback",
+    "create_model",
     "current_session",
     "flush_tracing",
     "get_provider",
@@ -154,6 +157,18 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import loader as _config_loader
 
         return _config_loader.load_tier_config
+    if name == "MODEL_LEVEL_TO_TIER":
+        from robotsix_llmio.config import transport as _config_transport
+
+        return _config_transport.MODEL_LEVEL_TO_TIER
+    if name == "TRANSPORT_ALIASES":
+        from robotsix_llmio.config import transport as _config_transport
+
+        return _config_transport.TRANSPORT_ALIASES
+    if name == "create_model":
+        from robotsix_llmio.config import factory as _config_factory
+
+        return _config_factory.create_model
     if name == "DEFAULT_TOLERANCE":
         from . import provider_cost
 
