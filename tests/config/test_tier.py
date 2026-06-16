@@ -5,6 +5,7 @@ Covers:
 - ``TierLevelConfig`` construction, field types, ``model_dump()`` round-trip
 - ``TierConfig`` defaults and partial overrides
 - ``TierConfig.model_validate()`` from plain dicts
+- ``TierConfig.for_level()`` integer→TierLevelConfig resolution
 - ``LEGACY_TIER_MAP`` correctness
 - ``provider_kwargs`` default and serialisation
 """
@@ -269,6 +270,76 @@ def test_tier_config_provider_kwargs_serialisation():
 
 
 # ========================================================================== #
+#  TierConfig.for_level()
+# ========================================================================== #
+
+
+def test_for_level_1_returns_level1():
+    """``for_level(1)`` returns ``self.level1``."""
+    cfg = TierConfig(
+        level1=TierLevelConfig(provider="a", model="1"),
+    )
+    result = cfg.for_level(1)
+    assert result is cfg.level1
+    assert result.provider == "a"
+    assert result.model == "1"
+
+
+def test_for_level_2_returns_level2():
+    """``for_level(2)`` returns ``self.level2`` — explicit or default."""
+    cfg = TierConfig(
+        level1=TierLevelConfig(provider="a", model="1"),
+        level2=TierLevelConfig(provider="b", model="2"),
+    )
+    result = cfg.for_level(2)
+    assert result is cfg.level2
+    assert result.provider == "b"
+    assert result.model == "2"
+
+
+def test_for_level_3_returns_level3():
+    """``for_level(3)`` returns ``self.level3`` — explicit or default."""
+    cfg = TierConfig(
+        level1=TierLevelConfig(provider="a", model="1"),
+        level3=TierLevelConfig(provider="c", model="3"),
+    )
+    result = cfg.for_level(3)
+    assert result is cfg.level3
+    assert result.provider == "c"
+    assert result.model == "3"
+
+
+def test_for_level_0_raises():
+    """``for_level(0)`` raises ValueError."""
+    cfg = TierConfig(level1=TierLevelConfig(provider="a", model="1"))
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
+        cfg.for_level(0)
+
+
+def test_for_level_4_raises():
+    """``for_level(4)`` raises ValueError."""
+    cfg = TierConfig(level1=TierLevelConfig(provider="a", model="1"))
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
+        cfg.for_level(4)
+
+
+def test_for_level_returns_default_level2_when_not_explicitly_set():
+    """``for_level(2)`` falls back to the baked LEVEL2_DEFAULT when level2
+    is not explicitly configured."""
+    cfg = TierConfig(level1=TierLevelConfig(provider="a", model="1"))
+    result = cfg.for_level(2)
+    assert result == LEVEL2_DEFAULT
+
+
+def test_for_level_returns_default_level3_when_not_explicitly_set():
+    """``for_level(3)`` falls back to the baked LEVEL3_DEFAULT when level3
+    is not explicitly configured."""
+    cfg = TierConfig(level1=TierLevelConfig(provider="a", model="1"))
+    result = cfg.for_level(3)
+    assert result == LEVEL3_DEFAULT
+
+
+# ========================================================================== #
 #  LEGACY_TIER_MAP
 # ========================================================================== #
 
@@ -338,7 +409,8 @@ def test_core_reexports_defaults():
 
 
 def test_core_reexports_legacy_tier_map():
-    """``LEGACY_TIER_MAP`` is importable from ``robotsix_llmio.core``."""
-    from robotsix_llmio.core import LEGACY_TIER_MAP as LTM
-
+    """``LEGACY_TIER_MAP`` is importable from ``robotsix_llmio.core``
+    and emits a :exc:`DeprecationWarning` on access."""
+    with pytest.warns(DeprecationWarning, match="LEGACY_TIER_MAP is deprecated"):
+        from robotsix_llmio.core import LEGACY_TIER_MAP as LTM
     assert LTM is LEGACY_TIER_MAP

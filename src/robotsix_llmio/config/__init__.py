@@ -34,6 +34,13 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
     if name == "LEGACY_TIER_MAP":
+        import warnings
+
+        warnings.warn(
+            "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from . import tier
 
         return tier.LEGACY_TIER_MAP

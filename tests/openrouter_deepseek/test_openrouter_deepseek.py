@@ -1,4 +1,4 @@
-"""Derived DeepSeek layer — pin + per-tier reasoning policy."""
+"""Derived DeepSeek layer — pin + per-level reasoning policy."""
 
 from __future__ import annotations
 
@@ -7,32 +7,32 @@ from typing import Any
 
 import pytest
 
-from robotsix_llmio.core.provider import Tier
 from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
 
 
-def _model(tier: Tier):
-    """Build a DeepSeek model for a tier with reasoning policy stamped (as the
-    provider does), without needing network/key beyond construction."""
+def _model(level: int):
+    """Build a DeepSeek model for a capability *level* with reasoning policy
+    stamped (as the provider does), without needing network/key beyond
+    construction."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from robotsix_llmio.openrouter_deepseek.model import OpenRouterDeepseekModel
 
     name = {
-        Tier.DEFAULT: "deepseek/deepseek-v4-pro",
-        Tier.CHEAP: "deepseek/deepseek-v4-flash",
-    }[tier]
+        1: "deepseek/deepseek-v4-flash",
+        2: "deepseek/deepseek-v4-pro",
+    }[level]
     from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
 
     m = OpenRouterDeepseekModel(name, provider=_Pyd(api_key="x"))
-    OpenRouterDeepseekProvider(api_key="x")._post_build_model(m, tier)
+    OpenRouterDeepseekProvider(api_key="x")._post_build_model(m, level)
     return m
 
 
 # --- pin + reasoning policy ------------------------------------------------
 
 
-def test_default_tier_pins_and_xhigh():
-    m = _model(Tier.DEFAULT)
+def test_level2_pins_and_xhigh():
+    m = _model(2)
     ms: dict = {}
     m._inject_pin((), {"model_settings": ms})
     assert ms["extra_body"]["provider"] == {
@@ -42,8 +42,8 @@ def test_default_tier_pins_and_xhigh():
     assert ms["extra_body"]["reasoning"] == {"effort": "xhigh"}
 
 
-def test_cheap_tier_pins_and_disables_reasoning():
-    m = _model(Tier.CHEAP)
+def test_level1_disables_reasoning():
+    m = _model(1)
     ms: dict = {}
     m._inject_pin((), {"model_settings": ms})
     assert ms["extra_body"]["provider"]["only"] == ["DeepSeek"]
@@ -51,7 +51,7 @@ def test_cheap_tier_pins_and_disables_reasoning():
 
 
 def test_pin_respects_caller_provider_override():
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     ms = {"extra_body": {"provider": {"only": ["Other"]}}}
     m._inject_pin((), {"model_settings": ms})
     assert ms["extra_body"]["provider"]["only"] == ["Other"]  # untouched
@@ -133,16 +133,16 @@ def _thinking_message(*contents: str):
     return types.SimpleNamespace(parts=[ThinkingPart(content=c) for c in contents])
 
 
-def test_echo_reasoning_property_per_tier():
-    """``_echo_reasoning`` gates case 6: True on the reasoning tier, False when
-    reasoning is disabled."""
-    assert _model(Tier.DEFAULT)._echo_reasoning is True
-    assert _model(Tier.CHEAP)._echo_reasoning is False
+def test_echo_reasoning_property_per_level():
+    """``_echo_reasoning`` gates case 6: True on level 2 (capable), False on
+    level 1 (reasoning disabled)."""
+    assert _model(2)._echo_reasoning is True
+    assert _model(1)._echo_reasoning is False
 
 
 def test_map_model_response_passes_non_assistant_unchanged(monkeypatch):
     """A non-assistant (or non-dict) parent result short-circuits unchanged."""
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     _patch_parent(monkeypatch, {"role": "user", "content": "hi"})
     assert m._map_model_response(_thinking_message("t")) == {
         "role": "user",
@@ -154,24 +154,24 @@ def test_map_model_response_passes_non_assistant_unchanged(monkeypatch):
 
 
 def test_map_model_response_always_drops_array_forms(monkeypatch):
-    """``reasoning`` / ``reasoning_details`` arrays are dropped on both tiers."""
+    """``reasoning`` / ``reasoning_details`` arrays are dropped on both levels."""
     canned = {
         "role": "assistant",
         "content": "x",
         "reasoning": "r",
         "reasoning_details": [{"type": "thinking"}],
     }
-    for tier in (Tier.DEFAULT, Tier.CHEAP):
-        m = _model(tier)
+    for level in (2, 1):
+        m = _model(level)
         _patch_parent(monkeypatch, canned)
         result = m._map_model_response(_thinking_message())
         assert "reasoning" not in result
         assert "reasoning_details" not in result
 
 
-def test_map_model_response_reasoning_tier_stamps_reasoning_content(monkeypatch):
-    """Reasoning tier + tool_calls → reasoning_content equals the joined text."""
-    m = _model(Tier.DEFAULT)
+def test_map_model_response_level2_stamps_reasoning_content(monkeypatch):
+    """Level 2 (capable) + tool_calls → reasoning_content equals the joined text."""
+    m = _model(2)
     _patch_parent(
         monkeypatch,
         {"role": "assistant", "tool_calls": [{"id": "1"}]},
@@ -183,10 +183,10 @@ def test_map_model_response_reasoning_tier_stamps_reasoning_content(monkeypatch)
     assert result["reasoning_content"] == _reasoning_text(message) == "foobar"
 
 
-def test_map_model_response_reasoning_tier_empty_when_no_reasoning(monkeypatch):
-    """Reasoning tier + tool_calls + no ThinkingPart → reasoning_content is an
+def test_map_model_response_level2_empty_when_no_reasoning(monkeypatch):
+    """Level 2 + tool_calls + no ThinkingPart → reasoning_content is an
     empty string (present, NOT popped) — the synthetic/reconstructed turn."""
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     _patch_parent(
         monkeypatch,
         {"role": "assistant", "tool_calls": [{"id": "1"}]},
@@ -195,9 +195,9 @@ def test_map_model_response_reasoning_tier_empty_when_no_reasoning(monkeypatch):
     assert result["reasoning_content"] == ""
 
 
-def test_map_model_response_reasoning_tier_no_tool_calls_strips(monkeypatch):
-    """Reasoning tier without tool_calls → reasoning_content is absent."""
-    m = _model(Tier.DEFAULT)
+def test_map_model_response_level2_no_tool_calls_strips(monkeypatch):
+    """Level 2 without tool_calls → reasoning_content is absent."""
+    m = _model(2)
     _patch_parent(
         monkeypatch,
         {"role": "assistant", "content": "x", "reasoning_content": "stale"},
@@ -206,21 +206,21 @@ def test_map_model_response_reasoning_tier_no_tool_calls_strips(monkeypatch):
     assert "reasoning_content" not in result
 
 
-def test_map_model_response_thinking_only_content_reasoning_tier(monkeypatch):
-    """Reasoning tier: a thinking-only turn (no content, no tool_calls) gets
+def test_map_model_response_thinking_only_content_level2(monkeypatch):
+    """Level 2: a thinking-only turn (no content, no tool_calls) gets
     ``content`` set to a present string so DeepSeek does not reject it."""
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     _patch_parent(monkeypatch, {"role": "assistant"})
     result = m._map_model_response(_thinking_message("Good"))
     assert isinstance(result.get("content"), str)
     assert "tool_calls" not in result
 
 
-def test_map_model_response_thinking_only_content_disabled_tier(monkeypatch):
-    """Disabled tier: a thinking-only turn (no content, no tool_calls) also gets
+def test_map_model_response_thinking_only_content_level1(monkeypatch):
+    """Level 1: a thinking-only turn (no content, no tool_calls) also gets
     ``content`` set to a present string — the guard is independent of
     ``_echo_reasoning``."""
-    m = _model(Tier.CHEAP)
+    m = _model(1)
     _patch_parent(monkeypatch, {"role": "assistant"})
     result = m._map_model_response(_thinking_message("Good"))
     assert isinstance(result.get("content"), str)
@@ -229,7 +229,7 @@ def test_map_model_response_thinking_only_content_disabled_tier(monkeypatch):
 
 def test_map_model_response_does_not_clobber_real_content(monkeypatch):
     """A turn carrying actual text keeps its content untouched."""
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     _patch_parent(monkeypatch, {"role": "assistant", "content": "real text"})
     result = m._map_model_response(_thinking_message("t"))
     assert result["content"] == "real text"
@@ -237,15 +237,15 @@ def test_map_model_response_does_not_clobber_real_content(monkeypatch):
 
 def test_map_model_response_does_not_add_content_to_tool_call_turn(monkeypatch):
     """A tool-call turn with no content stays content-free (tool_calls is valid)."""
-    m = _model(Tier.DEFAULT)
+    m = _model(2)
     _patch_parent(monkeypatch, {"role": "assistant", "tool_calls": [{"id": "1"}]})
     result = m._map_model_response(_thinking_message("t"))
     assert "content" not in result
 
 
-def test_map_model_response_disabled_tier_strips_with_tool_calls(monkeypatch):
-    """Disabled tier strips reasoning_content even with tool_calls present."""
-    m = _model(Tier.CHEAP)
+def test_map_model_response_level1_strips_with_tool_calls(monkeypatch):
+    """Level 1 strips reasoning_content even with tool_calls present."""
+    m = _model(1)
     _patch_parent(
         monkeypatch,
         {

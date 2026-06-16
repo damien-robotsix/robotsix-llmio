@@ -14,7 +14,8 @@ from robotsix_llmio.config import tier as _tier
 
 
 def test_re_export_legacy_tier_map():
-    from robotsix_llmio.config import LEGACY_TIER_MAP
+    with pytest.warns(DeprecationWarning, match="LEGACY_TIER_MAP is deprecated"):
+        from robotsix_llmio.config import LEGACY_TIER_MAP
 
     assert LEGACY_TIER_MAP is _tier.LEGACY_TIER_MAP
 

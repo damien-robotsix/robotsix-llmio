@@ -312,11 +312,14 @@ def test_tool_loop_query_timeout_raises_claude_sdk_query_timeout(monkeypatch):
     monkeypatch.setattr(constants, "SDK_QUERY_TIMEOUT", 0.05)
 
     provider = ClaudeSDKProvider()
-    handle = provider.build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="sys",
-        tools=[PydanticTool(_echo_sync, name="echo_sync")],
-    )
+    with pytest.warns(DeprecationWarning) as _rec:
+        handle = provider.build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="sys",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        )
+    # tier= deprecation + tier_config not provided
+    assert len(_rec) == 2
     with pytest.raises(ClaudeSDKQueryTimeout):
         handle.run_sync("do something")
     handle.close()
@@ -446,11 +449,14 @@ def test_tool_agent_invokes_tool_and_returns_output(monkeypatch):
     fake.query = _fake_query
 
     provider = ClaudeSDKProvider()
-    handle = provider.build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="You are a tester.",
-        tools=[PydanticTool(_echo_sync, name="echo_sync")],
-    )
+    with pytest.warns(DeprecationWarning) as _rec:
+        handle = provider.build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="You are a tester.",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        )
+    # tier= deprecation + tier_config not provided
+    assert len(_rec) == 2
 
     assert isinstance(handle, _SdkToolAgentHandle)
 
@@ -539,11 +545,15 @@ def _capturing_query(fake, captured: dict):
 
 
 def _tool_handle():
-    return ClaudeSDKProvider().build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="sys",
-        tools=[PydanticTool(_echo_sync, name="echo_sync")],
-    )
+    with pytest.warns(DeprecationWarning) as _rec:
+        handle = ClaudeSDKProvider().build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="sys",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        )
+    # tier= deprecation + tier_config not provided
+    assert len(_rec) == 2
+    return handle
 
 
 def test_tool_run_sync_honors_message_history(monkeypatch):
@@ -655,11 +665,14 @@ def test_generation_span_input_includes_system_prompt(monkeypatch):
 
     fake.query = _fake_query
 
-    handle = ClaudeSDKProvider().build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="SYS_MARKER stay precise",
-        tools=[PydanticTool(_echo_sync, name="echo_sync")],
-    )
+    with pytest.warns(DeprecationWarning) as _rec:
+        handle = ClaudeSDKProvider().build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="SYS_MARKER stay precise",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        )
+    # tier= deprecation + tier_config not provided
+    assert len(_rec) == 2
     handle.run_sync("USER_MARKER hi")
     handle.close()
 
@@ -712,11 +725,14 @@ def test_spans_set_gen_ai_provider_name(monkeypatch):
 
     fake.query = _fake_query
 
-    handle = ClaudeSDKProvider().build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="be precise",
-        tools=[PydanticTool(_echo_sync, name="echo_sync")],
-    )
+    with pytest.warns(DeprecationWarning) as _rec:
+        handle = ClaudeSDKProvider().build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="be precise",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        )
+    # tier= deprecation + tier_config not provided
+    assert len(_rec) == 2
     handle.run_sync("hi")
     handle.close()
 
@@ -865,10 +881,13 @@ def test_notools_path_returns_agent_handle():
     ``AgentHandle`` wrapping a pydantic-ai ``Agent`` — the existing
     no-tools path is unchanged."""
     provider = ClaudeSDKProvider()
-    with pytest.warns(DeprecationWarning, match="The `tier` parameter is deprecated"):
+    with pytest.warns(DeprecationWarning) as _rec:
         handle = provider.build_agent(
             tier=Tier.CHEAP, system_prompt="You are helpful.", tools=None
         )
+    # tier= deprecation (x2: Provider.build_agent + new_model) +
+    # tier_config not provided
+    assert len(_rec) == 3
     # With no tools the super().build_agent() path wraps a pydantic-ai Agent.
     assert isinstance(handle, AgentHandle)
     assert handle._agent is not None  # type: ignore[attr-defined]
@@ -878,10 +897,13 @@ def test_notools_path_returns_agent_handle():
 def test_tools_empty_list_also_returns_agent_handle():
     """Empty tools list is falsy → delegates to the no-tools AgentHandle path."""
     provider = ClaudeSDKProvider()
-    with pytest.warns(DeprecationWarning, match="The `tier` parameter is deprecated"):
+    with pytest.warns(DeprecationWarning) as _rec:
         handle = provider.build_agent(
             tier=Tier.CHEAP, system_prompt="You are helpful.", tools=[]
         )
+    # tier= deprecation (x2: Provider.build_agent + new_model) +
+    # tier_config not provided
+    assert len(_rec) == 3
     assert isinstance(handle, AgentHandle)
     handle.close()
 
@@ -912,12 +934,13 @@ def test_live_tool_round_trip():
     def _echo(text: str) -> str:
         return text
 
-    handle = provider.build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="You are a QA bot. When asked to echo, call the echo "
-        'tool and then repeat exactly what it returned prefixed with "ECHO: ".',
-        tools=[PydanticTool(_echo)],
-    )
+    with pytest.warns(DeprecationWarning):
+        handle = provider.build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="You are a QA bot. When asked to echo, call the echo "
+            'tool and then repeat exactly what it returned prefixed with "ECHO: ".',
+            tools=[PydanticTool(_echo)],
+        )
 
     result = handle.run_sync("Use the echo tool to repeat: hello42")
     assert "hello42" in str(result.output).lower()
@@ -946,11 +969,12 @@ def test_live_query_timeout_fires_against_real_cli(monkeypatch):
     def _echo(text: str) -> str:
         return text
 
-    handle = provider.build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="You are a QA bot.",
-        tools=[PydanticTool(_echo)],
-    )
+    with pytest.warns(DeprecationWarning):
+        handle = provider.build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="You are a QA bot.",
+            tools=[PydanticTool(_echo)],
+        )
     with pytest.raises(ClaudeSDKQueryTimeout):
         handle.run_sync("Use the echo tool to repeat: hello42")
     handle.close()
@@ -970,11 +994,12 @@ def test_live_tool_run_sync_honors_message_history():
         """A trivial tool so this exercises the tool-loop path."""
         return text
 
-    handle = ClaudeSDKProvider().build_agent(
-        tier=Tier.CHEAP,
-        system_prompt="You are a precise assistant. Answer tersely.",
-        tools=[PydanticTool(_noop, name="noop")],
-    )
+    with pytest.warns(DeprecationWarning):
+        handle = ClaudeSDKProvider().build_agent(
+            tier=Tier.CHEAP,
+            system_prompt="You are a precise assistant. Answer tersely.",
+            tools=[PydanticTool(_noop, name="noop")],
+        )
 
     # The fact lives ONLY in the prior turn passed as message_history.
     history = [

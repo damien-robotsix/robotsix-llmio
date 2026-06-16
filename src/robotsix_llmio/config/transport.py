@@ -34,6 +34,11 @@ MODEL_LEVEL_TO_TIER: dict[int, Tier] = {
 }
 """Map a consumer *model_level* (1, 2, or 3) to a :class:`Tier`.
 
+**Deprecated** — prefer :meth:`TierConfig.for_level` which resolves
+directly to a :class:`~.tier.TierLevelConfig` without the two-tier
+round-trip.  This mapping is kept only for ``create_model()`` backward
+compatibility and will be removed in a follow-up ticket.
+
 Level 1 (cheap, repetitive tasks) maps to :attr:`Tier.CHEAP`; levels 2 and 3
 both map to :attr:`Tier.DEFAULT`.  The three-tier :class:`~.tier.TierConfig`
 schema reserves level 3 for high-level planning with a different provider

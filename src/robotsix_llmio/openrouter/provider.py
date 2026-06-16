@@ -1,14 +1,16 @@
 """OpenRouter transport provider — auth + per-tier model construction.
 
-Model-family agnostic. A derived layer supplies the tier→model map (and any
-quirks) by overriding the hooks. Knows nothing about reasoning policy.
+Model-family agnostic. A derived layer may override :meth:`_model_class`
+or :meth:`_post_build_model` to add provider-family quirks (pin, reasoning
+policy, …).  Model names are resolved through :class:`TierConfig` (passed
+via ``build_agent()``) or supplied directly to :meth:`new_model`.
 """
 
 from __future__ import annotations
 
 import os
-from abc import abstractmethod
-from typing import Any
+import warnings
+from typing import Any, ClassVar
 
 from ..core import timeout_http_client
 from ..core.provider import LLMProvider, Tier
@@ -18,12 +20,17 @@ from .transient import is_openrouter_transient
 
 
 class OpenRouterProvider(LLMProvider):
-    """Builds cost-instrumented OpenRouter models, one per tier.
+    """Builds cost-instrumented OpenRouter models from a model name.
 
-    Subclasses MUST implement :meth:`_tier_models` (the baked tier→model map)
-    and MAY override :meth:`_model_class` / :meth:`_post_build_model` to add
-    provider-family quirks (pin, reasoning policy, …).
+    Subclasses MAY override :meth:`_model_class` / :meth:`_post_build_model`
+    to add provider-family quirks (pin, reasoning policy, …) and SHOULD
+    set :attr:`_tier_compat` (or override :meth:`new_model`) to support the
+    deprecated ``tier=`` fallback path.
     """
+
+    # Minimal internal compat dict for the deprecated ``tier=`` path.
+    # Subclasses populate this (or override ``new_model`` entirely).
+    _tier_compat: ClassVar[dict[Tier, str]] = {}
 
     def __init__(
         self,
@@ -48,21 +55,43 @@ class OpenRouterProvider(LLMProvider):
         self._base_url = base_url
 
     # --- hooks for derived layers -------------------------------------------
-    @abstractmethod
-    def _tier_models(self) -> dict[Tier, str]:
-        """Baked tier→model-name map (supplied by the derived layer)."""
-        raise NotImplementedError
 
     def _model_class(self) -> type[OpenRouterModel]:
         """The OpenRouterModel subclass to instantiate (overridable)."""
         return OpenRouterModel
 
-    def _post_build_model(self, model: OpenRouterModel, tier: Tier) -> None:
-        """Hook to stamp per-tier policy onto a freshly built model. No-op here."""
+    def _post_build_model(self, model: OpenRouterModel, level: int) -> None:
+        """Hook to stamp per-level policy onto a freshly built model.
+
+        *level* is the capability level (1, 2, or 3) rather than a ``Tier``
+        enum, so subclasses can apply per-level policy directly.
+
+        No-op in the base class.
+        """
 
     # --- core API -----------------------------------------------------------
-    def new_model(self, tier: Tier = Tier.DEFAULT) -> tuple[Any, Any]:
-        """Build a model for *tier*, returning ``(model, http_client)``.
+    def new_model(
+        self,
+        *,
+        model: str | None = None,
+        tier: Tier | None = None,
+        level: int = 0,
+    ) -> tuple[Any, Any]:
+        """Build a model, returning ``(model, http_client)``.
+
+        Parameters
+        ----------
+        model:
+            **Primary** — the concrete model name.  When provided the model
+            is constructed directly; *tier* is ignored.
+        tier:
+            **Deprecated** — use *model* instead.  When *model* is ``None``
+            and *tier* is provided, resolves via a minimal internal compat
+            dict and emits a :exc:`DeprecationWarning`.
+        level:
+            Capability level (1, 2, 3) forwarded to
+            :meth:`_post_build_model` for per-level policy hooks.  ``0``
+            means unknown / direct ``new_model()`` call.
 
         The returned ``http_client`` is the timeout-configured client backing
         the model; the caller owns closing it.
@@ -71,7 +100,21 @@ class OpenRouterProvider(LLMProvider):
             OpenRouterProvider as _PydOpenRouterProvider,
         )
 
-        model_name = self._tier_models()[tier]
+        if model is not None:
+            model_name = model
+        elif tier is not None:
+            warnings.warn(
+                "The `tier` parameter on `new_model()` is deprecated. "
+                "Pass `model=` with a concrete model name instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            model_name = self._tier_compat[tier]
+        else:
+            raise ValueError(
+                "Either `model` or `tier` must be provided to `new_model()`."
+            )
+
         http_client = timeout_http_client()
         if self._base_url == _DEFAULT_BASE_URL:
             pyd_provider = _PydOpenRouterProvider(
@@ -86,9 +129,9 @@ class OpenRouterProvider(LLMProvider):
                 http_client=http_client,
             )
             pyd_provider = _PydOpenRouterProvider(openai_client=openai_client)
-        model = self._model_class()(model_name, provider=pyd_provider)
-        self._post_build_model(model, tier)
-        return model, http_client
+        model_obj = self._model_class()(model_name, provider=pyd_provider)
+        self._post_build_model(model_obj, level)
+        return model_obj, http_client
 
     def _is_transient(self, exc: BaseException) -> bool:
         return is_openrouter_transient(exc)

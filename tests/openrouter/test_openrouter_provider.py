@@ -1,9 +1,8 @@
 """Offline unit tests for ``OpenRouterProvider.__init__`` auth resolution.
 
-``OpenRouterProvider`` is an abstract base class (it declares the
-``_tier_models`` abstractmethod), so these tests instantiate a minimal
-concrete subclass that implements ``_tier_models``. ``__init__`` never
-calls ``_tier_models``, so a trivial empty map is sufficient. All tests are
+``OpenRouterProvider`` is a concrete class (no abstract methods), so
+tests can instantiate a minimal subclass directly. ``__init__`` never
+calls any hooks, so a plain subclass is sufficient. All tests are
 fully offline and key-free — each test sets or clears ``OPENROUTER_API_KEY``
 explicitly via ``monkeypatch``.
 """
@@ -21,10 +20,11 @@ from robotsix_llmio.openrouter.provider import OpenRouterProvider
 
 
 class _Concrete(OpenRouterProvider):
-    """Minimal concrete provider so the ABC can be instantiated in tests."""
+    """Minimal concrete provider so the class can be instantiated in tests.
 
-    def _tier_models(self) -> dict[Tier, str]:
-        return {}
+    ``OpenRouterProvider`` is now a concrete class — no abstract methods
+    to implement.
+    """
 
 
 def test_missing_key_raises(monkeypatch):
@@ -64,19 +64,18 @@ class _NewModelProvider(OpenRouterProvider):
     effects without touching the network or pydantic-ai internals.
     """
 
+    _tier_compat: dict = {Tier.DEFAULT: "test-model-default", Tier.CHEAP: "cheap-model"}  # noqa: RUF012
+
     def __init__(self, *, api_key: str = "sk-test"):
         super().__init__(api_key=api_key)
         self._post_build_calls: list[tuple] = []
         self._model_cls_mock = MagicMock()
 
-    def _tier_models(self) -> dict[Tier, str]:
-        return {Tier.DEFAULT: "test-model-default", Tier.CHEAP: "cheap-model"}
-
     def _model_class(self):
         return self._model_cls_mock
 
-    def _post_build_model(self, model, tier):
-        self._post_build_calls.append((model, tier))
+    def _post_build_model(self, model, level: int):
+        self._post_build_calls.append((model, level))
 
 
 def _install_fake_pydantic_openrouter(monkeypatch) -> MagicMock:
@@ -108,14 +107,14 @@ def test_new_model_returns_model_and_http_client(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    model, http_client = provider.new_model(Tier.DEFAULT)
+    model, http_client = provider.new_model(model="test-model-default")
 
     assert http_client is mock_http
     assert model is not None
 
 
 def test_new_model_passes_correct_model_name(monkeypatch):
-    """``new_model()`` passes the tier's model name as the first positional
+    """``new_model()`` passes the given model name as the first positional
     argument to the model-class constructor."""
     _install_fake_pydantic_openrouter(monkeypatch)
     mock_http = MagicMock()
@@ -125,7 +124,7 @@ def test_new_model_passes_correct_model_name(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    provider.new_model(Tier.DEFAULT)
+    provider.new_model(model="test-model-default")
 
     provider._model_cls_mock.assert_called_once()
     args = provider._model_cls_mock.call_args[0]
@@ -143,7 +142,7 @@ def test_new_model_returns_http_client_from_timeout_client(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    _, http_client = provider.new_model(Tier.DEFAULT)
+    _, http_client = provider.new_model(model="test-model-default")
 
     assert http_client is mock_http
 
@@ -160,7 +159,7 @@ def test_new_model_default_base_url_uses_api_key_path(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    provider.new_model(Tier.DEFAULT)
+    provider.new_model(model="test-model-default")
 
     _, kwargs = mock_provider_cls.call_args
     assert kwargs["api_key"] == "sk-test"
@@ -184,7 +183,7 @@ def test_new_model_custom_base_url_builds_openai_client(monkeypatch):
 
     provider = _NewModelProvider()
     provider._base_url = "https://proxy.example/api/v1"
-    provider.new_model(Tier.DEFAULT)
+    provider.new_model(model="test-model-default")
 
     _, openai_kwargs = mock_openai_cls.call_args
     assert openai_kwargs["base_url"] == "https://proxy.example/api/v1"
@@ -197,7 +196,7 @@ def test_new_model_custom_base_url_builds_openai_client(monkeypatch):
 
 def test_new_model_calls_post_build_model(monkeypatch):
     """``new_model()`` invokes ``_post_build_model`` with the constructed
-    model and the requested tier."""
+    model and the level (0 when called via the deprecated tier path)."""
     _install_fake_pydantic_openrouter(monkeypatch)
     mock_http = MagicMock()
     monkeypatch.setattr(
@@ -206,9 +205,10 @@ def test_new_model_calls_post_build_model(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    model, _ = provider.new_model(Tier.CHEAP)
+    with pytest.warns(DeprecationWarning):
+        model, _ = provider.new_model(tier=Tier.CHEAP)
 
     assert len(provider._post_build_calls) == 1
-    called_model, called_tier = provider._post_build_calls[0]
+    called_model, called_level = provider._post_build_calls[0]
     assert called_model is model
-    assert called_tier == Tier.CHEAP
+    assert called_level == 0

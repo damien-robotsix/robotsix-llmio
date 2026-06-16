@@ -137,6 +137,13 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
 
         return _config_tier.LEVEL3_DEFAULT
     if name == "LEGACY_TIER_MAP":
+        import warnings
+
+        warnings.warn(
+            "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from robotsix_llmio.config import tier as _config_tier
 
         return _config_tier.LEGACY_TIER_MAP
