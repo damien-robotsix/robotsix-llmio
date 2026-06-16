@@ -16,6 +16,18 @@ from .tier import (
     TierLevelConfig,
 )
 
+# Re-export sentinel — referenced so static analysers see the imported names
+# as "used" rather than flagging them as unused imports (py/unused-import).
+_reexports = (
+    LEGACY_TIER_MAP,
+    LEVEL1_DEFAULT,
+    LEVEL2_DEFAULT,
+    LEVEL3_DEFAULT,
+    TierConfig,
+    TierLevel,
+    TierLevelConfig,
+)
+
 __all__ = [
     "LEGACY_TIER_MAP",
     "LEVEL1_DEFAULT",
