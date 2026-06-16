@@ -865,9 +865,10 @@ def test_notools_path_returns_agent_handle():
     ``AgentHandle`` wrapping a pydantic-ai ``Agent`` — the existing
     no-tools path is unchanged."""
     provider = ClaudeSDKProvider()
-    handle = provider.build_agent(
-        tier=Tier.CHEAP, system_prompt="You are helpful.", tools=None
-    )
+    with pytest.warns(DeprecationWarning, match="The `tier` parameter is deprecated"):
+        handle = provider.build_agent(
+            tier=Tier.CHEAP, system_prompt="You are helpful.", tools=None
+        )
     # With no tools the super().build_agent() path wraps a pydantic-ai Agent.
     assert isinstance(handle, AgentHandle)
     assert handle._agent is not None  # type: ignore[attr-defined]
@@ -877,9 +878,10 @@ def test_notools_path_returns_agent_handle():
 def test_tools_empty_list_also_returns_agent_handle():
     """Empty tools list is falsy → delegates to the no-tools AgentHandle path."""
     provider = ClaudeSDKProvider()
-    handle = provider.build_agent(
-        tier=Tier.CHEAP, system_prompt="You are helpful.", tools=[]
-    )
+    with pytest.warns(DeprecationWarning, match="The `tier` parameter is deprecated"):
+        handle = provider.build_agent(
+            tier=Tier.CHEAP, system_prompt="You are helpful.", tools=[]
+        )
     assert isinstance(handle, AgentHandle)
     handle.close()
 

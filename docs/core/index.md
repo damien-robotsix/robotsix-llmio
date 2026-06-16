@@ -8,9 +8,9 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 ### Provider ABC & agent assembly
 
 - `LLMProvider` — abstract base for every LLM provider; subclasses implement `new_model(tier)`
-- `Tier` — `StrEnum` with `DEFAULT` (capable) and `CHEAP` (fast/cheap) model-selector values
+- `Tier` — **deprecated** `StrEnum` with `DEFAULT` (capable) and `CHEAP` (fast/cheap); use `TierLevel` / the `level` parameter instead
 - `AgentHandle` — wraps a pydantic-ai Agent with its httpx client, exposing `close()` for cleanup
-- `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type
+- `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type; on the provider the public entry-point is `LLMProvider.build_agent(level=..., system_prompt=...)` where `level` is an integer 1–3
 
 ### Config-tier re-exports
 
@@ -20,7 +20,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)
 - `TierConfig` — pydantic model for three-tier provider+model configuration
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
-- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3` tier-selector values
+- `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`) tier-selector values
 - `TierLevelConfig` — pydantic model binding a single tier's provider and model
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
 
