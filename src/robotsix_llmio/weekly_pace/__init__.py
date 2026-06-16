@@ -29,11 +29,11 @@ import time as _time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from ..config.weekly_pace import WeeklyPaceConfig
 from ..core.cost_log import CostWindow
 from ._week_math import _current_week_window, week_fraction_elapsed
 
 if TYPE_CHECKING:
+    from ..config.weekly_pace import WeeklyPaceConfig
     from ..core.langfuse_cost import LangfuseCostLogSource
 
 logger = logging.getLogger(__name__)
@@ -178,19 +178,30 @@ class PaceGovernor:
             return 0.0
 
         now_mono = _time.monotonic()
-        if (
+        cache_expired = (
             self._cached_weekly_cost is None
             or self._cache_timestamp is None
             or (now_mono - self._cache_timestamp) >= self._config.cache_ttl_seconds
-        ):
+        )
+
+        if self._cost_source is not None and cache_expired:
             fetched = self._fetch_weekly_cost(week_start, week_end)
+            self._cache_timestamp = now_mono
             if fetched is not None:
                 self._cached_weekly_cost = fetched
                 # Reset in-process accumulator on successful refresh — those
                 # runs are now accounted for in the Langfuse total.
                 self._in_process_cost = 0.0
-            # Always bump the timestamp so we don't hammer Langfuse on
-            # repeated failures.
+            else:
+                # fail_open: cost source configured but unreachable.
+                # Clear stale cache and treat budget fraction as 0.0 —
+                # "can't read the meter, stay on Claude."
+                self._cached_weekly_cost = None
+                return 0.0
+        elif cache_expired:
+            # No cost source configured; seed cache with 0.0 and bump
+            # timestamp so we don't re-enter this branch on every call.
+            self._cached_weekly_cost = 0.0
             self._cache_timestamp = now_mono
 
         total = (self._cached_weekly_cost or 0.0) + self._in_process_cost

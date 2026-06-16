@@ -395,6 +395,60 @@ def test_fail_open_returns_true_on_langfuse_error(monkeypatch):
     assert governor.should_use_claude(now) is True
 
 
+def test_fail_open_with_prior_successful_fetch(monkeypatch):
+    """When fail_open=True and Langfuse becomes unreachable after a prior
+    successful fetch recorded high cost, the governor stays on Claude
+    rather than making decisions on stale data."""
+
+    call_count = [0]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        call_count[0] += 1
+        page = int(request.url.params.get("page", 1))
+        if call_count[0] <= 2:  # first fetch (page 1 + page 2) succeeds
+            if page == 1:
+                obs = {
+                    "id": "obs-1",
+                    "calculatedTotalCost": 9.0,
+                    "startTime": "2026-06-08T10:00:00Z",
+                    "metadata": {"provider": "claude-sdk"},
+                }
+                return httpx.Response(200, json={"data": [obs]})
+            return httpx.Response(200, json={"data": []})
+        # Subsequent requests simulate a Langfuse outage.
+        return httpx.Response(500, json={"error": "internal"})
+
+    install_transport(monkeypatch, handler)
+    source = LangfuseCostLogSource(
+        public_key="pk", secret_key="sk", base_url="https://lf.example.com"
+    )
+
+    fake_time = [0.0]
+
+    def fake_monotonic() -> float:
+        return fake_time[0]
+
+    monkeypatch.setattr("time.monotonic", fake_monotonic)
+
+    governor = PaceGovernor(
+        _config(weekly_budget=10.0, cache_ttl_seconds=60, fail_open=True),
+        source,
+    )
+
+    # First call — early week, high cost → over pace → False.
+    now_early = _MONDAY + timedelta(hours=17)
+    assert governor.should_use_claude(now_early) is False
+    assert governor._cached_weekly_cost == pytest.approx(9.0)
+
+    # Advance past TTL and simulate Langfuse outage.
+    fake_time[0] = 120.0
+
+    # Second call — Langfuse is down but fail_open keeps us on Claude.
+    assert governor.should_use_claude(now_early) is True
+    # Stale cache must be cleared so subsequent calls also stay open.
+    assert governor._cached_weekly_cost is None
+
+
 def test_fail_closed_raises_on_langfuse_error(monkeypatch):
     """When Langfuse raises and fail_open=False, the error propagates."""
 
