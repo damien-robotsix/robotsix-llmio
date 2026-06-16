@@ -16,12 +16,15 @@ __all__ = [
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
+    "MODEL_LEVEL_TO_TIER",
+    "TRANSPORT_ALIASES",
     "ModelWeightConfig",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
     "WeeklyPaceConfig",
+    "create_model",
     "load_tier_config",
 ]
 
@@ -71,4 +74,16 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import weekly_pace
 
         return weekly_pace.WeeklyPaceConfig
+    if name == "create_model":
+        from . import factory
+
+        return factory.create_model
+    if name == "TRANSPORT_ALIASES":
+        from . import transport
+
+        return transport.TRANSPORT_ALIASES
+    if name == "MODEL_LEVEL_TO_TIER":
+        from . import transport
+
+        return transport.MODEL_LEVEL_TO_TIER
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
