@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import operator
 import random
+import re
 from datetime import UTC, datetime
 
 # ---------------------------------------------------------------------------
@@ -28,6 +29,13 @@ _BIN_OPS: dict[type, Any] = {
 _UNARY_OPS: dict[type, Any] = {
     ast.USub: operator.neg,
 }
+
+# Pre-validation regex for the safe calculator: only allow characters that
+# are harmless in arithmetic expressions.  The real security boundary is
+# _safe_eval() (which only permits a fixed set of AST nodes), but this
+# pre-filter provides defence-in-depth and reassures static analysers that
+# untrusted input is validated before it reaches ast.parse().
+_SAFE_CALC_RE = re.compile(r"\A[\d\s+\-*/().eE]+\Z")
 
 
 def _safe_eval(node: ast.AST) -> float | int:
@@ -82,10 +90,13 @@ def calculator(expression: str) -> str:
     ``(`` ``)``.  Returns the numeric result on success (e.g. ``"42"`` or
     ``"3.14"``) or an error message prefixed with ``"Error: "`` on any failure.
     """
+    if not _SAFE_CALC_RE.match(expression):
+        return "Error: expression contains disallowed characters"
+
     try:
         tree = ast.parse(expression, mode="eval")
         result = _safe_eval(tree)
-    except Exception as exc:
+    except (SyntaxError, ValueError, ArithmeticError, TypeError, AttributeError) as exc:
         return f"Error: {exc}"
 
     if isinstance(result, float) and result.is_integer():
@@ -101,7 +112,7 @@ def roll_dice(sides: int = 6) -> str:
     """
     if sides < 1:
         raise ValueError(f"sides must be >= 1, got {sides}")
-    return str(random.randint(1, sides))
+    return str(random.randint(1, sides))  # nosec B311 — dice roll, not crypto
 
 
 # ---------------------------------------------------------------------------
