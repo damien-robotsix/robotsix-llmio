@@ -28,6 +28,7 @@ __all__ = [
     "ProviderCostSource",
     "Tier",
     "TierConfig",
+    "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
     "TraceSpan",
@@ -50,6 +51,7 @@ __all__ = [
     "langfuse_project",
     "langfuse_session",
     "langfuse_trace_url",
+    "load_tier_config",
     "make_session_id",
     "reconcile",
     "register_provider",
@@ -62,92 +64,204 @@ __all__ = [
 
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
-    if name in ("AgentHandle", "build_agent"):
+    if name == "AgentHandle":
         from . import agent
 
-        return getattr(agent, name)
-    if name in ("CostLogSource", "CostRecord", "CostWindow", "LoggedCost"):
+        return agent.AgentHandle
+    if name == "build_agent":
+        from . import agent
+
+        return agent.build_agent
+    if name == "CostLogSource":
         from . import cost_log
 
-        return getattr(cost_log, name)
-    if name in ("get_provider", "register_provider"):
+        return cost_log.CostLogSource
+    if name == "CostRecord":
+        from . import cost_log
+
+        return cost_log.CostRecord
+    if name == "CostWindow":
+        from . import cost_log
+
+        return cost_log.CostWindow
+    if name == "LoggedCost":
+        from . import cost_log
+
+        return cost_log.LoggedCost
+    if name == "get_provider":
         from . import factory
 
-        return getattr(factory, name)
+        return factory.get_provider
+    if name == "register_provider":
+        from . import factory
+
+        return factory.register_provider
     if name == "timeout_http_client":
         from . import http
 
-        return getattr(http, name)
+        return http.timeout_http_client
     if name == "LangfuseReadClient":
         from . import langfuse_client
 
-        return getattr(langfuse_client, name)
+        return langfuse_client.LangfuseReadClient
     if name == "LangfuseCostLogSource":
         from . import langfuse_cost
 
-        return getattr(langfuse_cost, name)
-    if name in ("LLMProvider", "Tier"):
+        return langfuse_cost.LangfuseCostLogSource
+    if name == "LLMProvider":
         from . import provider
 
-        return getattr(provider, name)
-    if name in (
-        "LEVEL1_DEFAULT",
-        "LEVEL2_DEFAULT",
-        "LEVEL3_DEFAULT",
-        "LEGACY_TIER_MAP",
-        "TierConfig",
-        "TierLevel",
-        "TierLevelConfig",
-    ):
+        return provider.LLMProvider
+    if name == "Tier":
+        from . import provider
+
+        return provider.Tier
+    if name == "LEVEL1_DEFAULT":
         from robotsix_llmio.config import tier as _config_tier
 
-        return getattr(_config_tier, name)
-    if name in (
-        "DEFAULT_TOLERANCE",
-        "Discrepancy",
-        "ProviderCost",
-        "ProviderCostSource",
-        "reconcile",
-    ):
+        return _config_tier.LEVEL1_DEFAULT
+    if name == "LEVEL2_DEFAULT":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.LEVEL2_DEFAULT
+    if name == "LEVEL3_DEFAULT":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.LEVEL3_DEFAULT
+    if name == "LEGACY_TIER_MAP":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.LEGACY_TIER_MAP
+    if name == "TierConfig":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.TierConfig
+    if name == "TierLevel":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.TierLevel
+    if name == "TierLevelConfig":
+        from robotsix_llmio.config import tier as _config_tier
+
+        return _config_tier.TierLevelConfig
+    if name == "TierConfigLoadError":
+        from robotsix_llmio.config import loader as _config_loader
+
+        return _config_loader.TierConfigLoadError
+    if name == "load_tier_config":
+        from robotsix_llmio.config import loader as _config_loader
+
+        return _config_loader.load_tier_config
+    if name == "DEFAULT_TOLERANCE":
         from . import provider_cost
 
-        return getattr(provider_cost, name)
-    if name in (
-        "acall_with_retry",
-        "acall_with_retry_and_fallback",
-        "call_with_retry",
-        "call_with_retry_and_fallback",
-        "is_rate_limited",
-        "is_transient",
-    ):
+        return provider_cost.DEFAULT_TOLERANCE
+    if name == "Discrepancy":
+        from . import provider_cost
+
+        return provider_cost.Discrepancy
+    if name == "ProviderCost":
+        from . import provider_cost
+
+        return provider_cost.ProviderCost
+    if name == "ProviderCostSource":
+        from . import provider_cost
+
+        return provider_cost.ProviderCostSource
+    if name == "reconcile":
+        from . import provider_cost
+
+        return provider_cost.reconcile
+    if name == "acall_with_retry":
         from . import retry
 
-        return getattr(retry, name)
-    if name in ("arun_agent", "run_agent"):
+        return retry.acall_with_retry
+    if name == "acall_with_retry_and_fallback":
+        from . import retry
+
+        return retry.acall_with_retry_and_fallback
+    if name == "call_with_retry":
+        from . import retry
+
+        return retry.call_with_retry
+    if name == "call_with_retry_and_fallback":
+        from . import retry
+
+        return retry.call_with_retry_and_fallback
+    if name == "is_rate_limited":
+        from . import retry
+
+        return retry.is_rate_limited
+    if name == "is_transient":
+        from . import retry
+
+        return retry.is_transient
+    if name == "arun_agent":
         from . import run
 
-        return getattr(run, name)
+        return run.arun_agent
+    if name == "run_agent":
+        from . import run
+
+        return run.run_agent
     if name == "html_to_text":
         from . import text_utils
 
-        return getattr(text_utils, name)
-    if name in (
-        "TraceSpan",
-        "active_routing_key",
-        "current_session",
-        "flush_tracing",
-        "get_recording_span",
-        "get_tracer",
-        "install_signal_handlers",
-        "langfuse_project",
-        "langfuse_session",
-        "langfuse_trace_url",
-        "make_session_id",
-        "setup_langfuse_tracing",
-        "start_span",
-        "start_trace",
-    ):
+        return text_utils.html_to_text
+    if name == "TraceSpan":
         from . import tracing
 
-        return getattr(tracing, name)
+        return tracing.TraceSpan
+    if name == "active_routing_key":
+        from . import tracing
+
+        return tracing.active_routing_key
+    if name == "current_session":
+        from . import tracing
+
+        return tracing.current_session
+    if name == "flush_tracing":
+        from . import tracing
+
+        return tracing.flush_tracing
+    if name == "get_recording_span":
+        from . import tracing
+
+        return tracing.get_recording_span
+    if name == "get_tracer":
+        from . import tracing
+
+        return tracing.get_tracer
+    if name == "install_signal_handlers":
+        from . import tracing
+
+        return tracing.install_signal_handlers
+    if name == "langfuse_project":
+        from . import tracing
+
+        return tracing.langfuse_project
+    if name == "langfuse_session":
+        from . import tracing
+
+        return tracing.langfuse_session
+    if name == "langfuse_trace_url":
+        from . import tracing
+
+        return tracing.langfuse_trace_url
+    if name == "make_session_id":
+        from . import tracing
+
+        return tracing.make_session_id
+    if name == "setup_langfuse_tracing":
+        from . import tracing
+
+        return tracing.setup_langfuse_tracing
+    if name == "start_span":
+        from . import tracing
+
+        return tracing.start_span
+    if name == "start_trace":
+        from . import tracing
+
+        return tracing.start_trace
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
