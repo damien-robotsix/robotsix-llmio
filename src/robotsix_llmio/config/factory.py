@@ -74,9 +74,7 @@ def create_model(
     """
     if model_level not in MODEL_LEVEL_TO_TIER:
         valid = ", ".join(str(k) for k in sorted(MODEL_LEVEL_TO_TIER))
-        raise ValueError(
-            f"model_level must be one of {valid}; got {model_level!r}"
-        )
+        raise ValueError(f"model_level must be one of {valid}; got {model_level!r}")
 
     try:
         provider_name = TRANSPORT_ALIASES[transport]
