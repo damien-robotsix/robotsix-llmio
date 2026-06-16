@@ -16,6 +16,7 @@ __all__ = [
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
     "MODEL_LEVEL_TO_TIER",
+    "PROVIDER_MODELS",
     "TRANSPORT_ALIASES",
     "AgentHandle",
     "CostLogSource",
@@ -34,6 +35,7 @@ __all__ = [
     "TierLevel",
     "TierLevelConfig",
     "TraceSpan",
+    "UnknownModelError",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
     "acall_with_tier_fallback",
@@ -65,6 +67,7 @@ __all__ = [
     "start_span",
     "start_trace",
     "timeout_http_client",
+    "validate_model",
 ]
 
 
@@ -161,6 +164,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import transport as _config_transport
 
         return _config_transport.MODEL_LEVEL_TO_TIER
+    if name == "PROVIDER_MODELS":
+        from robotsix_llmio.config import model_registry as _config_model_registry
+
+        return _config_model_registry.PROVIDER_MODELS
     if name == "TRANSPORT_ALIASES":
         from robotsix_llmio.config import transport as _config_transport
 
@@ -169,6 +176,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import factory as _config_factory
 
         return _config_factory.create_model
+    if name == "UnknownModelError":
+        from robotsix_llmio.config import model_registry as _config_model_registry
+
+        return _config_model_registry.UnknownModelError
+    if name == "validate_model":
+        from robotsix_llmio.config import model_registry as _config_model_registry
+
+        return _config_model_registry.validate_model
     if name == "DEFAULT_TOLERANCE":
         from . import provider_cost
 

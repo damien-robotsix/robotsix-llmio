@@ -14,7 +14,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from robotsix_llmio.core.provider import Tier as LegacyTier
 
@@ -48,6 +48,11 @@ class TierLevelConfig(BaseModel):
 
     Describes which provider backend to use and which model name/alias
     that provider resolves for a given :class:`TierLevel`.
+
+    A :func:`~pydantic.model_validator` cross-checks the *model* field
+    against :data:`~.model_registry.PROVIDER_MODELS` at construction time,
+    raising :class:`~.model_registry.UnknownModelError` for known providers
+    with unknown model names.
     """
 
     provider: str = Field(
@@ -70,6 +75,14 @@ class TierLevelConfig(BaseModel):
             "(e.g. ``base_url`` for the OpenRouter provider). Defaults to ``{}``."
         ),
     )
+
+    @model_validator(mode="after")
+    def _validate_model_names(self) -> TierLevelConfig:
+        """Cross-check *model* against the per-provider model registry."""
+        from .model_registry import validate_model
+
+        validate_model(self.provider, self.model)
+        return self
 
 
 # --------------------------------------------------------------------------- #

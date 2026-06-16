@@ -135,10 +135,10 @@ def test_env_level3_model_override(monkeypatch: pytest.MonkeyPatch):
         monkeypatch,
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
-        LLMIO_LEVEL3_MODEL="custom-level3-model",
+        LLMIO_LEVEL3_MODEL="haiku",
     )
     cfg = load_tier_config()
-    assert cfg.level3.model == "custom-level3-model"
+    assert cfg.level3.model == "haiku"
     # provider not set via env → comes from baked base.
     assert cfg.level3.provider == LEVEL3_DEFAULT.provider
 
@@ -255,8 +255,8 @@ def test_partial_dict_only_level2_model(monkeypatch: pytest.MonkeyPatch):
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
     )
-    cfg = load_tier_config({"level2": {"model": "custom-model"}})
-    assert cfg.level2.model == "custom-model"
+    cfg = load_tier_config({"level2": {"model": "deepseek/deepseek-v4-flash"}})
+    assert cfg.level2.model == "deepseek/deepseek-v4-flash"
     assert cfg.level2.provider == LEVEL2_DEFAULT.provider
 
 
@@ -371,7 +371,7 @@ def test_legacy_normal_model(monkeypatch: pytest.MonkeyPatch):
     """``LLMIO_NORMAL_MODEL`` → level2.model + FutureWarning."""
     set_env(
         monkeypatch,
-        LLMIO_NORMAL_MODEL="normal-m",
+        LLMIO_NORMAL_MODEL="deepseek/deepseek-v4-flash",
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
     )
@@ -379,7 +379,7 @@ def test_legacy_normal_model(monkeypatch: pytest.MonkeyPatch):
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level2.model == "normal-m"
+    assert cfg.level2.model == "deepseek/deepseek-v4-flash"
     assert len(w) == 1
     assert issubclass(w[0].category, FutureWarning)
     assert "LLMIO_NORMAL_MODEL" in str(w[0].message)
@@ -390,7 +390,7 @@ def test_legacy_normal_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
     set_env(
         monkeypatch,
         LLMIO_NORMAL_MODEL="normal-m",
-        LLMIO_LEVEL2_MODEL="new-m",
+        LLMIO_LEVEL2_MODEL="deepseek/deepseek-v4-flash",
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
     )
@@ -398,7 +398,7 @@ def test_legacy_normal_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level2.model == "new-m"
+    assert cfg.level2.model == "deepseek/deepseek-v4-flash"
     normal_warnings = [x for x in w if "LLMIO_NORMAL_MODEL" in str(x.message)]
     assert len(normal_warnings) == 0
 

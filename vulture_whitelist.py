@@ -95,8 +95,9 @@ OpenRouterProviderCostSource.fetch_provider_cost
 # are used within LEGACY_TIER_MAP in the same file.
 TierLevel.LEVEL3
 
-# Pydantic model fields accessed by pydantic's metaclass machinery, not by
-# direct Python name access that vulture would detect.
+# Pydantic model fields + validators accessed by pydantic's metaclass
+# machinery, not by direct Python name access that vulture would detect.
+TierLevelConfig._validate_model_names
 TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2
