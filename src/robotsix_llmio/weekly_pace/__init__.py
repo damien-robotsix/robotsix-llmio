@@ -194,9 +194,11 @@ class PaceGovernor:
                 self._in_process_cost = 0.0
             else:
                 # fail_open: cost source configured but unreachable.
-                # Clear stale cache and treat budget fraction as 0.0 —
-                # "can't read the meter, stay on Claude."
-                self._cached_weekly_cost = None
+                # Seed cache with 0.0 so we don't re-query on every call
+                # for the duration of the outage (the is-None check
+                # overrides the TTL guard otherwise).
+                self._cached_weekly_cost = 0.0
+                self._in_process_cost = 0.0
                 return 0.0
         elif cache_expired:
             # No cost source configured; seed cache with 0.0 and bump
@@ -204,7 +206,7 @@ class PaceGovernor:
             self._cached_weekly_cost = 0.0
             self._cache_timestamp = now_mono
 
-        total = (self._cached_weekly_cost or 0.0) + self._in_process_cost
+        total = self._cached_weekly_cost + self._in_process_cost
         return total / self._config.weekly_budget
 
     def _model_weight(self, model: str | None) -> float:

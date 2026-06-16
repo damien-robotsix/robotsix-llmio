@@ -445,8 +445,10 @@ def test_fail_open_with_prior_successful_fetch(monkeypatch):
 
     # Second call — Langfuse is down but fail_open keeps us on Claude.
     assert governor.should_use_claude(now_early) is True
-    # Stale cache must be cleared so subsequent calls also stay open.
-    assert governor._cached_weekly_cost is None
+    # Cache is seeded with 0.0 so we don't re-query on every call
+    # during the outage.
+    assert governor._cached_weekly_cost == pytest.approx(0.0)
+    assert governor._in_process_cost == pytest.approx(0.0)
 
 
 def test_fail_closed_raises_on_langfuse_error(monkeypatch):
