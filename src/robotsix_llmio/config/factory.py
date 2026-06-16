@@ -11,11 +11,14 @@ Built on top of :func:`~robotsix_llmio.core.factory.get_provider` and the
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..core.factory import get_provider
-from ..core.provider import LLMProvider
-from .transport import TRANSPORT_ALIASES
+
+if TYPE_CHECKING:
+    from ..core.provider import LLMProvider
+
+from .transport import MODEL_LEVEL_TO_TIER, TRANSPORT_ALIASES
 
 
 def create_model(
@@ -69,8 +72,11 @@ def create_model(
             system_prompt="You are a helpful assistant.",
         )
     """
-    if model_level not in (1, 2, 3):
-        raise ValueError(f"model_level must be 1, 2, or 3; got {model_level!r}")
+    if model_level not in MODEL_LEVEL_TO_TIER:
+        valid = ", ".join(str(k) for k in sorted(MODEL_LEVEL_TO_TIER))
+        raise ValueError(
+            f"model_level must be one of {valid}; got {model_level!r}"
+        )
 
     try:
         provider_name = TRANSPORT_ALIASES[transport]
