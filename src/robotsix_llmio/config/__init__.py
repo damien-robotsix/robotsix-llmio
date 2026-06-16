@@ -43,8 +43,10 @@ _WEEKLY_PACE_NAMES: frozenset[str] = frozenset(
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
     if name in _TIER_NAMES:
         from . import tier  # intentional lazy import (PEP 562)
+
         return getattr(tier, name)
     if name in _WEEKLY_PACE_NAMES:
         from . import weekly_pace  # intentional lazy import (PEP 562)
+
         return getattr(weekly_pace, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
