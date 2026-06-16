@@ -7,6 +7,7 @@ pydantic-ai or OpenTelemetry at module load time.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 __all__ = [
@@ -137,8 +138,6 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
 
         return _config_tier.LEVEL3_DEFAULT
     if name == "LEGACY_TIER_MAP":
-        import warnings
-
         warnings.warn(
             "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
             DeprecationWarning,

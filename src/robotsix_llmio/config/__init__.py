@@ -9,6 +9,7 @@ config package does not eagerly pull in pydantic until a name is accessed.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 __all__ = [
@@ -34,8 +35,6 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
     if name == "LEGACY_TIER_MAP":
-        import warnings
-
         warnings.warn(
             "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
             DeprecationWarning,
