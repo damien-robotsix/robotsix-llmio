@@ -158,7 +158,7 @@ class PaceGovernor:
                 CostWindow(start=week_start, end=week_end),
                 _PROVIDER_FILTER,
             )
-        except (RuntimeError, httpx.HTTPError) as exc:
+        except (RuntimeError, httpx.HTTPError):
             if self._config.fail_open:
                 logger.warning(
                     "Pace governor: Langfuse query failed, failing open "
