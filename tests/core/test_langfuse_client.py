@@ -13,29 +13,10 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from conftest import install_transport
 
 from robotsix_llmio.core import langfuse_client as langfuse_client_module
 from robotsix_llmio.core.langfuse_client import LangfuseReadClient
-
-
-def _install_transport(monkeypatch, handler) -> list[httpx.Request]:
-    """Patch ``httpx.Client`` so the client uses a ``MockTransport`` running
-    *handler*. Returns a list that captures every request sent."""
-    captured: list[httpx.Request] = []
-
-    def _handler(request: httpx.Request) -> httpx.Response:
-        captured.append(request)
-        return handler(request)
-
-    transport = httpx.MockTransport(_handler)
-    real_client = httpx.Client
-
-    def _client(*args, **kwargs):
-        kwargs["transport"] = transport
-        return real_client(*args, **kwargs)
-
-    monkeypatch.setattr(langfuse_client_module.httpx, "Client", _client)
-    return captured
 
 
 def _client() -> LangfuseReadClient:
@@ -93,7 +74,7 @@ def test_iter_pages_relative_path_and_auth(monkeypatch):
         data = [{"id": "t1"}] if page == 1 else []
         return httpx.Response(200, json={"data": data})
 
-    captured = _install_transport(monkeypatch, handler)
+    captured = install_transport(monkeypatch, handler, module=langfuse_client_module)
     pages = list(_client().iter_pages("/api/public/traces"))
 
     assert pages == [[{"id": "t1"}]]
@@ -111,7 +92,7 @@ def test_iter_pages_stops_on_total_pages(monkeypatch):
         page = int(request.url.params["page"])
         return httpx.Response(200, json=pages[page])
 
-    captured = _install_transport(monkeypatch, handler)
+    captured = install_transport(monkeypatch, handler, module=langfuse_client_module)
     result = list(_client().iter_pages("https://lf.example.com/api/public/traces"))
 
     assert result == [[{"id": "a"}], [{"id": "b"}]]
@@ -122,7 +103,7 @@ def test_iter_pages_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="boom")
 
-    _install_transport(monkeypatch, handler)
+    install_transport(monkeypatch, handler, module=langfuse_client_module)
     with pytest.raises(RuntimeError, match="traces request"):
         list(_client().iter_pages("/api/public/traces", error_label="traces request"))
 
