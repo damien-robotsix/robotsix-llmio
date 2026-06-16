@@ -8,3 +8,4 @@
 # is suppressed at the source.
 paths-ignore:
   - tests
+  - vulture_whitelist.py
