@@ -60,3 +60,10 @@ modules:
       - tests/claude_sdk/test_stream.py
       - docs/claude_sdk/**
       - docs/reference/claude_sdk.md
+  - id: robotsix_llmio-tools
+    description: >
+      Built-in example tools (get_time, echo, calculator, roll_dice) for
+      out-of-the-box agent functionality.
+    paths:
+      - src/robotsix_llmio/tools/**
+      - tests/tools/test_builtins.py
