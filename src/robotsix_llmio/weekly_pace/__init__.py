@@ -29,6 +29,8 @@ import time as _time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import httpx
+
 from ..core.cost_log import CostWindow
 from ._week_math import _current_week_window, week_fraction_elapsed
 
@@ -66,7 +68,7 @@ class PaceGovernor:
         # Reset on each cache refresh.
         self._in_process_cost: float = 0.0
         # Langfuse cache
-        self._cached_weekly_cost: float | None = None
+        self._cached_weekly_cost: float = 0.0
         self._cache_timestamp: float | None = None
         # Current state for hysteresis (None = unknown, treat as under-pace)
         self._currently_over_pace: bool = False
@@ -156,12 +158,12 @@ class PaceGovernor:
                 CostWindow(start=week_start, end=week_end),
                 _PROVIDER_FILTER,
             )
-        except Exception:
+        except (RuntimeError, httpx.HTTPError) as exc:
             if self._config.fail_open:
                 logger.warning(
                     "Pace governor: Langfuse query failed, failing open "
-                    "(defaulting to Claude).",
-                    exc_info=True,
+                    "(defaulting to Claude): %s",
+                    exc,
                 )
                 return None
             raise
