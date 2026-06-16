@@ -14,7 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..core.provider import LLMProvider, Tier
+from ..core.provider import LLMProvider, Tier, _level_to_tier
 from ._tool_agent import _convert_tools, _SdkToolAgentHandle
 from .transient import is_claude_sdk_transient
 
@@ -54,7 +54,8 @@ class ClaudeSDKProvider(LLMProvider):
     def build_agent(
         self,
         *,
-        tier: Tier = Tier.DEFAULT,
+        level: int = 1,
+        tier: Tier | None = None,
         system_prompt: str,
         tools: list[Any] | None = None,
         output_type: Any = str,
@@ -62,7 +63,13 @@ class ClaudeSDKProvider(LLMProvider):
         retries: int = 2,
         workspace_root: str | Path | None = None,
     ) -> Any:
-        """Build a ready-to-run agent for *tier*.
+        """Build a ready-to-run agent for the requested capability *level*.
+
+        Mirrors :meth:`LLMProvider.build_agent`: prefer the integer *level*
+        (1 → cheap, 2/3 → capable); the legacy *tier* parameter is deprecated
+        but still honoured. On the no-tools path the call is delegated to the
+        base implementation (which emits the :exc:`DeprecationWarning` for an
+        explicit *tier*).
 
         When *tools* is non-empty, returns a :class:`_SdkToolAgentHandle` that
         drives the SDK tool loop directly — intermediate ``ToolCallPart``
@@ -80,6 +87,7 @@ class ClaudeSDKProvider(LLMProvider):
         (no tools → nothing to confine)."""
         if not tools:
             return super().build_agent(
+                level=level,
                 tier=tier,
                 system_prompt=system_prompt,
                 tools=tools,
@@ -88,7 +96,10 @@ class ClaudeSDKProvider(LLMProvider):
                 retries=retries,
             )
 
-        sdk_model = self._models[tier]
+        # Tool path: resolve to a concrete tier silently (an explicit *tier*
+        # is honoured without warning to keep the SDK tool loop quiet).
+        resolved_tier = tier if tier is not None else _level_to_tier(level)
+        sdk_model = self._models[resolved_tier]
         allowed_tools, server = _convert_tools(tools)
         return _SdkToolAgentHandle(
             sdk_model=sdk_model,
