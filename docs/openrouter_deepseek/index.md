@@ -7,9 +7,9 @@ DeepSeek models on OpenRouter. Hard-codes the model names
 
 ## Exports
 
-- `OpenRouterDeepseekProvider` — provider that maps `Tier.DEFAULT` to
-  `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `Tier.CHEAP`
+- `OpenRouterDeepseekProvider` — provider that maps `level=2` (legacy `Tier.DEFAULT`) to
+  `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `level=1` (legacy `Tier.CHEAP`)
   to `"deepseek/deepseek-v4-flash"` (reasoning disabled).
 - `OpenRouterDeepseekModel` — model that injects
-  `provider: {only: ["DeepSeek"], allow_fallbacks: false}` and per-tier
+  `provider: {only: ["DeepSeek"], allow_fallbacks: false}` and per-level
   `reasoning` settings into every request.

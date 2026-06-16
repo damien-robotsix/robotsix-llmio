@@ -2,26 +2,28 @@
 
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
-consumer only ever picks a **tier** (`default` or `cheap`).
+consumer only ever picks a **level** (1, 2, or 3).
 
 ## Layers
 
 1. **`robotsix_llmio.core`** — provider-agnostic base: the `LLMProvider` ABC,
-   the `Tier` enum, bounded retry/backoff (`call_with_retry`, `is_transient`,
-   `is_rate_limited`), cost-on-span recording, a timeout HTTP client, and the
-   generic pydantic-ai `Agent` assembler. All numeric parameters (timeouts,
-   retry counts, backoff) are **baked constants** — not tunable.
+   the `Tier` enum (deprecated — prefer `TierLevel`), bounded retry/backoff
+   (`call_with_retry`, `is_transient`, `is_rate_limited`), cost-on-span
+   recording, a timeout HTTP client, and the generic pydantic-ai `Agent`
+   assembler. All numeric parameters (timeouts, retry counts, backoff) are
+   **baked constants** — not tunable.
 2. **`robotsix_llmio.openrouter`** — OpenRouter transport: auth/base-url,
    `usage.include` opt-in, cost extraction from `usage.cost`, and the
    OpenRouter upstream-error transient signature. Model-family agnostic.
 3. **`robotsix_llmio.openrouter_deepseek`** — the derived layer most consumers
    plug in. Extends the OpenRouter layer with DeepSeek specifics: pin the
-   upstream provider to DeepSeek (warm prompt cache) and a tier→reasoning policy
-   (`default`→`effort: xhigh`; `cheap`→`reasoning disabled`). pydantic-ai
-   round-trips reasoning natively, so this layer neither remaps reasoning nor
-   adds a DeepSeek-specific transient signature (it inherits OpenRouter's). The
-   models are **baked**: `default = deepseek/deepseek-v4-pro`,
-   `cheap = deepseek/deepseek-v4-flash`.
+   upstream provider to DeepSeek (warm prompt cache) and a level→reasoning
+   policy (levels 2–3→`effort: xhigh`; level 1→`reasoning disabled`).
+   pydantic-ai round-trips reasoning natively, so this layer neither remaps
+   reasoning nor adds a DeepSeek-specific transient signature (it inherits
+   OpenRouter's). The models are **baked**:
+   `level 2 = deepseek/deepseek-v4-pro`,
+   `level 1 = deepseek/deepseek-v4-flash`.
 
 ### Alternative transport — Claude Agent SDK (subscription auth)
 
@@ -29,7 +31,7 @@ consumer only ever picks a **tier** (`default` or `cheap`).
 from `core.LLMProvider`) that needs **no API key**: it drives the local `claude`
 CLI through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk),
 so it authenticates with your `claude login` (Claude Code subscription / OAuth)
-credentials. `ClaudeSDKProvider` maps `default→opus`, `cheap→haiku`.
+credentials. `ClaudeSDKProvider` maps `level 2→opus`, `level 1→haiku`.
 
 Because the SDK runs its own agent loop and executes tools internally — returning
 only final text, never raw `tool_use` blocks — this transport supports
@@ -43,7 +45,6 @@ not a hot path. Runtime needs Node.js and a logged-in `claude` CLI.
 from pydantic import BaseModel
 from pydantic_ai import PromptedOutput
 from robotsix_llmio.claude_sdk import ClaudeSDKProvider
-from robotsix_llmio.core import Tier
 
 provider = ClaudeSDKProvider()  # no key — uses your `claude login` session
 
@@ -52,7 +53,7 @@ class City(BaseModel):
     country: str
 
 agent = provider.build_agent(
-    tier=Tier.CHEAP, system_prompt="Extract the city.",
+    level=1, system_prompt="Extract the city.",
     output_type=PromptedOutput(City), name="extract",
 )
 result = provider.call_with_retry(lambda: agent.run_sync("Tell me about Kyoto."))
@@ -88,19 +89,64 @@ provider = get_provider(api_key="sk-...", base_url="https://proxy.example/api/v1
 
 The default endpoint is `https://openrouter.ai/api/v1`.
 
+## Three-tier configuration
+
+The library uses a three-tier model selection system exposed through the
+`level` parameter on `LLMProvider.build_agent()`.  Each level is backed by a
+`TierLevelConfig` that specifies a provider and model:
+
+| Level | Intended use                           | Example `.env` snippet                      |
+|-------|----------------------------------------|---------------------------------------------|
+| 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_PROVIDER=openrouter-deepseek` |
+|       |                                        | `LLMIO_LEVEL1_MODEL=deepseek/deepseek-v4-flash` |
+| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_PROVIDER=openrouter-deepseek` |
+|       |                                        | `LLMIO_LEVEL2_MODEL=deepseek/deepseek-v4-pro`   |
+| 3     | High-level planning and refinement     | `LLMIO_LEVEL3_PROVIDER=claude-sdk`          |
+|       |                                        | `LLMIO_LEVEL3_MODEL=opus`                   |
+
+Level 1 is the default — cheap and fast is the safe default.  Level 3 currently
+maps to the same concrete tier as level 2 (`Tier.DEFAULT`) at the provider level;
+full three-tier differentiation is deferred to a follow-up release.  The
+configuration system (`TierConfig` / `load_tier_config` / `call_with_tier_fallback`)
+already supports all three levels end-to-end.
+
+You can also set `LLMIO_LEVEL<N>_PROVIDER_KWARGS` as a JSON object for extra
+constructor arguments (e.g. `{"base_url": "https://proxy.example/api/v1"}`).
+
+### Migrating from `tier` to `level`
+
+The legacy `tier` parameter and `Tier` enum are deprecated.  Use `level` instead:
+
+| Old (`tier`)            | New (`level`)  |
+|-------------------------|----------------|
+| `tier=Tier.CHEAP`       | `level=1`      |
+| `tier=Tier.DEFAULT`     | `level=2`      |
+| *(no equivalent)*       | `level=3`      |
+
+| Old env var              | New env var                |
+|--------------------------|----------------------------|
+| `LLMIO_FLASH_MODEL`      | `LLMIO_LEVEL1_MODEL`       |
+| `LLMIO_FLASH_PROVIDER`   | `LLMIO_LEVEL1_PROVIDER`    |
+| `LLMIO_NORMAL_MODEL`     | `LLMIO_LEVEL2_MODEL`       |
+| `LLMIO_NORMAL_PROVIDER`  | `LLMIO_LEVEL2_PROVIDER`    |
+| `LLMIO_PROVIDER` (blanket)| `LLMIO_LEVEL{1,2,3}_PROVIDER` |
+
+The old env vars still work but emit `FutureWarning`.  The old `tier` parameter
+still works but emits `DeprecationWarning`.  Code using the deprecated APIs will
+continue to function — update at your own pace.
+
 ## Use
 
-Obtain a provider through `get_provider` and pick a `Tier` — **never** import a
-concrete provider class. The tier vocabulary is **normal** (`Tier.DEFAULT`) vs
-**light** (`Tier.CHEAP`).
+Obtain a provider through `get_provider` and pick a **level** (1, 2, or 3).
+Level 1 is the default — cheap and fast.
 
 ```python
-from robotsix_llmio.core import get_provider, Tier
+from robotsix_llmio.core import get_provider
 
 provider = get_provider(api_key="sk-or-...")  # or OPENROUTER_API_KEY env
 
 agent = provider.build_agent(
-    tier=Tier.CHEAP,
+    level=2,
     system_prompt="You are a reviewer. Return a verdict.",
     tools=[],
     output_type=str,
@@ -133,7 +179,7 @@ register_provider(
 provider = get_provider(provider="my-backend")
 ```
 
-The only knobs are the backend name (from config) and the tier you pass.
+The only knobs are the backend name (from config) and the level you pass.
 Everything else — reasoning policy, retry/backoff, timeouts, cost
 instrumentation — is fixed at values proven in production.
 
