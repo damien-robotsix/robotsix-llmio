@@ -6,6 +6,7 @@ modules:
       - src/robotsix_llmio/logging.py
       - src/robotsix_llmio/core/**
       - src/robotsix_llmio/py.typed
+      - tests/core/conftest.py
       - tests/core/test_core_agent.py
       - tests/core/test_core_retry.py
       - tests/core/test_core_run.py
