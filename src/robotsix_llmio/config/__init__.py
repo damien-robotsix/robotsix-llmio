@@ -44,9 +44,27 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
     if name in _TIER_NAMES:
         from . import tier  # intentional lazy import (PEP 562)
 
-        return getattr(tier, name)
+        if name == "LEGACY_TIER_MAP":
+            return tier.LEGACY_TIER_MAP
+        if name == "LEVEL1_DEFAULT":
+            return tier.LEVEL1_DEFAULT
+        if name == "LEVEL2_DEFAULT":
+            return tier.LEVEL2_DEFAULT
+        if name == "LEVEL3_DEFAULT":
+            return tier.LEVEL3_DEFAULT
+        if name == "TierConfig":
+            return tier.TierConfig
+        if name == "TierLevel":
+            return tier.TierLevel
+        if name == "TierLevelConfig":
+            return tier.TierLevelConfig
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     if name in _WEEKLY_PACE_NAMES:
         from . import weekly_pace  # intentional lazy import (PEP 562)
 
-        return getattr(weekly_pace, name)
+        if name == "ModelWeightConfig":
+            return weekly_pace.ModelWeightConfig
+        if name == "WeeklyPaceConfig":
+            return weekly_pace.WeeklyPaceConfig
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
