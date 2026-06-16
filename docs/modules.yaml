@@ -23,6 +23,7 @@ modules:
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
       - tests/core/test_logging.py
+      - tests/conftest.py
       - docs/core/**
       - docs/reference/core.md
       - docs/reference/logging.md
