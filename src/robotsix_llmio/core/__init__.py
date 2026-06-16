@@ -11,6 +11,10 @@ from typing import Any
 
 __all__ = [
     "DEFAULT_TOLERANCE",
+    "LEGACY_TIER_MAP",
+    "LEVEL1_DEFAULT",
+    "LEVEL2_DEFAULT",
+    "LEVEL3_DEFAULT",
     "AgentHandle",
     "CostLogSource",
     "CostRecord",
@@ -23,6 +27,9 @@ __all__ = [
     "ProviderCost",
     "ProviderCostSource",
     "Tier",
+    "TierConfig",
+    "TierLevel",
+    "TierLevelConfig",
     "TraceSpan",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
@@ -83,6 +90,18 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import provider
 
         return getattr(provider, name)
+    if name in (
+        "LEVEL1_DEFAULT",
+        "LEVEL2_DEFAULT",
+        "LEVEL3_DEFAULT",
+        "LEGACY_TIER_MAP",
+        "TierConfig",
+        "TierLevel",
+        "TierLevelConfig",
+    ):
+        from robotsix_llmio import config
+
+        return getattr(config, name)
     if name in (
         "DEFAULT_TOLERANCE",
         "Discrepancy",
