@@ -25,7 +25,6 @@ from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
 from robotsix_llmio.config.tier import (
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
-    TierConfig,
 )
 
 # ========================================================================== #
@@ -41,9 +40,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.delenv(key, raising=False)
 
 
-def set_env(
-    monkeypatch: pytest.MonkeyPatch, **kwargs: str
-) -> None:
+def set_env(monkeypatch: pytest.MonkeyPatch, **kwargs: str) -> None:
     """Convenience: set multiple env vars at once."""
     for k, v in kwargs.items():
         monkeypatch.setenv(k, v)
@@ -200,7 +197,7 @@ def test_env_provider_kwargs_json_array(monkeypatch: pytest.MonkeyPatch):
         monkeypatch,
         LLMIO_LEVEL1_PROVIDER="p",
         LLMIO_LEVEL1_MODEL="m",
-        LLMIO_LEVEL3_PROVIDER_KWARGS='[1, 2, 3]',
+        LLMIO_LEVEL3_PROVIDER_KWARGS="[1, 2, 3]",
     )
     with pytest.raises(TierConfigLoadError) as exc_info:
         load_tier_config()
@@ -221,9 +218,7 @@ def test_explicit_dict_overrides_env(monkeypatch: pytest.MonkeyPatch):
         LLMIO_LEVEL1_PROVIDER="env-p",
         LLMIO_LEVEL1_MODEL="env-m",
     )
-    cfg = load_tier_config(
-        {"level1": {"provider": "dict-p", "model": "dict-m"}}
-    )
+    cfg = load_tier_config({"level1": {"provider": "dict-p", "model": "dict-m"}})
     assert cfg.level1.provider == "dict-p"
     assert cfg.level1.model == "dict-m"
 
@@ -475,7 +470,9 @@ def test_legacy_llmio_provider_fills_all_levels(monkeypatch: pytest.MonkeyPatch)
     assert issubclass(provider_warnings[0].category, FutureWarning)
 
 
-def test_legacy_llmio_provider_respects_explicit_level1(monkeypatch: pytest.MonkeyPatch):
+def test_legacy_llmio_provider_respects_explicit_level1(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """``LLMIO_PROVIDER`` does NOT override a level that already has a provider."""
     set_env(
         monkeypatch,
@@ -507,7 +504,7 @@ def test_legacy_llmio_provider_respects_legacy_flash(monkeypatch: pytest.MonkeyP
         LLMIO_LEVEL2_MODEL="m2",
         LLMIO_LEVEL3_MODEL="m3",
     )
-    with warnings.catch_warnings(record=True) as w:
+    with warnings.catch_warnings(record=True) as _w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 

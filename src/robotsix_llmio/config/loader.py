@@ -191,8 +191,7 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
                     ) from exc
                 if not isinstance(parsed, dict):
                     raise TierConfigLoadError(
-                        f"{var_name} must be a JSON object, "
-                        f"got {type(parsed).__name__}"
+                        f"{var_name} must be a JSON object, got {type(parsed).__name__}"
                     )
                 _set(tier_lower, field_lower, parsed)
             else:
