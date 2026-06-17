@@ -135,10 +135,22 @@ The old env vars still work but emit `FutureWarning`.  The old `tier` parameter
 still works but emits `DeprecationWarning`.  Code using the deprecated APIs will
 continue to function — update at your own pace.
 
+See [docs/config/index.md](docs/config/index.md) for the full `TierConfig`
+schema and `create_model` factory API.
+
 ## Use
 
 Obtain a provider through `get_provider` and pick a **level** (1, 2, or 3).
 Level 1 is the default — cheap and fast.
+
+For new code, prefer `create_model` — it resolves the provider from your
+tier configuration without naming a concrete backend:
+
+```python
+from robotsix_llmio.config import create_model
+
+provider = create_model(level=2, api_key="sk-or-...")
+```
 
 ```python
 from robotsix_llmio.core import get_provider
