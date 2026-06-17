@@ -68,14 +68,30 @@ def test_re_export_load_tier_config():
     assert load_tier_config is _loader.load_tier_config
 
 
+def test_re_export_unknown_transport_error():
+    from robotsix_llmio.config import UnknownTransportError
+    from robotsix_llmio.config import transport as _transport
+
+    assert UnknownTransportError is _transport.UnknownTransportError
+
+
+def test_re_export_validate_transport():
+    from robotsix_llmio.config import transport as _transport
+    from robotsix_llmio.config import validate_transport
+
+    assert validate_transport is _transport.validate_transport
+
+
 @pytest.mark.parametrize(
     "attr_name",
     [
         "MODEL_LEVEL_TO_TIER",
         "TRANSPORT_ALIASES",
+        "UnknownTransportError",
         "ModelWeightConfig",
         "WeeklyPaceConfig",
         "create_model",
+        "validate_transport",
     ],
 )
 def test_re_export_names(attr_name: str):

@@ -269,7 +269,7 @@ def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
     agent = provider.build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
         ),
         system_prompt="You are concise. Answer with just the number.",
         output_type=str,
@@ -324,7 +324,7 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     subagent = provider.build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
         ),
         system_prompt="You are a physics expert. Answer in one short sentence.",
         output_type=str,
@@ -346,8 +346,8 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     outer = provider.build_agent(
         level=2,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
-            level2=TierLevelConfig(provider="claude-sdk", model="opus"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+            level2=TierLevelConfig(transport="claude-sdk", model="opus"),
         ),
         system_prompt=(
             "Use the add tool for arithmetic and the consult_expert tool for "
@@ -439,7 +439,7 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
     subagent = provider.build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
         ),
         system_prompt="Use the lookup tool, then answer in one sentence.",
         tools=[lookup],
@@ -454,7 +454,7 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
     outer = provider.build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
         ),
         system_prompt="Use the consult_expert tool for science questions.",
         tools=[consult_expert],
@@ -651,7 +651,7 @@ def test_claude_sdk_workspace_confinement_blocks_out_of_scope_edit(tmp_path) -> 
     agent = ClaudeSDKProvider().build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
         ),
         system_prompt="You edit files with your built-in tools. Be terse.",
         tools=[note],

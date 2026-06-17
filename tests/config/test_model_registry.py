@@ -156,36 +156,35 @@ def test_unknown_model_error_is_exception():
 
 
 def test_tier_level_config_rejects_unknown_model():
-    """Constructing with known provider + unknown model raises immediately."""
+    """Constructing with known transport + unknown model raises immediately."""
     with pytest.raises(UnknownModelError):
-        TierLevelConfig(provider="openrouter-deepseek", model="bogus-model")
+        TierLevelConfig(transport="openrouter[deepseek]", model="bogus-model")
 
 
 def test_tier_level_config_rejects_unknown_model_claude():
     """Constructing with claude-sdk + unknown model raises."""
     with pytest.raises(UnknownModelError):
-        TierLevelConfig(provider="claude-sdk", model="nonexistent")
+        TierLevelConfig(transport="claude-sdk", model="nonexistent")
 
 
 def test_tier_level_config_accepts_known_model_openrouter():
-    """Constructing with a known model for openrouter-deepseek succeeds."""
+    """Constructing with a known model for openrouter[deepseek] succeeds."""
     cfg = TierLevelConfig(
-        provider="openrouter-deepseek", model="deepseek/deepseek-v4-flash"
+        transport="openrouter[deepseek]", model="deepseek/deepseek-v4-flash"
     )
     assert cfg.model == "deepseek/deepseek-v4-flash"
 
 
 def test_tier_level_config_accepts_known_model_claude():
     """Constructing with a known model for claude-sdk succeeds."""
-    cfg = TierLevelConfig(provider="claude-sdk", model="sonnet")
+    cfg = TierLevelConfig(transport="claude-sdk", model="sonnet")
     assert cfg.model == "sonnet"
 
 
-def test_tier_level_config_accepts_unknown_provider():
-    """Unknown provider skips model validation — construction succeeds."""
-    cfg = TierLevelConfig(provider="unknown-x", model="anything-goes")
-    assert cfg.provider == "unknown-x"
-    assert cfg.model == "anything-goes"
+def test_validate_model_skips_unknown_provider():
+    """``validate_model`` silently passes for an unknown provider registry name."""
+    # Should not raise — unknown provider is validated elsewhere.
+    validate_model("unknown-x", "anything-goes")
 
 
 def test_baked_defaults_construct_without_error():
@@ -201,7 +200,7 @@ def test_baked_defaults_construct_without_error():
 def test_tier_config_model_validate_rejects_bogus_model():
     """``TierConfig.model_validate`` with bogus model raises UnknownModelError."""
     data = {
-        "level1": {"provider": "openrouter-deepseek", "model": "bogus"},
+        "level1": {"transport": "openrouter[deepseek]", "model": "bogus"},
     }
     with pytest.raises(UnknownModelError):
         TierConfig.model_validate(data)
@@ -211,7 +210,7 @@ def test_tier_config_model_validate_accepts_valid_model():
     """``TierConfig.model_validate`` with valid model succeeds."""
     data = {
         "level1": {
-            "provider": "openrouter-deepseek",
+            "transport": "openrouter[deepseek]",
             "model": "deepseek/deepseek-v4-flash",
         },
     }

@@ -281,7 +281,7 @@ def test_build_agent_model_override_wins_over_tier_config(monkeypatch):
     """Even when ``tier_config`` is provided, the explicit ``model`` takes
     precedence."""
     cfg = TierConfig(
-        level1=TierLevelConfig(provider="p1", model="should-not-be-used"),
+        level1=TierLevelConfig(transport="claude-sdk", model="opus"),
     )
     p = _MockProvider()
 
@@ -315,7 +315,7 @@ def test_build_agent_with_tier_config_level_1(monkeypatch):
     """Primary path: ``build_agent(level=1, tier_config=cfg)`` calls
     ``new_model(model=cfg.level1.model)``."""
     cfg = TierConfig(
-        level1=TierLevelConfig(provider="p1", model="m1"),
+        level1=TierLevelConfig(transport="claude-sdk", model="opus"),
     )
     p = _MockProvider()
 
@@ -324,15 +324,15 @@ def test_build_agent_with_tier_config_level_1(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=1, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m1", "level": 1}]
+    assert p.new_model_calls == [{"model": "opus", "level": 1}]
 
 
 def test_build_agent_with_tier_config_level_2(monkeypatch):
     """Primary path: ``build_agent(level=2, tier_config=cfg)`` calls
     ``new_model(model=cfg.level2.model)``."""
     cfg = TierConfig(
-        level1=TierLevelConfig(provider="p1", model="m1"),
-        level2=TierLevelConfig(provider="p2", model="m2"),
+        level1=TierLevelConfig(transport="claude-sdk", model="opus"),
+        level2=TierLevelConfig(transport="claude-sdk", model="haiku"),
     )
     p = _MockProvider()
 
@@ -341,15 +341,15 @@ def test_build_agent_with_tier_config_level_2(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=2, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m2", "level": 2}]
+    assert p.new_model_calls == [{"model": "haiku", "level": 2}]
 
 
 def test_build_agent_with_tier_config_level_3(monkeypatch):
     """Primary path: ``build_agent(level=3, tier_config=cfg)`` calls
     ``new_model(model=cfg.level3.model)``."""
     cfg = TierConfig(
-        level1=TierLevelConfig(provider="p1", model="m1"),
-        level3=TierLevelConfig(provider="p3", model="m3"),
+        level1=TierLevelConfig(transport="claude-sdk", model="opus"),
+        level3=TierLevelConfig(transport="claude-sdk", model="sonnet"),
     )
     p = _MockProvider()
 
@@ -358,7 +358,7 @@ def test_build_agent_with_tier_config_level_3(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=3, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m3", "level": 3}]
+    assert p.new_model_calls == [{"model": "sonnet", "level": 3}]
 
 
 # --- call_with_retry delegation --------------------------------------------

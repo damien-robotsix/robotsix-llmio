@@ -32,9 +32,9 @@ async def _anoop_sleep(_d: float) -> None:
 #  Helpers for constructing test configs                                      #
 # --------------------------------------------------------------------------- #
 
-_L1_CFG = TierLevelConfig(provider="prov-l1", model="model-l1")
-_L2_CFG = TierLevelConfig(provider="prov-l2", model="model-l2")
-_L3_CFG = TierLevelConfig(provider="prov-l3", model="model-l3")
+_L1_CFG = TierLevelConfig(transport="claude-sdk", model="opus")
+_L2_CFG = TierLevelConfig(transport="claude-sdk", model="haiku")
+_L3_CFG = TierLevelConfig(transport="claude-sdk", model="sonnet")
 
 _STD_TIER_CONFIG = TierConfig(level1=_L1_CFG, level2=_L2_CFG, level3=_L3_CFG)
 
@@ -220,7 +220,7 @@ def test_fallback_level1_to_level2_on_failure():
 
     def factory(tlc: TierLevelConfig):
         tracking.setdefault("factory_calls", []).append(tlc.model)
-        if tlc.model == "model-l1":
+        if tlc.model == "opus":
 
             def fn():
                 raise RuntimeError("l1-fail")
@@ -239,7 +239,7 @@ def test_fallback_level1_to_level2_on_failure():
         sleep=_noop_sleep,
     )
     assert out == "l2-ok"
-    assert tracking["factory_calls"] == ["model-l1", "model-l2"]
+    assert tracking["factory_calls"] == ["opus", "haiku"]
 
 
 def test_fallback_level1_to_level2_to_level3():
@@ -266,7 +266,7 @@ def test_fallback_level1_to_level2_to_level3():
         sleep=_noop_sleep,
     )
     assert out == "l3-ok"
-    assert tracking["factory_calls"] == ["model-l1", "model-l2", "model-l3"]
+    assert tracking["factory_calls"] == ["opus", "haiku", "sonnet"]
 
 
 def test_fallback_level2_to_level3_to_level1():
@@ -295,7 +295,7 @@ def test_fallback_level2_to_level3_to_level1():
         sleep=_noop_sleep,
     )
     assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["model-l2", "model-l3", "model-l1"]
+    assert tracking["factory_calls"] == ["haiku", "sonnet", "opus"]
 
 
 def test_fallback_level3_to_level2_to_level1():
@@ -324,7 +324,7 @@ def test_fallback_level3_to_level2_to_level1():
         sleep=_noop_sleep,
     )
     assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["model-l3", "model-l2", "model-l1"]
+    assert tracking["factory_calls"] == ["sonnet", "haiku", "opus"]
 
 
 def test_exhausted_all_levels_reraises_last_error():
@@ -367,9 +367,9 @@ def test_factory_called_fresh_per_level():
     )
 
     assert tracking["factory_calls"] == [
-        {"provider": "prov-l1", "model": "model-l1"},
-        {"provider": "prov-l2", "model": "model-l2"},
-        {"provider": "prov-l3", "model": "model-l3"},
+        {"provider": "claude-sdk", "model": "opus"},
+        {"provider": "claude-sdk", "model": "haiku"},
+        {"provider": "claude-sdk", "model": "sonnet"},
     ]
 
 
@@ -393,7 +393,7 @@ def test_max_fallback_depth_zero_equals_disabled():
             max_fallback_depth=0,
             sleep=_noop_sleep,
         )
-    assert tracking["factory_calls"] == ["model-l1"]
+    assert tracking["factory_calls"] == ["opus"]
 
 
 def test_max_fallback_depth_limits_promotions():
@@ -409,7 +409,7 @@ def test_max_fallback_depth_limits_promotions():
 
         return fn
 
-    with pytest.raises(RuntimeError, match="fail-model-l2"):
+    with pytest.raises(RuntimeError, match="fail-haiku"):
         call_with_tier_fallback(
             factory,
             tier_config=_STD_TIER_CONFIG,
@@ -418,7 +418,7 @@ def test_max_fallback_depth_limits_promotions():
             max_fallback_depth=1,
             sleep=_noop_sleep,
         )
-    assert tracking["factory_calls"] == ["model-l1", "model-l2"]
+    assert tracking["factory_calls"] == ["opus", "haiku"]
 
 
 def test_no_duplicate_tier_visits():
@@ -450,7 +450,7 @@ def test_no_duplicate_tier_visits():
     )
 
     # Only one visit — no duplicates
-    assert tracking["factory_calls"] == ["model-l2"]
+    assert tracking["factory_calls"] == ["haiku"]
 
     # Also verify that when all tiers are exhausted, the loop stops and doesn't
     # revisit. Using the exhausted factory: all 3 tiers fail once each.
@@ -473,7 +473,7 @@ def test_no_duplicate_tier_visits():
             sleep=_noop_sleep,
         )
 
-    assert tracking2["factory_calls"] == ["model-l1", "model-l2", "model-l3"]
+    assert tracking2["factory_calls"] == ["opus", "haiku", "sonnet"]
     # No duplicates
     assert len(tracking2["factory_calls"]) == len(set(tracking2["factory_calls"]))
 
@@ -506,11 +506,11 @@ def test_logging_output(caplog):
     # Check INFO messages
     info_messages = [r.message for r in caplog.records if r.levelno == logging.INFO]
     assert any(
-        "test-op: trying level1 (provider=prov-l1, model=model-l1)" in msg
+        "test-op: trying level1 (provider=claude-sdk, model=opus)" in msg
         for msg in info_messages
     )
     assert any(
-        "test-op: trying level2 (provider=prov-l2, model=model-l2)" in msg
+        "test-op: trying level2 (provider=claude-sdk, model=haiku)" in msg
         for msg in info_messages
     )
     assert any("test-op: level2 succeeded" in msg for msg in info_messages)
@@ -604,7 +604,7 @@ def test_acall_fallback_level1_to_level2_to_level3():
         )
     )
     assert out == "l3-ok"
-    assert tracking["factory_calls"] == ["model-l1", "model-l2", "model-l3"]
+    assert tracking["factory_calls"] == ["opus", "haiku", "sonnet"]
 
 
 def test_acall_fallback_level2_to_level3_to_level1():
@@ -634,7 +634,7 @@ def test_acall_fallback_level2_to_level3_to_level1():
         )
     )
     assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["model-l2", "model-l3", "model-l1"]
+    assert tracking["factory_calls"] == ["haiku", "sonnet", "opus"]
 
 
 def test_acall_exhausted_all_levels_reraises_last_error():
@@ -668,7 +668,7 @@ def test_acall_max_fallback_depth_limits_promotions():
 
         return fn
 
-    with pytest.raises(RuntimeError, match="fail-model-l2"):
+    with pytest.raises(RuntimeError, match="fail-haiku"):
         asyncio.run(
             acall_with_tier_fallback(
                 factory,
@@ -678,7 +678,7 @@ def test_acall_max_fallback_depth_limits_promotions():
                 sleep=_anoop_sleep,
             )
         )
-    assert tracking["factory_calls"] == ["model-l1", "model-l2"]
+    assert tracking["factory_calls"] == ["opus", "haiku"]
 
 
 def test_acall_logging_output(caplog):

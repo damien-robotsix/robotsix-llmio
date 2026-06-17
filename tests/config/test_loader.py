@@ -2,16 +2,25 @@
 
 Covers:
 - ``load_tier_config()`` with no arguments / no env vars
-- Environment-variable overrides (new-style)
+- Environment-variable overrides (new-style ``_TRANSPORT`` / ``_MODEL``)
+- ``_TRANSPORT`` taking precedence over the backward-compat ``_PROVIDER``
 - ``*_PROVIDER_KWARGS`` parsing (valid and invalid JSON)
-- Explicit ``config_dict`` overriding env vars
+- Explicit ``config_dict`` overriding env vars, including old ``provider`` keys
 - Partial ``config_dict`` merge
 - Missing ``level1`` → ``TierConfigLoadError``
+- Unknown transport → ``TierConfigLoadError``
 - Legacy environment variables → ``FutureWarning`` + correct mapping
 - Legacy variables silently ignored when new-style is set
-- ``LLMIO_PROVIDER`` fallback to all levels lacking an explicit provider
+- ``LLMIO_PROVIDER`` fallback to all levels lacking an explicit transport
 - Re-export smoke tests from ``robotsix_llmio.config`` and
   ``robotsix_llmio.core``
+
+Valid transport/model pairs used throughout (transport validation now
+rejects arbitrary strings):
+
+* ``claude-sdk`` → ``opus`` / ``haiku`` / ``sonnet``
+* ``openrouter[deepseek]`` → ``deepseek/deepseek-v4-pro`` /
+  ``deepseek/deepseek-v4-flash``
 """
 
 from __future__ import annotations
@@ -69,9 +78,9 @@ def test_no_args_raises():
 
 def test_explicit_dict_level1_only():
     """Supplying only level1 gives baked defaults for level2/level3."""
-    cfg = load_tier_config({"level1": {"provider": "p", "model": "m"}})
-    assert cfg.level1.provider == "p"
-    assert cfg.level1.model == "m"
+    cfg = load_tier_config({"level1": {"transport": "claude-sdk", "model": "opus"}})
+    assert cfg.level1.transport == "claude-sdk"
+    assert cfg.level1.model == "opus"
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
 
@@ -80,14 +89,32 @@ def test_explicit_dict_full():
     """All three tiers can be supplied via explicit dict."""
     cfg = load_tier_config(
         {
-            "level1": {"provider": "a", "model": "1"},
-            "level2": {"provider": "b", "model": "2"},
-            "level3": {"provider": "c", "model": "3"},
+            "level1": {"transport": "claude-sdk", "model": "haiku"},
+            "level2": {
+                "transport": "openrouter[deepseek]",
+                "model": "deepseek/deepseek-v4-pro",
+            },
+            "level3": {"transport": "claude-sdk", "model": "opus"},
         }
     )
-    assert cfg.level1.provider == "a"
-    assert cfg.level2.provider == "b"
-    assert cfg.level3.provider == "c"
+    assert cfg.level1.model == "haiku"
+    assert cfg.level2.transport == "openrouter[deepseek]"
+    assert cfg.level3.model == "opus"
+
+
+def test_explicit_dict_backward_compat_provider_key():
+    """An explicit dict with the old ``provider`` key still loads."""
+    cfg = load_tier_config(
+        {
+            "level1": {
+                "provider": "openrouter-deepseek",
+                "model": "deepseek/deepseek-v4-flash",
+            }
+        }
+    )
+    assert cfg.level1.transport == "openrouter[deepseek]"
+    assert cfg.level1.provider == "openrouter-deepseek"
+    assert cfg.level1.model == "deepseek/deepseek-v4-flash"
 
 
 def test_explicit_dict_none_passed():
@@ -102,45 +129,102 @@ def test_explicit_dict_none_passed():
 # ========================================================================== #
 
 
-def test_env_level1_model_override(monkeypatch: pytest.MonkeyPatch):
-    """``LLMIO_LEVEL1_MODEL`` populates level1.model."""
+def test_env_level1_transport_and_model(monkeypatch: pytest.MonkeyPatch):
+    """``LLMIO_LEVEL1_TRANSPORT`` / ``_MODEL`` populate level1."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="env-p",
-        LLMIO_LEVEL1_MODEL="env-m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="haiku",
     )
     cfg = load_tier_config()
-    assert cfg.level1.provider == "env-p"
-    assert cfg.level1.model == "env-m"
+    assert cfg.level1.transport == "claude-sdk"
+    assert cfg.level1.model == "haiku"
 
 
-def test_env_level2_provider_override(monkeypatch: pytest.MonkeyPatch):
-    """``LLMIO_LEVEL2_PROVIDER`` overrides the baked level2 provider."""
+def test_env_level2_transport_override(monkeypatch: pytest.MonkeyPatch):
+    """``LLMIO_LEVEL2_TRANSPORT`` / ``_MODEL`` override the baked level2."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
-        LLMIO_LEVEL2_PROVIDER="custom-level2",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
+        LLMIO_LEVEL2_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL2_MODEL="sonnet",
     )
     cfg = load_tier_config()
-    assert cfg.level1.provider == "p"
-    assert cfg.level2.provider == "custom-level2"
-    # model not set via env, so it comes from the baked base.
-    assert cfg.level2.model == LEVEL2_DEFAULT.model
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level2.model == "sonnet"
+
+
+def test_env_level2_model_override_keeps_baked_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Overriding only level2.model keeps the baked level2 transport."""
+    set_env(
+        monkeypatch,
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
+        LLMIO_LEVEL2_MODEL="deepseek/deepseek-v4-flash",
+    )
+    cfg = load_tier_config()
+    assert cfg.level2.model == "deepseek/deepseek-v4-flash"
+    # transport not set via env, so it comes from the baked base.
+    assert cfg.level2.transport == LEVEL2_DEFAULT.transport
 
 
 def test_env_level3_model_override(monkeypatch: pytest.MonkeyPatch):
     """``LLMIO_LEVEL3_MODEL`` overrides the baked level3 model."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
         LLMIO_LEVEL3_MODEL="haiku",
     )
     cfg = load_tier_config()
     assert cfg.level3.model == "haiku"
-    # provider not set via env → comes from baked base.
-    assert cfg.level3.provider == LEVEL3_DEFAULT.provider
+    # transport not set via env → comes from baked base.
+    assert cfg.level3.transport == LEVEL3_DEFAULT.transport
+
+
+def test_env_provider_backward_compat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``LLMIO_LEVEL{n}_PROVIDER`` is converted to a transport alias."""
+    set_env(
+        monkeypatch,
+        LLMIO_LEVEL1_PROVIDER="openrouter-deepseek",
+        LLMIO_LEVEL1_MODEL="deepseek/deepseek-v4-flash",
+    )
+    cfg = load_tier_config()
+    assert cfg.level1.transport == "openrouter[deepseek]"
+    assert cfg.level1.provider == "openrouter-deepseek"
+
+
+def test_env_transport_takes_precedence_over_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_TRANSPORT`` wins over ``_PROVIDER`` for the same level."""
+    set_env(
+        monkeypatch,
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_PROVIDER="openrouter-deepseek",
+        LLMIO_LEVEL1_MODEL="opus",
+    )
+    cfg = load_tier_config()
+    assert cfg.level1.transport == "claude-sdk"
+
+
+# ========================================================================== #
+#  Unknown transport
+# ========================================================================== #
+
+
+def test_unknown_transport_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unknown transport surfaces as ``TierConfigLoadError``."""
+    set_env(
+        monkeypatch,
+        LLMIO_LEVEL1_TRANSPORT="not-a-transport",
+        LLMIO_LEVEL1_MODEL="opus",
+    )
+    with pytest.raises(TierConfigLoadError):
+        load_tier_config()
 
 
 # ========================================================================== #
@@ -152,8 +236,8 @@ def test_env_provider_kwargs_valid_json(monkeypatch: pytest.MonkeyPatch):
     """``*_PROVIDER_KWARGS`` with valid JSON is parsed into a dict."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
         LLMIO_LEVEL2_PROVIDER_KWARGS='{"timeout": 30, "base_url": "https://x"}',
     )
     cfg = load_tier_config()
@@ -164,8 +248,8 @@ def test_env_provider_kwargs_empty_object(monkeypatch: pytest.MonkeyPatch):
     """``*_PROVIDER_KWARGS`` can be an empty JSON object."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
         LLMIO_LEVEL3_PROVIDER_KWARGS="{}",
     )
     cfg = load_tier_config()
@@ -181,8 +265,8 @@ def test_env_provider_kwargs_invalid_json(monkeypatch: pytest.MonkeyPatch):
     """Invalid JSON in a ``*_PROVIDER_KWARGS`` var raises TierConfigLoadError."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
         LLMIO_LEVEL1_PROVIDER_KWARGS="not json",
     )
     with pytest.raises(TierConfigLoadError) as exc_info:
@@ -196,8 +280,8 @@ def test_env_provider_kwargs_json_array(monkeypatch: pytest.MonkeyPatch):
     """A JSON array is not a valid value for provider_kwargs."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
         LLMIO_LEVEL3_PROVIDER_KWARGS="[1, 2, 3]",
     )
     with pytest.raises(TierConfigLoadError) as exc_info:
@@ -216,24 +300,31 @@ def test_explicit_dict_overrides_env(monkeypatch: pytest.MonkeyPatch):
     """config_dict has higher precedence than env vars."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="env-p",
-        LLMIO_LEVEL1_MODEL="env-m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
-    cfg = load_tier_config({"level1": {"provider": "dict-p", "model": "dict-m"}})
-    assert cfg.level1.provider == "dict-p"
-    assert cfg.level1.model == "dict-m"
+    cfg = load_tier_config(
+        {
+            "level1": {
+                "transport": "openrouter[deepseek]",
+                "model": "deepseek/deepseek-v4-pro",
+            }
+        }
+    )
+    assert cfg.level1.transport == "openrouter[deepseek]"
+    assert cfg.level1.model == "deepseek/deepseek-v4-pro"
 
 
 def test_explicit_dict_partial_overrides_env(monkeypatch: pytest.MonkeyPatch):
     """A partial config_dict overrides only the specified fields."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="env-p",
-        LLMIO_LEVEL1_MODEL="env-m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
-    cfg = load_tier_config({"level1": {"model": "dict-m"}})
-    assert cfg.level1.provider == "env-p"  # from env
-    assert cfg.level1.model == "dict-m"  # overridden
+    cfg = load_tier_config({"level1": {"model": "haiku"}})
+    assert cfg.level1.transport == "claude-sdk"  # from env
+    assert cfg.level1.model == "haiku"  # overridden
 
 
 # ========================================================================== #
@@ -243,21 +334,21 @@ def test_explicit_dict_partial_overrides_env(monkeypatch: pytest.MonkeyPatch):
 
 def test_partial_dict_only_level1():
     """Only level1 in dict → level2/3 come from baked defaults."""
-    cfg = load_tier_config({"level1": {"provider": "x", "model": "y"}})
+    cfg = load_tier_config({"level1": {"transport": "claude-sdk", "model": "opus"}})
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
 
 
 def test_partial_dict_only_level2_model(monkeypatch: pytest.MonkeyPatch):
-    """Setting only level2.model in dict works (baked provider is used)."""
+    """Setting only level2.model in dict works (baked transport is used)."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     cfg = load_tier_config({"level2": {"model": "deepseek/deepseek-v4-flash"}})
     assert cfg.level2.model == "deepseek/deepseek-v4-flash"
-    assert cfg.level2.provider == LEVEL2_DEFAULT.provider
+    assert cfg.level2.transport == LEVEL2_DEFAULT.transport
 
 
 # ========================================================================== #
@@ -276,11 +367,11 @@ def test_missing_level1_partial_other_tiers(monkeypatch: pytest.MonkeyPatch):
     """Providing only level2/level3 without level1 still raises."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL2_PROVIDER="p2",
-        LLMIO_LEVEL2_MODEL="m2",
+        LLMIO_LEVEL2_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL2_MODEL="opus",
     )
     with pytest.raises(TierConfigLoadError):
-        load_tier_config({"level3": {"provider": "p3", "model": "m3"}})
+        load_tier_config({"level3": {"transport": "claude-sdk", "model": "haiku"}})
 
 
 # ========================================================================== #
@@ -290,15 +381,15 @@ def test_missing_level1_partial_other_tiers(monkeypatch: pytest.MonkeyPatch):
 
 def test_legacy_flash_model(monkeypatch: pytest.MonkeyPatch):
     """``LLMIO_FLASH_MODEL`` → level1.model + FutureWarning."""
-    set_env(monkeypatch, LLMIO_FLASH_MODEL="flash-m")
-    # Must also provide provider for level1.
-    set_env(monkeypatch, LLMIO_LEVEL1_PROVIDER="p")
+    set_env(monkeypatch, LLMIO_FLASH_MODEL="haiku")
+    # Must also provide a transport for level1.
+    set_env(monkeypatch, LLMIO_LEVEL1_TRANSPORT="claude-sdk")
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.model == "flash-m"
+    assert cfg.level1.model == "haiku"
     assert len(w) == 1
     assert issubclass(w[0].category, FutureWarning)
     assert "LLMIO_FLASH_MODEL" in str(w[0].message)
@@ -309,15 +400,15 @@ def test_legacy_flash_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
     """Legacy var is ignored when the new-style var is also set."""
     set_env(
         monkeypatch,
-        LLMIO_FLASH_MODEL="flash-m",
-        LLMIO_LEVEL1_MODEL="new-m",
-        LLMIO_LEVEL1_PROVIDER="p",
+        LLMIO_FLASH_MODEL="sonnet",
+        LLMIO_LEVEL1_MODEL="opus",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.model == "new-m"
+    assert cfg.level1.model == "opus"
     # No FutureWarning for LLMIO_FLASH_MODEL
     flash_warnings = [x for x in w if "LLMIO_FLASH_MODEL" in str(x.message)]
     assert len(flash_warnings) == 0
@@ -329,35 +420,35 @@ def test_legacy_flash_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_legacy_flash_provider(monkeypatch: pytest.MonkeyPatch):
-    """``LLMIO_FLASH_PROVIDER`` → level1.provider + FutureWarning."""
+    """``LLMIO_FLASH_PROVIDER`` → level1.transport + FutureWarning."""
     set_env(
         monkeypatch,
-        LLMIO_FLASH_PROVIDER="flash-p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_FLASH_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.provider == "flash-p"
+    assert cfg.level1.transport == "claude-sdk"
     assert len(w) == 1
     assert issubclass(w[0].category, FutureWarning)
     assert "LLMIO_FLASH_PROVIDER" in str(w[0].message)
 
 
 def test_legacy_flash_provider_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
-    """Legacy flash provider is ignored when new var is set."""
+    """Legacy flash provider is ignored when new ``_TRANSPORT`` is set."""
     set_env(
         monkeypatch,
-        LLMIO_FLASH_PROVIDER="flash-p",
-        LLMIO_LEVEL1_PROVIDER="new-p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_FLASH_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_TRANSPORT="openrouter[deepseek]",
+        LLMIO_LEVEL1_MODEL="deepseek/deepseek-v4-flash",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.provider == "new-p"
+    assert cfg.level1.transport == "openrouter[deepseek]"
     flash_warnings = [x for x in w if "LLMIO_FLASH_PROVIDER" in str(x.message)]
     assert len(flash_warnings) == 0
 
@@ -372,8 +463,8 @@ def test_legacy_normal_model(monkeypatch: pytest.MonkeyPatch):
     set_env(
         monkeypatch,
         LLMIO_NORMAL_MODEL="deepseek/deepseek-v4-flash",
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -389,10 +480,10 @@ def test_legacy_normal_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
     """Legacy normal model is ignored when new var is set."""
     set_env(
         monkeypatch,
-        LLMIO_NORMAL_MODEL="normal-m",
+        LLMIO_NORMAL_MODEL="deepseek/deepseek-v4-pro",
         LLMIO_LEVEL2_MODEL="deepseek/deepseek-v4-flash",
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -409,37 +500,40 @@ def test_legacy_normal_model_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_legacy_normal_provider(monkeypatch: pytest.MonkeyPatch):
-    """``LLMIO_NORMAL_PROVIDER`` → level2.provider + FutureWarning."""
+    """``LLMIO_NORMAL_PROVIDER`` → level2.transport + FutureWarning."""
     set_env(
         monkeypatch,
-        LLMIO_NORMAL_PROVIDER="normal-p",
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_NORMAL_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
+        # level2 model must match the new claude-sdk transport.
+        LLMIO_LEVEL2_MODEL="opus",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level2.provider == "normal-p"
-    assert len(w) == 1
-    assert issubclass(w[0].category, FutureWarning)
-    assert "LLMIO_NORMAL_PROVIDER" in str(w[0].message)
+    assert cfg.level2.transport == "claude-sdk"
+    normal_warnings = [x for x in w if "LLMIO_NORMAL_PROVIDER" in str(x.message)]
+    assert len(normal_warnings) == 1
+    assert issubclass(normal_warnings[0].category, FutureWarning)
+    assert "LLMIO_NORMAL_PROVIDER" in str(normal_warnings[0].message)
 
 
 def test_legacy_normal_provider_suppressed_by_new(monkeypatch: pytest.MonkeyPatch):
-    """Legacy normal provider is ignored when new var is set."""
+    """Legacy normal provider is ignored when new ``_TRANSPORT`` is set."""
     set_env(
         monkeypatch,
-        LLMIO_NORMAL_PROVIDER="normal-p",
-        LLMIO_LEVEL2_PROVIDER="new-p",
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_NORMAL_PROVIDER="claude-sdk",
+        LLMIO_LEVEL2_TRANSPORT="openrouter[deepseek]",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level2.provider == "new-p"
+    assert cfg.level2.transport == "openrouter[deepseek]"
     normal_warnings = [x for x in w if "LLMIO_NORMAL_PROVIDER" in str(x.message)]
     assert len(normal_warnings) == 0
 
@@ -450,21 +544,21 @@ def test_legacy_normal_provider_suppressed_by_new(monkeypatch: pytest.MonkeyPatc
 
 
 def test_legacy_llmio_provider_fills_all_levels(monkeypatch: pytest.MonkeyPatch):
-    """``LLMIO_PROVIDER`` applies to every level that lacks a provider."""
+    """``LLMIO_PROVIDER`` applies to every level that lacks a transport."""
     set_env(
         monkeypatch,
-        LLMIO_PROVIDER="global-p",
-        LLMIO_LEVEL1_MODEL="m1",
-        LLMIO_LEVEL2_MODEL="m2",
-        LLMIO_LEVEL3_MODEL="m3",
+        LLMIO_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
+        LLMIO_LEVEL2_MODEL="haiku",
+        LLMIO_LEVEL3_MODEL="sonnet",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.provider == "global-p"
-    assert cfg.level2.provider == "global-p"
-    assert cfg.level3.provider == "global-p"
+    assert cfg.level1.transport == "claude-sdk"
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level3.transport == "claude-sdk"
     # One warning total for LLMIO_PROVIDER.
     provider_warnings = [x for x in w if "LLMIO_PROVIDER" in str(x.message)]
     assert len(provider_warnings) == 1
@@ -474,22 +568,22 @@ def test_legacy_llmio_provider_fills_all_levels(monkeypatch: pytest.MonkeyPatch)
 def test_legacy_llmio_provider_respects_explicit_level1(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """``LLMIO_PROVIDER`` does NOT override a level that already has a provider."""
+    """``LLMIO_PROVIDER`` does NOT override a level that already has a transport."""
     set_env(
         monkeypatch,
-        LLMIO_PROVIDER="global-p",
-        LLMIO_LEVEL1_PROVIDER="explicit-p1",
-        LLMIO_LEVEL1_MODEL="m1",
-        LLMIO_LEVEL2_MODEL="m2",
-        LLMIO_LEVEL3_MODEL="m3",
+        LLMIO_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_TRANSPORT="openrouter[deepseek]",
+        LLMIO_LEVEL1_MODEL="deepseek/deepseek-v4-flash",
+        LLMIO_LEVEL2_MODEL="haiku",
+        LLMIO_LEVEL3_MODEL="sonnet",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.provider == "explicit-p1"
-    assert cfg.level2.provider == "global-p"
-    assert cfg.level3.provider == "global-p"
+    assert cfg.level1.transport == "openrouter[deepseek]"
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level3.transport == "claude-sdk"
     # Still one warning.
     provider_warnings = [x for x in w if "LLMIO_PROVIDER" in str(x.message)]
     assert len(provider_warnings) == 1
@@ -499,34 +593,34 @@ def test_legacy_llmio_provider_respects_legacy_flash(monkeypatch: pytest.MonkeyP
     """``LLMIO_PROVIDER`` does NOT override level1 when LLMIO_FLASH_PROVIDER is set."""
     set_env(
         monkeypatch,
-        LLMIO_PROVIDER="global-p",
-        LLMIO_FLASH_PROVIDER="flash-p",
-        LLMIO_LEVEL1_MODEL="m1",
-        LLMIO_LEVEL2_MODEL="m2",
-        LLMIO_LEVEL3_MODEL="m3",
+        LLMIO_PROVIDER="claude-sdk",
+        LLMIO_FLASH_PROVIDER="openrouter[deepseek]",
+        LLMIO_LEVEL1_MODEL="deepseek/deepseek-v4-flash",
+        LLMIO_LEVEL2_MODEL="haiku",
+        LLMIO_LEVEL3_MODEL="sonnet",
     )
     with warnings.catch_warnings(record=True) as _w:
         warnings.simplefilter("always")
         cfg = load_tier_config()
 
-    assert cfg.level1.provider == "flash-p"
-    assert cfg.level2.provider == "global-p"
-    assert cfg.level3.provider == "global-p"
+    assert cfg.level1.transport == "openrouter[deepseek]"
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level3.transport == "claude-sdk"
 
 
 def test_legacy_llmio_provider_no_warning_when_not_used(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """No warning for LLMIO_PROVIDER if every level already has a provider."""
+    """No warning for LLMIO_PROVIDER if every level already has a transport."""
     set_env(
         monkeypatch,
-        LLMIO_PROVIDER="global-p",
-        LLMIO_LEVEL1_PROVIDER="p1",
-        LLMIO_LEVEL1_MODEL="m1",
-        LLMIO_LEVEL2_PROVIDER="p2",
-        LLMIO_LEVEL2_MODEL="m2",
-        LLMIO_LEVEL3_PROVIDER="p3",
-        LLMIO_LEVEL3_MODEL="m3",
+        LLMIO_PROVIDER="claude-sdk",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
+        LLMIO_LEVEL2_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL2_MODEL="haiku",
+        LLMIO_LEVEL3_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL3_MODEL="sonnet",
     )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -568,19 +662,19 @@ def test_config_dict_with_tier_level_config_object(monkeypatch: pytest.MonkeyPat
     """Passing a TierLevelConfig object for a tier exercises _to_dict()."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="env-p",
-        LLMIO_LEVEL1_MODEL="env-m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     # Pass level2 as a TierLevelConfig object instead of a dict.
     cfg = load_tier_config(
         {
-            "level1": {"provider": "p1", "model": "m1"},
-            "level2": TierLevelConfig(provider="obj-p2", model="obj-m2"),
+            "level1": {"transport": "claude-sdk", "model": "haiku"},
+            "level2": TierLevelConfig(transport="claude-sdk", model="sonnet"),
         }
     )
-    assert cfg.level1.provider == "p1"
-    assert cfg.level2.provider == "obj-p2"
-    assert cfg.level2.model == "obj-m2"
+    assert cfg.level1.model == "haiku"
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level2.model == "sonnet"
 
 
 def test_to_dict_fallback_to_pydantic_v1_dict(monkeypatch: pytest.MonkeyPatch):
@@ -588,30 +682,36 @@ def test_to_dict_fallback_to_pydantic_v1_dict(monkeypatch: pytest.MonkeyPatch):
 
     class V1Style:
         def dict(self) -> dict[str, str]:
-            return {"provider": "v1-p", "model": "v1-m"}
+            return {"transport": "claude-sdk", "model": "sonnet"}
 
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     cfg = load_tier_config(
-        {"level1": {"provider": "p1", "model": "m1"}, "level2": V1Style()}
+        {
+            "level1": {"transport": "claude-sdk", "model": "haiku"},
+            "level2": V1Style(),
+        }
     )
-    assert cfg.level2.provider == "v1-p"
-    assert cfg.level2.model == "v1-m"
+    assert cfg.level2.transport == "claude-sdk"
+    assert cfg.level2.model == "sonnet"
 
 
 def test_to_dict_unmergeable_value_raises(monkeypatch: pytest.MonkeyPatch):
     """A value neither a dict nor a pydantic model raises TierConfigLoadError."""
     set_env(
         monkeypatch,
-        LLMIO_LEVEL1_PROVIDER="p",
-        LLMIO_LEVEL1_MODEL="m",
+        LLMIO_LEVEL1_TRANSPORT="claude-sdk",
+        LLMIO_LEVEL1_MODEL="opus",
     )
     with pytest.raises(TierConfigLoadError) as exc_info:
         load_tier_config(
-            {"level1": {"provider": "p1", "model": "m1"}, "level2": 42}
+            {
+                "level1": {"transport": "claude-sdk", "model": "haiku"},
+                "level2": 42,
+            }
         )  # int — not mergeable
     msg = str(exc_info.value)
     assert "Cannot merge" in msg or "int" in msg

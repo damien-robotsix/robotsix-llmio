@@ -145,7 +145,7 @@ class TestCreateModelHappyPath:
 
         cfg = TierConfig(
             level1=TierLevelConfig(
-                provider="openrouter-deepseek",
+                transport="openrouter[deepseek]",
                 model="deepseek/deepseek-v4-flash",
                 provider_kwargs={
                     "base_url": "https://from-tier.example.com",
@@ -210,7 +210,7 @@ class TestCreateModelDefaultFallback:
 
         # Level 1 default provider is "openrouter-deepseek"; override it.
         cfg = TierConfig(
-            level1=TierLevelConfig(provider="claude-sdk", model="opus"),
+            level1=TierLevelConfig(transport="claude-sdk", model="opus"),
             level2=LEVEL2_DEFAULT,
             level3=LEVEL3_DEFAULT,
         )
