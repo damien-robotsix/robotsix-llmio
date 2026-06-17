@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -19,34 +18,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def _level_to_tier(level: int) -> Tier:
-    """Map an integer level (1-3) to the legacy :class:`Tier` enum.
-
-    **Deprecated** — prefer :meth:`TierConfig.for_level` which resolves
-    directly to a :class:`~robotsix_llmio.config.tier.TierLevelConfig`
-    without the two-tier round-trip.
-
-    +----------+--------------------------------------+
-    | ``level`` | :class:`Tier`                        |
-    +==========+======================================+
-    | 1        | :attr:`Tier.CHEAP`                   |
-    +----------+--------------------------------------+
-    | 2        | :attr:`Tier.DEFAULT`                 |
-    +----------+--------------------------------------+
-    | 3        | :attr:`Tier.DEFAULT` *(stop-gap)*    |
-    +----------+--------------------------------------+
-
-    Level 3 currently maps to ``Tier.DEFAULT``.  Full three-tier
-    differentiation at the provider level is deferred to a follow-up;
-    see the migration notes in the README.
-    """
-    if level == 1:
-        return Tier.CHEAP
-    if level in (2, 3):
-        return Tier.DEFAULT
-    raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
-
-
 class LLMProvider(ABC):
     """Base for every provider. A derived provider implements :meth:`new_model`
     (and optionally :meth:`_is_transient`); the generic ``build_agent`` /
@@ -57,7 +28,6 @@ class LLMProvider(ABC):
         self,
         *,
         model: str | None = None,
-        tier: Tier | None = None,
         level: int = 0,
     ) -> tuple[Any, Any]:
         """Return ``(model, http_client)`` — a fully configured pydantic-ai
@@ -67,13 +37,7 @@ class LLMProvider(ABC):
         Parameters
         ----------
         model:
-            **Primary** — the concrete model name (e.g.
-            ``"deepseek/deepseek-v4-flash"``).  When provided the model is
-            constructed directly; *tier* is ignored.
-        tier:
-            **Deprecated** — use *model* instead.  When *model* is ``None``
-            and *tier* is provided, the provider resolves via a minimal
-            internal compat dict and emits a :exc:`DeprecationWarning`.
+            The concrete model name (e.g. ``"deepseek/deepseek-v4-flash"``).
         level:
             Capability level (1, 2, or 3) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``
@@ -90,7 +54,6 @@ class LLMProvider(ABC):
         self,
         *,
         level: int = 1,
-        tier: Tier | None = None,
         tier_config: TierConfig | None = None,
         system_prompt: str,
         tools: list[Any] | None = None,
@@ -109,20 +72,17 @@ class LLMProvider(ABC):
             - ``2`` — intermediate, e.g. implementing code
             - ``3`` — high-level planning / refine
 
-        tier:
-            **Deprecated** — use *level* and *tier_config* instead.
-            Passing *tier* explicitly still works but emits a
-            :exc:`DeprecationWarning`.
-
         tier_config:
             When provided, resolution is::
 
                 tlc = tier_config.for_level(level)
                 new_model(model=tlc.model)
 
-            When ``None`` (backward-compat path), emits a
-            :exc:`DeprecationWarning` and falls back to the legacy
-            ``_level_to_tier(level)`` → ``new_model(tier=Tier.xxx)`` path.
+            When ``None``, a default :class:`~robotsix_llmio.config.tier.TierConfig`
+            is built from the baked module-level defaults
+            (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
+            :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
+            :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
 
         system_prompt:
             Final system prompt for the agent (domain concern).
@@ -142,32 +102,22 @@ class LLMProvider(ABC):
             A ready-to-run agent handle wrapping a pydantic-ai ``Agent``
             and its ``httpx`` client.  Call ``.close()`` when done.
         """
-        # Emit deprecation warning for the legacy *tier* parameter
-        # unconditionally when provided, even if *tier_config* is also set
-        # (tier is superseded).
-        if tier is not None:
-            warnings.warn(
-                "The `tier` parameter is deprecated. "
-                "Use `level` and `tier_config` instead.",
-                DeprecationWarning,
-                stacklevel=2,
+        if tier_config is None:
+            from robotsix_llmio.config.tier import (
+                LEVEL1_DEFAULT,
+                LEVEL2_DEFAULT,
+                LEVEL3_DEFAULT,
+                TierConfig,
             )
 
-        if tier_config is not None:
-            # Primary path: resolve through TierConfig
-            tlc = tier_config.for_level(level)
-            model, http_client = self.new_model(model=tlc.model, level=level)
-        else:
-            # Legacy fallback path: resolve through Tier enum
-            warnings.warn(
-                "`tier_config` not provided — using legacy "
-                "_level_to_tier() path.  Pass a `TierConfig` instance "
-                "to `build_agent(tier_config=...)`.",
-                DeprecationWarning,
-                stacklevel=2,
+            tier_config = TierConfig(
+                level1=LEVEL1_DEFAULT,
+                level2=LEVEL2_DEFAULT,
+                level3=LEVEL3_DEFAULT,
             )
-            resolved_tier = tier if tier is not None else _level_to_tier(level)
-            model, http_client = self.new_model(tier=resolved_tier, level=level)
+
+        tlc = tier_config.for_level(level)
+        model, http_client = self.new_model(model=tlc.model, level=level)
 
         return _build_agent(
             model,

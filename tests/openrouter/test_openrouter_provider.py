@@ -15,7 +15,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from robotsix_llmio.core.provider import Tier
 from robotsix_llmio.openrouter.provider import OpenRouterProvider
 
 
@@ -63,8 +62,6 @@ class _NewModelProvider(OpenRouterProvider):
     Overrides every hook so the test can control inputs and observe side
     effects without touching the network or pydantic-ai internals.
     """
-
-    _tier_compat: dict = {Tier.DEFAULT: "test-model-default", Tier.CHEAP: "cheap-model"}  # noqa: RUF012
 
     def __init__(self, *, api_key: str = "sk-test"):
         super().__init__(api_key=api_key)
@@ -196,7 +193,7 @@ def test_new_model_custom_base_url_builds_openai_client(monkeypatch):
 
 def test_new_model_calls_post_build_model(monkeypatch):
     """``new_model()`` invokes ``_post_build_model`` with the constructed
-    model and the level (0 when called via the deprecated tier path)."""
+    model and the supplied level."""
     _install_fake_pydantic_openrouter(monkeypatch)
     mock_http = MagicMock()
     monkeypatch.setattr(
@@ -205,10 +202,9 @@ def test_new_model_calls_post_build_model(monkeypatch):
     )
 
     provider = _NewModelProvider()
-    with pytest.warns(DeprecationWarning):
-        model, _ = provider.new_model(tier=Tier.CHEAP)
+    model, _ = provider.new_model(model="test-model-default", level=2)
 
     assert len(provider._post_build_calls) == 1
     called_model, called_level = provider._post_build_calls[0]
     assert called_model is model
-    assert called_level == 0
+    assert called_level == 2

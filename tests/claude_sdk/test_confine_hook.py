@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from robotsix_llmio.claude_sdk._tool_agent import (
     _is_within,
     _make_confine_hook,
@@ -110,14 +108,18 @@ def test_build_agent_threads_workspace_root(tmp_path):
         """A trivial tool so build_agent takes the tool path."""
         return x
 
-    with pytest.warns(DeprecationWarning) as _rec:
-        handle = ClaudeSDKProvider().build_agent(
-            system_prompt="p",
-            tools=[noop_tool],
-            name="t",
-            workspace_root=tmp_path,
-        )
-    assert len(_rec) == 1  # tier_config not provided
+    from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="p",
+        tools=[noop_tool],
+        name="t",
+        workspace_root=tmp_path,
+    )
     assert handle._workspace_root == str(tmp_path)
 
 
@@ -126,9 +128,15 @@ def test_build_agent_workspace_root_defaults_none(tmp_path):
         """trivial."""
         return x
 
-    with pytest.warns(DeprecationWarning) as _rec:
-        handle = ClaudeSDKProvider().build_agent(
-            system_prompt="p", tools=[noop_tool], name="t"
-        )
-    assert len(_rec) == 1  # tier_config not provided
+    from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="p",
+        tools=[noop_tool],
+        name="t",
+    )
     assert handle._workspace_root is None

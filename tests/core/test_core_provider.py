@@ -13,7 +13,7 @@ import pytest
 from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
 from robotsix_llmio.core import provider as provider_module
 from robotsix_llmio.core import retry as retry_module
-from robotsix_llmio.core.provider import LLMProvider, Tier, _level_to_tier
+from robotsix_llmio.core.provider import LLMProvider, Tier
 
 
 class _HTTPErr(Exception):
@@ -37,36 +37,10 @@ class _MockProvider(LLMProvider):
         self,
         *,
         model: str | None = None,
-        tier: Tier | None = None,
         level: int = 0,
     ) -> tuple[Any, Any]:
-        self.new_model_calls.append({"model": model, "tier": tier, "level": level})
+        self.new_model_calls.append({"model": model, "level": level})
         return self.model_obj, self.http_client_obj
-
-
-# --- _level_to_tier ---------------------------------------------------------
-
-
-def test_level_to_tier_1_maps_to_cheap():
-    assert _level_to_tier(1) == Tier.CHEAP
-
-
-def test_level_to_tier_2_maps_to_default():
-    assert _level_to_tier(2) == Tier.DEFAULT
-
-
-def test_level_to_tier_3_maps_to_default():
-    assert _level_to_tier(3) == Tier.DEFAULT
-
-
-def test_level_to_tier_0_raises():
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
-        _level_to_tier(0)
-
-
-def test_level_to_tier_4_raises():
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
-        _level_to_tier(4)
 
 
 # --- Tier enum --------------------------------------------------------------
@@ -91,11 +65,11 @@ def test_tier_members():
 
 
 def test_new_model_defaults():
-    """Without arguments, ``new_model`` receives ``model=None, tier=None,
-    level=0`` (the sentinel defaults)."""
+    """Without arguments, ``new_model`` receives ``model=None, level=0``
+    (the sentinel defaults)."""
     p = _MockProvider()
     p.new_model()
-    assert p.new_model_calls == [{"model": None, "tier": None, "level": 0}]
+    assert p.new_model_calls == [{"model": None, "level": 0}]
 
 
 # --- _is_transient default delegates to retry.is_transient ------------------
@@ -157,10 +131,13 @@ def test_is_transient_override_is_used_by_call_with_retry():
     assert calls["n"] == 2
 
 
-# --- build_agent wiring (legacy / tier_config-not-provided path) ------------
+# --- build_agent wiring (tier_config default path) -------------------------
 
 
-def test_build_agent_calls_new_model_with_tier(monkeypatch):
+def test_build_agent_calls_new_model_with_model_name(monkeypatch):
+    """When ``tier_config`` is not provided, ``build_agent`` constructs a
+    default ``TierConfig`` from baked defaults and calls
+    ``new_model(model=tlc.model)``."""
     p = _MockProvider()
     captured: dict[str, Any] = {}
 
@@ -171,66 +148,49 @@ def test_build_agent_calls_new_model_with_tier(monkeypatch):
         return SimpleNamespace(_agent=model)
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning) as record:
-        p.build_agent(tier=Tier.CHEAP, system_prompt="sys")
-    # Two warnings: one for tier param, one for tier_config not provided
-    assert len(record) == 2
-    assert "`tier` parameter is deprecated" in str(record[0].message)
-    assert "`tier_config` not provided" in str(record[1].message)
-    assert p.new_model_calls == [{"model": None, "tier": Tier.CHEAP, "level": 1}]
+    p.build_agent(system_prompt="sys")
+    # Default level=1 → LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash"
+    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
     assert captured["model"] is p.model_obj
     assert captured["http_client"] is p.http_client_obj
+    assert captured["system_prompt"] == "sys"
 
 
 def test_build_agent_default_level_is_1(monkeypatch):
-    """With no ``level`` or ``tier`` argument, ``build_agent`` defaults to
-    ``level=1`` → :attr:`Tier.CHEAP`."""
+    """With no ``level`` argument, ``build_agent`` defaults to ``level=1``."""
     p = _MockProvider()
 
     def fake_build_agent(*_args, **_kwargs):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        p.build_agent(system_prompt="sys")
-    assert p.new_model_calls == [{"model": None, "tier": Tier.CHEAP, "level": 1}]
+    p.build_agent(system_prompt="sys")
+    # LEVEL1_DEFAULT.model is "deepseek/deepseek-v4-flash" at level=1
+    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
 
 
-def test_build_agent_level_1_maps_to_cheap(monkeypatch):
+def test_build_agent_level_2_uses_level2_default(monkeypatch):
     p = _MockProvider()
 
     def fake_build_agent(*_args, **_kwargs):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        p.build_agent(level=1, system_prompt="sys")
-    assert p.new_model_calls == [{"model": None, "tier": Tier.CHEAP, "level": 1}]
+    p.build_agent(level=2, system_prompt="sys")
+    # LEVEL2_DEFAULT.model is "deepseek/deepseek-v4-pro"
+    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-pro", "level": 2}]
 
 
-def test_build_agent_level_2_maps_to_default(monkeypatch):
+def test_build_agent_level_3_uses_level3_default(monkeypatch):
     p = _MockProvider()
 
     def fake_build_agent(*_args, **_kwargs):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        p.build_agent(level=2, system_prompt="sys")
-    assert p.new_model_calls == [{"model": None, "tier": Tier.DEFAULT, "level": 2}]
-
-
-def test_build_agent_level_3_maps_to_default(monkeypatch):
-    """Level 3 currently maps to :attr:`Tier.DEFAULT` (stop-gap)."""
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        p.build_agent(level=3, system_prompt="sys")
-    assert p.new_model_calls == [{"model": None, "tier": Tier.DEFAULT, "level": 3}]
+    p.build_agent(level=3, system_prompt="sys")
+    # LEVEL3_DEFAULT.model is "opus"
+    assert p.new_model_calls == [{"model": "opus", "level": 3}]
 
 
 def test_build_agent_level_out_of_range_raises(monkeypatch):
@@ -240,46 +200,10 @@ def test_build_agent_level_out_of_range_raises(monkeypatch):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with (
-        pytest.warns(DeprecationWarning, match="`tier_config` not provided"),
-        pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"),
-    ):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
         p.build_agent(level=0, system_prompt="sys")
-    with (
-        pytest.warns(DeprecationWarning, match="`tier_config` not provided"),
-        pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"),
-    ):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
         p.build_agent(level=4, system_prompt="sys")
-
-
-def test_build_agent_explicit_tier_emits_deprecation_warning(monkeypatch):
-    """Passing ``tier`` explicitly emits two :exc:`DeprecationWarning`:
-    one for the tier parameter and one for ``tier_config`` not provided."""
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning) as record:
-        p.build_agent(tier=Tier.CHEAP, system_prompt="sys")
-    assert len(record) == 2
-    assert p.new_model_calls == [{"model": None, "tier": Tier.CHEAP, "level": 1}]
-
-
-def test_build_agent_level_overrides_explicit_tier(monkeypatch):
-    """When both ``level`` (non-default) and ``tier`` are passed, the
-    explicit *tier* is used and two deprecation warnings are emitted."""
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning) as record:
-        p.build_agent(level=2, tier=Tier.CHEAP, system_prompt="sys")
-    assert len(record) == 2
-    assert p.new_model_calls == [{"model": None, "tier": Tier.CHEAP, "level": 2}]
 
 
 def test_build_agent_threads_kwargs(monkeypatch):
@@ -298,14 +222,13 @@ def test_build_agent_threads_kwargs(monkeypatch):
         return None
 
     tools = [_tool]
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        p.build_agent(
-            system_prompt="sys",
-            tools=tools,
-            output_type=dict,
-            name="my-agent",
-            retries=7,
-        )
+    p.build_agent(
+        system_prompt="sys",
+        tools=tools,
+        output_type=dict,
+        name="my-agent",
+        retries=7,
+    )
     assert captured["system_prompt"] == "sys"
     assert captured["tools"] is tools
     assert captured["output_type"] is dict
@@ -322,8 +245,7 @@ def test_build_agent_returns_underlying_handle(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p = _MockProvider()
-    with pytest.warns(DeprecationWarning, match="`tier_config` not provided"):
-        assert p.build_agent(system_prompt="sys") is sentinel
+    assert p.build_agent(system_prompt="sys") is sentinel
 
 
 # --- build_agent primary path (tier_config provided) ------------------------
@@ -331,7 +253,7 @@ def test_build_agent_returns_underlying_handle(monkeypatch):
 
 def test_build_agent_with_tier_config_level_1(monkeypatch):
     """Primary path: ``build_agent(level=1, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level1.model)`` without deprecation warnings."""
+    ``new_model(model=cfg.level1.model)``."""
     cfg = TierConfig(
         level1=TierLevelConfig(provider="p1", model="m1"),
     )
@@ -342,12 +264,12 @@ def test_build_agent_with_tier_config_level_1(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=1, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m1", "tier": None, "level": 1}]
+    assert p.new_model_calls == [{"model": "m1", "level": 1}]
 
 
 def test_build_agent_with_tier_config_level_2(monkeypatch):
     """Primary path: ``build_agent(level=2, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level2.model)`` without deprecation warnings."""
+    ``new_model(model=cfg.level2.model)``."""
     cfg = TierConfig(
         level1=TierLevelConfig(provider="p1", model="m1"),
         level2=TierLevelConfig(provider="p2", model="m2"),
@@ -359,12 +281,12 @@ def test_build_agent_with_tier_config_level_2(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=2, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m2", "tier": None, "level": 2}]
+    assert p.new_model_calls == [{"model": "m2", "level": 2}]
 
 
 def test_build_agent_with_tier_config_level_3(monkeypatch):
     """Primary path: ``build_agent(level=3, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level3.model)`` without deprecation warnings."""
+    ``new_model(model=cfg.level3.model)``."""
     cfg = TierConfig(
         level1=TierLevelConfig(provider="p1", model="m1"),
         level3=TierLevelConfig(provider="p3", model="m3"),
@@ -376,26 +298,7 @@ def test_build_agent_with_tier_config_level_3(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=3, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "m3", "tier": None, "level": 3}]
-
-
-def test_build_agent_tier_config_suppresses_tier_config_warning(monkeypatch):
-    """When ``tier_config`` is provided, the ``tier_config not provided``
-    warning is suppressed.  If ``tier`` is also passed, only the *tier*
-    deprecation warning fires."""
-    cfg = TierConfig(
-        level1=TierLevelConfig(provider="p1", model="m1"),
-    )
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    with pytest.warns(DeprecationWarning, match="`tier` parameter is deprecated"):
-        p.build_agent(level=1, tier=Tier.CHEAP, tier_config=cfg, system_prompt="sys")
-    # Primary path wins: model comes from tier_config, not tier
-    assert p.new_model_calls == [{"model": "m1", "tier": None, "level": 1}]
+    assert p.new_model_calls == [{"model": "m3", "level": 3}]
 
 
 # --- call_with_retry delegation --------------------------------------------
