@@ -445,6 +445,36 @@ def _echo_sync(text: str) -> str:
     return text
 
 
+def test_build_agent_model_override_tool_path(monkeypatch):
+    """When ``model`` is provided on the tool path, ``_SdkToolAgentHandle``
+    receives the explicit model name, bypassing tier_config."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    canned_text = "explicit model override works"
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage(canned_text)
+        yield fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+
+    fake.query = _fake_query
+
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        model="sonnet",  # explicit override — not "haiku" from tier_config
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+
+    assert isinstance(handle, _SdkToolAgentHandle)
+    assert handle._sdk_model == "sonnet"  # type: ignore[attr-defined]
+
+    result = handle.run_sync("use the tool")
+    assert result.output == canned_text
+    handle.close()
+
+
 def test_tool_agent_invokes_tool_and_returns_output(monkeypatch):
     """build_agent with tools returns a handle; run_sync invokes the SDK tool
     loop and the final text reaches .output (offline, monkeypatched SDK)."""

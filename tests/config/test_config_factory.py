@@ -16,18 +16,18 @@ class TestCreateModelValidation:
 
     def test_invalid_transport_raises_valueerror(self):
         with pytest.raises(ValueError) as excinfo:
-            create_model(transport="unknown-transport", model_level=1)
+            create_model(level=1, transport="unknown-transport")
         message = str(excinfo.value)
         assert "unknown-transport" in message
         assert "claude-sdk" in message
         assert "openrouter[deepseek]" in message
 
-    def test_invalid_model_level_raises_valueerror(self):
+    def test_invalid_level_raises_valueerror(self):
         for bad_level in (0, 4, -1, 99):
             with pytest.raises(ValueError) as excinfo:
-                create_model(transport="claude-sdk", model_level=bad_level)
+                create_model(level=bad_level)
             message = str(excinfo.value)
-            assert "model_level" in message
+            assert "level" in message
             assert str(bad_level) in message
 
 
@@ -40,40 +40,42 @@ class TestCreateModelHappyPath:
         monkeypatch.setattr("robotsix_llmio.config.factory.get_provider", mock)
         return mock
 
+    # -- Transport-based tests (explicit transport, legacy path) --------------
+
     def test_claude_sdk_level_1(self, mock_get_provider: MagicMock):
-        result = create_model(transport="claude-sdk", model_level=1)
+        result = create_model(level=1, transport="claude-sdk")
         mock_get_provider.assert_called_once_with(provider="claude-sdk")
         assert result is mock_get_provider.return_value
 
     def test_claude_sdk_level_2(self, mock_get_provider: MagicMock):
-        result = create_model(transport="claude-sdk", model_level=2)
+        result = create_model(level=2, transport="claude-sdk")
         mock_get_provider.assert_called_once_with(provider="claude-sdk")
         assert result is mock_get_provider.return_value
 
     def test_claude_sdk_level_3(self, mock_get_provider: MagicMock):
-        result = create_model(transport="claude-sdk", model_level=3)
+        result = create_model(level=3, transport="claude-sdk")
         mock_get_provider.assert_called_once_with(provider="claude-sdk")
         assert result is mock_get_provider.return_value
 
     def test_openrouter_deepseek_level_1(self, mock_get_provider: MagicMock):
-        result = create_model(transport="openrouter[deepseek]", model_level=1)
+        result = create_model(level=1, transport="openrouter[deepseek]")
         mock_get_provider.assert_called_once_with(provider="openrouter-deepseek")
         assert result is mock_get_provider.return_value
 
     def test_openrouter_deepseek_level_2(self, mock_get_provider: MagicMock):
-        result = create_model(transport="openrouter[deepseek]", model_level=2)
+        result = create_model(level=2, transport="openrouter[deepseek]")
         mock_get_provider.assert_called_once_with(provider="openrouter-deepseek")
         assert result is mock_get_provider.return_value
 
     def test_openrouter_deepseek_level_3(self, mock_get_provider: MagicMock):
-        result = create_model(transport="openrouter[deepseek]", model_level=3)
+        result = create_model(level=3, transport="openrouter[deepseek]")
         mock_get_provider.assert_called_once_with(provider="openrouter-deepseek")
         assert result is mock_get_provider.return_value
 
     def test_provider_kwargs_are_forwarded(self, mock_get_provider: MagicMock):
         create_model(
+            level=2,
             transport="openrouter[deepseek]",
-            model_level=2,
             api_key="my-key",
             base_url="https://proxy.example.com",
         )
@@ -81,4 +83,86 @@ class TestCreateModelHappyPath:
             provider="openrouter-deepseek",
             api_key="my-key",
             base_url="https://proxy.example.com",
+        )
+
+    # -- Level-driven resolution (no transport) -------------------------------
+
+    def test_level_1_no_transport_resolves_from_tier_config(
+        self, mock_get_provider: MagicMock
+    ):
+        """``create_model(level=1)`` resolves provider from LEVEL1_DEFAULT."""
+        result = create_model(level=1)
+        mock_get_provider.assert_called_once_with(
+            provider="openrouter-deepseek",
+        )
+        assert result is mock_get_provider.return_value
+
+    def test_level_2_no_transport_resolves_from_tier_config(
+        self, mock_get_provider: MagicMock
+    ):
+        """``create_model(level=2)`` resolves provider from LEVEL2_DEFAULT."""
+        result = create_model(level=2)
+        mock_get_provider.assert_called_once_with(
+            provider="openrouter-deepseek",
+        )
+        assert result is mock_get_provider.return_value
+
+    def test_level_3_no_transport_resolves_from_tier_config(
+        self, mock_get_provider: MagicMock
+    ):
+        """``create_model(level=3)`` resolves provider from LEVEL3_DEFAULT
+        (``"claude-sdk"``)."""
+        result = create_model(level=3)
+        mock_get_provider.assert_called_once_with(
+            provider="claude-sdk",
+        )
+        assert result is mock_get_provider.return_value
+
+    # -- Transport override of level-based provider ---------------------------
+
+    def test_transport_override_of_level_3(self, mock_get_provider: MagicMock):
+        """``create_model(level=3, transport="openrouter[deepseek]")`` uses
+        OpenRouter despite level 3 defaulting to Claude SDK."""
+        result = create_model(level=3, transport="openrouter[deepseek]")
+        mock_get_provider.assert_called_once_with(
+            provider="openrouter-deepseek",
+        )
+        assert result is mock_get_provider.return_value
+
+    # -- provider_kwargs merging ----------------------------------------------
+
+    def test_provider_kwargs_override_tier_config_defaults(
+        self, mock_get_provider: MagicMock
+    ):
+        """Explicit ``provider_kwargs`` passed to ``create_model`` override
+        those from the tier config."""
+        from robotsix_llmio.config.tier import (
+            LEVEL2_DEFAULT,
+            LEVEL3_DEFAULT,
+            TierConfig,
+            TierLevelConfig,
+        )
+
+        cfg = TierConfig(
+            level1=TierLevelConfig(
+                provider="openrouter-deepseek",
+                model="deepseek/deepseek-v4-flash",
+                provider_kwargs={
+                    "base_url": "https://from-tier.example.com",
+                    "api_key": "tier-key",
+                },
+            ),
+            level2=LEVEL2_DEFAULT,
+            level3=LEVEL3_DEFAULT,
+        )
+
+        create_model(
+            level=1,
+            tier_config=cfg,
+            api_key="explicit-key",
+        )
+        mock_get_provider.assert_called_once_with(
+            provider="openrouter-deepseek",
+            base_url="https://from-tier.example.com",
+            api_key="explicit-key",
         )

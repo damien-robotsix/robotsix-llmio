@@ -55,6 +55,7 @@ class LLMProvider(ABC):
         *,
         level: int = 1,
         tier_config: TierConfig | None = None,
+        model: str | None = None,
         system_prompt: str,
         tools: list[Any] | None = None,
         output_type: Any = str,
@@ -84,6 +85,13 @@ class LLMProvider(ABC):
             :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
             :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
 
+            Ignored when *model* is provided (see below).
+        model:
+            Optional explicit model name override.  When provided, this is
+            passed directly to :meth:`new_model`, bypassing *tier_config*
+            resolution entirely.  The caller is responsible for providing a
+            valid model name for the provider.  When ``None`` (default), the
+            model is resolved from *tier_config* as usual.
         system_prompt:
             Final system prompt for the agent (domain concern).
         tools:
@@ -102,6 +110,19 @@ class LLMProvider(ABC):
             A ready-to-run agent handle wrapping a pydantic-ai ``Agent``
             and its ``httpx`` client.  Call ``.close()`` when done.
         """
+        if model is not None:
+            # Explicit override — bypass tier_config entirely.
+            m, http_client = self.new_model(model=model, level=level)
+            return _build_agent(
+                m,
+                http_client,
+                system_prompt=system_prompt,
+                tools=tools,
+                output_type=output_type,
+                name=name,
+                retries=retries,
+            )
+
         if tier_config is None:
             from robotsix_llmio.config.tier import (
                 LEVEL1_DEFAULT,
@@ -117,10 +138,10 @@ class LLMProvider(ABC):
             )
 
         tlc = tier_config.for_level(level)
-        model, http_client = self.new_model(model=tlc.model, level=level)
+        m, http_client = self.new_model(model=tlc.model, level=level)
 
         return _build_agent(
-            model,
+            m,
             http_client,
             system_prompt=system_prompt,
             tools=tools,

@@ -69,6 +69,7 @@ class ClaudeSDKProvider(LLMProvider):
         *,
         level: int = 1,
         tier_config: TierConfig | None = None,
+        model: str | None = None,
         system_prompt: str,
         tools: list[Any] | None = None,
         output_type: Any = str,
@@ -87,6 +88,14 @@ class ClaudeSDKProvider(LLMProvider):
         objects are not surfaced.  When *tools* is empty/``None``, delegates
         to the standard pydantic-ai ``Agent`` path (unchanged).
 
+        Parameters
+        ----------
+        model:
+            Optional explicit model name override (e.g. ``"haiku"``).  When
+            provided, this becomes the ``sdk_model`` directly, bypassing
+            *tier_config*.  When ``None``, the model is resolved from
+            *tier_config* as usual.
+
         *workspace_root* confines the agent's built-in file-mutating tools
         (``Write``/``Edit``/``MultiEdit``/``NotebookEdit``) to that directory:
         the SDK runs with ``cwd=workspace_root`` and a ``PreToolUse`` hook
@@ -100,6 +109,7 @@ class ClaudeSDKProvider(LLMProvider):
             return super().build_agent(
                 level=level,
                 tier_config=tier_config,
+                model=model,
                 system_prompt=system_prompt,
                 tools=tools,
                 output_type=output_type,
@@ -107,26 +117,29 @@ class ClaudeSDKProvider(LLMProvider):
                 retries=retries,
             )
 
-        # Tool path: resolve model name from tier_config (primary) or
-        # fall back to baked defaults.
-        if tier_config is None:
-            from robotsix_llmio.config.tier import (
-                LEVEL1_DEFAULT,
-                LEVEL2_DEFAULT,
-                LEVEL3_DEFAULT,
-            )
-            from robotsix_llmio.config.tier import (
-                TierConfig as _TierConfig,
-            )
+        # Tool path: use explicit model override, or resolve from tier_config
+        # (falling back to baked defaults).
+        if model is not None:
+            sdk_model = model
+        else:
+            if tier_config is None:
+                from robotsix_llmio.config.tier import (
+                    LEVEL1_DEFAULT,
+                    LEVEL2_DEFAULT,
+                    LEVEL3_DEFAULT,
+                )
+                from robotsix_llmio.config.tier import (
+                    TierConfig as _TierConfig,
+                )
 
-            tier_config = _TierConfig(
-                level1=LEVEL1_DEFAULT,
-                level2=LEVEL2_DEFAULT,
-                level3=LEVEL3_DEFAULT,
-            )
+                tier_config = _TierConfig(
+                    level1=LEVEL1_DEFAULT,
+                    level2=LEVEL2_DEFAULT,
+                    level3=LEVEL3_DEFAULT,
+                )
 
-        tlc = tier_config.for_level(level)
-        sdk_model = tlc.model
+            tlc = tier_config.for_level(level)
+            sdk_model = tlc.model
 
         allowed_tools, server = _convert_tools(tools)
         return _SdkToolAgentHandle(
