@@ -567,6 +567,55 @@ def test_stamp_processor_direct_construction_tiers(monkeypatch):
     assert 333 not in tracing._trace_routing
 
 
+def test_stamp_processor_names_root_trace(monkeypatch):
+    """Root spans get a non-empty ``langfuse.trace.name`` — the span's own name
+    when set (preserving an explicit stage/label root), else the session label.
+    Child spans are never given a trace name."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    proc = _StampProcessor()
+
+    token = tracing._current_session.set("robotsix-mill · ticket-xyz")
+    try:
+        # Empty-named root under a session → trace name falls back to session.
+        root_empty = _FakeSpan(trace_id=1, parent=None, name="")
+        proc.on_start(root_empty)
+        # Named root keeps its explicit name (e.g. a mill stage).
+        root_named = _FakeSpan(trace_id=2, parent=None, name="implement")
+        proc.on_start(root_named)
+        # Child span (has a parent) is never given a trace name.
+        child = _FakeSpan(
+            trace_id=1, parent=root_empty.get_span_context(), name="chat opus"
+        )
+        proc.on_start(child)
+    finally:
+        tracing._current_session.reset(token)
+
+    assert root_empty.attributes["langfuse.trace.name"] == "robotsix-mill · ticket-xyz"
+    assert root_named.attributes["langfuse.trace.name"] == "implement"
+    assert "langfuse.trace.name" not in child.attributes
+
+
+def test_stamp_processor_root_unnamed_without_session(monkeypatch):
+    """An empty-named root with no active session gets no trace name (nothing
+    meaningful to stamp) — and never crashes."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    proc = _StampProcessor()
+
+    root = _FakeSpan(trace_id=9, parent=None, name="")
+    proc.on_start(root)
+    assert "langfuse.trace.name" not in root.attributes
+
+
 # --- _FilteredBatchSpanProcessor unit tests --------------------------------
 
 

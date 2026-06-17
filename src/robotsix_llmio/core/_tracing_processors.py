@@ -25,7 +25,7 @@ from opentelemetry.sdk.trace.export import (
 )
 
 from . import tracing as _t
-from ._otel import LANGFUSE_PUBLIC_KEY, LANGFUSE_SESSION_ID
+from ._otel import LANGFUSE_PUBLIC_KEY, LANGFUSE_SESSION_ID, LANGFUSE_TRACE_NAME
 
 
 class _StampProcessor(SpanProcessor):
@@ -38,6 +38,20 @@ class _StampProcessor(SpanProcessor):
         if sid:
             span.set_attribute("session.id", sid)
             span.set_attribute(LANGFUSE_SESSION_ID, sid)
+
+        # Ensure the trace root always carries a non-empty Langfuse trace name.
+        # Some agent runs reach Langfuse with a pydantic-ai / claude_sdk span as
+        # the trace root (callers that don't open an explicitly-named root span),
+        # which Langfuse then renders with an empty name ("(unnamed)"). Stamp
+        # ``langfuse.trace.name`` on every root span so naming is deterministic
+        # regardless of how the caller drove the trace: keep the span's own name
+        # when set (preserving an explicit stage/label root), else fall back to
+        # the session label. Child spans are untouched, so their observation
+        # names are unaffected.
+        if span.parent is None:
+            trace_name = span.name or sid
+            if trace_name:
+                span.set_attribute(LANGFUSE_TRACE_NAME, trace_name)
 
         # Three-tier routing key resolution:
         ctx = span.get_span_context()
