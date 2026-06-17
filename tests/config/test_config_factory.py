@@ -120,9 +120,7 @@ class TestCreateModelHappyPath:
 
     # -- Transport override of level-based provider ---------------------------
 
-    def test_transport_override_of_level_3(
-        self, mock_get_provider: MagicMock
-    ):
+    def test_transport_override_of_level_3(self, mock_get_provider: MagicMock):
         """``create_model(level=3, transport="openrouter[deepseek]")`` uses
         OpenRouter despite level 3 defaulting to Claude SDK."""
         result = create_model(level=3, transport="openrouter[deepseek]")
