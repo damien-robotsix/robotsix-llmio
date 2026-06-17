@@ -18,11 +18,17 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `LEVEL1_DEFAULT` — default `TierLevelConfig` for level 1 (fast/cheap)
 - `LEVEL2_DEFAULT` — default `TierLevelConfig` for level 2 (capable)
 - `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)
+- `PROVIDER_MODELS` — known provider → set-of-model-names mapping for model-name validation
 - `TierConfig` — pydantic model for three-tier provider+model configuration
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
 - `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`) tier-selector values
-- `TierLevelConfig` — pydantic model binding a single tier's provider and model
+- `TierLevelConfig` — pydantic model binding a single tier's transport and model
+- `TRANSPORT_ALIASES` — consumer-facing transport name → provider registry name mapping
+- `UnknownModelError` — raised when a model name is not known for a given provider
+- `UnknownTransportError` — raised when a transport alias is not recognised
+- `create_model` — consumer-facing factory returning a configured `LLMProvider`
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
+- `validate_model` — cross-checks a model name against `PROVIDER_MODELS`
 
 ### Agent runners
 
@@ -31,6 +37,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 ### Factory
 
+- `create_model` — preferred entry point: resolves a provider from level + transport + tier config, returns a configured `LLMProvider`
 - `get_provider` — resolves and instantiates a provider by registry name
 - `register_provider` — registers a provider name→class mapping for use with `get_provider`
 

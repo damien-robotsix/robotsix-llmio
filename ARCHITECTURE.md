@@ -2,7 +2,8 @@
 
 This document is the architectural complement to [README.md](README.md):
 where README explains *how to use* `robotsix-llmio` (which provider to
-import, which `Tier` to pass, how to wire optional Langfuse tracing),
+import, which `level` and transport to configure, how to wire optional
+Langfuse tracing),
 this document explains *how the code is organised and why*. It is
 descriptive of the current source tree on this branch, not aspirational.
 For the usage surface (install, examples, environment variables), refer
@@ -13,27 +14,28 @@ back to [README.md](README.md).
 The library is organised into three logical roles:
 
 - **Core (`robotsix_llmio.core`)** — the provider-agnostic base. It
-  defines the `Tier` enum (`DEFAULT` / `CHEAP`), the `LLMProvider` ABC,
+  defines the `LLMProvider` ABC (with `level`-based model construction),
   bounded retry/backoff with rate-limit-aware fallback, the baked
   numeric constants (timeouts, retry counts, backoff schedules), the
   timeout-bounded async HTTP client, the generic pydantic-ai `Agent`
   assembler, the cost-on-span helpers, and the optional Langfuse OTLP
-  export plumbing.
+  export plumbing. The `Tier` enum is retained as a deprecated surface.
 - **Transport layers** — each speaks one wire protocol but stays
   model-family-agnostic. There are two siblings, both deriving directly
   from `core.LLMProvider`:
   - `robotsix_llmio.openrouter` — OpenRouter transport: auth / base URL
     / `usage.include` opt-in / cost extraction from `usage.cost` /
     OpenRouter-specific transient signature. `OpenRouterProvider` is
-    **abstract**: it leaves the tier→model map to a derived layer.
+    **abstract**: it leaves the model name to the caller (resolved from
+    `TierConfig` upstream).
   - `robotsix_llmio.claude_sdk` — Claude Agent SDK transport: drives
     the local `claude` CLI through `claude_agent_sdk` (no API key —
-    authenticates via your `claude login` session). Concrete: ships a
-    default tier→model map (`opus` / `haiku`).
+    authenticates via your `claude login` session). Concrete: ships default
+    model names resolved by `TierConfig` defaults (`opus` / `haiku`).
 - **Derived per-family layer (`robotsix_llmio.openrouter_deepseek`)** —
   extends `openrouter.OpenRouterProvider` with DeepSeek-specific quirks
-  (pinned upstream provider, per-tier reasoning policy, `reasoning_content`
-  round-trip) and pins the tier→model map to `deepseek/deepseek-v4-pro` /
+  (pinned upstream provider, per-level reasoning policy, `reasoning_content`
+  round-trip) and pins the model names to `deepseek/deepseek-v4-pro` /
   `deepseek/deepseek-v4-flash`.
 
 ```mermaid
@@ -43,16 +45,15 @@ classDiagram
     OpenRouterProvider <|-- OpenRouterDeepseekProvider
     class LLMProvider {
         <<abstract>>
-        +new_model(tier)
-        +build_agent(...)
+        +new_model(model, level)
+        +build_agent(level, tier_config, ...)
         +call_with_retry(fn)
         +_is_transient(exc)
     }
     class OpenRouterProvider {
         <<abstract>>
-        +_tier_models()
         +_model_class()
-        +_post_build_model(model, tier)
+        +_post_build_model(model, level)
     }
     class ClaudeSDKProvider
     class OpenRouterDeepseekProvider
@@ -75,7 +76,7 @@ separable:
 - `model.py` — the pydantic-ai `Model` subclass with cost recording and
   any wire-level quirks.
 - `provider.py` — the `LLMProvider` subclass exposing the
-  `_tier_models()` / `_model_class()` / `_post_build_model()` hooks (for
+  `_model_class()` / `_post_build_model()` hooks (for
   OpenRouter) or the concrete construction (for Claude SDK).
 - `transient.py` — the provider-specific transient predicate that
   layers on `core.retry.is_transient`.
@@ -98,7 +99,8 @@ docstring is the canonical statement:
 has no single model or provider; it is the base layer. Its actual
 files are:
 
-- `provider.py` — the `LLMProvider` ABC and the `Tier` enum, plus the
+- `provider.py` — the `LLMProvider` ABC and the `Tier` enum (deprecated;
+  `TierLevel` in `config.tier` is the replacement), plus the
   inherited `build_agent` / `call_with_retry` methods that derived
   providers reuse unchanged.
 - `agent.py` — `AgentHandle` (wraps a pydantic-ai `Agent` with its
@@ -188,16 +190,20 @@ short rationale grounded in the source.
   constant in `core/constants.py` by design: the consumer's only choice
   is provider + tier. If a derived layer needs an override, it adds it
   explicitly — not as a general knob.
-- **Tier-based selector, not model strings.** `core.provider.Tier`
-  defines exactly `DEFAULT` and `CHEAP`. Derived layers map each tier
-  to a concrete model through `_tier_models()` (OpenRouter) or the
-  constructor (Claude SDK). The caller never types a raw model name.
-- **Hook-based extension on `OpenRouterProvider`.** The three
-  abstract/overridable hooks — `_tier_models()`, `_model_class()`,
-  `_post_build_model()` — are the entire contract a per-family derived
-  layer fills in. `openrouter_deepseek.provider` is the worked example:
-  it pins the tier→model map and stamps per-tier reasoning policy in
-  `_post_build_model`.
+- **Level-based selector via `TierConfig`, not raw model strings.**
+    Consumers pass a capability `level` (1, 2, or 3) to
+    `LLMProvider.build_agent()` or `create_model()`. The
+    level→(transport, model) resolution is handled by `TierConfig`
+    (schema in `config/tier.py`), which merges baked defaults,
+    environment variables, and explicit overrides. The caller never
+    types a raw model name unless bypassing tier config entirely
+    via `new_model(model=..., level=...)`.
+- **Hook-based extension on `OpenRouterProvider`.** The two
+    overridable hooks — `_model_class()`, `_post_build_model()` —
+    are the contract a per-family derived layer fills in.
+    `openrouter_deepseek.provider` is the worked example: it pins
+    the model class and stamps per-level reasoning policy in
+    `_post_build_model`.
 - **`AgentHandle` for deterministic cleanup.** `core/agent.py` wraps
   the pydantic-ai `Agent` together with its httpx client; callers call
   `.close()` to tear the client down explicitly. Attribute access
@@ -255,7 +261,7 @@ optional Langfuse exporter ships those attributes verbatim.
   response in the first place.
 - **DeepSeek cost.** Inherited unchanged from `OpenRouterModel`;
   `OpenRouterDeepseekModel` only adds the upstream-provider pin and
-  per-tier reasoning policy on top, not new cost logic.
+  per-level reasoning policy on top, not new cost logic.
 - **Claude SDK cost.** `claude_sdk/model.py:ClaudeSDKModel.request`
   calls the generic helper
   `core.cost.record_cost(result, lambda r: getattr(r, "total_cost_usd", None))`
