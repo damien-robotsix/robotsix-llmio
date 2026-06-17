@@ -6,12 +6,12 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from . import retry as _retry
 from .agent import AgentHandle
 from .agent import build_agent as _build_agent
+from .tier_enum import Tier as Tier  # explicit re-export for back-compat
 
 if TYPE_CHECKING:
     from robotsix_llmio.config.tier import TierConfig
@@ -45,28 +45,6 @@ def _level_to_tier(level: int) -> Tier:
     if level in (2, 3):
         return Tier.DEFAULT
     raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
-
-
-class Tier(StrEnum):
-    """**Deprecated** two-tier model selector — replaced by
-    :class:`~robotsix_llmio.config.tier.TierConfig` and the integer *level*
-    parameter on :meth:`LLMProvider.build_agent`.
-
-    This enum remains for backward compatibility only.  Passing
-    ``tier=Tier.CHEAP`` (or ``Tier.DEFAULT``) to ``build_agent()`` or
-    ``new_model()`` still works but emits a :exc:`DeprecationWarning`.
-    New code should use ``level=`` (1/2/3) and a ``TierConfig``.
-
-    ========== =========== ============
-    Member     Value       Replacement
-    ========== =========== ============
-    DEFAULT    ``default`` ``level=2``
-    CHEAP      ``cheap``   ``level=1``
-    ========== =========== ============
-    """
-
-    DEFAULT = "default"  # capable tier
-    CHEAP = "cheap"  # fast/cheap tier
 
 
 class LLMProvider(ABC):

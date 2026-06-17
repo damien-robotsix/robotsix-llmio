@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from robotsix_llmio.core.provider import Tier as LegacyTier
+from robotsix_llmio.core.tier_enum import Tier as LegacyTier
 
 # --------------------------------------------------------------------------- #
 #  TierLevel — three configuration tiers                                      #
