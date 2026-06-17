@@ -139,7 +139,6 @@ class TestCreateModelHappyPath:
         """Explicit ``provider_kwargs`` passed to ``create_model`` override
         those from the tier config."""
         from robotsix_llmio.config.tier import (
-            LEVEL1_DEFAULT,
             LEVEL2_DEFAULT,
             LEVEL3_DEFAULT,
             TierConfig,
@@ -150,7 +149,10 @@ class TestCreateModelHappyPath:
             level1=TierLevelConfig(
                 provider="openrouter-deepseek",
                 model="deepseek/deepseek-v4-flash",
-                provider_kwargs={"base_url": "https://from-tier.example.com", "api_key": "tier-key"},
+                provider_kwargs={
+                    "base_url": "https://from-tier.example.com",
+                    "api_key": "tier-key",
+                },
             ),
             level2=LEVEL2_DEFAULT,
             level3=LEVEL3_DEFAULT,

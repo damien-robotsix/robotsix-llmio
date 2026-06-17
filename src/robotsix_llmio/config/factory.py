@@ -17,6 +17,7 @@ from ..core.factory import get_provider
 
 if TYPE_CHECKING:
     from ..core.provider import LLMProvider
+    from .tier import TierConfig
 
 from .transport import TRANSPORT_ALIASES
 
@@ -25,7 +26,7 @@ def create_model(
     *,
     level: int = 1,
     transport: str | None = None,
-    tier_config: "TierConfig | None" = None,
+    tier_config: TierConfig | None = None,
     **provider_kwargs: Any,
 ) -> LLMProvider:
     """Create a provider instance for the given capability *level*.
