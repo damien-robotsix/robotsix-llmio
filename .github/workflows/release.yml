@@ -11,5 +11,5 @@ jobs:
   release:
     permissions:
       id-token: write
-    uses: damien-robotsix/robotsix-mill/.github/workflows/python-release.yml@main
+    uses: damien-robotsix/robotsix-mill/.github/workflows/python-release.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
     secrets: inherit

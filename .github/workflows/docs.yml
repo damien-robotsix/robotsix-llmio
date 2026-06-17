@@ -9,6 +9,6 @@ jobs:
   deploy:
     permissions:
       contents: write
-    uses: damien-robotsix/robotsix-mill/.github/workflows/python-docs.yml@main
+    uses: damien-robotsix/robotsix-mill/.github/workflows/python-docs.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
     with:
       docs-install-args: "--extra docs"
