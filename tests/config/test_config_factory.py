@@ -166,3 +166,55 @@ class TestCreateModelHappyPath:
             base_url="https://from-tier.example.com",
             api_key="explicit-key",
         )
+
+
+class TestCreateModelDefaultFallback:
+    """``create_model`` falls back to the baked level defaults only when no
+    user-supplied ``tier_config`` is present."""
+
+    @pytest.fixture
+    def mock_get_provider(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        mock = MagicMock(return_value=MagicMock(spec=LLMProvider))
+        monkeypatch.setattr("robotsix_llmio.config.factory.get_provider", mock)
+        return mock
+
+    @pytest.mark.parametrize("level", [1, 2, 3])
+    def test_no_tier_config_uses_baked_level_default(
+        self, level: int, mock_get_provider: MagicMock
+    ):
+        """With no ``tier_config``, the provider resolves from the matching
+        ``LEVEL{1,2,3}_DEFAULT`` constant."""
+        from robotsix_llmio.config.tier import (
+            LEVEL1_DEFAULT,
+            LEVEL2_DEFAULT,
+            LEVEL3_DEFAULT,
+        )
+
+        expected = {1: LEVEL1_DEFAULT, 2: LEVEL2_DEFAULT, 3: LEVEL3_DEFAULT}[level]
+
+        create_model(level=level)
+
+        mock_get_provider.assert_called_once_with(provider=expected.provider)
+
+    def test_explicit_tier_config_overrides_defaults(
+        self, mock_get_provider: MagicMock
+    ):
+        """When a ``tier_config`` is supplied, its provider is used instead of
+        the baked default — defaults only apply when no config exists."""
+        from robotsix_llmio.config.tier import (
+            LEVEL2_DEFAULT,
+            LEVEL3_DEFAULT,
+            TierConfig,
+            TierLevelConfig,
+        )
+
+        # Level 1 default provider is "openrouter-deepseek"; override it.
+        cfg = TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="opus"),
+            level2=LEVEL2_DEFAULT,
+            level3=LEVEL3_DEFAULT,
+        )
+
+        create_model(level=1, tier_config=cfg)
+
+        mock_get_provider.assert_called_once_with(provider="claude-sdk")
