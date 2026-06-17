@@ -248,6 +248,66 @@ def test_build_agent_returns_underlying_handle(monkeypatch):
     assert p.build_agent(system_prompt="sys") is sentinel
 
 
+# --- build_agent model override --------------------------------------------
+
+
+def test_build_agent_model_override_bypasses_tier_config(monkeypatch):
+    """When ``model`` is provided, ``new_model`` is called with the explicit
+    model name and *tier_config* is never consulted (no ValueError for
+    out-of-range levels either — level is still passed)."""
+    p = _MockProvider()
+
+    def fake_build_agent(*_args, **_kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(model="my-custom-model", level=1, system_prompt="sys")
+    assert p.new_model_calls == [{"model": "my-custom-model", "level": 1}]
+
+
+def test_build_agent_model_override_with_level(monkeypatch):
+    """``level`` is still forwarded alongside the explicit model."""
+    p = _MockProvider()
+
+    def fake_build_agent(*_args, **_kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(model="custom", level=3, system_prompt="sys")
+    assert p.new_model_calls == [{"model": "custom", "level": 3}]
+
+
+def test_build_agent_model_override_wins_over_tier_config(monkeypatch):
+    """Even when ``tier_config`` is provided, the explicit ``model`` takes
+    precedence."""
+    cfg = TierConfig(
+        level1=TierLevelConfig(provider="p1", model="should-not-be-used"),
+    )
+    p = _MockProvider()
+
+    def fake_build_agent(*_args, **_kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(
+        model="overridden-model", level=1, tier_config=cfg, system_prompt="sys"
+    )
+    assert p.new_model_calls == [{"model": "overridden-model", "level": 1}]
+
+
+def test_build_agent_model_none_still_resolves_from_tier_config(monkeypatch):
+    """When ``model=None`` (the default), tier_config resolution works as before."""
+    p = _MockProvider()
+
+    def fake_build_agent(*_args, **_kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=1, system_prompt="sys")
+    # LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash"
+    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
+
+
 # --- build_agent primary path (tier_config provided) ------------------------
 
 

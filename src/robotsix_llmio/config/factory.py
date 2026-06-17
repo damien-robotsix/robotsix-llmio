@@ -1,8 +1,8 @@
-"""Consumer-facing factory — create a provider from *transport* + *model_level*.
+"""Consumer-facing factory — create a provider from a capability *level*.
 
 This is the single entry-point consumers use to obtain a working model/agent.
-They set ``transport`` and ``model_level`` in their config and call
-:func:`create_model` — no direct provider-class or ``claude_agent_sdk`` import
+Callers can supply just ``level`` (and optionally ``transport`` to override the
+level-based provider) — no direct provider-class or ``claude_agent_sdk`` import
 is ever needed.
 
 Built on top of :func:`~robotsix_llmio.core.factory.get_provider` and the
@@ -18,34 +18,43 @@ from ..core.factory import get_provider
 if TYPE_CHECKING:
     from ..core.provider import LLMProvider
 
-from .transport import MODEL_LEVEL_TO_TIER, TRANSPORT_ALIASES
+from .transport import TRANSPORT_ALIASES
 
 
 def create_model(
     *,
-    transport: str,
-    model_level: int,
+    level: int = 1,
+    transport: str | None = None,
+    tier_config: "TierConfig | None" = None,
     **provider_kwargs: Any,
 ) -> LLMProvider:
-    """Create a provider instance for the given *transport* and *model_level*.
+    """Create a provider instance for the given capability *level*.
+
+    When *transport* is ``None`` (the default), the provider is resolved
+    from ``tier_config.for_level(level).provider``.  When *transport* is
+    supplied it overrides the level-based choice — useful for pinning a
+    specific provider regardless of tier (e.g. forcing OpenRouter even at
+    level 3 where ``"claude-sdk"`` is the default).
 
     Parameters
     ----------
+    level:
+        Capability level (1, 2, or 3).  Level 1 selects the cheap/fast model;
+        levels 2 and 3 select progressively more capable defaults.
     transport:
-        Consumer-facing transport alias — one of ``"claude-sdk"`` or
+        Optional consumer-facing transport alias — one of ``"claude-sdk"`` or
         ``"openrouter[deepseek]"``.  Mapped to a provider registry name via
-        :data:`~.transport.TRANSPORT_ALIASES`.
-    model_level:
-        Model strength level (1, 2, or 3).  Level 1 selects the cheap/fast
-        model; levels 2 and 3 select the capable/default model.  Use
-        :data:`~.transport.MODEL_LEVEL_TO_TIER` to obtain the corresponding
-        :class:`~robotsix_llmio.core.provider.Tier` when calling
-        :meth:`~robotsix_llmio.core.provider.LLMProvider.build_agent` or
-        :meth:`~robotsix_llmio.core.provider.LLMProvider.new_model`.
+        :data:`~.transport.TRANSPORT_ALIASES`.  When ``None``, the provider
+        is resolved from *tier_config*.
+    tier_config:
+        Optional :class:`~.tier.TierConfig` to resolve the provider + model.
+        When ``None``, a default is built from baked module-level defaults
+        (:data:`~.tier.LEVEL1_DEFAULT`, :data:`~.tier.LEVEL2_DEFAULT`,
+        :data:`~.tier.LEVEL3_DEFAULT`).
     **provider_kwargs:
         Forwarded to the provider constructor (e.g. ``api_key=...`` for the
-        OpenRouter provider, ``default_model=...`` for the Claude SDK
-        provider).
+        OpenRouter provider).  These override any ``provider_kwargs`` from
+        the tier config.
 
     Returns
     -------
@@ -56,7 +65,8 @@ def create_model(
     Raises
     ------
     ValueError
-        If *transport* is not a recognised alias.
+        If *level* is not 1, 2, or 3, or if *transport* (when supplied) is
+        not a recognised alias.
     ImportError
         If the provider's optional extra is not installed.
 
@@ -64,24 +74,41 @@ def create_model(
     -------
     .. code-block:: python
 
-        from robotsix_llmio.config import create_model, MODEL_LEVEL_TO_TIER
+        from robotsix_llmio.config import create_model
 
-        provider = create_model(transport="claude-sdk", model_level=3)
+        # Level 3 → Claude SDK by default.
+        provider = create_model(level=3)
         agent = provider.build_agent(
-            tier=MODEL_LEVEL_TO_TIER[3],
+            level=3,
             system_prompt="You are a helpful assistant.",
         )
+
+        # Force OpenRouter at level 3 with an explicit transport.
+        provider = create_model(level=3, transport="openrouter[deepseek]")
     """
-    if model_level not in MODEL_LEVEL_TO_TIER:
-        valid = ", ".join(str(k) for k in sorted(MODEL_LEVEL_TO_TIER))
-        raise ValueError(f"model_level must be one of {valid}; got {model_level!r}")
+    if tier_config is None:
+        from .tier import LEVEL1_DEFAULT, LEVEL2_DEFAULT, LEVEL3_DEFAULT, TierConfig
 
-    try:
-        provider_name = TRANSPORT_ALIASES[transport]
-    except KeyError as exc:
-        known = ", ".join(sorted(TRANSPORT_ALIASES))
-        raise ValueError(
-            f"Unknown transport {transport!r}. Known transports: {known}."
-        ) from exc
+        tier_config = TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+            level3=LEVEL3_DEFAULT,
+        )
 
-    return get_provider(provider=provider_name, **provider_kwargs)
+    tlc = tier_config.for_level(level)
+
+    # Merge: tier-config provider_kwargs as base, explicit kwargs override.
+    merged_kwargs: dict[str, Any] = {**tlc.provider_kwargs, **provider_kwargs}
+
+    if transport is not None:
+        # Explicit transport overrides the level-based provider.
+        resolved_provider = TRANSPORT_ALIASES.get(transport)
+        if resolved_provider is None:
+            known = ", ".join(sorted(TRANSPORT_ALIASES))
+            raise ValueError(
+                f"Unknown transport {transport!r}. Known transports: {known}."
+            )
+        return get_provider(provider=resolved_provider, **merged_kwargs)
+
+    # No transport → resolve provider from tier_config.
+    return get_provider(provider=tlc.provider, **merged_kwargs)
