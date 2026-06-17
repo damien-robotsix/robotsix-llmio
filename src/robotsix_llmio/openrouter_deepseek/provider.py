@@ -2,26 +2,17 @@
 
 Model names are resolved from :class:`~robotsix_llmio.config.tier.TierConfig`
 (via :meth:`~robotsix_llmio.core.provider.LLMProvider.build_agent`) or passed
-directly to :meth:`new_model`.  The deprecated ``tier=`` path maps to these
-model names via a minimal internal compat dict.
+directly to :meth:`new_model`.
 """
 
 from __future__ import annotations
 
-from typing import ClassVar
-
-from ..core.provider import Tier
 from ..openrouter.provider import OpenRouterProvider
 from .model import OpenRouterDeepseekModel
 
 
 class OpenRouterDeepseekProvider(OpenRouterProvider):
     """OpenRouter pinned to DeepSeek, with per-level reasoning policy."""
-
-    _tier_compat: ClassVar[dict[Tier, str]] = {
-        Tier.DEFAULT: "deepseek/deepseek-v4-pro",
-        Tier.CHEAP: "deepseek/deepseek-v4-flash",
-    }
 
     def _model_class(self) -> type[OpenRouterDeepseekModel]:
         return OpenRouterDeepseekModel

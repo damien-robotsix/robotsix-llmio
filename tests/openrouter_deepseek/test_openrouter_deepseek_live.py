@@ -11,7 +11,11 @@ import os
 
 import pytest
 
-from robotsix_llmio.core.provider import Tier
+from robotsix_llmio.config.tier import (
+    LEVEL1_DEFAULT,
+    LEVEL2_DEFAULT,
+    TierConfig,
+)
 from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
 
 
@@ -42,7 +46,11 @@ def test_pro_basic_text() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.DEFAULT,
+        level=2,
+        tier_config=TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+        ),
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     try:
@@ -63,7 +71,11 @@ def test_pro_tool_usage() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.DEFAULT,
+        level=2,
+        tier_config=TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+        ),
         system_prompt="You are a helpful assistant. Use tools when asked.",
         tools=[_echo],
     )
@@ -105,7 +117,11 @@ def test_pro_thinking_tool_mix() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.DEFAULT,
+        level=2,
+        tier_config=TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+        ),
         system_prompt="You are a helpful assistant. Use tools when helpful.",
         tools=[_echo],
     )
@@ -147,7 +163,8 @@ def test_flash_basic_text() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.CHEAP,
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     try:
@@ -173,7 +190,8 @@ def test_flash_tool_usage() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.CHEAP,
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
         system_prompt="You are a helpful assistant. Use tools when asked.",
         tools=[_echo],
     )
@@ -237,7 +255,11 @@ def test_pro_resume_from_pending_tool_return_does_not_400() -> None:
 
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.DEFAULT,
+        level=2,
+        tier_config=TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+        ),
         system_prompt="Use the echo tool when asked.",
         tools=[_echo],
     )
@@ -287,7 +309,11 @@ def test_pro_thinking_only_assistant_turn_does_not_400() -> None:
 
     provider = _make_provider()
     agent = provider.build_agent(
-        tier=Tier.DEFAULT,
+        level=2,
+        tier_config=TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+        ),
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     history = [

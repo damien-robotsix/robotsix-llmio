@@ -15,6 +15,12 @@ import uuid
 
 import pytest
 
+from robotsix_llmio.config.tier import (
+    LEVEL1_DEFAULT,
+    TierConfig,
+    TierLevelConfig,
+)
+
 
 def _langfuse_creds() -> tuple[str | None, str | None, str]:
     return (
@@ -57,7 +63,6 @@ def test_langfuse_trace_roundtrip_has_cost() -> None:
     _require()
 
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -68,12 +73,12 @@ def test_langfuse_trace_roundtrip_has_cost() -> None:
 
     session_id = f"llmio-livetest-{uuid.uuid4().hex[:12]}"
     provider = OpenRouterDeepseekProvider()
-    with pytest.warns(DeprecationWarning):
-        agent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are concise. Answer with just the number.",
-            name="tracing-livetest",
-        )
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are concise. Answer with just the number.",
+        name="tracing-livetest",
+    )
     try:
         with langfuse_session(session_id):
             result = provider.call_with_retry(
@@ -132,7 +137,6 @@ def test_langfuse_trace_tool_and_subagent() -> None:
     _require()  # LANGFUSE_* + OPENROUTER_API_KEY
 
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -142,12 +146,12 @@ def test_langfuse_trace_tool_and_subagent() -> None:
     assert setup_langfuse_tracing() is True
 
     provider = OpenRouterDeepseekProvider()
-    with pytest.warns(DeprecationWarning):
-        subagent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are a physics expert. Answer in one short sentence.",
-            name="subagent-physics",
-        )
+    subagent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are a physics expert. Answer in one short sentence.",
+        name="subagent-physics",
+    )
 
     def add(a: int, b: int) -> int:
         """Add two integers."""
@@ -158,16 +162,16 @@ def test_langfuse_trace_tool_and_subagent() -> None:
         run = await subagent.run(question)
         return str(run.output)
 
-    with pytest.warns(DeprecationWarning):
-        outer = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt=(
-                "You coordinate. Use the add tool for arithmetic and the "
-                "consult_expert tool for science questions."
-            ),
-            tools=[add, consult_expert],
-            name="coordinator",
-        )
+    outer = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt=(
+            "You coordinate. Use the add tool for arithmetic and the "
+            "consult_expert tool for science questions."
+        ),
+        tools=[add, consult_expert],
+        name="coordinator",
+    )
 
     session_id = f"llmio-livetest-subagent-{uuid.uuid4().hex[:12]}"
     try:
@@ -253,7 +257,6 @@ def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
 
     from robotsix_llmio.claude_sdk import ClaudeSDKProvider
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -263,13 +266,15 @@ def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
 
     session_id = f"llmio-livetest-claude-{uuid.uuid4().hex[:12]}"
     provider = ClaudeSDKProvider()
-    with pytest.warns(DeprecationWarning):
-        agent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are concise. Answer with just the number.",
-            output_type=str,
-            name="tracing-livetest-claude",
-        )
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="You are concise. Answer with just the number.",
+        output_type=str,
+        name="tracing-livetest-claude",
+    )
     try:
         with langfuse_session(session_id):
             result = provider.call_with_retry(lambda: agent.run_sync("What is 2+2?"))
@@ -308,7 +313,6 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
 
     from robotsix_llmio.claude_sdk import ClaudeSDKProvider
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -317,13 +321,15 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     assert setup_langfuse_tracing() is True
 
     provider = ClaudeSDKProvider()
-    with pytest.warns(DeprecationWarning):
-        subagent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are a physics expert. Answer in one short sentence.",
-            output_type=str,
-            name="subagent-physics",
-        )
+    subagent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="You are a physics expert. Answer in one short sentence.",
+        output_type=str,
+        name="subagent-physics",
+    )
 
     def add(a: int, b: int) -> int:
         """Add two integers."""
@@ -337,16 +343,19 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     # Two tiers in one trace: opus coordinator, haiku subagent — exercises both
     # claude_sdk models and disambiguates the two generations (chat opus / chat
     # haiku). Opus is fine here: the prompt + output are tiny.
-    with pytest.warns(DeprecationWarning):
-        outer = provider.build_agent(
-            tier=Tier.DEFAULT,
-            system_prompt=(
-                "Use the add tool for arithmetic and the consult_expert tool for "
-                "science questions."
-            ),
-            tools=[add, consult_expert],
-            name="claude-coordinator",
-        )
+    outer = provider.build_agent(
+        level=2,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+            level2=TierLevelConfig(provider="claude-sdk", model="opus"),
+        ),
+        system_prompt=(
+            "Use the add tool for arithmetic and the consult_expert tool for "
+            "science questions."
+        ),
+        tools=[add, consult_expert],
+        name="claude-coordinator",
+    )
 
     session_id = f"llmio-livetest-claudesub-{uuid.uuid4().hex[:12]}"
     try:
@@ -414,7 +423,6 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
 
     from robotsix_llmio.claude_sdk import ClaudeSDKProvider
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -428,26 +436,30 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
         """Look up a fact about a term."""
         return f"{term}: caused by Rayleigh scattering of sunlight."
 
-    with pytest.warns(DeprecationWarning):
-        subagent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="Use the lookup tool, then answer in one sentence.",
-            tools=[lookup],
-            name="subagent-with-tool",
-        )
+    subagent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="Use the lookup tool, then answer in one sentence.",
+        tools=[lookup],
+        name="subagent-with-tool",
+    )
 
     async def consult_expert(question: str) -> str:
         """Delegate to a tool-bearing subagent (await its async run)."""
         run = await subagent.run(question)
         return str(run.output)
 
-    with pytest.warns(DeprecationWarning):
-        outer = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="Use the consult_expert tool for science questions.",
-            tools=[consult_expert],
-            name="coordinator",
-        )
+    outer = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="Use the consult_expert tool for science questions.",
+        tools=[consult_expert],
+        name="coordinator",
+    )
 
     session_id = f"llmio-livetest-claudenest-{uuid.uuid4().hex[:12]}"
     try:
@@ -504,7 +516,6 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
     _require()  # LANGFUSE_* + OPENROUTER_API_KEY
 
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_trace_url,
         make_session_id,
@@ -522,10 +533,12 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
     _, _, base = _langfuse_creds()
 
     provider = OpenRouterDeepseekProvider()
-    with pytest.warns(DeprecationWarning):
-        agent = provider.build_agent(
-            tier=Tier.CHEAP, system_prompt="Concise.", name="url-test"
-        )
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="Concise.",
+        name="url-test",
+    )
     trace_id: str | None = None
     try:
         with start_trace("url-trace", session_id=make_session_id("urltest")) as root:
@@ -564,7 +577,6 @@ def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
     from robotsix_llmio.core import (
         CostWindow,
         LangfuseCostLogSource,
-        Tier,
         flush_tracing,
         langfuse_session,
         setup_langfuse_tracing,
@@ -576,12 +588,12 @@ def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
     start = _dt.datetime.now(_dt.UTC) - _dt.timedelta(minutes=5)
     session_id = f"llmio-livetest-costlog-{uuid.uuid4().hex[:12]}"
     provider = OpenRouterDeepseekProvider()
-    with pytest.warns(DeprecationWarning):
-        agent = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are concise. Answer with just the number.",
-            name="costlog-livetest",
-        )
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are concise. Answer with just the number.",
+        name="costlog-livetest",
+    )
     try:
         with langfuse_session(session_id):
             result = provider.call_with_retry(
@@ -626,7 +638,6 @@ def test_claude_sdk_workspace_confinement_blocks_out_of_scope_edit(tmp_path) -> 
     _require_claude()  # claude CLI + claude_agent_sdk (+ LANGFUSE_* gate)
 
     from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
-    from robotsix_llmio.core.provider import Tier
 
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -637,14 +648,16 @@ def test_claude_sdk_workspace_confinement_blocks_out_of_scope_edit(tmp_path) -> 
         """A trivial tool so build_agent takes the tool (confinement) path."""
         return "ok"
 
-    with pytest.warns(DeprecationWarning):
-        agent = ClaudeSDKProvider().build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You edit files with your built-in tools. Be terse.",
-            tools=[note],
-            name="confine-livetest",
-            workspace_root=workspace,
-        )
+    agent = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=TierConfig(
+            level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+        ),
+        system_prompt="You edit files with your built-in tools. Be terse.",
+        tools=[note],
+        name="confine-livetest",
+        workspace_root=workspace,
+    )
     try:
         agent.run_sync(
             "Do exactly two things with your built-in file tools, then stop:\n"
@@ -717,7 +730,6 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     # registered projects, etc.).
     import robotsix_llmio.core.tracing as _t
     from robotsix_llmio.core import (
-        Tier,
         flush_tracing,
         langfuse_project,
         langfuse_session,
@@ -743,12 +755,12 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     provider = OpenRouterDeepseekProvider()
 
     # Session A → project A
-    with pytest.warns(DeprecationWarning):
-        agent_a = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are concise. Answer with just the number.",
-            name="mt-agent-a",
-        )
+    agent_a = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are concise. Answer with just the number.",
+        name="mt-agent-a",
+    )
     try:
         with langfuse_project(pk_a), langfuse_session(session_a):
             result = provider.call_with_retry(
@@ -761,12 +773,12 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
         agent_a.close()
 
     # Session B → project B
-    with pytest.warns(DeprecationWarning):
-        agent_b = provider.build_agent(
-            tier=Tier.CHEAP,
-            system_prompt="You are concise. Answer with just the number.",
-            name="mt-agent-b",
-        )
+    agent_b = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are concise. Answer with just the number.",
+        name="mt-agent-b",
+    )
     try:
         with langfuse_project(pk_b), langfuse_session(session_b):
             result = provider.call_with_retry(

@@ -9,11 +9,10 @@ via ``build_agent()``) or supplied directly to :meth:`new_model`.
 from __future__ import annotations
 
 import os
-import warnings
-from typing import Any, ClassVar
+from typing import Any
 
 from ..core import timeout_http_client
-from ..core.provider import LLMProvider, Tier
+from ..core.provider import LLMProvider
 from ._base import _DEFAULT_BASE_URL
 from .model import OpenRouterModel
 from .transient import is_openrouter_transient
@@ -23,14 +22,8 @@ class OpenRouterProvider(LLMProvider):
     """Builds cost-instrumented OpenRouter models from a model name.
 
     Subclasses MAY override :meth:`_model_class` / :meth:`_post_build_model`
-    to add provider-family quirks (pin, reasoning policy, …) and SHOULD
-    set :attr:`_tier_compat` (or override :meth:`new_model`) to support the
-    deprecated ``tier=`` fallback path.
+    to add provider-family quirks (pin, reasoning policy, …).
     """
-
-    # Minimal internal compat dict for the deprecated ``tier=`` path.
-    # Subclasses populate this (or override ``new_model`` entirely).
-    _tier_compat: ClassVar[dict[Tier, str]] = {}
 
     def __init__(
         self,
@@ -74,7 +67,6 @@ class OpenRouterProvider(LLMProvider):
         self,
         *,
         model: str | None = None,
-        tier: Tier | None = None,
         level: int = 0,
     ) -> tuple[Any, Any]:
         """Build a model, returning ``(model, http_client)``.
@@ -82,12 +74,7 @@ class OpenRouterProvider(LLMProvider):
         Parameters
         ----------
         model:
-            **Primary** — the concrete model name.  When provided the model
-            is constructed directly; *tier* is ignored.
-        tier:
-            **Deprecated** — use *model* instead.  When *model* is ``None``
-            and *tier* is provided, resolves via a minimal internal compat
-            dict and emits a :exc:`DeprecationWarning`.
+            The concrete model name (e.g. ``"deepseek/deepseek-v4-flash"``).
         level:
             Capability level (1, 2, 3) forwarded to
             :meth:`_post_build_model` for per-level policy hooks.  ``0``
@@ -100,21 +87,10 @@ class OpenRouterProvider(LLMProvider):
             OpenRouterProvider as _PydOpenRouterProvider,
         )
 
-        if model is not None:
-            model_name = model
-        elif tier is not None:
-            warnings.warn(
-                "The `tier` parameter on `new_model()` is deprecated. "
-                "Pass `model=` with a concrete model name instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            model_name = self._tier_compat[tier]
-        else:
-            raise ValueError(
-                "Either `model` or `tier` must be provided to `new_model()`."
-            )
+        if model is None:
+            raise ValueError("`model` must be provided to `new_model()`.")
 
+        model_name = model
         http_client = timeout_http_client()
         if self._base_url == _DEFAULT_BASE_URL:
             pyd_provider = _PydOpenRouterProvider(
