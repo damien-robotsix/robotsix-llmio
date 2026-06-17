@@ -26,10 +26,12 @@ __all__ = [
     "TierLevel",
     "TierLevelConfig",
     "UnknownModelError",
+    "UnknownTransportError",
     "WeeklyPaceConfig",
     "create_model",
     "load_tier_config",
     "validate_model",
+    "validate_transport",
 ]
 
 
@@ -95,6 +97,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import transport
 
         return transport.MODEL_LEVEL_TO_TIER
+    if name == "UnknownTransportError":
+        from . import transport
+
+        return transport.UnknownTransportError
+    if name == "validate_transport":
+        from . import transport
+
+        return transport.validate_transport
     if name == "PROVIDER_MODELS":
         from . import model_registry
 

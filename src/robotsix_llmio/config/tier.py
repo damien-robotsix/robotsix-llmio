@@ -45,21 +45,29 @@ class TierLevel(StrEnum):
 
 
 class TierLevelConfig(BaseModel):
-    """A single tier's provider and model binding.
+    """A single tier's transport and model binding.
 
-    Describes which provider backend to use and which model name/alias
-    that provider resolves for a given :class:`TierLevel`.
+    Describes which consumer-facing *transport* to use and which model
+    name/alias that transport resolves for a given :class:`TierLevel`.
 
-    A :func:`~pydantic.model_validator` cross-checks the *model* field
+    A :func:`~pydantic.model_validator` validates the *transport* against
+    :data:`~.transport.TRANSPORT_ALIASES` and cross-checks the *model* field
     against :data:`~.model_registry.PROVIDER_MODELS` at construction time,
-    raising :class:`~.model_registry.UnknownModelError` for known providers
-    with unknown model names.
+    raising :class:`~.transport.UnknownTransportError` for unknown transports
+    and :class:`~.model_registry.UnknownModelError` for known providers with
+    unknown model names.
+
+    For backward compatibility a ``provider`` key in the input mapping (the
+    old registry-name shape) is accepted and converted to the equivalent
+    *transport* alias, and a read-only :attr:`provider` property resolves the
+    transport back to its provider registry name.
     """
 
-    provider: str = Field(
+    transport: str = Field(
         description=(
-            "Registry name passed to ``get_provider()`` — e.g. "
-            "``'openrouter-deepseek'`` or ``'claude-sdk'``."
+            "Consumer-facing transport alias — one of ``'claude-sdk'`` or "
+            "``'openrouter[deepseek]'``.  Resolved to a provider registry "
+            "name via ``config.transport.TRANSPORT_ALIASES``."
         ),
     )
     model: str = Field(
@@ -77,12 +85,44 @@ class TierLevelConfig(BaseModel):
         ),
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_provider(cls, data: Any) -> Any:
+        """Accept the old ``provider`` shape and convert it to ``transport``.
+
+        When the incoming mapping carries a ``provider`` key and no
+        ``transport`` key, pop ``provider`` and set ``transport`` to the
+        converted alias.  When both keys are present, ``transport`` wins and
+        ``provider`` is dropped.  Non-mapping input passes through untouched.
+        """
+        if not isinstance(data, dict):
+            return data
+        if "provider" not in data:
+            return data
+        from .transport import provider_to_transport
+
+        data = dict(data)
+        provider = data.pop("provider")
+        if "transport" not in data:
+            data["transport"] = provider_to_transport(provider)
+        return data
+
+    @property
+    def provider(self) -> str:
+        """Resolved provider registry name for this tier's transport."""
+        from .transport import TRANSPORT_ALIASES
+
+        return TRANSPORT_ALIASES[self.transport]
+
     @model_validator(mode="after")
     def _validate_model_names(self) -> TierLevelConfig:
-        """Cross-check *model* against the per-provider model registry."""
+        """Validate *transport* and cross-check *model* against the registry."""
         from .model_registry import validate_model
+        from .transport import TRANSPORT_ALIASES, validate_transport
 
-        validate_model(self.provider, self.model)
+        validate_transport(self.transport)
+        provider = TRANSPORT_ALIASES[self.transport]
+        validate_model(provider, self.model)
         return self
 
 
@@ -91,17 +131,17 @@ class TierLevelConfig(BaseModel):
 # --------------------------------------------------------------------------- #
 
 LEVEL1_DEFAULT = TierLevelConfig(
-    provider="openrouter-deepseek",
+    transport="openrouter[deepseek]",
     model="deepseek/deepseek-v4-flash",
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
-    provider="openrouter-deepseek",
+    transport="openrouter[deepseek]",
     model="deepseek/deepseek-v4-pro",
 )
 
 LEVEL3_DEFAULT = TierLevelConfig(
-    provider="claude-sdk",
+    transport="claude-sdk",
     model="opus",
 )
 
@@ -119,11 +159,11 @@ class TierConfig(BaseModel):
 
     Example YAML/JSON::
 
-        {"level1": {"provider": "openrouter-deepseek",
+        {"level1": {"transport": "openrouter[deepseek]",
                      "model": "deepseek/deepseek-v4-flash"}}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
-    :class:`TierLevelConfig` — this is the canonical level→(provider,model)
+    :class:`TierLevelConfig` — this is the canonical level→(transport,model)
     resolution point replacing the legacy ``_level_to_tier()`` + tier map.
     """
 

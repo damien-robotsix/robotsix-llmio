@@ -59,11 +59,11 @@ from robotsix_llmio.core.agent import AgentHandle
 
 # Inline TierConfig for tests that need a specific model at a given level.
 _HAIKU_AT_LEVEL1 = TierConfig(
-    level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
+    level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
 )
 _OPUS_AT_LEVEL2 = TierConfig(
-    level1=TierLevelConfig(provider="claude-sdk", model="haiku"),
-    level2=TierLevelConfig(provider="claude-sdk", model="opus"),
+    level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+    level2=TierLevelConfig(transport="claude-sdk", model="opus"),
 )
 
 # --- prompt rendering ------------------------------------------------------

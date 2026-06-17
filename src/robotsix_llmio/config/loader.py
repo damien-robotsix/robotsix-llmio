@@ -5,7 +5,7 @@ Usage::
 
     from robotsix_llmio.config import load_tier_config
 
-    cfg = load_tier_config({"level1": {"provider": "...", "model": "..."}})
+    cfg = load_tier_config({"level1": {"transport": "...", "model": "..."}})
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ from robotsix_llmio.config.tier import (
     LEVEL3_DEFAULT,
     TierConfig,
 )
+from robotsix_llmio.config.transport import provider_to_transport
+from robotsix_llmio.exceptions import RobotsixLLMIOError
 
 # --------------------------------------------------------------------------- #
 #  Exception
@@ -111,11 +113,11 @@ def load_tier_config(
         if config_dict is not None and tier in config_dict:
             cfg_tier = config_dict[tier]
             if isinstance(cfg_tier, dict):
-                tier_dict.update(cfg_tier)
+                tier_dict.update(_normalise_old_shape(cfg_tier))
             else:
                 # If the caller passed a TierLevelConfig object or similar,
                 # convert to dict so we can merge field-by-field.
-                tier_dict.update(_to_dict(cfg_tier))
+                tier_dict.update(_normalise_old_shape(_to_dict(cfg_tier)))
 
         # Only include the tier if we have *something* for it (otherwise
         # pydantic applies the ``default_factory`` for level2/level3, or
@@ -126,13 +128,30 @@ def load_tier_config(
     # ---- 3.  Validate -----------------------------------------------------
     try:
         return TierConfig.model_validate(merged)
-    except ValidationError as exc:
+    except (ValidationError, RobotsixLLMIOError) as exc:
         raise TierConfigLoadError(str(exc)) from exc
 
 
 # --------------------------------------------------------------------------- #
 #  Internal helpers
 # --------------------------------------------------------------------------- #
+
+
+def _normalise_old_shape(tier_dict: dict[str, Any]) -> dict[str, Any]:
+    """Convert an old-shape tier dict (``provider`` key) to the new shape.
+
+    If *tier_dict* carries a ``provider`` key and no ``transport`` key,
+    return a copy with ``provider`` replaced by the converted ``transport``
+    alias.  Otherwise return *tier_dict* unchanged (a ``transport`` key, if
+    present, always wins and any stray ``provider`` is dropped).
+    """
+    if "provider" not in tier_dict:
+        return tier_dict
+    result = dict(tier_dict)
+    provider = result.pop("provider")
+    if "transport" not in result:
+        result["transport"] = provider_to_transport(provider)
+    return result
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
@@ -180,7 +199,7 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
         ("LEVEL3", "level3"),
     ]:
         for field_upper, field_lower in [
-            ("PROVIDER", "provider"),
+            ("TRANSPORT", "transport"),
             ("MODEL", "model"),
             ("PROVIDER_KWARGS", "provider_kwargs"),
         ]:
@@ -203,6 +222,14 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
             else:
                 _set(tier_lower, field_lower, raw)
 
+        # ``LLMIO_LEVEL{n}_PROVIDER`` is a backward-compatible alias for
+        # ``_TRANSPORT``; the converted transport is only applied when the
+        # new-style ``_TRANSPORT`` variable is unset for this level.
+        if "transport" not in nested.get(tier_lower, {}):
+            legacy_provider = os.environ.get(f"{env_prefix}{tier_upper}_PROVIDER")
+            if legacy_provider is not None:
+                _set(tier_lower, "transport", provider_to_transport(legacy_provider))
+
     # -- legacy variables ---------------------------------------------------
     # Each legacy variable emits at most one FutureWarning per call and is
     # only consulted when the corresponding new-style variable is *unset*.
@@ -218,8 +245,8 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
             )
             _set("level1", "model", legacy)
 
-    # LLMIO_FLASH_PROVIDER → level1.provider
-    if "provider" not in nested.get("level1", {}):
+    # LLMIO_FLASH_PROVIDER → level1.transport
+    if "transport" not in nested.get("level1", {}):
         legacy = os.environ.get("LLMIO_FLASH_PROVIDER")
         if legacy is not None:
             warnings.warn(
@@ -227,7 +254,7 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
                 FutureWarning,
                 stacklevel=3,
             )
-            _set("level1", "provider", legacy)
+            _set("level1", "transport", provider_to_transport(legacy))
 
     # LLMIO_NORMAL_MODEL → level2.model
     if "model" not in nested.get("level2", {}):
@@ -240,8 +267,8 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
             )
             _set("level2", "model", legacy)
 
-    # LLMIO_NORMAL_PROVIDER → level2.provider
-    if "provider" not in nested.get("level2", {}):
+    # LLMIO_NORMAL_PROVIDER → level2.transport
+    if "transport" not in nested.get("level2", {}):
         legacy = os.environ.get("LLMIO_NORMAL_PROVIDER")
         if legacy is not None:
             warnings.warn(
@@ -250,15 +277,15 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
                 FutureWarning,
                 stacklevel=3,
             )
-            _set("level2", "provider", legacy)
+            _set("level2", "transport", provider_to_transport(legacy))
 
-    # LLMIO_PROVIDER → any level whose provider is still unset
+    # LLMIO_PROVIDER → any level whose transport is still unset
     legacy_provider = os.environ.get("LLMIO_PROVIDER")
     if legacy_provider is not None:
         applied = False
         for tier in ("level1", "level2", "level3"):
-            if "provider" not in nested.get(tier, {}):
-                _set(tier, "provider", legacy_provider)
+            if "transport" not in nested.get(tier, {}):
+                _set(tier, "transport", provider_to_transport(legacy_provider))
                 applied = True
         if applied:
             warnings.warn(
