@@ -27,6 +27,19 @@ jobs:
       run-bandit: true
       mypy-advisory: false
 
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Lint (ruff check)
+        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4
+        with:
+          args: "check --output-format=github"
+      - name: Format (ruff format)
+        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4
+        with:
+          args: "format --check --diff"
+
   mypy:
     runs-on: ubuntu-latest
     steps:
