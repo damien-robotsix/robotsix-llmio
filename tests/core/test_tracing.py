@@ -622,9 +622,7 @@ def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
     # A later child runs in a context that carries the session → names trace.
     token = tracing._current_session.set("robotsix-mill · ticket-7")
     try:
-        child = _FakeSpan(
-            trace_id=7, parent=root.get_span_context(), name="chat opus"
-        )
+        child = _FakeSpan(trace_id=7, parent=root.get_span_context(), name="chat opus")
         proc.on_start(child)
     finally:
         tracing._current_session.reset(token)
