@@ -52,17 +52,17 @@ CostLogSource.fetch_logged_cost
 # core/langfuse_client.py — public static helpers
 # ---------------------------------------------------------------------------
 
-LangfuseClient.parse_timestamp
-LangfuseClient.observation_provider
-LangfuseClient.observation_cost
+LangfuseReadClient.parse_timestamp
+LangfuseReadClient.observation_provider
+LangfuseReadClient.observation_cost
 
 # ---------------------------------------------------------------------------
 # core/langfuse_cost.py — public methods of the cost-source adapter
 # ---------------------------------------------------------------------------
 
-LangfuseCostSource.fetch_logged_cost
-LangfuseCostSource.fetch_logged_cost_by_provider
-LangfuseCostSource.prune_before
+LangfuseCostLogSource.fetch_logged_cost
+LangfuseCostLogSource.fetch_logged_cost_by_provider
+LangfuseCostLogSource.prune_before
 
 # ---------------------------------------------------------------------------
 # core/provider_cost.py — Protocol method + Discrepancy dataclass fields
