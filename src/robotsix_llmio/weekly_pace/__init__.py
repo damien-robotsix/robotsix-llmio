@@ -24,6 +24,8 @@ Usage::
 
 from __future__ import annotations
 
+__all__ = ["PaceGovernor"]
+
 import logging
 import time as _time
 from datetime import UTC, datetime
