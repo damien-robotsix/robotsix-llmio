@@ -138,6 +138,11 @@ _current_public_key: contextvars.ContextVar[str | None] = contextvars.ContextVar
 _trace_routing: dict[int, str] = {}
 _trace_routing_lock = threading.Lock()
 
+# trace_id set: traces that have already had a Langfuse trace name stamped, so
+# the session-label fallback is applied at most once per trace and never
+# overwrites an explicit root-span name. Guarded by _trace_routing_lock.
+_trace_named: set[int] = set()
+
 # Throttled logging for unroutable spans — at most one message of each
 # level per 10 seconds to avoid log spam in multi-tenant hot paths.
 _logger = logging.getLogger(__name__)

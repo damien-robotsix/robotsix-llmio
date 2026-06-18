@@ -324,6 +324,7 @@ def _setup_tracing_pipeline(monkeypatch):
     monkeypatch.setattr(tracing, "_projects", {})
     monkeypatch.setattr(tracing, "_default_public_key", None)
     monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
     monkeypatch.setattr(tracing, "_warn_last_ts", 0.0)
     monkeypatch.setattr(tracing, "_debug_last_ts", 0.0)
 
@@ -531,6 +532,7 @@ def test_stamp_processor_direct_construction_tiers(monkeypatch):
     monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
     monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
     monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
 
     proc = _StampProcessor()
 
@@ -568,47 +570,78 @@ def test_stamp_processor_direct_construction_tiers(monkeypatch):
 
 
 def test_stamp_processor_names_root_trace(monkeypatch):
-    """Root spans get a non-empty ``langfuse.trace.name`` — the span's own name
-    when set (preserving an explicit stage/label root), else the session label.
-    Child spans are never given a trace name."""
+    """The trace is named once: an explicit root-span name is preferred, else
+    the session label; the session fallback never overwrites it."""
     pytest.importorskip("opentelemetry.sdk.trace")
     from robotsix_llmio.core._tracing_processors import _StampProcessor
 
     monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
     monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
     monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
     proc = _StampProcessor()
 
     token = tracing._current_session.set("robotsix-mill · ticket-xyz")
     try:
-        # Empty-named root under a session → trace name falls back to session.
+        # Empty-named root under a session → name falls back to the session.
         root_empty = _FakeSpan(trace_id=1, parent=None, name="")
         proc.on_start(root_empty)
-        # Named root keeps its explicit name (e.g. a mill stage).
-        root_named = _FakeSpan(trace_id=2, parent=None, name="implement")
-        proc.on_start(root_named)
-        # Child span (has a parent) is never given a trace name.
+        # A later child in the same trace must NOT overwrite the name.
         child = _FakeSpan(
             trace_id=1, parent=root_empty.get_span_context(), name="chat opus"
         )
         proc.on_start(child)
+        # A named root keeps its explicit name (e.g. a mill stage).
+        root_named = _FakeSpan(trace_id=2, parent=None, name="implement")
+        proc.on_start(root_named)
     finally:
         tracing._current_session.reset(token)
 
     assert root_empty.attributes["langfuse.trace.name"] == "robotsix-mill · ticket-xyz"
+    assert "langfuse.trace.name" not in child.attributes  # not re-stamped
     assert root_named.attributes["langfuse.trace.name"] == "implement"
-    assert "langfuse.trace.name" not in child.attributes
 
 
-def test_stamp_processor_root_unnamed_without_session(monkeypatch):
-    """An empty-named root with no active session gets no trace name (nothing
-    meaningful to stamp) — and never crashes."""
+def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
+    """If the root starts without the session contextvar (cross-thread loss) and
+    has no name, the first later span carrying the session names the trace."""
     pytest.importorskip("opentelemetry.sdk.trace")
     from robotsix_llmio.core._tracing_processors import _StampProcessor
 
     monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
     monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
     monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
+    proc = _StampProcessor()
+
+    # Root: no session in context, empty name → unnameable at its on_start.
+    root = _FakeSpan(trace_id=7, parent=None, name="")
+    proc.on_start(root)
+    assert "langfuse.trace.name" not in root.attributes
+
+    # A later child runs in a context that carries the session → names trace.
+    token = tracing._current_session.set("robotsix-mill · ticket-7")
+    try:
+        child = _FakeSpan(trace_id=7, parent=root.get_span_context(), name="chat opus")
+        proc.on_start(child)
+    finally:
+        tracing._current_session.reset(token)
+    assert child.attributes["langfuse.trace.name"] == "robotsix-mill · ticket-7"
+
+    proc.on_end(root)  # root end clears the per-trace guard
+    assert 7 not in tracing._trace_named
+
+
+def test_stamp_processor_root_unnamed_without_session(monkeypatch):
+    """An empty-named root with no session and no later session-bearing span
+    gets no trace name — and never crashes."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
     proc = _StampProcessor()
 
     root = _FakeSpan(trace_id=9, parent=None, name="")

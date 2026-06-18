@@ -39,23 +39,30 @@ class _StampProcessor(SpanProcessor):
             span.set_attribute("session.id", sid)
             span.set_attribute(LANGFUSE_SESSION_ID, sid)
 
-        # Ensure the trace root always carries a non-empty Langfuse trace name.
-        # Some agent runs reach Langfuse with a pydantic-ai / claude_sdk span as
-        # the trace root (callers that don't open an explicitly-named root span),
-        # which Langfuse then renders with an empty name ("(unnamed)"). Stamp
-        # ``langfuse.trace.name`` on every root span so naming is deterministic
-        # regardless of how the caller drove the trace: keep the span's own name
-        # when set (preserving an explicit stage/label root), else fall back to
-        # the session label. Child spans are untouched, so their observation
-        # names are unaffected.
-        if span.parent is None:
-            trace_name = span.name or sid
-            if trace_name:
-                span.set_attribute(LANGFUSE_TRACE_NAME, trace_name)
-
-        # Three-tier routing key resolution:
         ctx = span.get_span_context()
         trace_id = ctx.trace_id
+
+        # Ensure every trace gets a non-empty Langfuse name exactly once. Some
+        # agent runs reach Langfuse with a pydantic-ai / claude_sdk span as the
+        # trace root (callers that don't open an explicitly-named root span),
+        # which Langfuse otherwise renders as "(unnamed)". Prefer an explicit
+        # root-span name (e.g. a caller's stage/label); else fall back to the
+        # session label. The root may start in a context where the session
+        # contextvar was lost (cross-thread/async), leaving it unnameable at its
+        # own on_start — so the first later span that *does* carry a session
+        # names the trace instead (Langfuse honours ``langfuse.trace.name`` from
+        # any span). The guard set applies the fallback at most once and never
+        # overwrites an explicit root name (the root is always seen first).
+        with _t._trace_routing_lock:
+            already_named = trace_id in _t._trace_named
+        if not already_named:
+            name = span.name if (span.parent is None and span.name) else sid
+            if name:
+                span.set_attribute(LANGFUSE_TRACE_NAME, name)
+                with _t._trace_routing_lock:
+                    _t._trace_named.add(trace_id)
+
+        # Three-tier routing key resolution:
 
         # Tier 1: active contextvar (fast path for synchronous code)
         pk = _t._current_public_key.get()
@@ -92,6 +99,7 @@ class _StampProcessor(SpanProcessor):
             trace_id = span.get_span_context().trace_id
             with _t._trace_routing_lock:
                 _t._trace_routing.pop(trace_id, None)
+                _t._trace_named.discard(trace_id)
 
     def shutdown(self):  # type: ignore[no-untyped-def]
         pass
