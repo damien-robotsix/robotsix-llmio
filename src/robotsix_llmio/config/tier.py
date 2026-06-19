@@ -2,12 +2,6 @@
 
 This module defines the *data model only*.  Wiring it into the provider
 factory, ``build_agent``, and ``new_model`` is a follow-up concern.
-
-The existing two-value :class:`~robotsix_llmio.core.Tier` enum is **not**
-modified — callers that pass ``Tier.DEFAULT`` / ``Tier.CHEAP`` continue
-to work unchanged.  The :data:`LEGACY_TIER_MAP` dictionary (deprecated,
-emits :exc:`DeprecationWarning` on access) provided an explicit path, now
-superseded by :meth:`TierConfig.for_level`.
 """
 
 from __future__ import annotations
@@ -16,8 +10,6 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
-
-from robotsix_llmio.core.tier_enum import Tier as LegacyTier
 
 # --------------------------------------------------------------------------- #
 #  TierLevel — three configuration tiers                                      #
@@ -148,12 +140,10 @@ class TierConfig(BaseModel):
 
     Example YAML/JSON::
 
-        {"level1": {"transport": "openrouter[deepseek]",
-                     "model": "deepseek/deepseek-v4-flash"}}
+        {"level1": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-flash"}}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
-    :class:`TierLevelConfig` — this is the canonical level→(transport,model)
-    resolution point replacing the legacy ``_level_to_tier()`` + tier map.
+    :class:`TierLevelConfig`.
     """
 
     level1: TierLevelConfig = Field(
@@ -187,19 +177,3 @@ class TierConfig(BaseModel):
         if level == 3:
             return self.level3
         raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
-
-
-# --------------------------------------------------------------------------- #
-#  Legacy mapping                                                             #
-# --------------------------------------------------------------------------- #
-
-LEGACY_TIER_MAP: dict[LegacyTier, TierLevel] = {
-    LegacyTier.CHEAP: TierLevel.LEVEL1,
-    LegacyTier.DEFAULT: TierLevel.LEVEL2,
-}
-"""**Deprecated** — use :meth:`TierConfig.for_level` instead.
-
-The public re-export paths (:mod:`~robotsix_llmio.core` and
-:mod:`~robotsix_llmio.config`) emit a :exc:`DeprecationWarning` when
-this mapping is accessed.
-"""

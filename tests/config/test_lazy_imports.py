@@ -13,13 +13,6 @@ from robotsix_llmio.config import loader as _loader
 from robotsix_llmio.config import tier as _tier
 
 
-def test_re_export_legacy_tier_map():
-    with pytest.warns(DeprecationWarning, match="LEGACY_TIER_MAP is deprecated"):
-        from robotsix_llmio.config import LEGACY_TIER_MAP
-
-    assert LEGACY_TIER_MAP is _tier.LEGACY_TIER_MAP
-
-
 def test_re_export_level1_default():
     from robotsix_llmio.config import LEVEL1_DEFAULT
 
@@ -68,26 +61,9 @@ def test_re_export_load_tier_config():
     assert load_tier_config is _loader.load_tier_config
 
 
-def test_re_export_unknown_transport_error():
-    from robotsix_llmio.config import UnknownTransportError
-    from robotsix_llmio.config import transport as _transport
-
-    assert UnknownTransportError is _transport.UnknownTransportError
-
-
-def test_re_export_validate_transport():
-    from robotsix_llmio.config import transport as _transport
-    from robotsix_llmio.config import validate_transport
-
-    assert validate_transport is _transport.validate_transport
-
-
 @pytest.mark.parametrize(
     "attr_name",
     [
-        "MODEL_LEVEL_TO_TIER",
-        "TRANSPORT_ALIASES",
-        "UnknownTransportError",
         "MalformedIdentifierError",
         "ParsedIdentifier",
         "ModelWeightConfig",
@@ -95,7 +71,6 @@ def test_re_export_validate_transport():
         "create_model",
         "get_provider_for_identifier",
         "parse_model_identifier",
-        "validate_transport",
     ],
 )
 def test_re_export_names(attr_name: str):
