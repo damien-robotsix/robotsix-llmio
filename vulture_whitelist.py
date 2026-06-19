@@ -49,6 +49,13 @@ LoggedCost.record_count
 CostLogSource.fetch_logged_cost
 
 # ---------------------------------------------------------------------------
+# core/langfuse_async_client.py — public async read methods
+# ---------------------------------------------------------------------------
+
+AsyncLangfuseReadClient.fetch_traces_window
+AsyncLangfuseReadClient.fetch_trace_detail
+
+# ---------------------------------------------------------------------------
 # core/langfuse_client.py — public static helpers
 # ---------------------------------------------------------------------------
 
