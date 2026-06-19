@@ -97,8 +97,7 @@ TierLevel.LEVEL3
 
 # Pydantic model fields + validators accessed by pydantic's metaclass
 # machinery, not by direct Python name access that vulture would detect.
-TierLevelConfig._validate_model_names
-TierLevelConfig._accept_legacy_provider
+TierLevelConfig._validate_identifier
 TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2

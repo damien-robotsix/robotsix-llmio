@@ -5,15 +5,17 @@ Callers can supply just ``level`` (and optionally ``transport`` to override the
 level-based provider) — no direct provider-class or ``claude_agent_sdk`` import
 is ever needed.
 
-Built on top of :func:`~robotsix_llmio.core.factory.get_provider` and the
-:class:`~robotsix_llmio.config.tier.TierConfig` schema.
+Built on top of :func:`~robotsix_llmio.core.factory.get_provider` (and
+:func:`~robotsix_llmio.core.factory.get_provider_for_identifier` for the
+tier-driven path) and the :class:`~robotsix_llmio.config.tier.TierConfig`
+schema.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..core.factory import get_provider
+from ..core.factory import get_provider, get_provider_for_identifier
 
 if TYPE_CHECKING:
     from ..core.provider import LLMProvider
@@ -31,11 +33,12 @@ def create_model(
 ) -> LLMProvider:
     """Create a provider instance for the given capability *level*.
 
-    When *transport* is ``None`` (the default), the provider is resolved
-    from ``tier_config.for_level(level).provider``.  When *transport* is
-    supplied it overrides the level-based choice — useful for pinning a
-    specific provider regardless of tier (e.g. forcing OpenRouter even at
-    level 3 where ``"claude-sdk"`` is the default).
+    When *transport* is ``None`` (the default), the provider is derived from
+    the combined ``provider-model`` identifier on the tier config — the
+    identifier's prefix drives lazy backend import via
+    :func:`~robotsix_llmio.core.factory.get_provider_for_identifier`.
+    When *transport* is supplied it overrides the level-based choice —
+    useful for pinning a specific provider regardless of tier.
 
     Parameters
     ----------
@@ -46,7 +49,7 @@ def create_model(
         Optional consumer-facing transport alias — one of ``"claude-sdk"`` or
         ``"openrouter[deepseek]"``.  Mapped to a provider registry name via
         :data:`~.transport.TRANSPORT_ALIASES`.  When ``None``, the provider
-        is resolved from *tier_config*.
+        is derived from *tier_config*'s combined identifier.
     tier_config:
         Optional :class:`~.tier.TierConfig` to resolve the provider + model.
         When ``None``, a default is built from baked module-level defaults
@@ -77,7 +80,7 @@ def create_model(
 
         from robotsix_llmio.config import create_model
 
-        # Level 3 → Claude SDK by default.
+        # Level 3 → Claude SDK by default (identifier "claudeSDK-opus").
         provider = create_model(level=3)
         agent = provider.build_agent(
             level=3,
@@ -103,6 +106,7 @@ def create_model(
 
     if transport is not None:
         # Explicit transport overrides the level-based provider.
+        # Legacy path — uses old registry names (removed in follow-up child).
         resolved_provider = TRANSPORT_ALIASES.get(transport)
         if resolved_provider is None:
             known = ", ".join(sorted(TRANSPORT_ALIASES))
@@ -111,5 +115,7 @@ def create_model(
             )
         return get_provider(provider=resolved_provider, **merged_kwargs)
 
-    # No transport → resolve provider from tier_config.
-    return get_provider(provider=tlc.provider, **merged_kwargs)
+    # No transport → derive provider from the tier config's combined
+    # provider-model identifier.  The identifier's prefix drives the
+    # lazy backend import; the model name is the backend's concern.
+    return get_provider_for_identifier(tlc.model, **merged_kwargs)

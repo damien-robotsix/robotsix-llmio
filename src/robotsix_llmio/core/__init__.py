@@ -28,6 +28,8 @@ __all__ = [
     "LangfuseCostLogSource",
     "LangfuseReadClient",
     "LoggedCost",
+    "MalformedIdentifierError",
+    "ParsedIdentifier",
     "ProviderCost",
     "ProviderCostSource",
     "Tier",
@@ -50,6 +52,7 @@ __all__ = [
     "current_session",
     "flush_tracing",
     "get_provider",
+    "get_provider_for_identifier",
     "get_recording_span",
     "get_tracer",
     "html_to_text",
@@ -61,6 +64,7 @@ __all__ = [
     "langfuse_trace_url",
     "load_tier_config",
     "make_session_id",
+    "parse_model_identifier",
     "reconcile",
     "register_provider",
     "run_agent",
@@ -101,10 +105,26 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import factory
 
         return factory.get_provider
+    if name == "get_provider_for_identifier":
+        from . import factory
+
+        return factory.get_provider_for_identifier
     if name == "register_provider":
         from . import factory
 
         return factory.register_provider
+    if name == "MalformedIdentifierError":
+        from . import identifier
+
+        return identifier.MalformedIdentifierError
+    if name == "ParsedIdentifier":
+        from . import identifier
+
+        return identifier.ParsedIdentifier
+    if name == "parse_model_identifier":
+        from . import identifier
+
+        return identifier.parse_model_identifier
     if name == "timeout_http_client":
         from . import http
 
