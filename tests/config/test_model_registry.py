@@ -155,30 +155,36 @@ def test_unknown_model_error_is_exception():
 # ========================================================================== #
 
 
-def test_tier_level_config_rejects_unknown_model():
-    """Constructing with known transport + unknown model raises immediately."""
-    with pytest.raises(UnknownModelError):
-        TierLevelConfig(transport="openrouter[deepseek]", model="bogus-model")
+def test_tier_level_config_accepts_any_model_with_known_prefix():
+    """Constructing with a known provider prefix and any model name
+    succeeds (model-name validation is the backend's concern)."""
+    cfg = TierLevelConfig(model="openrouter[deepseek]-bogus-model")
+    assert cfg.model == "openrouter[deepseek]-bogus-model"
+    assert cfg.provider == "openrouter"
+    assert cfg.model_name == "bogus-model"
 
 
-def test_tier_level_config_rejects_unknown_model_claude():
-    """Constructing with claude-sdk + unknown model raises."""
-    with pytest.raises(UnknownModelError):
-        TierLevelConfig(transport="claude-sdk", model="nonexistent")
+def test_tier_level_config_accepts_any_model_claude():
+    """Any model name with the claudeSDK prefix succeeds."""
+    cfg = TierLevelConfig(model="claudeSDK-nonexistent")
+    assert cfg.model == "claudeSDK-nonexistent"
+    assert cfg.provider == "claudeSDK"
+    assert cfg.model_name == "nonexistent"
 
 
 def test_tier_level_config_accepts_known_model_openrouter():
-    """Constructing with a known model for openrouter[deepseek] succeeds."""
-    cfg = TierLevelConfig(
-        transport="openrouter[deepseek]", model="deepseek/deepseek-v4-flash"
-    )
-    assert cfg.model == "deepseek/deepseek-v4-flash"
+    """Constructing with a combined identifier for openrouter[deepseek]
+    succeeds."""
+    cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-flash")
+    assert cfg.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert cfg.model_name == "deepseek/deepseek-v4-flash"
 
 
 def test_tier_level_config_accepts_known_model_claude():
-    """Constructing with a known model for claude-sdk succeeds."""
-    cfg = TierLevelConfig(transport="claude-sdk", model="sonnet")
-    assert cfg.model == "sonnet"
+    """Constructing with a combined identifier for claudeSDK succeeds."""
+    cfg = TierLevelConfig(model="claudeSDK-sonnet")
+    assert cfg.model == "claudeSDK-sonnet"
+    assert cfg.model_name == "sonnet"
 
 
 def test_validate_model_skips_unknown_provider():
@@ -189,33 +195,38 @@ def test_validate_model_skips_unknown_provider():
 
 def test_baked_defaults_construct_without_error():
     """The three module-level baked defaults validate successfully."""
-    assert LEVEL1_DEFAULT.provider == "openrouter-deepseek"
-    assert LEVEL1_DEFAULT.model == "deepseek/deepseek-v4-flash"
-    assert LEVEL2_DEFAULT.provider == "openrouter-deepseek"
-    assert LEVEL2_DEFAULT.model == "deepseek/deepseek-v4-pro"
-    assert LEVEL3_DEFAULT.provider == "claude-sdk"
-    assert LEVEL3_DEFAULT.model == "opus"
+    assert LEVEL1_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.provider == "openrouter"
+    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash"
+    assert LEVEL2_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert LEVEL2_DEFAULT.provider == "openrouter"
+    assert LEVEL2_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
+    assert LEVEL3_DEFAULT.model == "claudeSDK-opus"
+    assert LEVEL3_DEFAULT.provider == "claudeSDK"
+    assert LEVEL3_DEFAULT.model_name == "opus"
 
 
-def test_tier_config_model_validate_rejects_bogus_model():
-    """``TierConfig.model_validate`` with bogus model raises UnknownModelError."""
+def test_tier_config_model_validate_accepts_any_model():
+    """``TierConfig.model_validate`` with a known prefix accepts any model
+    name (model-name validation is the backend's concern)."""
     data = {
-        "level1": {"transport": "openrouter[deepseek]", "model": "bogus"},
+        "level1": {"model": "openrouter[deepseek]-bogus"},
     }
-    with pytest.raises(UnknownModelError):
-        TierConfig.model_validate(data)
+    cfg = TierConfig.model_validate(data)
+    assert cfg.level1.model == "openrouter[deepseek]-bogus"
+    assert cfg.level1.model_name == "bogus"
 
 
 def test_tier_config_model_validate_accepts_valid_model():
-    """``TierConfig.model_validate`` with valid model succeeds."""
+    """``TierConfig.model_validate`` with valid combined identifier succeeds."""
     data = {
         "level1": {
-            "transport": "openrouter[deepseek]",
-            "model": "deepseek/deepseek-v4-flash",
+            "model": "openrouter[deepseek]-deepseek/deepseek-v4-flash",
         },
     }
     cfg = TierConfig.model_validate(data)
-    assert cfg.level1.model == "deepseek/deepseek-v4-flash"
+    assert cfg.level1.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert cfg.level1.model_name == "deepseek/deepseek-v4-flash"
 
 
 # ========================================================================== #

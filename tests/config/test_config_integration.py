@@ -6,10 +6,10 @@ factory (:func:`~robotsix_llmio.config.factory.create_model`) are each unit
 tested in isolation (``test_loader.py`` / ``test_config_factory.py``).  These
 tests verify the *chain*: a config built by the loader (from a dict, env vars,
 or a YAML string parsed by the caller) flows into ``create_model`` and resolves
-to the expected provider registry name and merged ``provider_kwargs``.
+to the expected combined identifier and merged ``provider_kwargs``.
 
-``get_provider`` is monkeypatched (mirroring the ``mock_get_provider`` fixture
-in ``test_config_factory.py``) so no real provider import/instantiation occurs.
+``get_provider_for_identifier`` is monkeypatched so no real provider
+import/instantiation occurs.
 """
 
 from __future__ import annotations
@@ -42,6 +42,18 @@ def mock_get_provider(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     return mock
 
 
+@pytest.fixture
+def mock_get_provider_for_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> MagicMock:
+    """Patch ``get_provider_for_identifier`` as referenced by the factory module."""
+    mock = MagicMock(return_value=MagicMock(spec=LLMProvider))
+    monkeypatch.setattr(
+        "robotsix_llmio.config.factory.get_provider_for_identifier", mock
+    )
+    return mock
+
+
 # ========================================================================== #
 #  loader → factory chain
 # ========================================================================== #
@@ -50,16 +62,15 @@ def mock_get_provider(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 class TestLoaderToFactoryChain:
     """``load_tier_config(...)`` → ``create_model(tier_config=...)`` end-to-end."""
 
-    def test_custom_level1_config_resolves_to_its_transport_provider(
-        self, mock_get_provider: MagicMock
+    def test_custom_level1_config_resolves_to_its_identifier(
+        self, mock_get_provider_for_identifier: MagicMock
     ) -> None:
-        """A loaded level1 config resolves to its transport's provider registry
-        name, and its ``provider_kwargs`` are forwarded to ``get_provider``."""
+        """A loaded level1 config with a combined ``model`` identifier flows
+        into ``get_provider_for_identifier`` with merged kwargs."""
         cfg = load_tier_config(
             {
                 "level1": {
-                    "transport": "openrouter[deepseek]",
-                    "model": "deepseek/deepseek-v4-flash",
+                    "model": "openrouter[deepseek]-deepseek/deepseek-v4-flash",
                     "provider_kwargs": {"base_url": "https://proxy.example.com"},
                 }
             }
@@ -68,41 +79,42 @@ class TestLoaderToFactoryChain:
 
         result = create_model(level=1, tier_config=cfg)
 
-        mock_get_provider.assert_called_once_with(
-            provider="openrouter-deepseek",
+        mock_get_provider_for_identifier.assert_called_once_with(
+            "openrouter[deepseek]-deepseek/deepseek-v4-flash",
             base_url="https://proxy.example.com",
         )
-        assert result is mock_get_provider.return_value
+        assert result is mock_get_provider_for_identifier.return_value
 
     def test_level3_loaded_config_resolves_to_claude_sdk(
-        self, mock_get_provider: MagicMock
+        self, mock_get_provider_for_identifier: MagicMock
     ) -> None:
-        """A loaded level3 ``claude-sdk`` config resolves to the ``claude-sdk``
-        provider registry name."""
+        """A loaded level3 ``claudeSDK-opus`` config resolves correctly."""
         cfg = load_tier_config(
             {
                 "level1": {
-                    "transport": "openrouter[deepseek]",
-                    "model": "deepseek/deepseek-v4-flash",
+                    "model": "openrouter[deepseek]-deepseek/deepseek-v4-flash",
                 },
-                "level3": {"transport": "claude-sdk", "model": "opus"},
+                "level3": {"model": "claudeSDK-opus"},
             }
         )
 
         create_model(level=3, tier_config=cfg)
 
-        mock_get_provider.assert_called_once_with(provider="claude-sdk")
+        mock_get_provider_for_identifier.assert_called_once_with(
+            "claudeSDK-opus",
+        )
 
     def test_transport_override_wins_over_loaded_config(
-        self, mock_get_provider: MagicMock
+        self,
+        mock_get_provider: MagicMock,
+        mock_get_provider_for_identifier: MagicMock,
     ) -> None:
         """An explicit ``transport`` argument overrides the loaded config's
         level-based provider, but the loaded ``provider_kwargs`` still merge."""
         cfg = load_tier_config(
             {
                 "level1": {
-                    "transport": "claude-sdk",
-                    "model": "opus",
+                    "model": "claudeSDK-opus",
                     "provider_kwargs": {"timeout": 30},
                 }
             }
@@ -116,10 +128,12 @@ class TestLoaderToFactoryChain:
         )
 
     def test_env_driven_config_chains_to_factory(
-        self, monkeypatch: pytest.MonkeyPatch, mock_get_provider: MagicMock
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_get_provider_for_identifier: MagicMock,
     ) -> None:
         """A config built purely from environment variables flows into the
-        factory and resolves the env-specified transport."""
+        factory and resolves the env-specified identifier."""
         monkeypatch.setenv("LLMIO_LEVEL1_TRANSPORT", "claude-sdk")
         monkeypatch.setenv("LLMIO_LEVEL1_MODEL", "opus")
 
@@ -127,7 +141,10 @@ class TestLoaderToFactoryChain:
 
         create_model(level=1, tier_config=cfg)
 
-        mock_get_provider.assert_called_once_with(provider="claude-sdk")
+        # transport=claude-sdk + model=opus → combined identifier claudeSDK-opus
+        mock_get_provider_for_identifier.assert_called_once_with(
+            "claudeSDK-opus",
+        )
 
 
 # ========================================================================== #
@@ -149,32 +166,25 @@ class TestYamlRoundTrip:
         produces a ``TierConfig`` whose fields match the YAML."""
         yaml_text = """
         level1:
-          transport: "openrouter[deepseek]"
-          model: "deepseek/deepseek-v4-flash"
+          model: "openrouter[deepseek]-deepseek/deepseek-v4-flash"
         level2:
-          transport: "openrouter[deepseek]"
-          model: "deepseek/deepseek-v4-pro"
+          model: "openrouter[deepseek]-deepseek/deepseek-v4-pro"
         level3:
-          transport: "claude-sdk"
-          model: "opus"
+          model: "claudeSDK-opus"
         """
         config_dict = yaml.safe_load(yaml_text)
 
         cfg = load_tier_config(config_dict)
 
-        assert cfg.level1.transport == "openrouter[deepseek]"
-        assert cfg.level1.model == "deepseek/deepseek-v4-flash"
-        assert cfg.level2.transport == "openrouter[deepseek]"
-        assert cfg.level2.model == "deepseek/deepseek-v4-pro"
-        assert cfg.level3.transport == "claude-sdk"
-        assert cfg.level3.model == "opus"
+        assert cfg.level1.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+        assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+        assert cfg.level3.model == "claudeSDK-opus"
 
     def test_yaml_with_provider_kwargs_round_trips(self) -> None:
         """``provider_kwargs`` parsed from YAML survive into the ``TierConfig``."""
         yaml_text = """
         level1:
-          transport: "claude-sdk"
-          model: "opus"
+          model: "claudeSDK-opus"
           provider_kwargs:
             timeout: 30
             base_url: "https://proxy.example.com"
@@ -183,24 +193,24 @@ class TestYamlRoundTrip:
 
         cfg = load_tier_config(config_dict)
 
-        assert cfg.level1.transport == "claude-sdk"
-        assert cfg.level1.model == "opus"
+        assert cfg.level1.model == "claudeSDK-opus"
         assert cfg.level1.provider_kwargs == {
             "timeout": 30,
             "base_url": "https://proxy.example.com",
         }
 
     def test_yaml_round_trip_chains_to_factory(
-        self, mock_get_provider: MagicMock
+        self, mock_get_provider_for_identifier: MagicMock
     ) -> None:
         """Full chain: YAML string → dict → loader → ``create_model``."""
         yaml_text = """
         level1:
-          transport: "openrouter[deepseek]"
-          model: "deepseek/deepseek-v4-flash"
+          model: "openrouter[deepseek]-deepseek/deepseek-v4-flash"
         """
         cfg = load_tier_config(yaml.safe_load(yaml_text))
 
         create_model(level=1, tier_config=cfg)
 
-        mock_get_provider.assert_called_once_with(provider="openrouter-deepseek")
+        mock_get_provider_for_identifier.assert_called_once_with(
+            "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+        )

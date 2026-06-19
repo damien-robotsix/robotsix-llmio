@@ -141,7 +141,7 @@ def call_with_tier_fallback(
             what,
             current_level.value,
             tlc.provider,
-            tlc.model,
+            tlc.model_name,
         )
 
         try:
@@ -205,7 +205,7 @@ async def acall_with_tier_fallback(
             what,
             current_level.value,
             tlc.provider,
-            tlc.model,
+            tlc.model_name,
         )
 
         try:

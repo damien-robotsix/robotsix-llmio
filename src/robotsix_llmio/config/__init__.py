@@ -20,7 +20,9 @@ __all__ = [
     "MODEL_LEVEL_TO_TIER",
     "PROVIDER_MODELS",
     "TRANSPORT_ALIASES",
+    "MalformedIdentifierError",
     "ModelWeightConfig",
+    "ParsedIdentifier",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
@@ -29,7 +31,9 @@ __all__ = [
     "UnknownTransportError",
     "WeeklyPaceConfig",
     "create_model",
+    "get_provider_for_identifier",
     "load_tier_config",
+    "parse_model_identifier",
     "validate_model",
     "validate_transport",
 ]
@@ -89,6 +93,22 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import factory
 
         return factory.create_model
+    if name == "get_provider_for_identifier":
+        from robotsix_llmio.core import factory as _core_factory
+
+        return _core_factory.get_provider_for_identifier
+    if name == "MalformedIdentifierError":
+        from robotsix_llmio.core import identifier as _core_identifier
+
+        return _core_identifier.MalformedIdentifierError
+    if name == "ParsedIdentifier":
+        from robotsix_llmio.core import identifier as _core_identifier
+
+        return _core_identifier.ParsedIdentifier
+    if name == "parse_model_identifier":
+        from robotsix_llmio.core import identifier as _core_identifier
+
+        return _core_identifier.parse_model_identifier
     if name == "TRANSPORT_ALIASES":
         from . import transport
 

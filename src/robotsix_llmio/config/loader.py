@@ -5,7 +5,7 @@ Usage::
 
     from robotsix_llmio.config import load_tier_config
 
-    cfg = load_tier_config({"level1": {"transport": "...", "model": "..."}})
+    cfg = load_tier_config({"level1": {"model": "claudeSDK-opus"}})
 """
 
 from __future__ import annotations
@@ -50,6 +50,31 @@ _BAKED_BASE: dict[str, dict[str, Any]] = {
 
 ``level1`` is intentionally absent — it has no default and must be supplied
 by the caller or environment.
+"""
+
+# Pre-compute the provider-prefix (including sub-alias bracket) from each
+# baked default so legacy model-only env vars can be combined with them.
+_BAKED_PREFIX: dict[str, str] = {}
+for _tier_name, _default in [("level2", LEVEL2_DEFAULT), ("level3", LEVEL3_DEFAULT)]:
+    from robotsix_llmio.core.identifier import parse_model_identifier as _pmi
+
+    _parsed = _pmi(_default.model)
+    if _parsed.sub_alias:
+        _BAKED_PREFIX[_tier_name] = f"{_parsed.provider}[{_parsed.sub_alias}]"
+    else:
+        _BAKED_PREFIX[_tier_name] = _parsed.provider
+
+# --------------------------------------------------------------------------- #
+#  Legacy transport → provider-prefix mapping (for combining env vars)
+# --------------------------------------------------------------------------- #
+
+_TRANSPORT_TO_PREFIX: dict[str, str] = {
+    "claude-sdk": "claudeSDK",
+}
+"""Old transport alias → new hyphen-free provider prefix.
+
+``"openrouter[deepseek]"`` is already in the canonical form and needs no
+entry here.
 """
 
 # --------------------------------------------------------------------------- #
@@ -119,6 +144,11 @@ def load_tier_config(
                 # convert to dict so we can merge field-by-field.
                 tier_dict.update(_normalise_old_shape(_to_dict(cfg_tier)))
 
+        # Normalise the merged dict — handle any transport/model/provider
+        # keys that survived the merge (e.g. when an explicit dict overrides
+        # with old-shape keys).
+        tier_dict = _normalise_old_shape(tier_dict)
+
         # Only include the tier if we have *something* for it (otherwise
         # pydantic applies the ``default_factory`` for level2/level3, or
         # raises ValidationError for the required level1).
@@ -137,20 +167,73 @@ def load_tier_config(
 # --------------------------------------------------------------------------- #
 
 
-def _normalise_old_shape(tier_dict: dict[str, Any]) -> dict[str, Any]:
-    """Convert an old-shape tier dict (``provider`` key) to the new shape.
+def _combine_transport_model(transport: str, model: str) -> str:
+    """Combine a legacy transport alias and model name into a combined
+    ``provider-model`` identifier."""
+    prefix = _TRANSPORT_TO_PREFIX.get(transport, transport)
+    return f"{prefix}-{model}"
 
-    If *tier_dict* carries a ``provider`` key and no ``transport`` key,
-    return a copy with ``provider`` replaced by the converted ``transport``
-    alias.  Otherwise return *tier_dict* unchanged (a ``transport`` key, if
-    present, always wins and any stray ``provider`` is dropped).
+
+def _normalise_old_shape(tier_dict: dict[str, Any]) -> dict[str, Any]:
+    """Normalise legacy tier dict shapes into the new combined-identifier form.
+
+    Handles these legacy shapes:
+
+    * ``{"provider": ..., "model": ...}`` — old registry-name shape.
+    * ``{"transport": ..., "model": ...}`` — the two-field shape this
+      child replaces.
+
+    When both transport and model are present and *model* is already a
+    combined identifier, the transport's prefix replaces the existing
+    prefix (the transport wins).
+
+    A dict already carrying a combined ``model`` identifier (with no
+    transport/provider keys) is returned unchanged.
     """
-    if "provider" not in tier_dict:
-        return tier_dict
     result = dict(tier_dict)
-    provider = result.pop("provider")
-    if "transport" not in result:
-        result["transport"] = provider_to_transport(provider)
+
+    # Already in new format — just ``model`` (combined identifier) and
+    # no transport/provider keys.
+    if "transport" not in result and "provider" not in result:
+        return result
+
+    transport: str | None = None
+    model: str | None = None
+
+    # Transport takes precedence over provider when both present.
+    if "transport" in result:
+        transport = result.pop("transport")
+        # Also drop any stray provider so it doesn't leak through.
+        result.pop("provider", None)
+    elif "provider" in result:
+        provider_val = result.pop("provider")
+        transport = provider_to_transport(provider_val)
+
+    if "model" in result:
+        model = result.pop("model")
+
+    if transport is not None and model is not None:
+        # If model is already a combined identifier with a *known* prefix,
+        # extract just the model-name portion and re-combine with the
+        # transport prefix (transport wins).
+        try:
+            from robotsix_llmio.core.factory import _PROVIDER_PREFIX_MAP
+            from robotsix_llmio.core.identifier import parse_model_identifier
+
+            parsed = parse_model_identifier(model)
+            if parsed.provider in _PROVIDER_PREFIX_MAP:
+                model = parsed.model_name
+        except Exception:
+            pass
+        result["model"] = _combine_transport_model(transport, model)
+    elif model is not None:
+        # Only model, no transport — keep as-is.
+        result["model"] = model
+    elif transport is not None:
+        # Only transport — no model; leave the dict without a model field
+        # so validation catches the missing field.
+        pass
+
     return result
 
 
@@ -186,6 +269,8 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
     """Read recognised environment variables into a nested tier→field dict.
 
     Returns only the keys that were actually set in the environment.
+    Transport and model are combined into a single ``model`` field holding
+    the combined ``provider-model`` identifier.
     """
     nested: dict[str, dict[str, Any]] = {}
 
@@ -294,5 +379,46 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
                 FutureWarning,
                 stacklevel=3,
             )
+
+    # -- post-process: combine transport + model into single model field -----
+    for tier_lower in ("level1", "level2", "level3"):
+        tier_data = nested.get(tier_lower)
+        if tier_data is None:
+            continue
+        transport = tier_data.pop("transport", None)
+        model = tier_data.pop("model", None)
+        if transport is not None and model is not None:
+            tier_data["model"] = _combine_transport_model(transport, model)
+        elif model is not None and transport is None:
+            # Only model, no transport — detect if it's already a valid
+            # combined identifier (parseable AND has a known prefix).
+            # If not, combine with baked prefix.
+            try:
+                from robotsix_llmio.core.factory import _PROVIDER_PREFIX_MAP
+                from robotsix_llmio.core.identifier import (
+                    parse_model_identifier,
+                )
+
+                parsed = parse_model_identifier(model)
+                if parsed.provider in _PROVIDER_PREFIX_MAP:
+                    # Already a valid combined identifier with known prefix.
+                    tier_data["model"] = model
+                else:
+                    # Parsable but unknown prefix — treat as bare model name.
+                    prefix = _BAKED_PREFIX.get(tier_lower)
+                    if prefix is not None:
+                        tier_data["model"] = f"{prefix}-{model}"
+                    else:
+                        tier_data["model"] = model
+            except Exception:
+                # Not parseable — treat as bare model name.
+                prefix = _BAKED_PREFIX.get(tier_lower)
+                if prefix is not None:
+                    tier_data["model"] = f"{prefix}-{model}"
+                else:
+                    tier_data["model"] = model
+        elif transport is not None:
+            # Only transport — leave it; merge with baked model.
+            tier_data["transport"] = transport
 
     return nested

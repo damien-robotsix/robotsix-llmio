@@ -88,9 +88,13 @@ def test_re_export_validate_transport():
         "MODEL_LEVEL_TO_TIER",
         "TRANSPORT_ALIASES",
         "UnknownTransportError",
+        "MalformedIdentifierError",
+        "ParsedIdentifier",
         "ModelWeightConfig",
         "WeeklyPaceConfig",
         "create_model",
+        "get_provider_for_identifier",
+        "parse_model_identifier",
         "validate_transport",
     ],
 )

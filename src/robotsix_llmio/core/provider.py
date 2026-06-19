@@ -77,7 +77,7 @@ class LLMProvider(ABC):
             When provided, resolution is::
 
                 tlc = tier_config.for_level(level)
-                new_model(model=tlc.model)
+                new_model(model=tlc.model_name)
 
             When ``None``, a default :class:`~robotsix_llmio.config.tier.TierConfig`
             is built from the baked module-level defaults
@@ -87,11 +87,12 @@ class LLMProvider(ABC):
 
             Ignored when *model* is provided (see below).
         model:
-            Optional explicit model name override.  When provided, this is
-            passed directly to :meth:`new_model`, bypassing *tier_config*
-            resolution entirely.  The caller is responsible for providing a
-            valid model name for the provider.  When ``None`` (default), the
-            model is resolved from *tier_config* as usual.
+            Optional explicit **bare** model name override (not a full
+            provider-model identifier).  When provided, this is passed
+            directly to :meth:`new_model`, bypassing *tier_config*
+            resolution entirely.  The caller is responsible for providing
+            a valid model name for the provider.  When ``None`` (default),
+            the model is resolved from *tier_config* as usual.
         system_prompt:
             Final system prompt for the agent (domain concern).
         tools:
@@ -138,7 +139,7 @@ class LLMProvider(ABC):
             )
 
         tlc = tier_config.for_level(level)
-        m, http_client = self.new_model(model=tlc.model, level=level)
+        m, http_client = self.new_model(model=tlc.model_name, level=level)
 
         return _build_agent(
             m,
