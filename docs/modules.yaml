@@ -77,6 +77,7 @@ modules:
     paths:
       - src/robotsix_llmio/weekly_pace/**
       - src/robotsix_llmio/config/weekly_pace.py
+      - tests/weekly_pace/__init__.py
       - tests/weekly_pace/test_weekly_pace.py
       - docs/weekly_pace/**
   - id: robotsix_llmio-tools
