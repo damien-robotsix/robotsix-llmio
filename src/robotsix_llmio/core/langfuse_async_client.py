@@ -135,7 +135,8 @@ class AsyncLangfuseReadClient:
                     f"Langfuse trace detail failed: "
                     f"HTTP {resp.status_code}: {resp.text[:200]}"
                 )
-            return resp.json()
+            result: dict[str, Any] = resp.json()
+            return result
 
     @staticmethod
     def parse_timestamp(value: Any) -> datetime:
