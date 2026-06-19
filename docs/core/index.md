@@ -14,7 +14,6 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 ### Config-tier re-exports
 
-- `LEGACY_TIER_MAP` — maps legacy `Tier.CHEAP`/`Tier.DEFAULT` values to the new three-tier levels
 - `LEVEL1_DEFAULT` — default `TierLevelConfig` for level 1 (fast/cheap)
 - `LEVEL2_DEFAULT` — default `TierLevelConfig` for level 2 (capable)
 - `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)

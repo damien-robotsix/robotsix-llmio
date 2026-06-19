@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking**: `ClaudeSDKTurnLimitError` and `ClaudeSDKQueryTimeout` now inherit from `RobotsixLLMIOError` instead of `RuntimeError` and `TimeoutError` respectively. Callers catching these exceptions by type must update to catch `RobotsixLLMIOError`.
 - **Deprecated:** `Tier` enum (`CHEAP` / `DEFAULT`) — use `TierLevel` and the `level` parameter (1–3) instead.
 - **Deprecated:** `MODEL_LEVEL_TO_TIER` mapping — use `TierConfig.for_level()`.
-- **Deprecated:** `LEGACY_TIER_MAP` — use `TierConfig.for_level()`.
+- **Removed:** `LEGACY_TIER_MAP` — the deprecated backward-compatibility mapping has been removed. Use `TierConfig.for_level()` instead.
 - `LLMProvider.new_model()` signature changed: the old `tier` parameter is replaced by `level` (int) + `model` (str).
 - `LLMProvider.build_agent()` accepts `level` (int, 1–3) and an optional `tier_config` instead of `tier`.
 
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | `provider.new_model(tier=...)` | `provider.new_model(level=..., model=...)` |
 | `TierConfig` from YAML with `provider` key | `TierConfig` with `transport` key (the old `provider` key is still accepted at input but emits a deprecation warning) |
 
-The old APIs still work but emit `DeprecationWarning` (for `Tier` / `LEGACY_TIER_MAP`) or `FutureWarning` (for legacy env vars). Update at your own pace.
+The old APIs still work but emit `DeprecationWarning` (for `Tier`) or `FutureWarning` (for legacy env vars). Update at your own pace.
 
 ## [0.1.0] - 2026-06-13
 
