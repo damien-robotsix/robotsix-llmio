@@ -35,14 +35,6 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def mock_get_provider(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """Patch ``get_provider`` as referenced by the factory module."""
-    mock = MagicMock(return_value=MagicMock(spec=LLMProvider))
-    monkeypatch.setattr("robotsix_llmio.config.factory.get_provider", mock)
-    return mock
-
-
-@pytest.fixture
 def mock_get_provider_for_identifier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> MagicMock:
@@ -100,48 +92,6 @@ class TestLoaderToFactoryChain:
 
         create_model(level=3, tier_config=cfg)
 
-        mock_get_provider_for_identifier.assert_called_once_with(
-            "claudeSDK-opus",
-        )
-
-    def test_transport_override_wins_over_loaded_config(
-        self,
-        mock_get_provider: MagicMock,
-        mock_get_provider_for_identifier: MagicMock,
-    ) -> None:
-        """An explicit ``transport`` argument overrides the loaded config's
-        level-based provider, but the loaded ``provider_kwargs`` still merge."""
-        cfg = load_tier_config(
-            {
-                "level1": {
-                    "model": "claudeSDK-opus",
-                    "provider_kwargs": {"timeout": 30},
-                }
-            }
-        )
-
-        create_model(level=1, tier_config=cfg, transport="openrouter[deepseek]")
-
-        mock_get_provider.assert_called_once_with(
-            provider="openrouter-deepseek",
-            timeout=30,
-        )
-
-    def test_env_driven_config_chains_to_factory(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        mock_get_provider_for_identifier: MagicMock,
-    ) -> None:
-        """A config built purely from environment variables flows into the
-        factory and resolves the env-specified identifier."""
-        monkeypatch.setenv("LLMIO_LEVEL1_TRANSPORT", "claude-sdk")
-        monkeypatch.setenv("LLMIO_LEVEL1_MODEL", "opus")
-
-        cfg = load_tier_config()
-
-        create_model(level=1, tier_config=cfg)
-
-        # transport=claude-sdk + model=opus → combined identifier claudeSDK-opus
         mock_get_provider_for_identifier.assert_called_once_with(
             "claudeSDK-opus",
         )

@@ -7,7 +7,6 @@ Covers:
 - ``TierConfig`` defaults and partial overrides
 - ``TierConfig.model_validate()`` from plain dicts
 - ``TierConfig.for_level()`` integer→TierLevelConfig resolution
-- ``LEGACY_TIER_MAP`` correctness
 - ``provider_kwargs`` default and serialisation
 """
 
@@ -16,7 +15,6 @@ from __future__ import annotations
 import pytest
 
 from robotsix_llmio.config.tier import (
-    LEGACY_TIER_MAP,
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
@@ -25,7 +23,6 @@ from robotsix_llmio.config.tier import (
     TierLevelConfig,
 )
 from robotsix_llmio.core.identifier import MalformedIdentifierError
-from robotsix_llmio.core.provider import Tier as LegacyTier
 
 # ========================================================================== #
 #  TierLevel enum
@@ -409,32 +406,6 @@ def test_for_level_returns_default_level3_when_not_explicitly_set():
 
 
 # ========================================================================== #
-#  LEGACY_TIER_MAP
-# ========================================================================== #
-
-
-def test_legacy_tier_map_keys():
-    """All legacy ``Tier`` values are keys in the mapping."""
-    assert set(LEGACY_TIER_MAP.keys()) == {LegacyTier.CHEAP, LegacyTier.DEFAULT}
-
-
-def test_legacy_tier_map_cheap_to_level1():
-    """``Tier.CHEAP`` maps to ``TierLevel.LEVEL1``."""
-    assert LEGACY_TIER_MAP[LegacyTier.CHEAP] == TierLevel.LEVEL1
-
-
-def test_legacy_tier_map_default_to_level2():
-    """``Tier.DEFAULT`` maps to ``TierLevel.LEVEL2``."""
-    assert LEGACY_TIER_MAP[LegacyTier.DEFAULT] == TierLevel.LEVEL2
-
-
-def test_legacy_tier_map_values_are_tier_level():
-    """Every value in the mapping is a ``TierLevel`` member."""
-    for v in LEGACY_TIER_MAP.values():
-        assert isinstance(v, TierLevel)
-
-
-# ========================================================================== #
 #  Re-exports from robotsix_llmio.core
 # ========================================================================== #
 
@@ -475,11 +446,3 @@ def test_core_reexports_defaults():
     assert L1D is LEVEL1_DEFAULT
     assert L2D is LEVEL2_DEFAULT
     assert L3D is LEVEL3_DEFAULT
-
-
-def test_core_reexports_legacy_tier_map():
-    """``LEGACY_TIER_MAP`` is importable from ``robotsix_llmio.core``
-    and emits a :exc:`DeprecationWarning` on access."""
-    with pytest.warns(DeprecationWarning, match="LEGACY_TIER_MAP is deprecated"):
-        from robotsix_llmio.core import LEGACY_TIER_MAP as LTM
-    assert LTM is LEGACY_TIER_MAP

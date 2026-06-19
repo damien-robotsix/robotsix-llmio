@@ -7,18 +7,13 @@ pydantic-ai or OpenTelemetry at module load time.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 __all__ = [
     "DEFAULT_TOLERANCE",
-    "LEGACY_TIER_MAP",
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
-    "MODEL_LEVEL_TO_TIER",
-    "PROVIDER_MODELS",
-    "TRANSPORT_ALIASES",
     "AgentHandle",
     "AsyncLangfuseReadClient",
     "CostLogSource",
@@ -39,7 +34,6 @@ __all__ = [
     "TierLevel",
     "TierLevelConfig",
     "TraceSpan",
-    "UnknownModelError",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
     "acall_with_tier_fallback",
@@ -52,7 +46,6 @@ __all__ = [
     "create_model",
     "current_session",
     "flush_tracing",
-    "get_provider",
     "get_provider_for_identifier",
     "get_recording_span",
     "get_tracer",
@@ -67,13 +60,11 @@ __all__ = [
     "make_session_id",
     "parse_model_identifier",
     "reconcile",
-    "register_provider",
     "run_agent",
     "setup_langfuse_tracing",
     "start_span",
     "start_trace",
     "timeout_http_client",
-    "validate_model",
 ]
 
 
@@ -102,18 +93,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import cost_log
 
         return cost_log.LoggedCost
-    if name == "get_provider":
-        from . import factory
-
-        return factory.get_provider
     if name == "get_provider_for_identifier":
         from . import factory
 
         return factory.get_provider_for_identifier
-    if name == "register_provider":
-        from . import factory
-
-        return factory.register_provider
     if name == "MalformedIdentifierError":
         from . import identifier
 
@@ -162,15 +145,6 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import tier as _config_tier
 
         return _config_tier.LEVEL3_DEFAULT
-    if name == "LEGACY_TIER_MAP":
-        warnings.warn(
-            "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.LEGACY_TIER_MAP
     if name == "TierConfig":
         from robotsix_llmio.config import tier as _config_tier
 
@@ -191,30 +165,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from robotsix_llmio.config import loader as _config_loader
 
         return _config_loader.load_tier_config
-    if name == "MODEL_LEVEL_TO_TIER":
-        from robotsix_llmio.config import transport as _config_transport
-
-        return _config_transport.MODEL_LEVEL_TO_TIER
-    if name == "PROVIDER_MODELS":
-        from robotsix_llmio.config import model_registry as _config_model_registry
-
-        return _config_model_registry.PROVIDER_MODELS
-    if name == "TRANSPORT_ALIASES":
-        from robotsix_llmio.config import transport as _config_transport
-
-        return _config_transport.TRANSPORT_ALIASES
     if name == "create_model":
         from robotsix_llmio.config import factory as _config_factory
 
         return _config_factory.create_model
-    if name == "UnknownModelError":
-        from robotsix_llmio.config import model_registry as _config_model_registry
-
-        return _config_model_registry.UnknownModelError
-    if name == "validate_model":
-        from robotsix_llmio.config import model_registry as _config_model_registry
-
-        return _config_model_registry.validate_model
     if name == "DEFAULT_TOLERANCE":
         from . import provider_cost
 
