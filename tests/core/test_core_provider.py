@@ -156,41 +156,23 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
     assert captured["system_prompt"] == "sys"
 
 
-def test_build_agent_default_level_is_1(monkeypatch):
-    """With no ``level`` argument, ``build_agent`` defaults to ``level=1``."""
+@pytest.mark.parametrize(
+    ("level", "expected_model"),
+    [
+        (1, "deepseek/deepseek-v4-flash"),
+        (2, "deepseek/deepseek-v4-pro"),
+        (3, "opus"),
+    ],
+)
+def test_build_agent_level_uses_default(monkeypatch, level, expected_model):
     p = _MockProvider()
 
     def fake_build_agent(*_args, **_kwargs):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(system_prompt="sys")
-    # LEVEL1_DEFAULT.model is "deepseek/deepseek-v4-flash" at level=1
-    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
-
-
-def test_build_agent_level_2_uses_level2_default(monkeypatch):
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(level=2, system_prompt="sys")
-    # LEVEL2_DEFAULT.model is "deepseek/deepseek-v4-pro"
-    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-pro", "level": 2}]
-
-
-def test_build_agent_level_3_uses_level3_default(monkeypatch):
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(level=3, system_prompt="sys")
-    # LEVEL3_DEFAULT.model is "opus"
-    assert p.new_model_calls == [{"model": "opus", "level": 3}]
+    p.build_agent(level=level, system_prompt="sys")
+    assert p.new_model_calls == [{"model": expected_model, "level": level}]
 
 
 def test_build_agent_level_out_of_range_raises(monkeypatch):
@@ -311,54 +293,46 @@ def test_build_agent_model_none_still_resolves_from_tier_config(monkeypatch):
 # --- build_agent primary path (tier_config provided) ------------------------
 
 
-def test_build_agent_with_tier_config_level_1(monkeypatch):
-    """Primary path: ``build_agent(level=1, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level1.model_name)``."""
-    cfg = TierConfig(
-        level1=TierLevelConfig(model="claudeSDK-opus"),
-    )
+@pytest.mark.parametrize(
+    ("level", "tier_config_kwargs", "expected_model"),
+    [
+        (
+            1,
+            {"level1": TierLevelConfig(model="claudeSDK-opus")},
+            "opus",
+        ),
+        (
+            2,
+            {
+                "level1": TierLevelConfig(model="claudeSDK-opus"),
+                "level2": TierLevelConfig(model="claudeSDK-haiku"),
+            },
+            "haiku",
+        ),
+        (
+            3,
+            {
+                "level1": TierLevelConfig(model="claudeSDK-opus"),
+                "level3": TierLevelConfig(model="claudeSDK-sonnet"),
+            },
+            "sonnet",
+        ),
+    ],
+)
+def test_build_agent_with_tier_config(
+    monkeypatch, level, tier_config_kwargs, expected_model
+):
+    """Primary path: ``build_agent(level=N, tier_config=cfg)`` calls
+    ``new_model(model=cfg.levelN.model_name)``."""
+    cfg = TierConfig(**tier_config_kwargs)
     p = _MockProvider()
 
     def fake_build_agent(*_args, **_kwargs):
         return SimpleNamespace()
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(level=1, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "opus", "level": 1}]
-
-
-def test_build_agent_with_tier_config_level_2(monkeypatch):
-    """Primary path: ``build_agent(level=2, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level2.model_name)``."""
-    cfg = TierConfig(
-        level1=TierLevelConfig(model="claudeSDK-opus"),
-        level2=TierLevelConfig(model="claudeSDK-haiku"),
-    )
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(level=2, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "haiku", "level": 2}]
-
-
-def test_build_agent_with_tier_config_level_3(monkeypatch):
-    """Primary path: ``build_agent(level=3, tier_config=cfg)`` calls
-    ``new_model(model=cfg.level3.model_name)``."""
-    cfg = TierConfig(
-        level1=TierLevelConfig(model="claudeSDK-opus"),
-        level3=TierLevelConfig(model="claudeSDK-sonnet"),
-    )
-    p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
-    p.build_agent(level=3, tier_config=cfg, system_prompt="sys")
-    assert p.new_model_calls == [{"model": "sonnet", "level": 3}]
+    p.build_agent(level=level, tier_config=cfg, system_prompt="sys")
+    assert p.new_model_calls == [{"model": expected_model, "level": level}]
 
 
 # --- call_with_retry delegation --------------------------------------------
