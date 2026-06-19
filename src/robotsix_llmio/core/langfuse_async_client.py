@@ -11,13 +11,13 @@ import base64
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from .constants import HTTP_CLIENT_TIMEOUT
 from .langfuse_client import (
-    _OBSERVATIONS_PATH,  # noqa: F401  # re-exported for downstream consumers
     _TRACES_PATH,
     _observation_cost,
     _observation_provider,
@@ -79,7 +79,7 @@ class AsyncLangfuseReadClient:
         the empty-``data`` break, and the ``meta.totalPages`` termination.
         *url* may be an absolute URL or a path relative to :attr:`base_url`.
         """
-        target = url if "://" in url else self.url(url)
+        target = url if urlparse(url).scheme else self.url(url)
         base_params = dict(params or {})
         headers = {"Authorization": self.auth_header()}
         async with httpx.AsyncClient(timeout=HTTP_CLIENT_TIMEOUT) as client:
@@ -92,8 +92,7 @@ class AsyncLangfuseReadClient:
                 )
                 if not (200 <= resp.status_code < 300):
                     raise RuntimeError(
-                        f"Langfuse {error_label} failed: "
-                        f"HTTP {resp.status_code}: {resp.text[:200]}"
+                        f"Langfuse {error_label} failed: HTTP {resp.status_code}"
                     )
                 body = resp.json()
                 data = body.get("data") or []
@@ -132,8 +131,7 @@ class AsyncLangfuseReadClient:
             resp = await client.get(target, headers=headers)
             if not (200 <= resp.status_code < 300):
                 raise RuntimeError(
-                    f"Langfuse trace detail failed: "
-                    f"HTTP {resp.status_code}: {resp.text[:200]}"
+                    f"Langfuse trace detail failed: HTTP {resp.status_code}"
                 )
             result: dict[str, Any] = resp.json()
             return result

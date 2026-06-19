@@ -19,6 +19,7 @@ from conftest import install_async_transport
 from robotsix_llmio.core import (
     langfuse_async_client as langfuse_async_client_module,
 )
+from robotsix_llmio.core import langfuse_client as langfuse_client_module
 from robotsix_llmio.core.langfuse_async_client import AsyncLangfuseReadClient
 
 
@@ -33,7 +34,7 @@ def _client() -> AsyncLangfuseReadClient:
 # --------------------------------------------------------------------------- #
 def test_rest_path_constants_match_wire_strings():
     assert langfuse_async_client_module._TRACES_PATH == "/api/public/traces"
-    assert langfuse_async_client_module._OBSERVATIONS_PATH == "/api/public/observations"
+    assert langfuse_client_module._OBSERVATIONS_PATH == "/api/public/observations"
 
 
 # --------------------------------------------------------------------------- #
