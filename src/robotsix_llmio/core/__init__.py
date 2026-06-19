@@ -7,7 +7,76 @@ pydantic-ai or OpenTelemetry at module load time.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+# Static re-declaration of every lazily-exported name (see ``__getattr__``
+# below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
+# False at runtime), so they add no import-time cost and preserve the PEP 562
+# lazy-loading behaviour — but they let type checkers, IDEs, and CodeQL see
+# each ``__all__`` entry as a defined module global. Without this, CodeQL's
+# ``py/undefined-export`` query flags every ``__all__`` name as "exported but
+# not defined" (it cannot model PEP 562 dynamic exports), failing the
+# code-scanning check on any PR that adds a new export. Keep this block in
+# sync with ``__all__`` and ``__getattr__``.
+if TYPE_CHECKING:
+    from robotsix_llmio.config.factory import create_model
+    from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
+    from robotsix_llmio.config.tier import (
+        LEVEL1_DEFAULT,
+        LEVEL2_DEFAULT,
+        LEVEL3_DEFAULT,
+        TierConfig,
+        TierLevel,
+        TierLevelConfig,
+    )
+
+    from .agent import AgentHandle, build_agent
+    from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
+    from .factory import get_provider_for_identifier
+    from .http import timeout_http_client
+    from .identifier import (
+        MalformedIdentifierError,
+        ParsedIdentifier,
+        parse_model_identifier,
+    )
+    from .langfuse_async_client import AsyncLangfuseReadClient
+    from .langfuse_client import LangfuseReadClient
+    from .langfuse_cost import LangfuseCostLogSource
+    from .provider import LLMProvider, Tier
+    from .provider_cost import (
+        DEFAULT_TOLERANCE,
+        Discrepancy,
+        ProviderCost,
+        ProviderCostSource,
+        reconcile,
+    )
+    from .retry import (
+        acall_with_retry,
+        acall_with_retry_and_fallback,
+        call_with_retry,
+        call_with_retry_and_fallback,
+        is_rate_limited,
+        is_transient,
+    )
+    from .run import arun_agent, run_agent
+    from .text_utils import html_to_text
+    from .tier_fallback import acall_with_tier_fallback, call_with_tier_fallback
+    from .tracing import (
+        TraceSpan,
+        active_routing_key,
+        current_session,
+        flush_tracing,
+        get_recording_span,
+        get_tracer,
+        install_signal_handlers,
+        langfuse_project,
+        langfuse_session,
+        langfuse_trace_url,
+        make_session_id,
+        setup_langfuse_tracing,
+        start_span,
+        start_trace,
+    )
 
 __all__ = [
     "DEFAULT_TOLERANCE",
