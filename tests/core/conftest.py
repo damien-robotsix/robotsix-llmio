@@ -37,6 +37,27 @@ def install_transport(
     return captured
 
 
+def install_async_transport(monkeypatch, handler, module) -> list[httpx.Request]:
+    """Patch ``httpx.AsyncClient`` so the adapter uses a ``MockTransport``
+    running *handler*. Returns a list that captures every request the
+    adapter sends."""
+    captured: list[httpx.Request] = []
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return handler(request)
+
+    transport = httpx.MockTransport(_handler)
+    real_async_client = httpx.AsyncClient
+
+    def _client(*args, **kwargs):
+        kwargs["transport"] = transport
+        return real_async_client(*args, **kwargs)
+
+    monkeypatch.setattr(module.httpx, "AsyncClient", _client)
+    return captured
+
+
 def make_window() -> CostWindow:
     return CostWindow(
         start=datetime(2026, 6, 3, 10, 0, tzinfo=UTC),

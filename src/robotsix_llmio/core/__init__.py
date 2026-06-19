@@ -20,6 +20,7 @@ __all__ = [
     "PROVIDER_MODELS",
     "TRANSPORT_ALIASES",
     "AgentHandle",
+    "AsyncLangfuseReadClient",
     "CostLogSource",
     "CostRecord",
     "CostWindow",
@@ -129,6 +130,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import http
 
         return http.timeout_http_client
+    if name == "AsyncLangfuseReadClient":
+        from . import langfuse_async_client
+
+        return langfuse_async_client.AsyncLangfuseReadClient
     if name == "LangfuseReadClient":
         from . import langfuse_client
 
