@@ -240,8 +240,16 @@ class ClaudeSDKModel(Model):
             system_prompt=system_text,
             model=self._sdk_model,
             max_turns=_MAX_TURNS,  # backstop only; no tools => answers in one turn
-            allowed_tools=[],  # no built-in tools (Read/Write/Bash/...)
-            permission_mode="default",
+            # This is the no-tools text path. ``allowed_tools=[]`` does NOT
+            # disable the SDK's built-in tools (Bash/Read/Edit/Monitor/...) — an
+            # empty allow-list means "no constraint", and ``can_use_tool`` is not
+            # consulted for them. The reliable lever is ``disallowed_tools``; a
+            # ``"*"`` wildcard denies every built-in tool (MCP tools, of which
+            # there are none here, would be unaffected). ``bypassPermissions``
+            # avoids a headless approval stall that otherwise degenerates into a
+            # spurious "error result" when the model reaches for a denied tool.
+            disallowed_tools=["*"],
+            permission_mode="bypassPermissions",
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
         )
 
