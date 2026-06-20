@@ -475,6 +475,60 @@ def test_build_agent_model_override_tool_path(monkeypatch):
     handle.close()
 
 
+def test_tool_path_resolves_bare_model_name(monkeypatch):
+    """The tool path must pass the SDK the *bare* model name ("haiku"), not the
+    transport-prefixed id ("claudeSDK-haiku") — the prefixed id is unknown to the
+    SDK and yields a degenerate "error result" frame."""
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,  # model="claudeSDK-haiku", model_name="haiku"
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    assert isinstance(handle, _SdkToolAgentHandle)
+    assert handle._sdk_model == "haiku"  # type: ignore[attr-defined]
+    handle.close()
+
+
+def test_restricted_tool_path_denies_builtins_not_mcp(monkeypatch):
+    """``builtin_tools=False`` denies the built-in tools by explicit name (not a
+    ``"*"`` wildcard, which would also block the injected MCP tools) and sets no
+    allow-list; ``builtin_tools=True`` keeps full access (allow-list, no deny)."""
+    from robotsix_llmio.claude_sdk._tool_agent import _BUILTIN_TOOL_DENYLIST
+
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+
+    restricted = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=False,
+    )
+    opts = restricted._build_options("sys")  # type: ignore[attr-defined]
+    assert opts.disallowed_tools == list(_BUILTIN_TOOL_DENYLIST)
+    assert "Bash" in opts.disallowed_tools
+    assert "*" not in opts.disallowed_tools
+    assert opts.permission_mode == "bypassPermissions"
+    assert not hasattr(opts, "allowed_tools")
+    restricted.close()
+
+    full = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=True,
+    )
+    opts2 = full._build_options("sys")  # type: ignore[attr-defined]
+    assert not hasattr(opts2, "disallowed_tools")
+    assert hasattr(opts2, "allowed_tools")
+    full.close()
+
+
 def test_tool_agent_invokes_tool_and_returns_output(monkeypatch):
     """build_agent with tools returns a handle; run_sync invokes the SDK tool
     loop and the final text reaches .output (offline, monkeypatched SDK)."""
