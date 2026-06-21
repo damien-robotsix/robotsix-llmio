@@ -83,11 +83,15 @@ async def _stream_query(
     label: str,
     *,
     extra_transient: Callable[[Exception], bool] | None = None,
-) -> tuple[str, Any]:
+) -> tuple[str, Any, str]:
     """Run the Claude Agent SDK streaming loop under the per-call wall-clock cap.
 
-    Returns ``(text, result)`` — joined assistant text (with the
-    ``ResultMessage.result`` fallback) and the captured ``ResultMessage``.
+    Returns ``(text, result, reasoning)`` — joined assistant text (with the
+    ``ResultMessage.result`` fallback), the captured ``ResultMessage``, and the
+    joined extended-thinking (``ThinkingBlock``) content the model emitted
+    before its answer (``""`` when thinking is off or unavailable). The SDK
+    streams thinking as its own block type; capturing it here lets callers
+    surface the model's reasoning in traces instead of discarding it.
 
     Converts a wall-clock timeout into :class:`ClaudeSDKQueryTimeout` (always).
     If *extra_transient* is given and returns ``True`` for a non-timeout
@@ -104,6 +108,7 @@ async def _stream_query(
     from .model import ClaudeSDKQueryTimeout, ClaudeSDKTurnLimitError
 
     chunks: list[str] = []
+    thoughts: list[str] = []
     result: Any = None
     turn = [0]
 
@@ -115,6 +120,14 @@ async def _stream_query(
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         chunks.append(block.text)
+                    # ``ThinkingBlock`` is matched by class name rather than by
+                    # import: the symbol isn't exported by every SDK version, and
+                    # a name check degrades to "no reasoning captured" instead of
+                    # an ImportError on older SDKs.
+                    elif type(block).__name__ == "ThinkingBlock":
+                        thinking = getattr(block, "thinking", "") or ""
+                        if thinking.strip():
+                            thoughts.append(thinking)
             elif isinstance(message, ResultMessage):
                 result = message
 
@@ -143,4 +156,5 @@ async def _stream_query(
     text = "".join(chunks).strip()
     if not text and result is not None:
         text = (getattr(result, "result", None) or "").strip()
-    return text, result
+    reasoning = "\n\n".join(thoughts).strip()
+    return text, result, reasoning
