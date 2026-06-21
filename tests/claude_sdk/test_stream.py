@@ -178,9 +178,10 @@ def test_stream_query_success(monkeypatch):
 
     fake.query = _fake_query
 
-    text, result = asyncio.run(_stream_query("prompt", None, "test"))
+    text, result, reasoning = asyncio.run(_stream_query("prompt", None, "test"))
     assert text == "hello from sdk"
     assert isinstance(result, fake.ResultMessage)
+    assert reasoning == ""  # no ThinkingBlock streamed → no reasoning
 
 
 def test_stream_query_result_fallback(monkeypatch):
@@ -194,8 +195,59 @@ def test_stream_query_result_fallback(monkeypatch):
 
     fake.query = _fake_query
 
-    text, _result = asyncio.run(_stream_query("prompt", None, "test"))
+    text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
     assert text == "fallback text"
+
+
+def test_stream_query_captures_thinking(monkeypatch):
+    """``ThinkingBlock`` content is captured and returned as the reasoning,
+    separate from the assistant text."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    class _FakeThinkingBlock:
+        def __init__(self, thinking: str) -> None:
+            self.thinking = thinking
+
+    # ``_stream_query`` matches the block by class name, not import.
+    _FakeThinkingBlock.__name__ = "ThinkingBlock"
+
+    async def _fake_query(*, prompt, options):
+        msg = fake.AssistantMessage("the answer")
+        # Both a thinking block and the visible answer in one assistant turn.
+        msg.content = [
+            _FakeThinkingBlock("step 1\nstep 2"),
+            fake.TextBlock("the answer"),
+        ]
+        yield msg
+        yield fake.ResultMessage()
+
+    fake.query = _fake_query
+
+    text, _result, reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "the answer"
+    assert reasoning == "step 1\nstep 2"
+
+
+def test_stream_query_blank_thinking_ignored(monkeypatch):
+    """A whitespace-only ThinkingBlock contributes no reasoning."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    class _FakeThinkingBlock:
+        def __init__(self, thinking: str) -> None:
+            self.thinking = thinking
+
+    _FakeThinkingBlock.__name__ = "ThinkingBlock"
+
+    async def _fake_query(*, prompt, options):
+        msg = fake.AssistantMessage("answer")
+        msg.content = [_FakeThinkingBlock("   "), fake.TextBlock("answer")]
+        yield msg
+        yield fake.ResultMessage()
+
+    fake.query = _fake_query
+
+    _text, _result, reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert reasoning == ""
 
 
 # ---------------------------------------------------------------------------

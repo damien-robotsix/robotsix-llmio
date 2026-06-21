@@ -25,6 +25,7 @@ from ..core.tracing import (
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
+    LANGFUSE_OBSERVATION_METADATA_REASONING,
     LANGFUSE_OBSERVATION_OUTPUT,
     OP_CHAT,
     OP_EXECUTE_TOOL,
@@ -268,17 +269,44 @@ _SDK_QUERY_ATTEMPTS = 3
 # and are therefore unaffected. Intentionally broad — listing a tool a given SDK
 # version doesn't expose is harmless.
 _BUILTIN_TOOL_DENYLIST = [
-    "Bash", "BashOutput", "KillShell", "KillBash",
-    "Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "NotebookRead",
-    "Glob", "Grep", "LS",
-    "WebFetch", "WebSearch",
-    "Task", "Agent", "Monitor",
-    "TodoWrite", "SlashCommand", "AskUserQuestion", "ExitPlanMode",
-    "EnterPlanMode", "ScheduleWakeup",
-    "CronCreate", "CronDelete", "CronList",
-    "EnterWorktree", "ExitWorktree", "DesignSync", "PushNotification",
+    "Bash",
+    "BashOutput",
+    "KillShell",
+    "KillBash",
+    "Read",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "NotebookRead",
+    "Glob",
+    "Grep",
+    "LS",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+    "Agent",
+    "Monitor",
+    "TodoWrite",
+    "SlashCommand",
+    "AskUserQuestion",
+    "ExitPlanMode",
+    "EnterPlanMode",
+    "ScheduleWakeup",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "EnterWorktree",
+    "ExitWorktree",
+    "DesignSync",
+    "PushNotification",
     "RemoteTrigger",
-    "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskStop", "TaskUpdate",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
 ]
 
 
@@ -552,11 +580,12 @@ class _SdkToolAgentHandle:
 
     async def _invoke_query(
         self, prompt: str, options: ClaudeAgentOptions
-    ) -> tuple[str, Any]:
+    ) -> tuple[str, Any, str]:
         """Run the SDK streaming loop under the per-call wall-clock cap.
 
-        Returns ``(text, result)`` — joined assistant text (with the
-        ``ResultMessage.result`` fallback) and the captured ``ResultMessage``.
+        Returns ``(text, result, reasoning)`` — joined assistant text (with the
+        ``ResultMessage.result`` fallback), the captured ``ResultMessage``, and
+        the model's joined extended-thinking content (``""`` when off).
         Converts a wall-clock timeout into :class:`ClaudeSDKQueryTimeout`.
 
         Transient SDK failures — notably the degenerate ``is_error=True`` /
@@ -587,13 +616,21 @@ class _SdkToolAgentHandle:
         raise last_exc
 
     def _record_generation_span(
-        self, system_prompt: str, prompt: str, text: str, result: Any
+        self,
+        system_prompt: str,
+        prompt: str,
+        text: str,
+        result: Any,
+        reasoning: str = "",
     ) -> None:
         """Open the child ``chat {model}`` generation span and stamp token
         usage + the SDK cost estimate on it.
 
         Cost MUST sit on this child observation to roll up — a root span
-        becomes the trace, not a summable observation.
+        becomes the trace, not a summable observation. *reasoning* (the model's
+        extended-thinking content) is recorded as observation metadata when
+        present, so traces show the model's reasoning, not just the answer and
+        tool calls.
         """
         from ..core.cost import record_cost
         from .model import PROVIDER_NAME
@@ -617,13 +654,18 @@ class _SdkToolAgentHandle:
                 LANGFUSE_OBSERVATION_OUTPUT: text,
             },
         ) as gen:
-            if gen is not None and isinstance(usage_obj, dict):
-                in_tok = usage_obj.get("input_tokens")
-                out_tok = usage_obj.get("output_tokens")
-                if in_tok is not None:
-                    gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
-                if out_tok is not None:
-                    gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
+            if gen is not None:
+                if reasoning:
+                    gen.set_attribute(
+                        LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning
+                    )
+                if isinstance(usage_obj, dict):
+                    in_tok = usage_obj.get("input_tokens")
+                    out_tok = usage_obj.get("output_tokens")
+                    if in_tok is not None:
+                        gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
+                    if out_tok is not None:
+                        gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
             record_cost(
                 result,
                 lambda r: getattr(r, "total_cost_usd", None),
@@ -653,10 +695,10 @@ class _SdkToolAgentHandle:
                 self._sdk_model,
                 self._max_turns,
             )
-            text, result = await self._invoke_query(prompt, options)
+            text, result, reasoning = await self._invoke_query(prompt, options)
             if root is not None:
                 root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
-            self._record_generation_span(system_prompt, prompt, text, result)
+            self._record_generation_span(system_prompt, prompt, text, result, reasoning)
         from pydantic_ai.messages import ModelResponse, TextPart
 
         return _SdkToolResult(
