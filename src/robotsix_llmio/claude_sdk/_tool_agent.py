@@ -269,17 +269,44 @@ _SDK_QUERY_ATTEMPTS = 3
 # and are therefore unaffected. Intentionally broad — listing a tool a given SDK
 # version doesn't expose is harmless.
 _BUILTIN_TOOL_DENYLIST = [
-    "Bash", "BashOutput", "KillShell", "KillBash",
-    "Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "NotebookRead",
-    "Glob", "Grep", "LS",
-    "WebFetch", "WebSearch",
-    "Task", "Agent", "Monitor",
-    "TodoWrite", "SlashCommand", "AskUserQuestion", "ExitPlanMode",
-    "EnterPlanMode", "ScheduleWakeup",
-    "CronCreate", "CronDelete", "CronList",
-    "EnterWorktree", "ExitWorktree", "DesignSync", "PushNotification",
+    "Bash",
+    "BashOutput",
+    "KillShell",
+    "KillBash",
+    "Read",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "NotebookRead",
+    "Glob",
+    "Grep",
+    "LS",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+    "Agent",
+    "Monitor",
+    "TodoWrite",
+    "SlashCommand",
+    "AskUserQuestion",
+    "ExitPlanMode",
+    "EnterPlanMode",
+    "ScheduleWakeup",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "EnterWorktree",
+    "ExitWorktree",
+    "DesignSync",
+    "PushNotification",
     "RemoteTrigger",
-    "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskStop", "TaskUpdate",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
 ]
 
 
@@ -671,9 +698,7 @@ class _SdkToolAgentHandle:
             text, result, reasoning = await self._invoke_query(prompt, options)
             if root is not None:
                 root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
-            self._record_generation_span(
-                system_prompt, prompt, text, result, reasoning
-            )
+            self._record_generation_span(system_prompt, prompt, text, result, reasoning)
         from pydantic_ai.messages import ModelResponse, TextPart
 
         return _SdkToolResult(
