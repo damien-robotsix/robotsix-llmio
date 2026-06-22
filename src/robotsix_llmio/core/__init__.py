@@ -32,7 +32,12 @@ if TYPE_CHECKING:
 
     from .agent import AgentHandle, build_agent
     from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
-    from .factory import get_provider_for_identifier
+    from .factory import (
+        build_agent_for_level,
+        default_tier_config,
+        get_provider_for_identifier,
+        get_provider_for_level,
+    )
     from .http import timeout_http_client
     from .identifier import (
         MalformedIdentifierError,
@@ -109,13 +114,16 @@ __all__ = [
     "active_routing_key",
     "arun_agent",
     "build_agent",
+    "build_agent_for_level",
     "call_with_retry",
     "call_with_retry_and_fallback",
     "call_with_tier_fallback",
     "create_model",
     "current_session",
+    "default_tier_config",
     "flush_tracing",
     "get_provider_for_identifier",
+    "get_provider_for_level",
     "get_recording_span",
     "get_tracer",
     "html_to_text",
@@ -166,6 +174,18 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import factory
 
         return factory.get_provider_for_identifier
+    if name == "get_provider_for_level":
+        from . import factory
+
+        return factory.get_provider_for_level
+    if name == "build_agent_for_level":
+        from . import factory
+
+        return factory.build_agent_for_level
+    if name == "default_tier_config":
+        from . import factory
+
+        return factory.default_tier_config
     if name == "MalformedIdentifierError":
         from . import identifier
 
