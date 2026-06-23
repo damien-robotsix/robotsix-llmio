@@ -113,6 +113,34 @@ already supports all three levels end-to-end.
 You can also set `LLMIO_LEVEL<N>_PROVIDER_KWARGS` as a JSON object for extra
 constructor arguments (e.g. `{"base_url": "https://proxy.example/api/v1"}`).
 
+### One-liner: pick a level, get an agent
+
+For new code, the consumer never needs provider knowledge — just pick a level.
+`build_agent_for_level` resolves that level's baked default *(provider, model)*
+binding, lazy-imports the right backend, and returns a ready-to-run agent:
+
+```python
+from robotsix_llmio import build_agent_for_level
+
+# Level 1 → OpenRouter DeepSeek (deepseek-v4-flash): cheap and fast.
+cheap = build_agent_for_level(1, system_prompt="Classify this.", name="classify")
+
+# Level 3 → Claude SDK (opus): high-level planning. Requires the
+# `claude_sdk` extra.
+planner = build_agent_for_level(
+    3, system_prompt="Plan this epic.", tools=[], name="plan"
+)
+```
+
+With everything left at its default the baked per-level defaults apply
+(level 1 → `deepseek/deepseek-v4-flash`, level 2 → `deepseek/deepseek-v4-pro`,
+level 3 → `opus`) — each on its **own** provider, so a DeepSeek model never runs
+on the Claude transport. `model=` overrides only the model name (the provider
+stays the one bound to the level); pass a custom `tier_config=` to override the
+bindings, and `provider_kwargs=` for provider-constructor arguments. Two related
+helpers are exported alongside it: `get_provider_for_level(level)` (just the
+provider) and `default_tier_config()` (the baked binding as a `TierConfig`).
+
 ### Migrating from `tier` to `level`
 
 The legacy `tier` parameter and `Tier` enum are deprecated.  Use `level` instead:
