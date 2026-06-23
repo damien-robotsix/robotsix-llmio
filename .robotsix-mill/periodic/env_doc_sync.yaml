@@ -1,0 +1,7 @@
+# Per-repo periodic workflow: presence enables env_doc_sync for this repo.
+# Cross-references every env-var name declared across Pydantic Settings
+# mixins and secrets against documentation surfaces and files draft
+# tickets for discrepancies. Repo-agnostic — this file partial-merges
+# over the built-in env_doc_sync definition (lives in
+# robotsix-mill: agent_definitions/periodic/env_doc_sync.yaml).
+name: env_doc_sync
