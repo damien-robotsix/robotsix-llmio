@@ -25,7 +25,7 @@ jobs:
       coverage-threshold: "90"
       pytest-args: '-m "not live"'
       run-deptry: false
-      run-bandit: true
+      run-bandit: false
       mypy-advisory: false
 
   ruff:

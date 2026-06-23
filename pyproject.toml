@@ -59,7 +59,7 @@ tracing = [
     "opentelemetry-exporter-otlp-proto-http",
 ]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
-dev = ["pytest", "pytest-cov", "ruff", "mypy", "bandit", "pip-audit", "vulture"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pip-audit", "vulture"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
@@ -76,10 +76,17 @@ select = [
     "SIM",      # flake8-simplify
     "C4",       # flake8-comprehensions
     "RUF",      # Ruff-specific rules
+    "S",        # flake8-bandit — security checks (replaces standalone bandit)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "vulture_whitelist.py" = ["B018", "F821"]
+"src/robotsix_llmio/claude_sdk/_stream.py" = ["S110"]
+"src/robotsix_llmio/claude_sdk/_tool_agent.py" = ["S101"]
+"src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
+"src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
+"src/robotsix_llmio/tools/_builtins.py" = ["S311"]
+"tests/**/*.py" = ["S101", "S106"]
 
 [tool.mypy]
 python_version = "3.11"
