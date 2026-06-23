@@ -113,7 +113,7 @@ def test_build_agent_threads_workspace_root(tmp_path):
     handle = ClaudeSDKProvider().build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(model="claudeSDK-haiku"),
         ),
         system_prompt="p",
         tools=[noop_tool],
@@ -133,7 +133,7 @@ def test_build_agent_workspace_root_defaults_none(tmp_path):
     handle = ClaudeSDKProvider().build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+            level1=TierLevelConfig(model="claudeSDK-haiku"),
         ),
         system_prompt="p",
         tools=[noop_tool],

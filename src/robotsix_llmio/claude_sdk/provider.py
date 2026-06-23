@@ -76,6 +76,7 @@ class ClaudeSDKProvider(LLMProvider):
         name: str | None = None,
         retries: int = 2,
         workspace_root: str | Path | None = None,
+        builtin_tools: bool = True,
     ) -> Any:
         """Build a ready-to-run agent for the requested capability *level*.
 
@@ -139,7 +140,11 @@ class ClaudeSDKProvider(LLMProvider):
                 )
 
             tlc = tier_config.for_level(level)
-            sdk_model = tlc.model
+            # Use the bare model name the SDK understands (e.g. "opus"), NOT the
+            # transport-prefixed id (".model" == "claudeSDK-opus"), which the SDK
+            # does not recognize — it yields a degenerate "error result" frame.
+            # (The no-tools Model path already resolves via ``model_name``.)
+            sdk_model = tlc.model_name
 
         allowed_tools, server = _convert_tools(tools)
         return _SdkToolAgentHandle(
@@ -150,4 +155,5 @@ class ClaudeSDKProvider(LLMProvider):
             output_type=output_type,
             name=name,
             workspace_root=workspace_root,
+            builtin_tools=builtin_tools,
         )

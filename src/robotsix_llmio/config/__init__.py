@@ -9,42 +9,28 @@ config package does not eagerly pull in pydantic until a name is accessed.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 __all__ = [
-    "LEGACY_TIER_MAP",
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
-    "MODEL_LEVEL_TO_TIER",
-    "PROVIDER_MODELS",
-    "TRANSPORT_ALIASES",
+    "MalformedIdentifierError",
     "ModelWeightConfig",
+    "ParsedIdentifier",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
-    "UnknownModelError",
-    "UnknownTransportError",
     "WeeklyPaceConfig",
     "create_model",
+    "get_provider_for_identifier",
     "load_tier_config",
-    "validate_model",
-    "validate_transport",
+    "parse_model_identifier",
 ]
 
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
-    if name == "LEGACY_TIER_MAP":
-        warnings.warn(
-            "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from . import tier
-
-        return tier.LEGACY_TIER_MAP
     if name == "LEVEL1_DEFAULT":
         from . import tier
 
@@ -89,32 +75,20 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import factory
 
         return factory.create_model
-    if name == "TRANSPORT_ALIASES":
-        from . import transport
+    if name == "get_provider_for_identifier":
+        from robotsix_llmio.core import factory as _core_factory
 
-        return transport.TRANSPORT_ALIASES
-    if name == "MODEL_LEVEL_TO_TIER":
-        from . import transport
+        return _core_factory.get_provider_for_identifier
+    if name == "MalformedIdentifierError":
+        from robotsix_llmio.core import identifier as _core_identifier
 
-        return transport.MODEL_LEVEL_TO_TIER
-    if name == "UnknownTransportError":
-        from . import transport
+        return _core_identifier.MalformedIdentifierError
+    if name == "ParsedIdentifier":
+        from robotsix_llmio.core import identifier as _core_identifier
 
-        return transport.UnknownTransportError
-    if name == "validate_transport":
-        from . import transport
+        return _core_identifier.ParsedIdentifier
+    if name == "parse_model_identifier":
+        from robotsix_llmio.core import identifier as _core_identifier
 
-        return transport.validate_transport
-    if name == "PROVIDER_MODELS":
-        from . import model_registry
-
-        return model_registry.PROVIDER_MODELS
-    if name == "UnknownModelError":
-        from . import model_registry
-
-        return model_registry.UnknownModelError
-    if name == "validate_model":
-        from . import model_registry
-
-        return model_registry.validate_model
+        return _core_identifier.parse_model_identifier
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

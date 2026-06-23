@@ -49,6 +49,13 @@ LoggedCost.record_count
 CostLogSource.fetch_logged_cost
 
 # ---------------------------------------------------------------------------
+# core/langfuse_async_client.py — public async read methods
+# ---------------------------------------------------------------------------
+
+AsyncLangfuseReadClient.fetch_traces_window
+AsyncLangfuseReadClient.fetch_trace_detail
+
+# ---------------------------------------------------------------------------
 # core/langfuse_client.py — public static helpers
 # ---------------------------------------------------------------------------
 
@@ -88,6 +95,15 @@ OpenRouterKeyCostSource.fetch_key_usage
 OpenRouterProviderCostSource.fetch_provider_cost
 
 # ---------------------------------------------------------------------------
+# core/tier_enum.py — StrEnum members used externally
+# ---------------------------------------------------------------------------
+
+# Tier.DEFAULT and Tier.CHEAP are accessed via ``from .tier_enum import Tier``
+# in core/provider.py (re-exported) and from test code.
+Tier.DEFAULT
+Tier.CHEAP
+
+# ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 
@@ -97,8 +113,7 @@ TierLevel.LEVEL3
 
 # Pydantic model fields + validators accessed by pydantic's metaclass
 # machinery, not by direct Python name access that vulture would detect.
-TierLevelConfig._validate_model_names
-TierLevelConfig._accept_legacy_provider
+TierLevelConfig._validate_identifier
 TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2

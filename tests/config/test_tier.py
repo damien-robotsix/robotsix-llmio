@@ -3,11 +3,10 @@
 Covers:
 - ``TierLevel`` enum values and ``str`` behaviour
 - ``TierLevelConfig`` construction, field types, ``model_dump()`` round-trip
-- ``transport`` validation and the backward-compatible ``provider`` shape
+- Combined provider-model identifier validation
 - ``TierConfig`` defaults and partial overrides
 - ``TierConfig.model_validate()`` from plain dicts
 - ``TierConfig.for_level()`` integer→TierLevelConfig resolution
-- ``LEGACY_TIER_MAP`` correctness
 - ``provider_kwargs`` default and serialisation
 """
 
@@ -15,9 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from robotsix_llmio.config.model_registry import UnknownModelError
 from robotsix_llmio.config.tier import (
-    LEGACY_TIER_MAP,
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
@@ -25,8 +22,7 @@ from robotsix_llmio.config.tier import (
     TierLevel,
     TierLevelConfig,
 )
-from robotsix_llmio.config.transport import UnknownTransportError
-from robotsix_llmio.core.provider import Tier as LegacyTier
+from robotsix_llmio.core.identifier import MalformedIdentifierError
 
 # ========================================================================== #
 #  TierLevel enum
@@ -75,72 +71,73 @@ def test_tier_level_members():
 
 
 def test_tier_level_config_minimal_construction():
-    """Minimal construction requires only ``transport`` and ``model``."""
-    cfg = TierLevelConfig(transport="claude-sdk", model="opus")
-    assert cfg.transport == "claude-sdk"
-    assert cfg.model == "opus"
+    """Minimal construction requires only ``model``."""
+    cfg = TierLevelConfig(model="claudeSDK-opus")
+    assert cfg.model == "claudeSDK-opus"
+    assert cfg.provider == "claudeSDK"
+    assert cfg.model_name == "opus"
+    assert cfg.sub_alias is None
     assert cfg.provider_kwargs == {}
 
 
-def test_tier_level_config_valid_transport_and_model():
-    """A valid transport alias with a supported model constructs cleanly."""
-    cfg = TierLevelConfig(
-        transport="openrouter[deepseek]", model="deepseek/deepseek-v4-pro"
-    )
-    assert cfg.transport == "openrouter[deepseek]"
-    assert cfg.provider == "openrouter-deepseek"
+def test_tier_level_config_with_sub_alias():
+    """A valid identifier with a sub-alias constructs and parses cleanly."""
+    cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
+    assert cfg.provider == "openrouter"
+    assert cfg.sub_alias == "deepseek"
+    assert cfg.model_name == "deepseek/deepseek-v4-pro"
 
 
 def test_tier_level_config_with_provider_kwargs():
     """``provider_kwargs`` can be supplied explicitly."""
     cfg = TierLevelConfig(
-        transport="claude-sdk", model="opus", provider_kwargs={"base_url": "https://x"}
+        model="claudeSDK-opus", provider_kwargs={"base_url": "https://x"}
     )
     assert cfg.provider_kwargs == {"base_url": "https://x"}
 
 
 def test_tier_level_config_provider_kwargs_defaults_to_empty_dict():
     """Omitting ``provider_kwargs`` yields ``{}``, never ``None``."""
-    cfg = TierLevelConfig(transport="claude-sdk", model="opus")
+    cfg = TierLevelConfig(model="claudeSDK-opus")
     assert cfg.provider_kwargs == {}
     assert isinstance(cfg.provider_kwargs, dict)
 
 
 def test_tier_level_config_field_types():
     """Fields are correctly typed."""
-    cfg = TierLevelConfig(transport="claude-sdk", model="opus")
-    assert isinstance(cfg.transport, str)
+    cfg = TierLevelConfig(model="claudeSDK-opus")
     assert isinstance(cfg.model, str)
     assert isinstance(cfg.provider_kwargs, dict)
+    assert isinstance(cfg.provider, str)
+    assert cfg.sub_alias is None or isinstance(cfg.sub_alias, str)
+    assert isinstance(cfg.model_name, str)
 
 
 def test_tier_level_config_model_dump_round_trip():
     """A constructed instance round-trips through ``model_dump()`` →
     ``TierLevelConfig(**dump)`` without losing data."""
     original = TierLevelConfig(
-        transport="openrouter[deepseek]",
-        model="deepseek/deepseek-v4-flash",
+        model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
         provider_kwargs={"base_url": "https://custom"},
     )
     reloaded = TierLevelConfig(**original.model_dump())
     assert reloaded == original
-    assert reloaded.transport == original.transport
     assert reloaded.model == original.model
     assert reloaded.provider_kwargs == original.provider_kwargs
 
 
-def test_tier_level_config_model_dump_emits_transport_not_provider():
-    """``model_dump()`` emits the ``transport`` field and never ``provider``."""
-    dump = TierLevelConfig(transport="claude-sdk", model="opus").model_dump()
-    assert dump["transport"] == "claude-sdk"
+def test_tier_level_config_model_dump_emits_model_not_transport():
+    """``model_dump()`` emits ``model``, never ``transport`` or ``provider``."""
+    dump = TierLevelConfig(model="claudeSDK-opus").model_dump()
+    assert dump["model"] == "claudeSDK-opus"
+    assert "transport" not in dump
     assert "provider" not in dump
 
 
 def test_tier_level_config_json_round_trip():
     """``model_dump_json()`` → ``model_validate_json()`` preserves equality."""
     original = TierLevelConfig(
-        transport="openrouter[deepseek]",
-        model="deepseek/deepseek-v4-flash",
+        model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
         provider_kwargs={"key": "val"},
     )
     json_str = original.model_dump_json()
@@ -148,60 +145,33 @@ def test_tier_level_config_json_round_trip():
     assert reloaded == original
 
 
-def test_tier_level_config_unknown_transport_raises():
-    """An unknown transport raises :class:`UnknownTransportError`."""
-    with pytest.raises(UnknownTransportError):
-        TierLevelConfig(transport="not-a-transport", model="opus")
+def test_tier_level_config_unknown_provider_prefix_raises():
+    """An unknown provider prefix raises :class:`ValueError`."""
+    with pytest.raises(ValueError, match="Unknown provider prefix"):
+        TierLevelConfig(model="bogusPrefix-opus")
 
 
-def test_tier_level_config_unsupported_model_raises():
-    """A known transport with an unsupported model raises ``UnknownModelError``."""
-    with pytest.raises(UnknownModelError):
-        TierLevelConfig(transport="claude-sdk", model="not-a-model")
-
-
-def test_tier_level_config_backward_compat_provider_kwarg():
-    """Constructing with the legacy ``provider`` kwarg converts to transport."""
-    cfg = TierLevelConfig(
-        provider="openrouter-deepseek",  # type: ignore[call-arg]
-        model="deepseek/deepseek-v4-pro",
-    )
-    assert cfg.transport == "openrouter[deepseek]"
-    assert cfg.provider == "openrouter-deepseek"
-
-
-def test_tier_level_config_backward_compat_model_validate():
-    """``model_validate`` accepts the old ``provider`` shape."""
-    cfg = TierLevelConfig.model_validate(
-        {"provider": "openrouter-deepseek", "model": "deepseek/deepseek-v4-flash"}
-    )
-    assert cfg.transport == "openrouter[deepseek]"
-    assert cfg.provider == "openrouter-deepseek"
-
-
-def test_tier_level_config_transport_wins_over_provider():
-    """When both keys are present, ``transport`` wins and ``provider`` drops."""
-    cfg = TierLevelConfig.model_validate(
-        {
-            "transport": "claude-sdk",
-            "provider": "openrouter-deepseek",
-            "model": "opus",
-        }
-    )
-    assert cfg.transport == "claude-sdk"
-    assert cfg.provider == "claude-sdk"
-
-
-def test_tier_level_config_missing_transport_raises():
-    """``transport`` is required — omitting it raises ValidationError."""
-    with pytest.raises(ValueError):  # pydantic v2 raises ValidationError ⊆ ValueError
-        TierLevelConfig(model="opus")  # type: ignore[call-arg]
+def test_tier_level_config_unknown_model_succeeds():
+    """A valid provider prefix with an unrecognised model name is accepted —
+    model-name cross-check is the backend's concern."""
+    cfg = TierLevelConfig(model="claudeSDK-not-a-model")
+    assert cfg.provider == "claudeSDK"
+    assert cfg.model_name == "not-a-model"
 
 
 def test_tier_level_config_missing_model_raises():
     """``model`` is required — omitting it raises ValidationError."""
+    with pytest.raises(ValueError):  # pydantic v2 raises ValidationError ⊆ ValueError
+        TierLevelConfig()  # type: ignore[call-arg]
+
     with pytest.raises(ValueError):
-        TierLevelConfig(transport="claude-sdk")  # type: ignore[call-arg]
+        TierLevelConfig(provider_kwargs={})  # type: ignore[call-arg]
+
+
+def test_tier_level_config_malformed_identifier_raises():
+    """A malformed identifier (no hyphen) raises :class:`MalformedIdentifierError`."""
+    with pytest.raises(MalformedIdentifierError):
+        TierLevelConfig(model="no_hyphen_at_all")
 
 
 # ========================================================================== #
@@ -210,21 +180,52 @@ def test_tier_level_config_missing_model_raises():
 
 
 def test_level1_default():
-    assert LEVEL1_DEFAULT.transport == "openrouter[deepseek]"
-    assert LEVEL1_DEFAULT.provider == "openrouter-deepseek"
-    assert LEVEL1_DEFAULT.model == "deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.provider == "openrouter"
+    assert LEVEL1_DEFAULT.sub_alias == "deepseek"
+    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash"
 
 
 def test_level2_default():
-    assert LEVEL2_DEFAULT.transport == "openrouter[deepseek]"
-    assert LEVEL2_DEFAULT.provider == "openrouter-deepseek"
-    assert LEVEL2_DEFAULT.model == "deepseek/deepseek-v4-pro"
+    assert LEVEL2_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert LEVEL2_DEFAULT.provider == "openrouter"
+    assert LEVEL2_DEFAULT.sub_alias == "deepseek"
+    assert LEVEL2_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
 
 
 def test_level3_default():
-    assert LEVEL3_DEFAULT.transport == "claude-sdk"
-    assert LEVEL3_DEFAULT.provider == "claude-sdk"
-    assert LEVEL3_DEFAULT.model == "opus"
+    assert LEVEL3_DEFAULT.model == "claudeSDK-opus"
+    assert LEVEL3_DEFAULT.provider == "claudeSDK"
+    assert LEVEL3_DEFAULT.sub_alias is None
+    assert LEVEL3_DEFAULT.model_name == "opus"
+
+
+# ========================================================================== #
+#  TierLevelConfig parsed accessors
+# ========================================================================== #
+
+
+def test_tier_level_config_parsed_accessors_simple():
+    """Parsed accessors work for a simple provider-model identifier."""
+    cfg = TierLevelConfig(model="claudeSDK-haiku")
+    assert cfg.provider == "claudeSDK"
+    assert cfg.sub_alias is None
+    assert cfg.model_name == "haiku"
+
+
+def test_tier_level_config_parsed_accessors_with_sub_alias():
+    """Parsed accessors work for an identifier with bracketed sub-alias."""
+    cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
+    assert cfg.provider == "openrouter"
+    assert cfg.sub_alias == "deepseek"
+    assert cfg.model_name == "deepseek/deepseek-v4-pro"
+
+
+def test_tier_level_config_parsed_accessors_dash_in_model_name():
+    """The model_name portion may itself contain hyphens."""
+    cfg = TierLevelConfig(model="claudeSDK-some-model-with-dashes")
+    assert cfg.provider == "claudeSDK"
+    assert cfg.model_name == "some-model-with-dashes"
 
 
 # ========================================================================== #
@@ -235,24 +236,22 @@ def test_level3_default():
 def test_tier_config_full_construction():
     """Explicitly providing all three levels uses those values."""
     cfg = TierConfig(
-        level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
-        level2=TierLevelConfig(
-            transport="openrouter[deepseek]", model="deepseek/deepseek-v4-pro"
-        ),
-        level3=TierLevelConfig(transport="claude-sdk", model="opus"),
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
+        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
+        level3=TierLevelConfig(model="claudeSDK-opus"),
     )
-    assert cfg.level1.model == "haiku"
-    assert cfg.level2.model == "deepseek/deepseek-v4-pro"
-    assert cfg.level3.model == "opus"
+    assert cfg.level1.model == "claudeSDK-haiku"
+    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level3.model == "claudeSDK-opus"
 
 
 def test_tier_config_defaults_when_omitted():
     """Constructing with only ``level1`` falls back to baked defaults for
     ``level2`` and ``level3``."""
     cfg = TierConfig(
-        level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
     )
-    assert cfg.level1.model == "haiku"
+    assert cfg.level1.model == "claudeSDK-haiku"
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
 
@@ -266,7 +265,7 @@ def test_tier_config_all_defaults():
 
 def test_tier_config_partial_override_level2():
     """Specifying ``level2`` overrides the default; ``level3`` stays baked."""
-    custom = TierLevelConfig(transport="claude-sdk", model="sonnet")
+    custom = TierLevelConfig(model="claudeSDK-sonnet")
     cfg = TierConfig(level1=LEVEL1_DEFAULT, level2=custom)
     assert cfg.level2 is custom
     assert cfg.level3 == LEVEL3_DEFAULT
@@ -274,7 +273,7 @@ def test_tier_config_partial_override_level2():
 
 def test_tier_config_partial_override_level3():
     """Specifying ``level3`` overrides the default; ``level2`` stays baked."""
-    custom = TierLevelConfig(transport="claude-sdk", model="sonnet")
+    custom = TierLevelConfig(model="claudeSDK-sonnet")
     cfg = TierConfig(level1=LEVEL1_DEFAULT, level3=custom)
     assert cfg.level3 is custom
     assert cfg.level2 == LEVEL2_DEFAULT
@@ -284,11 +283,11 @@ def test_tier_config_model_validate_from_dict():
     """``model_validate`` from a plain dict populates all tiers, applying
     baked defaults for omitted ones."""
     data = {
-        "level1": {"transport": "claude-sdk", "model": "haiku"},
+        "level1": {"model": "claudeSDK-haiku"},
     }
     cfg = TierConfig.model_validate(data)
-    assert cfg.level1.transport == "claude-sdk"
-    assert cfg.level1.model == "haiku"
+    assert cfg.level1.model == "claudeSDK-haiku"
+    assert cfg.level1.provider == "claudeSDK"
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
 
@@ -296,30 +295,14 @@ def test_tier_config_model_validate_from_dict():
 def test_tier_config_model_validate_full_dict():
     """All three tiers can be supplied in the dict."""
     data = {
-        "level1": {"transport": "claude-sdk", "model": "haiku"},
-        "level2": {
-            "transport": "openrouter[deepseek]",
-            "model": "deepseek/deepseek-v4-pro",
-        },
-        "level3": {"transport": "claude-sdk", "model": "opus"},
+        "level1": {"model": "claudeSDK-haiku"},
+        "level2": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-pro"},
+        "level3": {"model": "claudeSDK-opus"},
     }
     cfg = TierConfig.model_validate(data)
-    assert cfg.level1.model == "haiku"
-    assert cfg.level2.model == "deepseek/deepseek-v4-pro"
-    assert cfg.level3.model == "opus"
-
-
-def test_tier_config_model_validate_backward_compat_provider():
-    """``model_validate`` accepts the legacy ``provider`` shape per tier."""
-    data = {
-        "level1": {
-            "provider": "openrouter-deepseek",
-            "model": "deepseek/deepseek-v4-flash",
-        },
-    }
-    cfg = TierConfig.model_validate(data)
-    assert cfg.level1.transport == "openrouter[deepseek]"
-    assert cfg.level1.provider == "openrouter-deepseek"
+    assert cfg.level1.model == "claudeSDK-haiku"
+    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level3.model == "claudeSDK-opus"
 
 
 def test_tier_config_missing_level1_raises():
@@ -331,13 +314,9 @@ def test_tier_config_missing_level1_raises():
 def test_tier_config_model_dump_round_trip():
     """Full config survives ``model_dump()`` → ``model_validate()``."""
     original = TierConfig(
-        level1=TierLevelConfig(
-            transport="claude-sdk", model="opus", provider_kwargs={"x": 1}
-        ),
-        level2=TierLevelConfig(
-            transport="openrouter[deepseek]", model="deepseek/deepseek-v4-pro"
-        ),
-        level3=TierLevelConfig(transport="claude-sdk", model="haiku"),
+        level1=TierLevelConfig(model="claudeSDK-opus", provider_kwargs={"x": 1}),
+        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
+        level3=TierLevelConfig(model="claudeSDK-haiku"),
     )
     reloaded = TierConfig.model_validate(original.model_dump())
     assert reloaded == original
@@ -347,8 +326,7 @@ def test_tier_config_provider_kwargs_serialisation():
     """``provider_kwargs`` survives a full dump→validate round-trip."""
     cfg = TierConfig(
         level1=TierLevelConfig(
-            transport="claude-sdk",
-            model="opus",
+            model="claudeSDK-opus",
             provider_kwargs={"base_url": "https://example.com", "timeout": 30},
         ),
     )
@@ -365,50 +343,48 @@ def test_tier_config_provider_kwargs_serialisation():
 def test_for_level_1_returns_level1():
     """``for_level(1)`` returns ``self.level1``."""
     cfg = TierConfig(
-        level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
     )
     result = cfg.for_level(1)
     assert result is cfg.level1
-    assert result.transport == "claude-sdk"
-    assert result.model == "haiku"
+    assert result.model == "claudeSDK-haiku"
+    assert result.provider == "claudeSDK"
 
 
 def test_for_level_2_returns_level2():
     """``for_level(2)`` returns ``self.level2`` — explicit or default."""
     cfg = TierConfig(
-        level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
-        level2=TierLevelConfig(
-            transport="openrouter[deepseek]", model="deepseek/deepseek-v4-pro"
-        ),
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
+        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
     )
     result = cfg.for_level(2)
     assert result is cfg.level2
-    assert result.transport == "openrouter[deepseek]"
-    assert result.model == "deepseek/deepseek-v4-pro"
+    assert result.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert result.provider == "openrouter"
 
 
 def test_for_level_3_returns_level3():
     """``for_level(3)`` returns ``self.level3`` — explicit or default."""
     cfg = TierConfig(
-        level1=TierLevelConfig(transport="claude-sdk", model="haiku"),
-        level3=TierLevelConfig(transport="claude-sdk", model="opus"),
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
+        level3=TierLevelConfig(model="claudeSDK-opus"),
     )
     result = cfg.for_level(3)
     assert result is cfg.level3
-    assert result.transport == "claude-sdk"
-    assert result.model == "opus"
+    assert result.model == "claudeSDK-opus"
+    assert result.provider == "claudeSDK"
 
 
 def test_for_level_0_raises():
     """``for_level(0)`` raises ValueError."""
-    cfg = TierConfig(level1=TierLevelConfig(transport="claude-sdk", model="haiku"))
+    cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
     with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
         cfg.for_level(0)
 
 
 def test_for_level_4_raises():
     """``for_level(4)`` raises ValueError."""
-    cfg = TierConfig(level1=TierLevelConfig(transport="claude-sdk", model="haiku"))
+    cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
     with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
         cfg.for_level(4)
 
@@ -416,7 +392,7 @@ def test_for_level_4_raises():
 def test_for_level_returns_default_level2_when_not_explicitly_set():
     """``for_level(2)`` falls back to the baked LEVEL2_DEFAULT when level2
     is not explicitly configured."""
-    cfg = TierConfig(level1=TierLevelConfig(transport="claude-sdk", model="haiku"))
+    cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
     result = cfg.for_level(2)
     assert result == LEVEL2_DEFAULT
 
@@ -424,35 +400,9 @@ def test_for_level_returns_default_level2_when_not_explicitly_set():
 def test_for_level_returns_default_level3_when_not_explicitly_set():
     """``for_level(3)`` falls back to the baked LEVEL3_DEFAULT when level3
     is not explicitly configured."""
-    cfg = TierConfig(level1=TierLevelConfig(transport="claude-sdk", model="haiku"))
+    cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
     result = cfg.for_level(3)
     assert result == LEVEL3_DEFAULT
-
-
-# ========================================================================== #
-#  LEGACY_TIER_MAP
-# ========================================================================== #
-
-
-def test_legacy_tier_map_keys():
-    """All legacy ``Tier`` values are keys in the mapping."""
-    assert set(LEGACY_TIER_MAP.keys()) == {LegacyTier.CHEAP, LegacyTier.DEFAULT}
-
-
-def test_legacy_tier_map_cheap_to_level1():
-    """``Tier.CHEAP`` maps to ``TierLevel.LEVEL1``."""
-    assert LEGACY_TIER_MAP[LegacyTier.CHEAP] == TierLevel.LEVEL1
-
-
-def test_legacy_tier_map_default_to_level2():
-    """``Tier.DEFAULT`` maps to ``TierLevel.LEVEL2``."""
-    assert LEGACY_TIER_MAP[LegacyTier.DEFAULT] == TierLevel.LEVEL2
-
-
-def test_legacy_tier_map_values_are_tier_level():
-    """Every value in the mapping is a ``TierLevel`` member."""
-    for v in LEGACY_TIER_MAP.values():
-        assert isinstance(v, TierLevel)
 
 
 # ========================================================================== #
@@ -496,11 +446,3 @@ def test_core_reexports_defaults():
     assert L1D is LEVEL1_DEFAULT
     assert L2D is LEVEL2_DEFAULT
     assert L3D is LEVEL3_DEFAULT
-
-
-def test_core_reexports_legacy_tier_map():
-    """``LEGACY_TIER_MAP`` is importable from ``robotsix_llmio.core``
-    and emits a :exc:`DeprecationWarning` on access."""
-    with pytest.warns(DeprecationWarning, match="LEGACY_TIER_MAP is deprecated"):
-        from robotsix_llmio.core import LEGACY_TIER_MAP as LTM
-    assert LTM is LEGACY_TIER_MAP

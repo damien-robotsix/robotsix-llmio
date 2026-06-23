@@ -2,12 +2,6 @@
 
 This module defines the *data model only*.  Wiring it into the provider
 factory, ``build_agent``, and ``new_model`` is a follow-up concern.
-
-The existing two-value :class:`~robotsix_llmio.core.Tier` enum is **not**
-modified — callers that pass ``Tier.DEFAULT`` / ``Tier.CHEAP`` continue
-to work unchanged.  The :data:`LEGACY_TIER_MAP` dictionary (deprecated,
-emits :exc:`DeprecationWarning` on access) provided an explicit path, now
-superseded by :meth:`TierConfig.for_level`.
 """
 
 from __future__ import annotations
@@ -16,8 +10,6 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
-
-from robotsix_llmio.core.tier_enum import Tier as LegacyTier
 
 # --------------------------------------------------------------------------- #
 #  TierLevel — three configuration tiers                                      #
@@ -45,36 +37,27 @@ class TierLevel(StrEnum):
 
 
 class TierLevelConfig(BaseModel):
-    """A single tier's transport and model binding.
+    """A single tier's provider-model binding.
 
-    Describes which consumer-facing *transport* to use and which model
-    name/alias that transport resolves for a given :class:`TierLevel`.
+    Describes which combined *provider-model* identifier to use for a given
+    :class:`TierLevel`.  The identifier encodes both the provider (as a
+    hyphen-free prefix, optionally with a bracketed sub-alias) and the
+    concrete model name — e.g. ``"claudeSDK-opus"`` or
+    ``"openrouter[deepseek]-deepseek/deepseek-v4-flash"``.
 
-    A :func:`~pydantic.model_validator` validates the *transport* against
-    :data:`~.transport.TRANSPORT_ALIASES` and cross-checks the *model* field
-    against :data:`~.model_registry.PROVIDER_MODELS` at construction time,
-    raising :class:`~.transport.UnknownTransportError` for unknown transports
-    and :class:`~.model_registry.UnknownModelError` for known providers with
-    unknown model names.
-
-    For backward compatibility a ``provider`` key in the input mapping (the
-    old registry-name shape) is accepted and converted to the equivalent
-    *transport* alias, and a read-only :attr:`provider` property resolves the
-    transport back to its provider registry name.
+    A :func:`~pydantic.model_validator` parses the identifier and confirms
+    the provider prefix is a known backend; the concrete model name is the
+    backend's concern (no upfront registry check).
     """
 
-    transport: str = Field(
-        description=(
-            "Consumer-facing transport alias — one of ``'claude-sdk'`` or "
-            "``'openrouter[deepseek]'``.  Resolved to a provider registry "
-            "name via ``config.transport.TRANSPORT_ALIASES``."
-        ),
-    )
     model: str = Field(
         description=(
-            "Model name or alias the provider resolves — e.g. "
-            "``'deepseek/deepseek-v4-flash'`` for OpenRouter or "
-            "``'opus'`` for the Claude SDK."
+            "Combined provider-model identifier — e.g. "
+            "``'claudeSDK-opus'`` or "
+            "``'openrouter[deepseek]-deepseek/deepseek-v4-flash'``. "
+            "The provider prefix (before the first out-of-bracket hyphen) "
+            "drives lazy backend import; the remainder is the concrete "
+            "model name fed to the backend."
         ),
     )
     provider_kwargs: dict[str, Any] = Field(
@@ -85,44 +68,45 @@ class TierLevelConfig(BaseModel):
         ),
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def _accept_legacy_provider(cls, data: Any) -> Any:
-        """Accept the old ``provider`` shape and convert it to ``transport``.
-
-        When the incoming mapping carries a ``provider`` key and no
-        ``transport`` key, pop ``provider`` and set ``transport`` to the
-        converted alias.  When both keys are present, ``transport`` wins and
-        ``provider`` is dropped.  Non-mapping input passes through untouched.
-        """
-        if not isinstance(data, dict):
-            return data
-        if "provider" not in data:
-            return data
-        from .transport import provider_to_transport
-
-        data = dict(data)
-        provider = data.pop("provider")
-        if "transport" not in data:
-            data["transport"] = provider_to_transport(provider)
-        return data
+    # -- parsed accessors ---------------------------------------------------
 
     @property
     def provider(self) -> str:
-        """Resolved provider registry name for this tier's transport."""
-        from .transport import TRANSPORT_ALIASES
+        """Provider prefix parsed from the identifier."""
+        from robotsix_llmio.core.identifier import parse_model_identifier
 
-        return TRANSPORT_ALIASES[self.transport]
+        return parse_model_identifier(self.model).provider
+
+    @property
+    def sub_alias(self) -> str | None:
+        """Sub-alias parsed from the identifier, if any."""
+        from robotsix_llmio.core.identifier import parse_model_identifier
+
+        return parse_model_identifier(self.model).sub_alias
+
+    @property
+    def model_name(self) -> str:
+        """Concrete model name parsed from the identifier."""
+        from robotsix_llmio.core.identifier import parse_model_identifier
+
+        return parse_model_identifier(self.model).model_name
+
+    # -- validator ----------------------------------------------------------
 
     @model_validator(mode="after")
-    def _validate_model_names(self) -> TierLevelConfig:
-        """Validate *transport* and cross-check *model* against the registry."""
-        from .model_registry import validate_model
-        from .transport import TRANSPORT_ALIASES, validate_transport
+    def _validate_identifier(self) -> TierLevelConfig:
+        """Validate the identifier by parsing it and checking the provider
+        prefix is a known backend."""
+        from robotsix_llmio.core.factory import _PROVIDER_PREFIX_MAP
+        from robotsix_llmio.core.identifier import parse_model_identifier
 
-        validate_transport(self.transport)
-        provider = TRANSPORT_ALIASES[self.transport]
-        validate_model(provider, self.model)
+        parsed = parse_model_identifier(self.model)
+        if parsed.provider not in _PROVIDER_PREFIX_MAP:
+            known = ", ".join(sorted(_PROVIDER_PREFIX_MAP))
+            raise ValueError(
+                f"Unknown provider prefix {parsed.provider!r} in identifier "
+                f"{self.model!r}. Known prefixes: {known}."
+            )
         return self
 
 
@@ -131,18 +115,15 @@ class TierLevelConfig(BaseModel):
 # --------------------------------------------------------------------------- #
 
 LEVEL1_DEFAULT = TierLevelConfig(
-    transport="openrouter[deepseek]",
-    model="deepseek/deepseek-v4-flash",
+    model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
-    transport="openrouter[deepseek]",
-    model="deepseek/deepseek-v4-pro",
+    model="openrouter[deepseek]-deepseek/deepseek-v4-pro",
 )
 
 LEVEL3_DEFAULT = TierLevelConfig(
-    transport="claude-sdk",
-    model="opus",
+    model="claudeSDK-opus",
 )
 
 
@@ -159,12 +140,10 @@ class TierConfig(BaseModel):
 
     Example YAML/JSON::
 
-        {"level1": {"transport": "openrouter[deepseek]",
-                     "model": "deepseek/deepseek-v4-flash"}}
+        {"level1": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-flash"}}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
-    :class:`TierLevelConfig` — this is the canonical level→(transport,model)
-    resolution point replacing the legacy ``_level_to_tier()`` + tier map.
+    :class:`TierLevelConfig`.
     """
 
     level1: TierLevelConfig = Field(
@@ -198,19 +177,3 @@ class TierConfig(BaseModel):
         if level == 3:
             return self.level3
         raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
-
-
-# --------------------------------------------------------------------------- #
-#  Legacy mapping                                                             #
-# --------------------------------------------------------------------------- #
-
-LEGACY_TIER_MAP: dict[LegacyTier, TierLevel] = {
-    LegacyTier.CHEAP: TierLevel.LEVEL1,
-    LegacyTier.DEFAULT: TierLevel.LEVEL2,
-}
-"""**Deprecated** — use :meth:`TierConfig.for_level` instead.
-
-The public re-export paths (:mod:`~robotsix_llmio.core` and
-:mod:`~robotsix_llmio.config`) emit a :exc:`DeprecationWarning` when
-this mapping is accessed.
-"""

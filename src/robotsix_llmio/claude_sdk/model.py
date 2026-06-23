@@ -229,7 +229,9 @@ class ClaudeSDKModel(Model):
         combined = "\n\n".join(dict.fromkeys(parts))  # de-dup, preserve order
         return combined or None
 
-    async def _invoke(self, prompt: str, system_text: str | None) -> tuple[str, Any]:
+    async def _invoke(
+        self, prompt: str, system_text: str | None
+    ) -> tuple[str, Any, str]:
         from claude_agent_sdk import (
             ClaudeAgentOptions,
         )
@@ -240,8 +242,16 @@ class ClaudeSDKModel(Model):
             system_prompt=system_text,
             model=self._sdk_model,
             max_turns=_MAX_TURNS,  # backstop only; no tools => answers in one turn
-            allowed_tools=[],  # no built-in tools (Read/Write/Bash/...)
-            permission_mode="default",
+            # This is the no-tools text path. ``allowed_tools=[]`` does NOT
+            # disable the SDK's built-in tools (Bash/Read/Edit/Monitor/...) — an
+            # empty allow-list means "no constraint", and ``can_use_tool`` is not
+            # consulted for them. The reliable lever is ``disallowed_tools``; a
+            # ``"*"`` wildcard denies every built-in tool (MCP tools, of which
+            # there are none here, would be unaffected). ``bypassPermissions``
+            # avoids a headless approval stall that otherwise degenerates into a
+            # spurious "error result" when the model reaches for a denied tool.
+            disallowed_tools=["*"],
+            permission_mode="bypassPermissions",
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
         )
 
@@ -268,7 +278,7 @@ class ClaudeSDKModel(Model):
         self._reject_unsupported(model_request_parameters)
         system_text = self._system_text(messages, model_request_parameters)
         prompt = render_prompt(messages)
-        text, result = await self._invoke(prompt, system_text)
+        text, result, reasoning = await self._invoke(prompt, system_text)
         # Stamp the SDK's (estimated) cost onto the active span so the claude_sdk
         # provider logs cost in traces like the OpenRouter providers do.
         from ..core.cost import record_cost
@@ -288,6 +298,7 @@ class ClaudeSDKModel(Model):
             GEN_AI_SYSTEM,
             GEN_AI_USAGE_INPUT_TOKENS,
             GEN_AI_USAGE_OUTPUT_TOKENS,
+            LANGFUSE_OBSERVATION_METADATA_REASONING,
             OP_CHAT,
             get_recording_span,
         )
@@ -298,6 +309,10 @@ class ClaudeSDKModel(Model):
             span.set_attribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME)
             span.set_attribute(GEN_AI_SYSTEM, self.system)
             span.set_attribute(GEN_AI_REQUEST_MODEL, self._sdk_model)
+            # Surface the model's extended-thinking content on the generation so
+            # traces show the reasoning, not just the final answer + tool calls.
+            if reasoning:
+                span.set_attribute(LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning)
             usage = getattr(result, "usage", None) if result is not None else None
             if isinstance(usage, dict):
                 in_tok = usage.get("input_tokens")

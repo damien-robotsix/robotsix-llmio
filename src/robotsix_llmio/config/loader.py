@@ -5,14 +5,13 @@ Usage::
 
     from robotsix_llmio.config import load_tier_config
 
-    cfg = load_tier_config({"level1": {"transport": "...", "model": "..."}})
+    cfg = load_tier_config({"level1": {"model": "claudeSDK-opus"}})
 """
 
 from __future__ import annotations
 
 import json
 import os
-import warnings
 from typing import Any
 
 from pydantic import ValidationError
@@ -22,7 +21,6 @@ from robotsix_llmio.config.tier import (
     LEVEL3_DEFAULT,
     TierConfig,
 )
-from robotsix_llmio.config.transport import provider_to_transport
 from robotsix_llmio.exceptions import RobotsixLLMIOError
 
 # --------------------------------------------------------------------------- #
@@ -113,11 +111,11 @@ def load_tier_config(
         if config_dict is not None and tier in config_dict:
             cfg_tier = config_dict[tier]
             if isinstance(cfg_tier, dict):
-                tier_dict.update(_normalise_old_shape(cfg_tier))
+                tier_dict.update(cfg_tier)
             else:
                 # If the caller passed a TierLevelConfig object or similar,
                 # convert to dict so we can merge field-by-field.
-                tier_dict.update(_normalise_old_shape(_to_dict(cfg_tier)))
+                tier_dict.update(_to_dict(cfg_tier))
 
         # Only include the tier if we have *something* for it (otherwise
         # pydantic applies the ``default_factory`` for level2/level3, or
@@ -135,23 +133,6 @@ def load_tier_config(
 # --------------------------------------------------------------------------- #
 #  Internal helpers
 # --------------------------------------------------------------------------- #
-
-
-def _normalise_old_shape(tier_dict: dict[str, Any]) -> dict[str, Any]:
-    """Convert an old-shape tier dict (``provider`` key) to the new shape.
-
-    If *tier_dict* carries a ``provider`` key and no ``transport`` key,
-    return a copy with ``provider`` replaced by the converted ``transport``
-    alias.  Otherwise return *tier_dict* unchanged (a ``transport`` key, if
-    present, always wins and any stray ``provider`` is dropped).
-    """
-    if "provider" not in tier_dict:
-        return tier_dict
-    result = dict(tier_dict)
-    provider = result.pop("provider")
-    if "transport" not in result:
-        result["transport"] = provider_to_transport(provider)
-    return result
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
@@ -186,113 +167,37 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
     """Read recognised environment variables into a nested tier→field dict.
 
     Returns only the keys that were actually set in the environment.
+    Each tier dict contains the combined ``model`` identifier (used verbatim)
+    and/or ``provider_kwargs`` (a JSON object).
     """
     nested: dict[str, dict[str, Any]] = {}
 
     def _set(tier: str, field: str, value: Any) -> None:
         nested.setdefault(tier, {})[field] = value
 
-    # -- new-style variables ------------------------------------------------
     for tier_upper, tier_lower in [
         ("LEVEL1", "level1"),
         ("LEVEL2", "level2"),
         ("LEVEL3", "level3"),
     ]:
-        for field_upper, field_lower in [
-            ("TRANSPORT", "transport"),
-            ("MODEL", "model"),
-            ("PROVIDER_KWARGS", "provider_kwargs"),
-        ]:
-            var_name = f"{env_prefix}{tier_upper}_{field_upper}"
-            raw = os.environ.get(var_name)
-            if raw is None:
-                continue
-            if field_lower == "provider_kwargs":
-                try:
-                    parsed = json.loads(raw)
-                except json.JSONDecodeError as exc:
-                    raise TierConfigLoadError(
-                        f"Invalid JSON in {var_name}: {exc}"
-                    ) from exc
-                if not isinstance(parsed, dict):
-                    raise TierConfigLoadError(
-                        f"{var_name} must be a JSON object, got {type(parsed).__name__}"
-                    )
-                _set(tier_lower, field_lower, parsed)
-            else:
-                _set(tier_lower, field_lower, raw)
+        # MODEL — full combined provider-model identifier, used verbatim.
+        var_name = f"{env_prefix}{tier_upper}_MODEL"
+        raw = os.environ.get(var_name)
+        if raw is not None:
+            _set(tier_lower, "model", raw)
 
-        # ``LLMIO_LEVEL{n}_PROVIDER`` is a backward-compatible alias for
-        # ``_TRANSPORT``; the converted transport is only applied when the
-        # new-style ``_TRANSPORT`` variable is unset for this level.
-        if "transport" not in nested.get(tier_lower, {}):
-            legacy_provider = os.environ.get(f"{env_prefix}{tier_upper}_PROVIDER")
-            if legacy_provider is not None:
-                _set(tier_lower, "transport", provider_to_transport(legacy_provider))
-
-    # -- legacy variables ---------------------------------------------------
-    # Each legacy variable emits at most one FutureWarning per call and is
-    # only consulted when the corresponding new-style variable is *unset*.
-
-    # LLMIO_FLASH_MODEL → level1.model
-    if "model" not in nested.get("level1", {}):
-        legacy = os.environ.get("LLMIO_FLASH_MODEL")
-        if legacy is not None:
-            warnings.warn(
-                "LLMIO_FLASH_MODEL is deprecated; use LLMIO_LEVEL1_MODEL instead",
-                FutureWarning,
-                stacklevel=3,  # caller → load_tier_config → _read_env_vars
-            )
-            _set("level1", "model", legacy)
-
-    # LLMIO_FLASH_PROVIDER → level1.transport
-    if "transport" not in nested.get("level1", {}):
-        legacy = os.environ.get("LLMIO_FLASH_PROVIDER")
-        if legacy is not None:
-            warnings.warn(
-                "LLMIO_FLASH_PROVIDER is deprecated; use LLMIO_LEVEL1_PROVIDER instead",
-                FutureWarning,
-                stacklevel=3,
-            )
-            _set("level1", "transport", provider_to_transport(legacy))
-
-    # LLMIO_NORMAL_MODEL → level2.model
-    if "model" not in nested.get("level2", {}):
-        legacy = os.environ.get("LLMIO_NORMAL_MODEL")
-        if legacy is not None:
-            warnings.warn(
-                "LLMIO_NORMAL_MODEL is deprecated; use LLMIO_LEVEL2_MODEL instead",
-                FutureWarning,
-                stacklevel=3,
-            )
-            _set("level2", "model", legacy)
-
-    # LLMIO_NORMAL_PROVIDER → level2.transport
-    if "transport" not in nested.get("level2", {}):
-        legacy = os.environ.get("LLMIO_NORMAL_PROVIDER")
-        if legacy is not None:
-            warnings.warn(
-                "LLMIO_NORMAL_PROVIDER is deprecated; "
-                "use LLMIO_LEVEL2_PROVIDER instead",
-                FutureWarning,
-                stacklevel=3,
-            )
-            _set("level2", "transport", provider_to_transport(legacy))
-
-    # LLMIO_PROVIDER → any level whose transport is still unset
-    legacy_provider = os.environ.get("LLMIO_PROVIDER")
-    if legacy_provider is not None:
-        applied = False
-        for tier in ("level1", "level2", "level3"):
-            if "transport" not in nested.get(tier, {}):
-                _set(tier, "transport", provider_to_transport(legacy_provider))
-                applied = True
-        if applied:
-            warnings.warn(
-                "LLMIO_PROVIDER is deprecated; set "
-                "LLMIO_LEVEL{1,2,3}_PROVIDER per tier",
-                FutureWarning,
-                stacklevel=3,
-            )
+        # PROVIDER_KWARGS — JSON object forwarded to the provider constructor.
+        var_name = f"{env_prefix}{tier_upper}_PROVIDER_KWARGS"
+        raw = os.environ.get(var_name)
+        if raw is not None:
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise TierConfigLoadError(f"Invalid JSON in {var_name}: {exc}") from exc
+            if not isinstance(parsed, dict):
+                raise TierConfigLoadError(
+                    f"{var_name} must be a JSON object, got {type(parsed).__name__}"
+                )
+            _set(tier_lower, "provider_kwargs", parsed)
 
     return nested

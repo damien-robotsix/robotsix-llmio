@@ -1,7 +1,46 @@
 """robotsix-llmio: provider-agnostic LLM I/O with derived per-provider layers."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 from .exceptions import RobotsixLLMIOError
+
+# Static re-declaration of the lazily-exported names (see ``__getattr__``
+# below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
+# False at runtime), so they add no import-time cost and preserve the lazy
+# loading — but they let type checkers, IDEs, and CodeQL see each ``__all__``
+# entry as a defined module global (otherwise CodeQL's ``py/undefined-export``
+# query flags every ``__all__`` name as "exported but not defined"). Keep this
+# block in sync with ``__all__`` and ``__getattr__``.
+if TYPE_CHECKING:
+    from .core.factory import (
+        build_agent_for_level,
+        default_tier_config,
+        get_provider_for_level,
+    )
 
 __version__ = "0.1.0"
 
-__all__ = ["RobotsixLLMIOError"]
+__all__ = [
+    "RobotsixLLMIOError",
+    "build_agent_for_level",
+    "default_tier_config",
+    "get_provider_for_level",
+]
+
+
+def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
+    if name == "build_agent_for_level":
+        from .core import factory
+
+        return factory.build_agent_for_level
+    if name == "get_provider_for_level":
+        from .core import factory
+
+        return factory.get_provider_for_level
+    if name == "default_tier_config":
+        from .core import factory
+
+        return factory.default_tier_config
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

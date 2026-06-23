@@ -32,9 +32,9 @@ async def _anoop_sleep(_d: float) -> None:
 #  Helpers for constructing test configs                                      #
 # --------------------------------------------------------------------------- #
 
-_L1_CFG = TierLevelConfig(transport="claude-sdk", model="opus")
-_L2_CFG = TierLevelConfig(transport="claude-sdk", model="haiku")
-_L3_CFG = TierLevelConfig(transport="claude-sdk", model="sonnet")
+_L1_CFG = TierLevelConfig(model="claudeSDK-opus")
+_L2_CFG = TierLevelConfig(model="claudeSDK-haiku")
+_L3_CFG = TierLevelConfig(model="claudeSDK-sonnet")
 
 _STD_TIER_CONFIG = TierConfig(level1=_L1_CFG, level2=_L2_CFG, level3=_L3_CFG)
 
@@ -49,10 +49,10 @@ def _factory_that_succeeds(
 
     def factory(tlc: TierLevelConfig):
         if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model)
+            tracking.setdefault("factory_calls", []).append(tlc.model_name)
         if expected_tier is not None:
-            assert tlc.model == expected_tier, (
-                f"expected {expected_tier}, got {tlc.model}"
+            assert tlc.model_name == expected_tier, (
+                f"expected {expected_tier}, got {tlc.model_name}"
             )
 
         def fn():
@@ -75,7 +75,7 @@ def _failing_factory(
 
     def factory(tlc: TierLevelConfig):
         if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model)
+            tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             if counter["remaining"] > 0:
@@ -99,7 +99,7 @@ def _exhausted_failing_factory(
 
     def factory(tlc: TierLevelConfig):
         if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model)
+            tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             if isinstance(exception, type):
@@ -219,8 +219,8 @@ def test_fallback_level1_to_level2_on_failure():
     tracking: dict = {}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
-        if tlc.model == "opus":
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
+        if tlc.model_name == "opus":
 
             def fn():
                 raise RuntimeError("l1-fail")
@@ -248,12 +248,12 @@ def test_fallback_level1_to_level2_to_level3():
     counter = {"remaining": 2}  # first 2 calls fail
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
-                raise RuntimeError(f"fail-{tlc.model}")
+                raise RuntimeError(f"fail-{tlc.model_name}")
             return "l3-ok"
 
         return fn
@@ -276,12 +276,12 @@ def test_fallback_level2_to_level3_to_level1():
     counter = {"remaining": 2}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
-                raise RuntimeError(f"fail-{tlc.model}")
+                raise RuntimeError(f"fail-{tlc.model_name}")
             return "l1-ok"
 
         return fn
@@ -305,12 +305,12 @@ def test_fallback_level3_to_level2_to_level1():
     counter = {"remaining": 2}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
-                raise RuntimeError(f"fail-{tlc.model}")
+                raise RuntimeError(f"fail-{tlc.model_name}")
             return "l1-ok"
 
         return fn
@@ -347,7 +347,7 @@ def test_factory_called_fresh_per_level():
 
     def factory(tlc: TierLevelConfig):
         tracking.setdefault("factory_calls", []).append(
-            {"provider": tlc.provider, "model": tlc.model}
+            {"provider": tlc.provider, "model": tlc.model_name}
         )
 
         def fn():
@@ -367,9 +367,9 @@ def test_factory_called_fresh_per_level():
     )
 
     assert tracking["factory_calls"] == [
-        {"provider": "claude-sdk", "model": "opus"},
-        {"provider": "claude-sdk", "model": "haiku"},
-        {"provider": "claude-sdk", "model": "sonnet"},
+        {"provider": "claudeSDK", "model": "opus"},
+        {"provider": "claudeSDK", "model": "haiku"},
+        {"provider": "claudeSDK", "model": "sonnet"},
     ]
 
 
@@ -378,7 +378,7 @@ def test_max_fallback_depth_zero_equals_disabled():
     tracking: dict = {}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             raise RuntimeError("fail")
@@ -402,10 +402,10 @@ def test_max_fallback_depth_limits_promotions():
     tracking: dict = {}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
-            raise RuntimeError(f"fail-{tlc.model}")
+            raise RuntimeError(f"fail-{tlc.model_name}")
 
         return fn
 
@@ -434,7 +434,7 @@ def test_no_duplicate_tier_visits():
     tracking: dict = {}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             return "ok"
@@ -457,7 +457,7 @@ def test_no_duplicate_tier_visits():
     tracking2: dict = {}
 
     def failing_factory(tlc: TierLevelConfig):
-        tracking2.setdefault("factory_calls", []).append(tlc.model)
+        tracking2.setdefault("factory_calls", []).append(tlc.model_name)
 
         def fn():
             raise RuntimeError("fail")
@@ -506,11 +506,11 @@ def test_logging_output(caplog):
     # Check INFO messages
     info_messages = [r.message for r in caplog.records if r.levelno == logging.INFO]
     assert any(
-        "test-op: trying level1 (provider=claude-sdk, model=opus)" in msg
+        "test-op: trying level1 (provider=claudeSDK, model=opus)" in msg
         for msg in info_messages
     )
     assert any(
-        "test-op: trying level2 (provider=claude-sdk, model=haiku)" in msg
+        "test-op: trying level2 (provider=claudeSDK, model=haiku)" in msg
         for msg in info_messages
     )
     assert any("test-op: level2 succeeded" in msg for msg in info_messages)
@@ -584,12 +584,12 @@ def test_acall_fallback_level1_to_level2_to_level3():
     counter = {"remaining": 2}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         async def fn():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
-                raise RuntimeError(f"fail-{tlc.model}")
+                raise RuntimeError(f"fail-{tlc.model_name}")
             return "l3-ok"
 
         return fn
@@ -613,12 +613,12 @@ def test_acall_fallback_level2_to_level3_to_level1():
     counter = {"remaining": 2}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         async def fn():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
-                raise RuntimeError(f"fail-{tlc.model}")
+                raise RuntimeError(f"fail-{tlc.model_name}")
             return "l1-ok"
 
         return fn
@@ -661,10 +661,10 @@ def test_acall_max_fallback_depth_limits_promotions():
     tracking: dict = {}
 
     def factory(tlc: TierLevelConfig):
-        tracking.setdefault("factory_calls", []).append(tlc.model)
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
 
         async def fn():
-            raise RuntimeError(f"fail-{tlc.model}")
+            raise RuntimeError(f"fail-{tlc.model_name}")
 
         return fn
 
@@ -708,8 +708,14 @@ def test_acall_logging_output(caplog):
     )
 
     info_messages = [r.message for r in caplog.records if r.levelno == logging.INFO]
-    assert any("async-op: trying level1" in msg for msg in info_messages)
-    assert any("async-op: trying level2" in msg for msg in info_messages)
+    assert any(
+        "async-op: trying level1 (provider=claudeSDK, model=opus)" in msg
+        for msg in info_messages
+    )
+    assert any(
+        "async-op: trying level2 (provider=claudeSDK, model=haiku)" in msg
+        for msg in info_messages
+    )
     assert any("async-op: level2 succeeded" in msg for msg in info_messages)
 
     warn_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
