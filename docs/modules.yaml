@@ -89,4 +89,4 @@ modules:
       out-of-the-box agent functionality.
     paths:
       - src/robotsix_llmio/tools/**
-      - tests/tools/test_builtins.py
+      - tests/tools/**
