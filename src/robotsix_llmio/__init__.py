@@ -20,8 +20,6 @@ if TYPE_CHECKING:
         get_provider_for_level,
     )
 
-__version__ = "0.1.0"
-
 __all__ = [
     "RobotsixLLMIOError",
     "build_agent_for_level",
