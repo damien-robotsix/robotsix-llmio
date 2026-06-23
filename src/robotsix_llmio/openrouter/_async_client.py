@@ -72,7 +72,6 @@ class AsyncOpenRouterClient:
             resp = await client.get(url, headers=headers)
         if not (200 <= resp.status_code < 300):
             raise RuntimeError(
-                f"OpenRouter {path} request failed: "
-                f"HTTP {resp.status_code}: {resp.text[:200]}"
+                f"OpenRouter {path} request failed: HTTP {resp.status_code}"
             )
         return resp.json().get("data") or {}

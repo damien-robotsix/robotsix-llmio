@@ -95,6 +95,12 @@ OpenRouterKeyCostSource.fetch_key_usage
 OpenRouterProviderCostSource.fetch_provider_cost
 
 # ---------------------------------------------------------------------------
+# openrouter/_async_client.py — public async client methods
+# ---------------------------------------------------------------------------
+
+AsyncOpenRouterClient.fetch_credits
+
+# ---------------------------------------------------------------------------
 # core/tier_enum.py — StrEnum members used externally
 # ---------------------------------------------------------------------------
 
