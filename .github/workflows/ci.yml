@@ -73,6 +73,13 @@ jobs:
           queries: security-and-quality
           config-file: ./.github/codeql/codeql-config.yml
       - uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        with:
+          upload: false
+          output: results.sarif
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codeql-results
+          path: results.sarif
 
   audit:
     runs-on: ubuntu-latest
