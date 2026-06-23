@@ -25,6 +25,7 @@ from ..core.tracing import (
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
+    LANGFUSE_OBSERVATION_METADATA_REASONING,
     LANGFUSE_OBSERVATION_OUTPUT,
     OP_CHAT,
     OP_EXECUTE_TOOL,
@@ -256,6 +257,58 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
 _EDIT_TOOLS = "Write|Edit|MultiEdit|NotebookEdit"
 _EDIT_PATH_KEYS = ("file_path", "notebook_path", "path")
 
+# How many times to (re-)drive the SDK query for one agent run, retrying only
+# transient failures (e.g. the degenerate-success frame). Small: a re-run
+# clears the flaky case; a persistent error fails after the last attempt.
+_SDK_QUERY_ATTEMPTS = 3
+
+# Built-in Claude Agent SDK / Claude Code tools denied when an agent is
+# restricted to ONLY its injected MCP tools (``builtin_tools=False``). A ``"*"``
+# wildcard also denies the MCP tools (the SDK matches it against ``mcp__*`` too),
+# so the built-ins are enumerated by name; MCP tools are namespaced ``mcp__*``
+# and are therefore unaffected. Intentionally broad — listing a tool a given SDK
+# version doesn't expose is harmless.
+_BUILTIN_TOOL_DENYLIST = [
+    "Bash",
+    "BashOutput",
+    "KillShell",
+    "KillBash",
+    "Read",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "NotebookRead",
+    "Glob",
+    "Grep",
+    "LS",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+    "Agent",
+    "Monitor",
+    "TodoWrite",
+    "SlashCommand",
+    "AskUserQuestion",
+    "ExitPlanMode",
+    "EnterPlanMode",
+    "ScheduleWakeup",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "EnterWorktree",
+    "ExitWorktree",
+    "DesignSync",
+    "PushNotification",
+    "RemoteTrigger",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
+]
+
 
 def _is_within(root: str, target: str) -> bool:
     """True if *target* (resolved, relative paths joined to *root*) is inside
@@ -351,6 +404,7 @@ class _SdkToolAgentHandle:
         name: str | None = None,
         max_turns: int | None = None,
         workspace_root: str | Path | None = None,
+        builtin_tools: bool = True,
     ) -> None:
         self._sdk_model = sdk_model
         self._system_prompt = system_prompt
@@ -359,6 +413,13 @@ class _SdkToolAgentHandle:
         self._output_type = output_type
         self._name = name or "claude_sdk agent"
         self._workspace_root = str(workspace_root) if workspace_root else None
+        # When False, restrict the agent to ONLY the injected MCP tools — the
+        # SDK's built-in tools (Bash/Read/Edit/Monitor/...) are denied. Use for
+        # untrusted/embedded agents (e.g. a chat) that must not run shell or
+        # touch the filesystem. When True (default), the agent keeps full
+        # built-in tool access (coding agents), with edits confined to
+        # *workspace_root* if given.
+        self._builtin_tools = builtin_tools
         if max_turns is None:
             # Single source of truth for the runaway cap (see model._MAX_TURNS).
             # Generous, because an injected-MCP-tool loop legitimately needs many
@@ -494,38 +555,82 @@ class _SdkToolAgentHandle:
                 ]
             }
 
+        # ``bypassPermissions`` auto-approves tool use (no headless approval
+        # stall, which otherwise degenerates into a spurious "error result").
+        extra["permission_mode"] = "bypassPermissions"
+        if self._builtin_tools:
+            extra["allowed_tools"] = self._allowed_tools
+        else:
+            # Restricted: expose ONLY the injected MCP tools. ``disallowed_tools``
+            # is the reliable lever (``allowed_tools`` / ``can_use_tool`` are not
+            # enforced for built-ins). We deny the built-ins by explicit name
+            # rather than ``"*"`` — the wildcard would also deny the ``mcp__*``
+            # tools — leaving the injected MCP tools (registered via
+            # ``mcp_servers``) callable. ``allowed_tools`` is intentionally unset.
+            extra["disallowed_tools"] = list(_BUILTIN_TOOL_DENYLIST)
+
         return ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self._sdk_model,
             max_turns=self._max_turns,
             mcp_servers={"milltools": self._server},
-            allowed_tools=self._allowed_tools,
-            permission_mode="bypassPermissions",
             setting_sources=[],
             **extra,
         )
 
     async def _invoke_query(
         self, prompt: str, options: ClaudeAgentOptions
-    ) -> tuple[str, Any]:
+    ) -> tuple[str, Any, str]:
         """Run the SDK streaming loop under the per-call wall-clock cap.
 
-        Returns ``(text, result)`` — joined assistant text (with the
-        ``ResultMessage.result`` fallback) and the captured ``ResultMessage``.
+        Returns ``(text, result, reasoning)`` — joined assistant text (with the
+        ``ResultMessage.result`` fallback), the captured ``ResultMessage``, and
+        the model's joined extended-thinking content (``""`` when off).
         Converts a wall-clock timeout into :class:`ClaudeSDKQueryTimeout`.
+
+        Transient SDK failures — notably the degenerate ``is_error=True`` /
+        ``subtype="success"`` frame, which a re-run clears — are retried here.
+        The no-tools Model path gets this for free via pydantic-ai's retries;
+        the tool path drives the SDK loop itself, so it must retry on its own.
         """
         from ._stream import _stream_query
+        from .transient import is_claude_sdk_transient
 
-        return await _stream_query(prompt, options, self._name)
+        last_exc: Exception | None = None
+        for attempt in range(_SDK_QUERY_ATTEMPTS):
+            try:
+                return await _stream_query(prompt, options, self._name)
+            except Exception as exc:
+                last_exc = exc
+                if attempt + 1 < _SDK_QUERY_ATTEMPTS and is_claude_sdk_transient(exc):
+                    log.warning(
+                        "%s: transient SDK error on attempt %d/%d, retrying: %s",
+                        self._name,
+                        attempt + 1,
+                        _SDK_QUERY_ATTEMPTS,
+                        exc,
+                    )
+                    continue
+                raise
+        assert last_exc is not None  # unreachable: loop returns or raises
+        raise last_exc
 
     def _record_generation_span(
-        self, system_prompt: str, prompt: str, text: str, result: Any
+        self,
+        system_prompt: str,
+        prompt: str,
+        text: str,
+        result: Any,
+        reasoning: str = "",
     ) -> None:
         """Open the child ``chat {model}`` generation span and stamp token
         usage + the SDK cost estimate on it.
 
         Cost MUST sit on this child observation to roll up — a root span
-        becomes the trace, not a summable observation.
+        becomes the trace, not a summable observation. *reasoning* (the model's
+        extended-thinking content) is recorded as observation metadata when
+        present, so traces show the model's reasoning, not just the answer and
+        tool calls.
         """
         from ..core.cost import record_cost
         from .model import PROVIDER_NAME
@@ -549,13 +654,18 @@ class _SdkToolAgentHandle:
                 LANGFUSE_OBSERVATION_OUTPUT: text,
             },
         ) as gen:
-            if gen is not None and isinstance(usage_obj, dict):
-                in_tok = usage_obj.get("input_tokens")
-                out_tok = usage_obj.get("output_tokens")
-                if in_tok is not None:
-                    gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
-                if out_tok is not None:
-                    gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
+            if gen is not None:
+                if reasoning:
+                    gen.set_attribute(
+                        LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning
+                    )
+                if isinstance(usage_obj, dict):
+                    in_tok = usage_obj.get("input_tokens")
+                    out_tok = usage_obj.get("output_tokens")
+                    if in_tok is not None:
+                        gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
+                    if out_tok is not None:
+                        gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
             record_cost(
                 result,
                 lambda r: getattr(r, "total_cost_usd", None),
@@ -585,10 +695,10 @@ class _SdkToolAgentHandle:
                 self._sdk_model,
                 self._max_turns,
             )
-            text, result = await self._invoke_query(prompt, options)
+            text, result, reasoning = await self._invoke_query(prompt, options)
             if root is not None:
                 root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
-            self._record_generation_span(system_prompt, prompt, text, result)
+            self._record_generation_span(system_prompt, prompt, text, result, reasoning)
         from pydantic_ai.messages import ModelResponse, TextPart
 
         return _SdkToolResult(

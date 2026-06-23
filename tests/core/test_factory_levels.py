@@ -1,0 +1,225 @@
+"""Tests for the level-based factory entry points (``core.factory``).
+
+These cover :func:`default_tier_config`, :func:`get_provider_for_level`, and
+:func:`build_agent_for_level`.  ``get_provider_for_identifier`` is patched so
+the tests never need a real backend (and so the ``claude_sdk`` extra is never
+actually required to instantiate the level-3 provider).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+from robotsix_llmio.core import factory
+from robotsix_llmio.core.factory import (
+    build_agent_for_level,
+    default_tier_config,
+    get_provider_for_level,
+)
+
+
+class _FakeProvider:
+    """Captures the kwargs passed to ``build_agent`` for assertion."""
+
+    def __init__(self) -> None:
+        self.build_agent_calls: list[dict[str, Any]] = []
+
+    def build_agent(self, **kwargs: Any) -> str:
+        self.build_agent_calls.append(kwargs)
+        return "agent-handle"
+
+
+def _patch_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[list[tuple[str, dict[str, Any]]], _FakeProvider]:
+    """Patch ``get_provider_for_identifier`` to record (identifier, kwargs) and
+    return a shared ``_FakeProvider``.  Returns the call log and the provider.
+    """
+    calls: list[tuple[str, dict[str, Any]]] = []
+    provider = _FakeProvider()
+
+    def _fake_get(identifier: str, **kwargs: Any) -> _FakeProvider:
+        calls.append((identifier, kwargs))
+        return provider
+
+    monkeypatch.setattr(factory, "get_provider_for_identifier", _fake_get)
+    return calls, provider
+
+
+# -- default_tier_config ----------------------------------------------------
+
+
+def test_default_tier_config_bakes_per_level_defaults() -> None:
+    cfg = default_tier_config()
+
+    assert cfg.for_level(1).model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert cfg.for_level(2).model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.for_level(3).model == "claudeSDK-opus"
+
+
+# -- get_provider_for_level -------------------------------------------------
+
+
+def test_get_provider_for_level_resolves_per_level_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    assert get_provider_for_level(1) is provider
+    assert get_provider_for_level(3) is provider
+
+    # Level 1 -> openrouter prefix; level 3 -> claudeSDK prefix.
+    assert calls[0][0] == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert calls[1][0] == "claudeSDK-opus"
+
+
+def test_get_provider_for_level_merges_provider_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, _ = _patch_factory(monkeypatch)
+
+    tier_config = TierConfig(
+        level1=TierLevelConfig(
+            model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
+            provider_kwargs={"base_url": "https://proxy", "api_key": "from-tier"},
+        ),
+    )
+
+    get_provider_for_level(1, tier_config=tier_config, api_key="caller-wins")
+
+    identifier, kwargs = calls[0]
+    assert identifier == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    # tier provider_kwargs merged with caller kwargs; caller wins on conflict.
+    assert kwargs == {"base_url": "https://proxy", "api_key": "caller-wins"}
+
+
+def test_get_provider_for_level_invalid_level_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_factory(monkeypatch)
+    with pytest.raises(ValueError):
+        get_provider_for_level(4)
+
+
+# -- build_agent_for_level --------------------------------------------------
+
+
+def test_build_agent_for_level_default_level1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    handle = build_agent_for_level(
+        1, system_prompt="cheap task", output_type=str, name="lvl1"
+    )
+
+    assert handle == "agent-handle"
+    # OpenRouter provider resolved from the level-1 identifier.
+    assert calls[0][0] == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    # build_agent got level= and the bare level-1 model name.
+    call = provider.build_agent_calls[0]
+    assert call["level"] == 1
+    assert call["model"] == "deepseek/deepseek-v4-flash"
+    assert call["system_prompt"] == "cheap task"
+    assert call["name"] == "lvl1"
+
+
+def test_build_agent_for_level_default_level3(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    build_agent_for_level(3, system_prompt="planning", tools=[], output_type=str)
+
+    # ClaudeSDK provider resolved from the level-3 identifier.
+    assert calls[0][0] == "claudeSDK-opus"
+    call = provider.build_agent_calls[0]
+    assert call["level"] == 3
+    assert call["model"] == "opus"
+
+
+def test_build_agent_for_level_model_override_keeps_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    build_agent_for_level(1, model="deepseek/deepseek-v4-pro", system_prompt="x")
+
+    # Provider still resolved from the level's identifier (openrouter).
+    assert calls[0][0] == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    # Only the model name is overridden.
+    assert provider.build_agent_calls[0]["model"] == "deepseek/deepseek-v4-pro"
+
+
+def test_build_agent_for_level_custom_tier_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    tier_config = TierConfig(
+        level1=TierLevelConfig(model="claudeSDK-opus"),
+    )
+
+    build_agent_for_level(1, tier_config=tier_config, system_prompt="x")
+
+    # Custom tier config overrides the baked default for level 1.
+    assert calls[0][0] == "claudeSDK-opus"
+    assert provider.build_agent_calls[0]["model"] == "opus"
+
+
+def test_build_agent_for_level_provider_kwargs_forwarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, _ = _patch_factory(monkeypatch)
+
+    build_agent_for_level(1, provider_kwargs={"api_key": "explicit"}, system_prompt="x")
+
+    assert calls[0][1] == {"api_key": "explicit"}
+
+
+def test_build_agent_for_level_tier_provider_kwargs_forwarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, _ = _patch_factory(monkeypatch)
+
+    tier_config = TierConfig(
+        level1=TierLevelConfig(
+            model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
+            provider_kwargs={"base_url": "https://proxy"},
+        ),
+    )
+
+    build_agent_for_level(1, tier_config=tier_config, system_prompt="x")
+
+    # With no explicit provider_kwargs, the tier level's are forwarded.
+    assert calls[0][1] == {"base_url": "https://proxy"}
+
+
+def test_build_agent_for_level_invalid_level_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_factory(monkeypatch)
+    with pytest.raises(ValueError):
+        build_agent_for_level(4, system_prompt="x")
+
+
+# -- exports ----------------------------------------------------------------
+
+
+def test_level_helpers_exported_from_core() -> None:
+    import robotsix_llmio.core as core
+
+    assert core.build_agent_for_level is build_agent_for_level
+    assert core.get_provider_for_level is get_provider_for_level
+    assert core.default_tier_config is default_tier_config
+
+
+def test_level_helpers_exported_top_level() -> None:
+    import robotsix_llmio as llmio
+
+    assert llmio.build_agent_for_level is build_agent_for_level
+    assert llmio.get_provider_for_level is get_provider_for_level
+    assert llmio.default_tier_config is default_tier_config

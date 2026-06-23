@@ -61,8 +61,14 @@ class LLMProvider(ABC):
         output_type: Any = str,
         name: str | None = None,
         retries: int = 2,
+        builtin_tools: bool = True,
     ) -> AgentHandle:
         """Build a ready-to-run agent for the requested capability *level*.
+
+        *builtin_tools* is honored only by the claude-sdk provider (whose SDK
+        ships a built-in toolset); set it ``False`` to restrict that agent to
+        only the explicitly provided tools. Other providers expose no built-in
+        tools and accept it as a no-op.
 
         Parameters
         ----------

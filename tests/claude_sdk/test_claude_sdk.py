@@ -475,6 +475,60 @@ def test_build_agent_model_override_tool_path(monkeypatch):
     handle.close()
 
 
+def test_tool_path_resolves_bare_model_name(monkeypatch):
+    """The tool path must pass the SDK the *bare* model name ("haiku"), not the
+    transport-prefixed id ("claudeSDK-haiku") — the prefixed id is unknown to the
+    SDK and yields a degenerate "error result" frame."""
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,  # model="claudeSDK-haiku", model_name="haiku"
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    assert isinstance(handle, _SdkToolAgentHandle)
+    assert handle._sdk_model == "haiku"  # type: ignore[attr-defined]
+    handle.close()
+
+
+def test_restricted_tool_path_denies_builtins_not_mcp(monkeypatch):
+    """``builtin_tools=False`` denies the built-in tools by explicit name (not a
+    ``"*"`` wildcard, which would also block the injected MCP tools) and sets no
+    allow-list; ``builtin_tools=True`` keeps full access (allow-list, no deny)."""
+    from robotsix_llmio.claude_sdk._tool_agent import _BUILTIN_TOOL_DENYLIST
+
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+
+    restricted = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=False,
+    )
+    opts = restricted._build_options("sys")  # type: ignore[attr-defined]
+    assert opts.disallowed_tools == list(_BUILTIN_TOOL_DENYLIST)
+    assert "Bash" in opts.disallowed_tools
+    assert "*" not in opts.disallowed_tools
+    assert opts.permission_mode == "bypassPermissions"
+    assert not hasattr(opts, "allowed_tools")
+    restricted.close()
+
+    full = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=True,
+    )
+    opts2 = full._build_options("sys")  # type: ignore[attr-defined]
+    assert not hasattr(opts2, "disallowed_tools")
+    assert hasattr(opts2, "allowed_tools")
+    full.close()
+
+
 def test_tool_agent_invokes_tool_and_returns_output(monkeypatch):
     """build_agent with tools returns a handle; run_sync invokes the SDK tool
     loop and the final text reaches .output (offline, monkeypatched SDK)."""
@@ -906,6 +960,117 @@ def test_no_span_recording_is_noop(monkeypatch):
     )
     assert response.model_name == "haiku"
     assert response.parts[0].content == "ok"
+
+
+# --- extended-thinking reasoning surfaced in traces ------------------------
+
+
+class _FakeThinkingBlock:
+    """A fake SDK thinking block — matched by class name in ``_stream_query``."""
+
+    def __init__(self, thinking: str) -> None:
+        self.thinking = thinking
+
+
+_FakeThinkingBlock.__name__ = "ThinkingBlock"
+
+
+def test_tool_path_records_reasoning_on_generation_span(monkeypatch):
+    """A ``ThinkingBlock`` in the tool-loop stream lands as reasoning metadata
+    on the ``chat`` generation span (so Langfuse shows the model's reasoning,
+    not just the answer and tool calls)."""
+    pytest.importorskip("opentelemetry.sdk")
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    import robotsix_llmio.claude_sdk._tool_agent as _ta
+
+    exporter = InMemorySpanExporter()
+    provider_obj = TracerProvider()
+    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider_obj.get_tracer("test")
+    monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        msg = fake.AssistantMessage("the answer")
+        msg.content = [
+            _FakeThinkingBlock("weighing the options"),
+            fake.TextBlock("the answer"),
+        ]
+        yield msg
+        yield fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+
+    fake.query = _fake_query
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="be precise",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    handle.run_sync("hi")
+    handle.close()
+
+    spans = exporter.get_finished_spans()
+    chat = next((s for s in spans if s.name.startswith("chat ")), None)
+    assert chat is not None, f"no chat span in {[s.name for s in spans]}"
+    assert (
+        chat.attributes.get("langfuse.observation.metadata.reasoning")
+        == "weighing the options"
+    )
+
+
+def test_notools_request_records_reasoning_metadata(monkeypatch):
+    """A ``ThinkingBlock`` in the no-tools stream lands as reasoning metadata on
+    the active generation span."""
+    pytest.importorskip("opentelemetry.sdk")
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        msg = fake.AssistantMessage("hello world")
+        msg.content = [
+            _FakeThinkingBlock("planning the reply"),
+            fake.TextBlock("hello world"),
+        ]
+        yield msg
+        yield fake.ResultMessage({"input_tokens": 10, "output_tokens": 5})
+
+    fake.query = _fake_query
+
+    exporter = InMemorySpanExporter()
+    provider_obj = TracerProvider()
+    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider_obj.get_tracer("test")
+
+    model = ClaudeSDKModel("opus")
+
+    async def _run():
+        with tracer.start_as_current_span("root"):
+            return await model.request(
+                [ModelRequest(parts=[UserPromptPart(content="hi")])],
+                model_settings=None,
+                model_request_parameters=ModelRequestParameters(output_mode="text"),
+            )
+
+    asyncio.run(_run())
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    assert (
+        spans[0].attributes.get("langfuse.observation.metadata.reasoning")
+        == "planning the reply"
+    )
 
 
 def test_notools_path_returns_agent_handle():
