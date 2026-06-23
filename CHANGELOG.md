@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- README.md: replaced phantom symbols `get_provider` and `register_provider` with the actual public API (`get_provider_for_level`, `TierConfig`).
+
 ### Added
 
 - API reference pages for `tools`, `config`, `weekly_pace`, and `exceptions` modules in the documentation site.
