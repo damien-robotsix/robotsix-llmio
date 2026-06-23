@@ -31,13 +31,13 @@ if TYPE_CHECKING:
         TierLevel,
         TierLevelConfig,
     )
-    from robotsix_llmio.config.weekly_pace import ModelWeightConfig, WeeklyPaceConfig
     from robotsix_llmio.core.factory import get_provider_for_identifier
     from robotsix_llmio.core.identifier import (
         MalformedIdentifierError,
         ParsedIdentifier,
         parse_model_identifier,
     )
+    from robotsix_llmio.weekly_pace._config import ModelWeightConfig, WeeklyPaceConfig
 
 __all__ = [
     "LEVEL1_DEFAULT",
