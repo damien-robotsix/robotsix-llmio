@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extracted shared `_LangfuseReadClientBase` base class from `LangfuseReadClient` and `AsyncLangfuseReadClient`, deduplicating `__init__`, `base_url`, `url()`, and `auth_header()` methods.
 - Moved weekly-pace config models (`WeeklyPaceConfig`, `ModelWeightConfig`) from `src/robotsix_llmio/config/weekly_pace.py` into `src/robotsix_llmio/weekly_pace/_config.py`, consolidating all weekly-pace source under the module directory. A compatibility re-export at the old path preserves existing imports.
 
 ### Added

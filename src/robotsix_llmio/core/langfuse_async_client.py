@@ -7,7 +7,6 @@ FastAPI applications).
 
 from __future__ import annotations
 
-import base64
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -15,10 +14,10 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from .constants import HTTP_CLIENT_TIMEOUT
 from .langfuse_client import (
     _TRACES_PATH,
+    _LangfuseReadClientBase,
     _observation_cost,
     _observation_provider,
     _parse_timestamp,
@@ -27,7 +26,7 @@ from .langfuse_client import (
 __all__ = ["AsyncLangfuseReadClient"]
 
 
-class AsyncLangfuseReadClient:
+class AsyncLangfuseReadClient(_LangfuseReadClientBase):
     """Async variant of :class:`LangfuseReadClient`.
 
     Owns the same reusable kernel — auth header, base-URL resolution,
@@ -37,33 +36,6 @@ class AsyncLangfuseReadClient:
     Credentials are always passed in explicitly; the client reads no
     ``LANGFUSE_*`` env vars.
     """
-
-    def __init__(
-        self,
-        *,
-        public_key: str,
-        secret_key: str,
-        base_url: str | None = None,
-    ) -> None:
-        self._public_key = public_key
-        self._secret_key = secret_key
-        self._base_url = (base_url or _DEFAULT_BASE_URL).rstrip("/")
-
-    @property
-    def base_url(self) -> str:
-        """The resolved base URL (default ``https://cloud.langfuse.com``)."""
-        return self._base_url
-
-    def url(self, path: str) -> str:
-        """Join *path* (e.g. :data:`_TRACES_PATH`) onto the base URL."""
-        return f"{self._base_url}/{path.lstrip('/')}"
-
-    def auth_header(self) -> str:
-        """Build the ``Basic <base64(public:secret)>`` Authorization header."""
-        token = base64.b64encode(
-            f"{self._public_key}:{self._secret_key}".encode()
-        ).decode()
-        return f"Basic {token}"
 
     async def aiter_pages(
         self,
