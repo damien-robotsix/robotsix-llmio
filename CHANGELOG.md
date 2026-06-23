@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `TYPE_CHECKING` static re-declarations in `src/robotsix_llmio/config/__init__.py` to eliminate CodeQL `py/undefined-export` false positives from the PEP 562 lazy `__getattr__` exports.
 - API reference pages for `tools`, `config`, `weekly_pace`, and `exceptions` modules in the documentation site.
 
 ### Removed
