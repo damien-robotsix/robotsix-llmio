@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..core.provider import LLMProvider
+from ..core.provider import LLMProvider, _resolve_model_name
 from ._tool_agent import _convert_tools, _SdkToolAgentHandle
 from .transient import is_claude_sdk_transient
 
@@ -123,28 +123,11 @@ class ClaudeSDKProvider(LLMProvider):
         if model is not None:
             sdk_model = model
         else:
-            if tier_config is None:
-                from robotsix_llmio.config.tier import (
-                    LEVEL1_DEFAULT,
-                    LEVEL2_DEFAULT,
-                    LEVEL3_DEFAULT,
-                )
-                from robotsix_llmio.config.tier import (
-                    TierConfig as _TierConfig,
-                )
-
-                tier_config = _TierConfig(
-                    level1=LEVEL1_DEFAULT,
-                    level2=LEVEL2_DEFAULT,
-                    level3=LEVEL3_DEFAULT,
-                )
-
-            tlc = tier_config.for_level(level)
             # Use the bare model name the SDK understands (e.g. "opus"), NOT the
             # transport-prefixed id (".model" == "claudeSDK-opus"), which the SDK
             # does not recognize — it yields a degenerate "error result" frame.
             # (The no-tools Model path already resolves via ``model_name``.)
-            sdk_model = tlc.model_name
+            sdk_model = _resolve_model_name(tier_config, level)
 
         allowed_tools, server = _convert_tools(tools)
         return _SdkToolAgentHandle(
