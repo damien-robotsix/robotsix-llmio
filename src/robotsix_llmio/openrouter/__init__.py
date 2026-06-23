@@ -7,9 +7,28 @@ helpers does not drag in pydantic-ai/OTel at module load.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .transient import is_openrouter_transient, is_openrouter_upstream_error
+
+# Static re-declaration of every lazily-exported name (see ``__getattr__``
+# below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
+# False at runtime), so they add no import-time cost and preserve the PEP 562
+# lazy-loading behaviour — but they let type checkers, IDEs, and CodeQL see
+# each ``__all__`` entry as a defined module global. Without this, CodeQL's
+# ``py/undefined-export`` query flags every ``__all__`` name as "exported but
+# not defined" (it cannot model PEP 562 dynamic exports), failing the
+# code-scanning check on any PR that adds a new export. Keep this block in
+# sync with ``__all__`` and ``__getattr__``.
+if TYPE_CHECKING:
+    from ._async_client import AsyncOpenRouterClient
+    from .model import OpenRouterModel, record_openrouter_cost
+    from .provider import OpenRouterProvider
+    from .provider_cost import (
+        KeyUsage,
+        OpenRouterKeyCostSource,
+        OpenRouterProviderCostSource,
+    )
 
 __all__ = [
     "AsyncOpenRouterClient",
