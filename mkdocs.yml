@@ -40,4 +40,7 @@ nav:
       - OpenRouter DeepSeek: reference/openrouter_deepseek.md
       - Claude SDK: reference/claude_sdk.md
       - Tools: reference/tools.md
+      - Config: reference/config.md
+      - Weekly Pace: reference/weekly_pace.md
+      - Exceptions: reference/exceptions.md
   - Changelog: changelog.md
