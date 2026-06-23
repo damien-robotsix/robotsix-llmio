@@ -12,6 +12,7 @@ from typing import Any
 from .transient import is_openrouter_transient, is_openrouter_upstream_error
 
 __all__ = [
+    "AsyncOpenRouterClient",
     "KeyUsage",
     "OpenRouterKeyCostSource",
     "OpenRouterModel",
@@ -36,4 +37,8 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import provider_cost
 
         return getattr(provider_cost, name)
+    if name == "AsyncOpenRouterClient":
+        from . import _async_client
+
+        return _async_client.AsyncOpenRouterClient
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
