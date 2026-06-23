@@ -8,6 +8,7 @@ import httpx
 import pytest
 from pydantic_ai import UsageLimitExceeded
 
+from robotsix_llmio.core.constants import TRANSIENT_RETRIES
 from robotsix_llmio.core.retry import (
     _status,
     acall_with_retry,
@@ -387,3 +388,34 @@ def test_ashould_fallback_false_reraises_primary_without_fallback():
             )
         )
     assert calls["fallback"] == 0
+
+
+# --- retries-exhausted edge case -------------------------------------------
+
+
+def test_call_with_retry_retries_exhausted_reraises_last_error():
+    """When every attempt raises a transient error, the last error re-raises."""
+    calls = {"n": 0}
+
+    def fn():
+        calls["n"] += 1
+        raise _HTTPErr(503)
+
+    with pytest.raises(_HTTPErr):
+        call_with_retry(fn, sleep=_noop_sleep)
+
+    assert calls["n"] == TRANSIENT_RETRIES + 1
+
+
+def test_acall_with_retry_retries_exhausted_reraises_last_error():
+    """Async: when every attempt raises a transient error, the last error re-raises."""
+    calls = {"n": 0}
+
+    async def fn():
+        calls["n"] += 1
+        raise _HTTPErr(503)
+
+    with pytest.raises(_HTTPErr):
+        asyncio.run(acall_with_retry(fn, sleep=_anoop_sleep))
+
+    assert calls["n"] == TRANSIENT_RETRIES + 1
