@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- API reference page for `robotsix_llmio.tools` (`docs/reference/tools.md`) and nav entry in `mkdocs.yml`.
 - Config narrative documentation (`docs/config/index.md`) to `mkdocs.yml` navigation, placed between Core and OpenRouter.
 - Registered `tests/core/test_identifier.py` in `docs/modules.yaml` under the `robotsix_llmio-core` module.
 - Badge row in README.md: PyPI version, supported Python versions, CI status, and license badges.
