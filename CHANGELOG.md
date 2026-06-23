@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-level `LLMIO_LEVEL{1,2,3}_TRANSPORT`, `_MODEL`, and `_PROVIDER_KWARGS` environment variables (deprecating the legacy `LLMIO_FLASH_*` / `LLMIO_NORMAL_*` / `LLMIO_PROVIDER` vars).
 - Model registry validation (`PROVIDER_MODELS`, `validate_model()`) — misconfigured model names are caught at config parse time.
 
+### Fixed
+
+- Registered `tests/tools/__init__.py` under the `robotsix_llmio-tools` module in `docs/modules.yaml` (replaced explicit `tests/tools/test_builtins.py` path with `tests/tools/**` glob).
+
 ### Changed
 - **Breaking**: `ClaudeSDKTurnLimitError` and `ClaudeSDKQueryTimeout` now inherit from `RobotsixLLMIOError` instead of `RuntimeError` and `TimeoutError` respectively. Callers catching these exceptions by type must update to catch `RobotsixLLMIOError`.
 - **Deprecated:** `Tier` enum (`CHEAP` / `DEFAULT`) — use `TierLevel` and the `level` parameter (1–3) instead.
