@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed seven phantom symbols from `docs/core/index.md` (`PROVIDER_MODELS`, `TRANSPORT_ALIASES`, `UnknownModelError`, `UnknownTransportError`, `validate_model`, `get_provider`, `register_provider`) that were documented as public API exports but never implemented. Replaced `get_provider` with the actual function name `get_provider_for_identifier`.
 - Registered `tests/tools/__init__.py` under the `robotsix_llmio-tools` module in `docs/modules.yaml` (replaced explicit `tests/tools/test_builtins.py` path with `tests/tools/**` glob).
 
 ### Changed
