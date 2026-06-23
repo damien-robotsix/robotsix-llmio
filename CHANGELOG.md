@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- API reference pages for `tools`, `config`, `weekly_pace`, and `exceptions` modules in the documentation site.
+
 ### Removed
 
 - Stale `MODEL_LEVEL_TO_TIER` documentation references from `docs/config/index.md` and `docs/core/index.md`. The mapping was already removed from Python source; only doc references remained.
