@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `bandit` dependency and pre-commit hook — replaced by Ruff's `S` ruleset which covers the same security checks inline during `ruff check`.
 - Stale `MODEL_LEVEL_TO_TIER` documentation references from `docs/config/index.md` and `docs/core/index.md`. The mapping was already removed from Python source; only doc references remained.
 - Stale env var declarations from `.env.example`: `LLMIO_LEVEL{n}_TRANSPORT`, `LLMIO_LEVEL{n}_PROVIDER` (deprecated aliases), and `LLMIO_PROVIDER` (deprecated fallback). These vars are no longer read by the config loader as of the provider/transport refactor in PR #202.
 - `Tier` enum (`robotsix_llmio.core.tier_enum.Tier`) — a backward-compatibility-only two-tier selector (`DEFAULT`/`CHEAP`) superseded by the three-level `TierLevel`/`TierConfig` system. The enum had zero runtime consumption; no `build_agent()` or `new_model()` method accepted a `tier=` parameter. Use `level=1|2|3` with a `TierConfig` instead. (mill: Remove backward-compat-only `Tier` enum — zero remaining production callers, deprecated docstring only (20260620T110305Z-remove-backward-compat-only-tier-enum-ze-f968))
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Enable Ruff's `S` (flake8-bandit-security) ruleset in `pyproject.toml`, replacing standalone bandit with 50+ security checks at Rust speed during `ruff check`.
 - API reference page for `robotsix_llmio.tools` (`docs/reference/tools.md`) and nav entry in `mkdocs.yml`.
 - Config narrative documentation (`docs/config/index.md`) to `mkdocs.yml` navigation, placed between Core and OpenRouter.
 - Registered `tests/core/test_identifier.py` in `docs/modules.yaml` under the `robotsix_llmio-core` module.
