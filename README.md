@@ -89,7 +89,7 @@ To route requests through a custom OpenRouter-compatible endpoint (e.g. a proxy
 or mirror), pass `base_url=` when constructing the provider:
 
 ```python
-provider = get_provider(api_key="sk-...", base_url="https://proxy.example/api/v1")
+provider = get_provider_for_level(level=1, api_key="sk-...", base_url="https://proxy.example/api/v1")
 ```
 
 The default endpoint is `https://openrouter.ai/api/v1`.
@@ -173,7 +173,7 @@ schema and `create_model` factory API.
 
 ## Use
 
-Obtain a provider through `get_provider` and pick a **level** (1, 2, or 3).
+Obtain a provider through `get_provider_for_level` and pick a **level** (1, 2, or 3).
 Level 1 is the default — cheap and fast.
 
 For new code, prefer `create_model` — it resolves the provider from your
@@ -186,9 +186,9 @@ provider = create_model(level=2, api_key="sk-or-...")
 ```
 
 ```python
-from robotsix_llmio.core import get_provider
+from robotsix_llmio.core import get_provider_for_level
 
-provider = get_provider(api_key="sk-or-...")  # or OPENROUTER_API_KEY env
+provider = get_provider_for_level(level=1, api_key="sk-or-...")  # or OPENROUTER_API_KEY env
 
 agent = provider.build_agent(
     level=2,
@@ -202,35 +202,20 @@ agent.close()
 ```
 
 The backend is resolved from config — no consumer code change is needed to swap
-it. By default `get_provider` resolves `openrouter-deepseek`; override it with
-the `LLMIO_PROVIDER` environment variable (e.g. `LLMIO_PROVIDER=claude-sdk`) or
-the explicit `provider=` argument (argument > env var > default). `get_provider`
+it. By default `get_provider_for_level` resolves the provider bound to the
+level in `TierConfig` (e.g. level 1 → `openrouter-deepseek`); override those
+bindings with the `LLMIO_LEVEL<N>_PROVIDER` / `LLMIO_LEVEL<N>_MODEL` environment
+variables or by passing an explicit `tier_config=`. `get_provider_for_level`
 forwards any extra keyword arguments to the chosen backend's constructor, so
 pass the kwargs that backend accepts (e.g. `api_key=` for `openrouter-deepseek`,
 nothing for `claude-sdk`).
 
-Register a new backend name once with `register_provider`, then select it like
-any built-in:
-
-```python
-from robotsix_llmio.core import register_provider, get_provider
-
-register_provider(
-    "my-backend",
-    module="my_pkg.my_provider",
-    class_name="MyProvider",
-    extra="my_backend",
-)
-provider = get_provider(provider="my-backend")
-```
-
-The only knobs are the backend name (from config) and the level you pass.
-Everything else — reasoning policy, retry/backoff, timeouts, cost
-instrumentation — is fixed at values proven in production.
-
-Importing a concrete provider class directly still works (e.g.
+The level-based `TierConfig` system eliminates the need for runtime provider
+registration — add a new provider by contributing a `TierLevelConfig` and
+setting the corresponding `LLMIO_LEVEL<N>_PROVIDER` variable. Importing a
+concrete provider class directly still works (e.g.
 `from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider`),
-but `get_provider` is the preferred entry point.
+but `get_provider_for_level` is the preferred entry point.
 
 ## Error handling
 
