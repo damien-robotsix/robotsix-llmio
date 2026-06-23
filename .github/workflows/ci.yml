@@ -45,9 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: ./.github/actions/setup-repo
         with:
-          enable-cache: true
           python-version: '3.13'
       - run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra tracing --extra dev
       - run: uv run mypy src/
@@ -86,18 +85,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/setup-repo
       - run: uv audit --frozen
 
   sbom:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/setup-repo
       - run: uv export --frozen --format cyclonedx1.5 --preview-features sbom-export > sbom.cdx.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
