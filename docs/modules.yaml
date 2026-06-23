@@ -23,6 +23,7 @@ modules:
       - tests/core/test_langfuse_cost.py
       - tests/core/test_core_provider_cost.py
       - tests/core/test_core_tier_fallback.py
+      - tests/core/test_identifier.py
       - tests/core/test_otel.py
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
