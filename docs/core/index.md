@@ -28,16 +28,24 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `create_model` — consumer-facing factory returning a configured `LLMProvider`
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
 - `validate_model` — cross-checks a model name against `PROVIDER_MODELS`
+- `MODEL_LEVEL_TO_TIER` — **deprecated** mapping from `model_level` integers (1→`Tier.CHEAP`, 2/3→`Tier.DEFAULT`); prefer `TierConfig.for_level()`. See [config docs](../config/index.md) for details.
 
 ### Agent runners
 
 - `run_agent` — runs an `AgentHandle` under a trace span with bounded retry, always closing the handle
 - `arun_agent` — async mirror of `run_agent`
 
+### Identifier parsing
+
+- `MalformedIdentifierError` — raised when a provider-model identifier string is malformed (e.g. unbalanced brackets, missing model part)
+- `ParsedIdentifier` — `NamedTuple` holding the parsed components of a provider-model identifier: `provider`, `sub_alias` (or `None`), and `model_name`
+- `parse_model_identifier` — parses a combined provider-model identifier (e.g. ``claudeSDK-opus`` or ``openrouter[deepseek]-deepseek/deepseek-v4-flash``) into a `ParsedIdentifier`
+
 ### Factory
 
 - `create_model` — preferred entry point: resolves a provider from level + transport + tier config, returns a configured `LLMProvider`
 - `get_provider` — resolves and instantiates a provider by registry name
+- `get_provider_for_identifier` — resolves and instantiates a provider from a combined provider-model identifier string (parsed via `parse_model_identifier`)
 - `register_provider` — registers a provider name→class mapping for use with `get_provider`
 
 ### Retry & transient errors
@@ -48,6 +56,11 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `is_transient` — detects retryable infrastructure failures (httpx timeouts, 429/5xx, transport errors)
 - `acall_with_retry` — async mirror of `call_with_retry`
 - `acall_with_retry_and_fallback` — async mirror of `call_with_retry_and_fallback`
+
+### Tier fallback
+
+- `call_with_tier_fallback` — runs a callable with tier escalation: starts at a given `TierLevel`, retries the next tier on failure when `fallback_enabled` is `True`
+- `acall_with_tier_fallback` — async mirror of `call_with_tier_fallback`
 
 ### Cost recording
 
