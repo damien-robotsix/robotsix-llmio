@@ -175,21 +175,24 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     client_id = id(client)
     _ref = weakref.ref(client)
     del client
-    # Python 3.12 may emit ResourceWarning for unclosed sockets
-    # inside httpx's connection pool during GC sweep; the client
-    # is deliberately left open to verify the weakref-finalizer
-    # routing path, so suppress that warning.
+    # Python ≥ 3.11 may emit ResourceWarning for unclosed sockets
+    # inside httpx's connection pool during GC sweep, and also for
+    # asyncio transports when the finalizer fires and closes the
+    # client via a temporary event loop.  The client is deliberately
+    # left open to verify the weakref-finalizer routing path, so
+    # suppress those warnings.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ResourceWarning)
         gc.collect()
 
-    assert len(finalizers) == 1
-    # On CPython < 3.13 gc.collect() alone cannot fire the finalize under
-    # the production registration shape (``info.args`` strong-refs the
-    # client), so we explicitly invoke the captured finalize.  On >= 3.13
-    # gc.collect() *may* fire the finalizer during collection; when it has
-    # already done so we skip the manual invocation.
-    if len(calls) == 0:
-        finalizers[0]()
+        assert len(finalizers) == 1
+        # On CPython < 3.13 gc.collect() alone cannot fire the finalize
+        # under the production registration shape (``info.args``
+        # strong-refs the client), so we explicitly invoke the captured
+        # finalize.  On >= 3.13 gc.collect() *may* fire the finalizer
+        # during collection; when it has already done so we skip the
+        # manual invocation.
+        if len(calls) == 0:
+            finalizers[0]()
     assert len(calls) == 1
     assert id(calls[0]) == client_id
