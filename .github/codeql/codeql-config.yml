@@ -9,3 +9,25 @@
 paths-ignore:
   - tests/**
   - vulture_whitelist.py
+
+# ---------------------------------------------------------------------------
+# Query-level suppressions
+# ---------------------------------------------------------------------------
+#
+# py/undefined-export — CodeQL cannot model PEP 562 __getattr__ lazy re-exports.
+# Every __init__.py in this package that uses PEP 562 triggers this false positive
+# on every name in __all__, because CodeQL's static analysis can't follow the
+# dynamic dispatch.  The names ARE defined (reachable via __getattr__ at runtime,
+# and statically declared under ``if TYPE_CHECKING:`` for type-checkers/IDEs).
+#
+# Suppressing this query repo-wide is safe because:
+#   * All __all__ / __getattr__ blocks are tested (tests/config/test_lazy_imports.py
+#     and friends verify every name resolves).
+#   * Modules that *don't* use PEP 562 (e.g. tools/__init__.py, weekly_pace/__init__.py)
+#     use static imports or in-file definitions, so they would never trigger
+#     this query anyway.
+#   * There is no CodeQL path-scoped filter for "files that use __getattr__",
+#     and maintaining a per-file deny-list is fragile as new PEP-562 modules are added.
+query-filters:
+  - exclude:
+      id: py/undefined-export
