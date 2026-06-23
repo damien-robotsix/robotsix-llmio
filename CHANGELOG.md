@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Badge row in README.md: PyPI version, supported Python versions, CI status, and license badges.
 - Documented identifier parsing (`MalformedIdentifierError`, `ParsedIdentifier`, `parse_model_identifier`), tier fallback (`call_with_tier_fallback`, `acall_with_tier_fallback`), `get_provider_for_identifier`, and `MODEL_LEVEL_TO_TIER` in `docs/core/index.md`.
 - Root exception class `RobotsixLLMIOError` that all library-specific errors inherit from, allowing callers to catch library exceptions with a single `except` clause. Exported from top-level package.
 - Three-tier configuration system: `TierLevel` (StrEnum with `LEVEL1`/`LEVEL2`/`LEVEL3`), `TierLevelConfig` (transport + model + provider_kwargs per level), and `TierConfig` (aggregates three levels with baked defaults for levels 2 and 3).

@@ -1,5 +1,10 @@
 # robotsix-llmio
 
+[![PyPI - Version](https://img.shields.io/pypi/v/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
+[![CI](https://github.com/damien-robotsix/robotsix-mill/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-mill/actions/workflows/ci.yml)
+[![PyPI - License](https://img.shields.io/pypi/l/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
+
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
 consumer only ever picks a **level** (1, 2, or 3).
