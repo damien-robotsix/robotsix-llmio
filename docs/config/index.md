@@ -76,8 +76,6 @@ agent = provider.build_agent(
 - `TierLevelConfig` — pydantic model binding a single tier's transport and model
 - `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT` — default `TierLevelConfig`
   instances per level
-- `LEGACY_TIER_MAP` — **deprecated** — maps legacy `Tier.CHEAP`/`Tier.DEFAULT` to
-  the new three-tier levels; use `TierConfig.for_level()` instead
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
 
