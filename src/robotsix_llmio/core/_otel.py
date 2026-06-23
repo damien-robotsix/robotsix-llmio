@@ -34,6 +34,9 @@ LANGFUSE_OBSERVATION_OUTPUT = "langfuse.observation.output"
 LANGFUSE_OBSERVATION_COST_DETAILS = "langfuse.observation.cost_details"
 LANGFUSE_COST_DETAILS_TOTAL_KEY = "total"
 LANGFUSE_OBSERVATION_METADATA_PROVIDER = "langfuse.observation.metadata.provider"
+# Model reasoning / extended-thinking content, attached to the generation
+# observation's metadata (Langfuse renders ``metadata.*`` keys on the span).
+LANGFUSE_OBSERVATION_METADATA_REASONING = "langfuse.observation.metadata.reasoning"
 
 _DEFAULT_LANGFUSE_BASE_URL = "https://cloud.langfuse.com"
 _LANGFUSE_OTEL_TRACES_PATH = "/api/public/otel/v1/traces"
