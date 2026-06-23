@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Stale env var declarations from `.env.example`: `LLMIO_LEVEL{n}_TRANSPORT`, `LLMIO_LEVEL{n}_PROVIDER` (deprecated aliases), and `LLMIO_PROVIDER` (deprecated fallback). These vars are no longer read by the config loader as of the provider/transport refactor in PR #202.
 - `__version__` module-level constant from `src/robotsix_llmio/__init__.py` (was `"0.1.0"`). The `pyproject.toml` `version` field is now the single source of truth. Consumers needing the version at runtime should use `importlib.metadata.version("robotsix-llmio")`.
 
 ### Changed
