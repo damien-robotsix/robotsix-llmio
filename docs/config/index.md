@@ -63,12 +63,6 @@ agent = provider.build_agent(
   | `claude-sdk` | `claude-sdk` |
   | `openrouter[deepseek]` | `openrouter-deepseek` |
 
-- `MODEL_LEVEL_TO_TIER` — **deprecated** mapping from `model_level` integers
-  (1, 2, 3) to `Tier` enum values.  Level 1 → `Tier.CHEAP`, levels 2 and
-  3 → `Tier.DEFAULT`.  Prefer `TierConfig.for_level()` which resolves
-  directly to a `TierLevelConfig` without the two-tier round-trip.  This
-  mapping is kept for backward compatibility only.
-
 ### Schema & loader (tier configuration)
 
 - `TierConfig` — pydantic model for three-tier provider+model configuration
