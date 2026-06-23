@@ -23,8 +23,6 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `TierLevelConfig` — pydantic model binding a single tier's transport and model
 - `create_model` — consumer-facing factory returning a configured `LLMProvider`
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
-- `MODEL_LEVEL_TO_TIER` — **deprecated** mapping from `model_level` integers (1→`Tier.CHEAP`, 2/3→`Tier.DEFAULT`); prefer `TierConfig.for_level()`. See [config docs](../config/index.md) for details.
-
 ### Agent runners
 
 - `run_agent` — runs an `AgentHandle` under a trace span with bounded retry, always closing the handle
