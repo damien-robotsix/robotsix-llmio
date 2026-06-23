@@ -101,15 +101,6 @@ OpenRouterProviderCostSource.fetch_provider_cost
 AsyncOpenRouterClient.fetch_credits
 
 # ---------------------------------------------------------------------------
-# core/tier_enum.py — StrEnum members used externally
-# ---------------------------------------------------------------------------
-
-# Tier.DEFAULT and Tier.CHEAP are accessed via ``from .tier_enum import Tier``
-# in core/provider.py (re-exported) and from test code.
-Tier.DEFAULT
-Tier.CHEAP
-
-# ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 

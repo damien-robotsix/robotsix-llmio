@@ -13,7 +13,7 @@ import pytest
 from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
 from robotsix_llmio.core import provider as provider_module
 from robotsix_llmio.core import retry as retry_module
-from robotsix_llmio.core.provider import LLMProvider, Tier
+from robotsix_llmio.core.provider import LLMProvider
 
 
 class _HTTPErr(Exception):
@@ -41,27 +41,6 @@ class _MockProvider(LLMProvider):
     ) -> tuple[Any, Any]:
         self.new_model_calls.append({"model": model, "level": level})
         return self.model_obj, self.http_client_obj
-
-
-# --- Tier enum --------------------------------------------------------------
-
-
-def test_tier_values():
-    assert Tier.DEFAULT.value == "default"
-    assert Tier.CHEAP.value == "cheap"
-
-
-def test_tier_is_str_enum():
-    # ``str, Enum`` mixin: instances are both str and Enum so they can be
-    # compared with plain string literals.
-    assert isinstance(Tier.DEFAULT, str)
-    assert isinstance(Tier.CHEAP, str)
-    assert Tier.DEFAULT == "default"
-    assert Tier.CHEAP == "cheap"
-
-
-def test_tier_members():
-    assert {t.name for t in Tier} == {"DEFAULT", "CHEAP"}
 
 
 def test_new_model_defaults():

@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from .langfuse_async_client import AsyncLangfuseReadClient
     from .langfuse_client import LangfuseReadClient
     from .langfuse_cost import LangfuseCostLogSource
-    from .provider import LLMProvider, Tier
+    from .provider import LLMProvider
     from .provider_cost import (
         DEFAULT_TOLERANCE,
         Discrepancy,
@@ -102,7 +102,6 @@ __all__ = [
     "ParsedIdentifier",
     "ProviderCost",
     "ProviderCostSource",
-    "Tier",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
@@ -218,10 +217,6 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import provider
 
         return provider.LLMProvider
-    if name == "Tier":
-        from . import provider
-
-        return provider.Tier
     if name == "LEVEL1_DEFAULT":
         from robotsix_llmio.config import tier as _config_tier
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Stale env var declarations from `.env.example`: `LLMIO_LEVEL{n}_TRANSPORT`, `LLMIO_LEVEL{n}_PROVIDER` (deprecated aliases), and `LLMIO_PROVIDER` (deprecated fallback). These vars are no longer read by the config loader as of the provider/transport refactor in PR #202.
+- `Tier` enum (`robotsix_llmio.core.tier_enum.Tier`) — a backward-compatibility-only two-tier selector (`DEFAULT`/`CHEAP`) superseded by the three-level `TierLevel`/`TierConfig` system. The enum had zero runtime consumption; no `build_agent()` or `new_model()` method accepted a `tier=` parameter. Use `level=1|2|3` with a `TierConfig` instead. (mill: Remove backward-compat-only `Tier` enum — zero remaining production callers, deprecated docstring only (20260620T110305Z-remove-backward-compat-only-tier-enum-ze-f968))
 - `__version__` module-level constant from `src/robotsix_llmio/__init__.py` (was `"0.1.0"`). The `pyproject.toml` `version` field is now the single source of truth. Consumers needing the version at runtime should use `importlib.metadata.version("robotsix-llmio")`.
 
 ### Changed

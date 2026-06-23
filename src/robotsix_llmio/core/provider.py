@@ -1,4 +1,4 @@
-"""Provider-agnostic base: the ``Tier`` enum and the ``LLMProvider`` ABC."""
+"""Provider-agnostic base: the ``LLMProvider`` ABC."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from . import retry as _retry
 from .agent import AgentHandle
 from .agent import build_agent as _build_agent
-from .tier_enum import Tier as Tier  # explicit re-export for back-compat
 
 if TYPE_CHECKING:
     from robotsix_llmio.config.tier import TierConfig
