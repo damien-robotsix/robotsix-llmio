@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import warnings
 import weakref
 from types import SimpleNamespace
 from typing import Any
@@ -174,7 +175,13 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     client_id = id(client)
     _ref = weakref.ref(client)
     del client
-    gc.collect()
+    # Python 3.12 may emit ResourceWarning for unclosed sockets
+    # inside httpx's connection pool during GC sweep; the client
+    # is deliberately left open to verify the weakref-finalizer
+    # routing path, so suppress that warning.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ResourceWarning)
+        gc.collect()
 
     assert len(finalizers) == 1
     # On CPython < 3.13 gc.collect() alone cannot fire the finalize under

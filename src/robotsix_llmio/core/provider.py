@@ -18,6 +18,34 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def _resolve_model_name(
+    tier_config: TierConfig | None,
+    level: int,
+) -> str:
+    """Resolve a concrete model name from *tier_config* for the given *level*.
+
+    When *tier_config* is ``None``, a default :class:`TierConfig` is built
+    from the baked module-level defaults
+    (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
+    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
+    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
+    """
+    if tier_config is None:
+        from robotsix_llmio.config.tier import (
+            LEVEL1_DEFAULT,
+            LEVEL2_DEFAULT,
+            LEVEL3_DEFAULT,
+            TierConfig,
+        )
+
+        tier_config = TierConfig(
+            level1=LEVEL1_DEFAULT,
+            level2=LEVEL2_DEFAULT,
+            level3=LEVEL3_DEFAULT,
+        )
+    return tier_config.for_level(level).model_name
+
+
 class LLMProvider(ABC):
     """Base for every provider. A derived provider implements :meth:`new_model`
     (and optionally :meth:`_is_transient`); the generic ``build_agent`` /
@@ -130,22 +158,8 @@ class LLMProvider(ABC):
                 retries=retries,
             )
 
-        if tier_config is None:
-            from robotsix_llmio.config.tier import (
-                LEVEL1_DEFAULT,
-                LEVEL2_DEFAULT,
-                LEVEL3_DEFAULT,
-                TierConfig,
-            )
-
-            tier_config = TierConfig(
-                level1=LEVEL1_DEFAULT,
-                level2=LEVEL2_DEFAULT,
-                level3=LEVEL3_DEFAULT,
-            )
-
-        tlc = tier_config.for_level(level)
-        m, http_client = self.new_model(model=tlc.model_name, level=level)
+        model_name = _resolve_model_name(tier_config, level)
+        m, http_client = self.new_model(model=model_name, level=level)
 
         return _build_agent(
             m,
