@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `__version__` module-level constant from `src/robotsix_llmio/__init__.py` (was `"0.1.0"`). The `pyproject.toml` `version` field is now the single source of truth. Consumers needing the version at runtime should use `importlib.metadata.version("robotsix-llmio")`.
+
 ### Changed
 
 - Moved weekly-pace config models (`WeeklyPaceConfig`, `ModelWeightConfig`) from `src/robotsix_llmio/config/weekly_pace.py` into `src/robotsix_llmio/weekly_pace/_config.py`, consolidating all weekly-pace source under the module directory. A compatibility re-export at the old path preserves existing imports.
