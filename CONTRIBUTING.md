@@ -9,9 +9,19 @@ please open a GitHub PR against `main`.
 Python **≥ 3.11** is required (CI tests 3.11, 3.12, 3.13; prefer 3.11 for local
 work to catch the lowest-supported-version issues early).
 
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e '.[openrouter_deepseek,claude_sdk,dev]'
+# Install uv (one-time — see https://docs.astral.sh/uv/#installation)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and set up
+git clone <repo>
+cd <repo>
+uv sync --frozen
+
+# Activate the virtual environment
+source .venv/bin/activate
 ```
 
 The `claude_sdk` extra additionally requires Node.js and a logged-in `claude`
@@ -28,7 +38,7 @@ The `pre-commit` tool is **not** included in the `dev` extras — install it
 separately:
 
 ```bash
-pip install pre-commit        # or: pipx install pre-commit
+uv tool install pre-commit        # or: pipx install pre-commit
 pre-commit install
 ```
 
