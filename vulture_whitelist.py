@@ -49,6 +49,13 @@ LoggedCost.record_count
 CostLogSource.fetch_logged_cost
 
 # ---------------------------------------------------------------------------
+# core/langfuse_async_client.py — public async read methods
+# ---------------------------------------------------------------------------
+
+AsyncLangfuseReadClient.fetch_traces_window
+AsyncLangfuseReadClient.fetch_trace_detail
+
+# ---------------------------------------------------------------------------
 # core/langfuse_client.py — public static helpers
 # ---------------------------------------------------------------------------
 
@@ -86,6 +93,15 @@ signum
 
 OpenRouterKeyCostSource.fetch_key_usage
 OpenRouterProviderCostSource.fetch_provider_cost
+
+# ---------------------------------------------------------------------------
+# core/tier_enum.py — StrEnum members used externally
+# ---------------------------------------------------------------------------
+
+# Tier.DEFAULT and Tier.CHEAP are accessed via ``from .tier_enum import Tier``
+# in core/provider.py (re-exported) and from test code.
+Tier.DEFAULT
+Tier.CHEAP
 
 # ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members

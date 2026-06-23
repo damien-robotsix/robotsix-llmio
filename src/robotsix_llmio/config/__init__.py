@@ -9,17 +9,12 @@ config package does not eagerly pull in pydantic until a name is accessed.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 __all__ = [
-    "LEGACY_TIER_MAP",
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
-    "MODEL_LEVEL_TO_TIER",
-    "PROVIDER_MODELS",
-    "TRANSPORT_ALIASES",
     "MalformedIdentifierError",
     "ModelWeightConfig",
     "ParsedIdentifier",
@@ -27,28 +22,15 @@ __all__ = [
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
-    "UnknownModelError",
-    "UnknownTransportError",
     "WeeklyPaceConfig",
     "create_model",
     "get_provider_for_identifier",
     "load_tier_config",
     "parse_model_identifier",
-    "validate_model",
-    "validate_transport",
 ]
 
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
-    if name == "LEGACY_TIER_MAP":
-        warnings.warn(
-            "LEGACY_TIER_MAP is deprecated. Use TierConfig.for_level() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        from . import tier
-
-        return tier.LEGACY_TIER_MAP
     if name == "LEVEL1_DEFAULT":
         from . import tier
 
@@ -109,32 +91,4 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from robotsix_llmio.core import identifier as _core_identifier
 
         return _core_identifier.parse_model_identifier
-    if name == "TRANSPORT_ALIASES":
-        from . import transport
-
-        return transport.TRANSPORT_ALIASES
-    if name == "MODEL_LEVEL_TO_TIER":
-        from . import transport
-
-        return transport.MODEL_LEVEL_TO_TIER
-    if name == "UnknownTransportError":
-        from . import transport
-
-        return transport.UnknownTransportError
-    if name == "validate_transport":
-        from . import transport
-
-        return transport.validate_transport
-    if name == "PROVIDER_MODELS":
-        from . import model_registry
-
-        return model_registry.PROVIDER_MODELS
-    if name == "UnknownModelError":
-        from . import model_registry
-
-        return model_registry.UnknownModelError
-    if name == "validate_model":
-        from . import model_registry
-
-        return model_registry.validate_model
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

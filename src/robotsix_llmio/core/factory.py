@@ -1,35 +1,25 @@
-"""Provider-agnostic factory: select a backend by *name* + :class:`Tier`.
+"""Provider-agnostic factory: select a backend by provider-prefix.
 
-Consumers should obtain a provider through :func:`get_provider` (or
-:func:`get_provider_for_identifier`) and never import a concrete provider
-class.  The backend is resolved from config — an explicit ``provider=``
-argument, the ``LLMIO_PROVIDER`` environment variable, or the built-in
-default (``"openrouter-deepseek"``) — so swapping the fleet to another
-backend needs no consumer code change.
+Consumers obtain a provider through :func:`get_provider_for_identifier` and
+never import a concrete provider class.  The provider prefix is parsed from
+a combined ``provider-model`` tier identifier (e.g. ``"claudeSDK-opus"``)
+and the backend is lazy-imported via :data:`_PROVIDER_PREFIX_MAP`.
 
 Provider classes are **lazy-imported** on resolution so optional extras stay
 optional: a missing extra surfaces an :class:`ImportError` naming the extra and
-the exact ``pip install`` command. Only ``importlib``, ``os``, typing, and the
-``core.provider`` return type are imported at module load — never a heavy or
-optional provider dependency.
-
-Constructors are heterogeneous across backends, so :func:`get_provider` (and
-:func:`get_provider_for_identifier`) forward ``**kwargs`` to the resolved class
-rather than imposing a uniform signature; the caller is responsible for
-passing kwargs the chosen backend accepts.
+the exact ``pip install`` command.
 """
 
 from __future__ import annotations
 
 import importlib
-import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .provider import LLMProvider
 
-_DEFAULT_PROVIDER = "openrouter-deepseek"
-_ENV_VAR = "LLMIO_PROVIDER"
+if TYPE_CHECKING:
+    from robotsix_llmio.config.tier import TierConfig
 
 
 @dataclass(frozen=True)
@@ -42,38 +32,7 @@ class _ProviderEntry:
 
 
 # ---------------------------------------------------------------------------
-#  Legacy provider-name registry (kept for Child 2 deletion)
-# ---------------------------------------------------------------------------
-
-_PROVIDER_REGISTRY: dict[str, _ProviderEntry] = {
-    "openrouter-deepseek": _ProviderEntry(
-        module="robotsix_llmio.openrouter_deepseek",
-        class_name="OpenRouterDeepseekProvider",
-        extra="openrouter_deepseek",
-    ),
-    "claude-sdk": _ProviderEntry(
-        module="robotsix_llmio.claude_sdk",
-        class_name="ClaudeSDKProvider",
-        extra="claude_sdk",
-    ),
-}
-
-
-def register_provider(name: str, *, module: str, class_name: str, extra: str) -> None:
-    """Register a provider *name* so consumers can select it by name.
-
-    *module* is the dotted path of the provider sub-package, *class_name* the
-    provider class attribute on it, and *extra* the pip extra used to build the
-    actionable missing-extra error. Lets a new backend register its name once
-    without editing the registry dict literal.
-    """
-    _PROVIDER_REGISTRY[name] = _ProviderEntry(
-        module=module, class_name=class_name, extra=extra
-    )
-
-
-# ---------------------------------------------------------------------------
-#  New: provider-prefix → backend map (single source of truth)
+#  Provider-prefix → backend map (single source of truth)
 # ---------------------------------------------------------------------------
 
 _PROVIDER_PREFIX_MAP: dict[str, _ProviderEntry] = {
@@ -155,36 +114,155 @@ def get_provider_for_identifier(identifier: str, **kwargs: Any) -> LLMProvider:
 
 
 # ---------------------------------------------------------------------------
-#  Legacy get_provider (kept for Child 2 deletion)
+#  Level-based entry points — wire TierConfig into the factory
 # ---------------------------------------------------------------------------
 
 
-def get_provider(*, provider: str | None = None, **kwargs: Any) -> LLMProvider:
-    """Resolve and instantiate a provider by registry *name*.
+def default_tier_config() -> TierConfig:
+    """Return a :class:`TierConfig` built from the baked per-level defaults.
 
-    The registry name is resolved in precedence order: an explicit *provider*
-    argument, the ``LLMIO_PROVIDER`` environment variable, then the default
-    ``"openrouter-deepseek"``. The provider class is lazy-imported so optional
-    extras stay optional; ``**kwargs`` are forwarded to the resolved class
-    constructor (the caller must pass kwargs the chosen backend accepts).
+    This is the single source of the baked per-level *(provider, model)*
+    binding: level 1 → ``openrouter[deepseek]-deepseek/deepseek-v4-flash``,
+    level 2 → ``openrouter[deepseek]-deepseek/deepseek-v4-pro``,
+    level 3 → ``claudeSDK-opus`` (see
+    :data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
+    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`, and
+    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
+
+    Returns
+    -------
+    TierConfig
+        A config whose three slots hold the module-level baked defaults.
     """
-    name = provider or os.environ.get(_ENV_VAR) or _DEFAULT_PROVIDER
-    try:
-        entry = _PROVIDER_REGISTRY[name]
-    except KeyError as exc:
-        known = ", ".join(sorted(_PROVIDER_REGISTRY))
-        raise ValueError(
-            f"Unknown provider {name!r}. Known providers: {known}."
-        ) from exc
+    from robotsix_llmio.config.tier import (
+        LEVEL1_DEFAULT,
+        LEVEL2_DEFAULT,
+        LEVEL3_DEFAULT,
+        TierConfig,
+    )
 
-    try:
-        mod = importlib.import_module(entry.module)
-        cls = getattr(mod, entry.class_name)
-    except ImportError as exc:
-        raise ImportError(
-            f"{entry.module} requires the {entry.extra!r} extra. "
-            f"Install with: pip install 'robotsix-llmio[{entry.extra}]'"
-        ) from exc
+    return TierConfig(
+        level1=LEVEL1_DEFAULT,
+        level2=LEVEL2_DEFAULT,
+        level3=LEVEL3_DEFAULT,
+    )
 
-    instance: LLMProvider = cls(**kwargs)
-    return instance
+
+def get_provider_for_level(
+    level: int,
+    *,
+    tier_config: TierConfig | None = None,
+    **kwargs: Any,
+) -> LLMProvider:
+    """Resolve and instantiate the provider bound to a capability *level*.
+
+    The *(provider, model)* binding for *level* is read from *tier_config*
+    (or :func:`default_tier_config` when ``None``); the level's combined
+    identifier drives the provider lazy-import, exactly as
+    :func:`get_provider_for_identifier`.  The tier level's
+    ``provider_kwargs`` are merged with ``**kwargs`` (caller ``**kwargs``
+    win on conflict) and forwarded to the provider constructor.
+
+    Parameters
+    ----------
+    level:
+        Capability level — ``1`` (cheap), ``2`` (intermediate), or ``3``
+        (high-level planning).
+    tier_config:
+        Per-level *(provider, model)* binding to resolve against.  When
+        ``None``, the baked defaults from :func:`default_tier_config` are
+        used.
+    **kwargs:
+        Forwarded to the resolved provider class constructor, merged over
+        the tier level's ``provider_kwargs`` (caller values win).
+
+    Returns
+    -------
+    LLMProvider
+        A fully-instantiated provider for the level's bound backend.
+
+    Raises
+    ------
+    ValueError
+        If *level* is not 1, 2, or 3 (via :meth:`TierConfig.for_level`),
+        or if the level's identifier names an unknown provider prefix.
+    MalformedIdentifierError
+        If the level's identifier cannot be parsed.
+    ImportError
+        If the resolved provider's optional extra is not installed
+        (e.g. ``claude_sdk`` for ``level=3``).
+    """
+    tlc = (tier_config or default_tier_config()).for_level(level)
+    return get_provider_for_identifier(tlc.model, **{**tlc.provider_kwargs, **kwargs})
+
+
+def build_agent_for_level(
+    level: int,
+    *,
+    tier_config: TierConfig | None = None,
+    model: str | None = None,
+    provider_kwargs: dict[str, Any] | None = None,
+    **build_kwargs: Any,
+) -> Any:
+    """Build an agent on the provider+model bound to a capability *level*.
+
+    This is the single entry point a consumer needs: pick a *level* and get
+    a ready-to-run agent on that level's default provider and model — no
+    provider knowledge required.  Resolution is:
+
+    1. resolve the level's :class:`~robotsix_llmio.config.tier.TierLevelConfig`
+       from *tier_config* (or :func:`default_tier_config` when ``None``);
+    2. lazy-import the provider via :func:`get_provider_for_identifier`,
+       passing *provider_kwargs* (falling back to the level's
+       ``provider_kwargs``) to its constructor;
+    3. call ``provider.build_agent(level=level, model=..., **build_kwargs)``.
+
+    With everything left at its default a consumer calls
+    ``build_agent_for_level(1, system_prompt=..., output_type=str,
+    name=...)`` for a cheap DeepSeek agent and
+    ``build_agent_for_level(3, system_prompt=..., tools=...,
+    output_type=str, name=...)`` for a Claude-opus agent.
+
+    Parameters
+    ----------
+    level:
+        Capability level — ``1`` (cheap), ``2`` (intermediate), or ``3``
+        (high-level planning).
+    tier_config:
+        Per-level *(provider, model)* binding to resolve against.  When
+        ``None``, the baked defaults from :func:`default_tier_config` are
+        used (i.e. omitting everything uses the baked defaults).
+    model:
+        Optional **bare** model-name override.  It overrides *only* the
+        model name; the provider stays the one bound to *level*.  When
+        ``None`` (default), the level's baked model name is used.
+    provider_kwargs:
+        Keyword arguments for the provider constructor.  When ``None``,
+        the level's ``provider_kwargs`` are used.
+    **build_kwargs:
+        Forwarded verbatim to ``provider.build_agent`` (e.g.
+        ``system_prompt``, ``tools``, ``output_type``, ``name``,
+        ``retries``, ``builtin_tools``).
+
+    Returns
+    -------
+    AgentHandle
+        A ready-to-run agent handle.  Call ``.close()`` when done.
+
+    Raises
+    ------
+    ValueError
+        If *level* is not 1, 2, or 3 (via :meth:`TierConfig.for_level`),
+        or if the level's identifier names an unknown provider prefix.
+    MalformedIdentifierError
+        If the level's identifier cannot be parsed.
+    ImportError
+        If the resolved provider's optional extra is not installed
+        (``build_agent_for_level(3)`` requires the ``claude_sdk`` extra).
+    """
+    tlc = (tier_config or default_tier_config()).for_level(level)
+    kwargs = provider_kwargs if provider_kwargs is not None else tlc.provider_kwargs
+    provider = get_provider_for_identifier(tlc.model, **kwargs)
+    return provider.build_agent(
+        level=level, model=model or tlc.model_name, **build_kwargs
+    )
