@@ -107,8 +107,7 @@ Tier.CHEAP
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 
-# StrEnum members referenced via TierLevel.LEVEL3 externally; LEVEL1/LEVEL2
-# are used within LEGACY_TIER_MAP in the same file.
+# StrEnum members referenced via TierLevel.LEVEL3 externally.
 TierLevel.LEVEL3
 
 # Pydantic model fields + validators accessed by pydantic's metaclass
