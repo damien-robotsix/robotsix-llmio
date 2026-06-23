@@ -20,7 +20,7 @@ repos:
         args: ["src/"]
         additional_dependencies: ["pydantic-ai>=1.0", "httpx"]
   - repo: https://github.com/PyCQA/bandit
-    rev: v1.8.3
+    rev: 1.9.4
     hooks:
       - id: bandit
         args: ["-r", "src/", "-ll"]
