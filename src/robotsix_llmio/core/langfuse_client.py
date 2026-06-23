@@ -38,13 +38,12 @@ _TRACES_PATH = "/api/public/traces"
 _OBSERVATIONS_PATH = "/api/public/observations"
 
 
-class LangfuseReadClient:
-    """Speak the Langfuse REST read protocol.
+class _LangfuseReadClientBase:
+    """Shared kernel for sync and async Langfuse REST read clients.
 
-    Owns the reusable kernel — auth header, base-URL resolution, and 1-based
-    pagination over the public endpoints — so adapters need not re-derive it.
-    Credentials are always passed in explicitly; the client reads no
-    ``LANGFUSE_*`` env vars (env defaulting, if any, belongs to the consumer).
+    Owns auth header, base-URL resolution, and credential storage.
+    Subclasses add their own pagination method (sync ``iter_pages`` or
+    async ``aiter_pages``).
     """
 
     def __init__(
@@ -73,6 +72,16 @@ class LangfuseReadClient:
             f"{self._public_key}:{self._secret_key}".encode()
         ).decode()
         return f"Basic {token}"
+
+
+class LangfuseReadClient(_LangfuseReadClientBase):
+    """Speak the Langfuse REST read protocol.
+
+    Owns the reusable kernel — auth header, base-URL resolution, and 1-based
+    pagination over the public endpoints — so adapters need not re-derive it.
+    Credentials are always passed in explicitly; the client reads no
+    ``LANGFUSE_*`` env vars (env defaulting, if any, belongs to the consumer).
+    """
 
     def iter_pages(
         self,
