@@ -64,13 +64,13 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
 
         return loader.load_tier_config
     if name == "ModelWeightConfig":
-        from . import weekly_pace
+        from robotsix_llmio.weekly_pace import _config
 
-        return weekly_pace.ModelWeightConfig
+        return _config.ModelWeightConfig
     if name == "WeeklyPaceConfig":
-        from . import weekly_pace
+        from robotsix_llmio.weekly_pace import _config
 
-        return weekly_pace.WeeklyPaceConfig
+        return _config.WeeklyPaceConfig
     if name == "create_model":
         from . import factory
 

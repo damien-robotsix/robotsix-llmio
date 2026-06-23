@@ -8,7 +8,7 @@ falling back to DeepSeek; when behind pace, it recommends Claude.
 Usage::
 
     from robotsix_llmio.weekly_pace import PaceGovernor
-    from robotsix_llmio.config.weekly_pace import WeeklyPaceConfig
+    from robotsix_llmio.weekly_pace._config import WeeklyPaceConfig
 
     config = WeeklyPaceConfig(enabled=True, weekly_budget=10.0)
     governor = PaceGovernor(config, cost_source=langfuse_source)
@@ -37,8 +37,8 @@ from ..core.cost_log import CostWindow
 from ._week_math import _current_week_window, week_fraction_elapsed
 
 if TYPE_CHECKING:
-    from ..config.weekly_pace import WeeklyPaceConfig
     from ..core.langfuse_cost import LangfuseCostLogSource
+    from ._config import WeeklyPaceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class PaceGovernor:
     in-flight runs that haven't been exported yet, and compares the
     total against the elapsed week fraction with hysteresis margins.
 
-    Construct with a :class:`~robotsix_llmio.config.weekly_pace.WeeklyPaceConfig`
+    Construct with a :class:`~robotsix_llmio.weekly_pace._config.WeeklyPaceConfig`
     and an optional :class:`~robotsix_llmio.core.langfuse_cost.LangfuseCostLogSource`.
     When *cost_source* is None, only in-process increments are tracked
     (useful for testing or when Langfuse is unavailable).

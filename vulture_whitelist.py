@@ -125,7 +125,7 @@ TierConfig.level2
 TierConfig.level3
 
 # ---------------------------------------------------------------------------
-# config/weekly_pace.py — Pydantic model fields
+# weekly_pace/_config.py — Pydantic model fields
 # ---------------------------------------------------------------------------
 
 ModelWeightConfig.opus
