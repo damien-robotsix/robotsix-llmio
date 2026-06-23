@@ -15,6 +15,7 @@ modules:
       - tests/core/test_text_utils.py
       - tests/core/test_core_provider.py
       - tests/core/test_factory.py
+      - tests/core/test_factory_levels.py
       - tests/core/test_core_http.py
       - tests/core/test_core_cost.py
       - tests/core/test_core_cost_log.py
