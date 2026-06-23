@@ -91,3 +91,4 @@ modules:
     paths:
       - src/robotsix_llmio/tools/**
       - tests/tools/**
+      - docs/reference/tools.md

@@ -39,4 +39,5 @@ nav:
       - OpenRouter: reference/openrouter.md
       - OpenRouter DeepSeek: reference/openrouter_deepseek.md
       - Claude SDK: reference/claude_sdk.md
+      - Tools: reference/tools.md
   - Changelog: changelog.md
