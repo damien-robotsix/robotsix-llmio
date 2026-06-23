@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Config narrative documentation (`docs/config/index.md`) to `mkdocs.yml` navigation, placed between Core and OpenRouter.
 - Registered `tests/core/test_identifier.py` in `docs/modules.yaml` under the `robotsix_llmio-core` module.
 - Badge row in README.md: PyPI version, supported Python versions, CI status, and license badges.
 - Documented identifier parsing (`MalformedIdentifierError`, `ParsedIdentifier`, `parse_model_identifier`), tier fallback (`call_with_tier_fallback`, `acall_with_tier_fallback`), `get_provider_for_identifier`, and `MODEL_LEVEL_TO_TIER` in `docs/core/index.md`.
