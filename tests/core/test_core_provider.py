@@ -43,6 +43,21 @@ class _MockProvider(LLMProvider):
         return self.model_obj, self.http_client_obj
 
 
+# --- shared fixture: mock _build_agent -------------------------------------
+
+
+@pytest.fixture
+def mock_build_agent(monkeypatch):
+    def _mock(model=None, http_client=None, **kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", _mock)
+    return _mock
+
+
+# ---------------------------------------------------------------------------
+
+
 def test_new_model_defaults():
     """Without arguments, ``new_model`` receives ``model=None, level=0``
     (the sentinel defaults)."""
@@ -143,24 +158,14 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
         (3, "opus"),
     ],
 )
-def test_build_agent_level_uses_default(monkeypatch, level, expected_model):
+def test_build_agent_level_uses_default(mock_build_agent, level, expected_model):
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=level, system_prompt="sys")
     assert p.new_model_calls == [{"model": expected_model, "level": level}]
 
 
-def test_build_agent_level_out_of_range_raises(monkeypatch):
+def test_build_agent_level_out_of_range_raises(mock_build_agent):
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
         p.build_agent(level=0, system_prompt="sys")
     with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
@@ -212,58 +217,38 @@ def test_build_agent_returns_underlying_handle(monkeypatch):
 # --- build_agent model override --------------------------------------------
 
 
-def test_build_agent_model_override_bypasses_tier_config(monkeypatch):
+def test_build_agent_model_override_bypasses_tier_config(mock_build_agent):
     """When ``model`` is provided, ``new_model`` is called with the explicit
     model name and *tier_config* is never consulted (no ValueError for
     out-of-range levels either — level is still passed)."""
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(model="my-custom-model", level=1, system_prompt="sys")
     assert p.new_model_calls == [{"model": "my-custom-model", "level": 1}]
 
 
-def test_build_agent_model_override_with_level(monkeypatch):
+def test_build_agent_model_override_with_level(mock_build_agent):
     """``level`` is still forwarded alongside the explicit model."""
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(model="custom", level=3, system_prompt="sys")
     assert p.new_model_calls == [{"model": "custom", "level": 3}]
 
 
-def test_build_agent_model_override_wins_over_tier_config(monkeypatch):
+def test_build_agent_model_override_wins_over_tier_config(mock_build_agent):
     """Even when ``tier_config`` is provided, the explicit ``model`` takes
     precedence."""
     cfg = TierConfig(
         level1=TierLevelConfig(model="claudeSDK-opus"),
     )
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(
         model="overridden-model", level=1, tier_config=cfg, system_prompt="sys"
     )
     assert p.new_model_calls == [{"model": "overridden-model", "level": 1}]
 
 
-def test_build_agent_model_none_still_resolves_from_tier_config(monkeypatch):
+def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent):
     """When ``model=None`` (the default), tier_config resolution works as before."""
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=1, system_prompt="sys")
     # LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash"
     assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
@@ -299,17 +284,12 @@ def test_build_agent_model_none_still_resolves_from_tier_config(monkeypatch):
     ],
 )
 def test_build_agent_with_tier_config(
-    monkeypatch, level, tier_config_kwargs, expected_model
+    mock_build_agent, level, tier_config_kwargs, expected_model
 ):
     """Primary path: ``build_agent(level=N, tier_config=cfg)`` calls
     ``new_model(model=cfg.levelN.model_name)``."""
     cfg = TierConfig(**tier_config_kwargs)
     p = _MockProvider()
-
-    def fake_build_agent(*_args, **_kwargs):
-        return SimpleNamespace()
-
-    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(level=level, tier_config=cfg, system_prompt="sys")
     assert p.new_model_calls == [{"model": expected_model, "level": level}]
 
