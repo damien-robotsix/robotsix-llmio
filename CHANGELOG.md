@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `.github/workflows/release.yml`: switched trigger from `release: [published]` to `push: tags: ['v*']` and enabled `github-release` artifacts via `softprops/action-gh-release@v2`. A `git push --tags` now drives the full release pipeline (build → GitHub Release with dist assets → PyPI publish).
+
 ### Fixed
 
 - README.md: replaced phantom symbols `get_provider` and `register_provider` with the actual public API (`get_provider_for_level`, `TierConfig`).
