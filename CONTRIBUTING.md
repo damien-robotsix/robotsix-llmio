@@ -138,8 +138,11 @@ automatically by the `.github/workflows/release.yml` GitHub Actions workflow.
 The flow is:
 
 1. Bump `version` in `pyproject.toml`, then commit/merge the bump to `main`.
-2. Tag the release and create a **GitHub Release** for that tag. Publishing the
-   release triggers `release.yml`.
+2. Tag the release and push the tag — this is the **only** step needed to trigger the full pipeline:
+   ```bash
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+   The tag push triggers `release.yml`, which builds the sdist + wheel, creates a **GitHub Release** with the build artifacts attached, and publishes to PyPI via Trusted Publishing (OIDC).
 3. The workflow builds the sdist + wheel (`python -m build`) and publishes them
    to PyPI via **Trusted Publishing (OIDC)** — no API token is stored or
    required.
