@@ -489,7 +489,10 @@ def test_unrouted_span_warning(monkeypatch, caplog):
         assert any(
             "Cannot route span" in r.message and "multi-tenant" in r.message
             for r in warnings
-        ), f"expected throttled multi-tenant warning, got: {[r.message for r in warnings]}"
+        ), (
+            f"expected throttled multi-tenant warning, "
+            f"got: {[r.message for r in warnings]}"
+        )
 
 
 def test_active_routing_key():
