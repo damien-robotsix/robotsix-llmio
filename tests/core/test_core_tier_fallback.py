@@ -14,6 +14,7 @@ import pytest
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 from robotsix_llmio.core.tier_fallback import (
+    _ALL_TIER_LEVELS,
     _next_unvisited_tier,
     acall_with_tier_fallback,
     call_with_tier_fallback,
@@ -723,3 +724,20 @@ def test_acall_logging_output(caplog):
         "async-op: level1 failed with RuntimeError — falling back to level2" in msg
         for msg in warn_messages
     )
+
+
+# --------------------------------------------------------------------------- #
+#  _ALL_TIER_LEVELS sync guard                                                #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("member", tuple(TierLevel))
+def test_all_tier_levels_enum_members_in_tuple(member: TierLevel) -> None:
+    """Every TierLevel enum member is present in _ALL_TIER_LEVELS."""
+    assert member in _ALL_TIER_LEVELS
+
+
+@pytest.mark.parametrize("entry", _ALL_TIER_LEVELS)
+def test_no_stale_entries_in_all_tier_levels_tuple(entry: TierLevel) -> None:
+    """Every entry in _ALL_TIER_LEVELS is a valid TierLevel member."""
+    assert entry in tuple(TierLevel)
