@@ -27,7 +27,6 @@ agent = provider.build_agent(
   def create_model(
       *,
       level: int = 1,
-      transport: str | None = None,
       tier_config: TierConfig | None = None,
       **provider_kwargs: Any,
   ) -> LLMProvider:
@@ -36,11 +35,6 @@ agent = provider.build_agent(
   - **`level`** (1, 2, or 3) — selects the capability tier.  Level 1 picks the
     cheap/fast default; levels 2 and 3 pick progressively more capable defaults.
     Defaults to 1.
-  - **`transport`** — optional consumer-facing transport alias
-    (`"claude-sdk"` or `"openrouter[deepseek]"`).  When supplied, it overrides
-    the level-based provider choice — useful for pinning a specific backend
-    regardless of tier.  When `None`, the provider is resolved from
-    `tier_config.for_level(level).provider`.
   - **`tier_config`** — optional `TierConfig` instance supplying custom
     per-level defaults.  When `None`, a default is built from the baked
     module-level constants (`LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`,
