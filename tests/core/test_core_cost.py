@@ -24,6 +24,12 @@ import types
 import pytest
 
 from robotsix_llmio.core.cost import flush_current_provider, record_cost
+from robotsix_llmio.core.tracing import (
+    GEN_AI_OPERATION_NAME,
+    GEN_AI_USAGE_COST,
+    LANGFUSE_OBSERVATION_COST_DETAILS,
+    LANGFUSE_OBSERVATION_METADATA_PROVIDER,
+)
 
 
 class _FakeSpan:
@@ -47,11 +53,11 @@ def test_record_cost_happy_path_with_provider(monkeypatch):
 
     record_cost(object(), lambda _resp: 0.0123, provider="openrouter")
 
-    assert span.attributes["gen_ai.usage.cost"] == 0.0123
-    assert span.attributes["gen_ai.operation.name"] == "chat"
-    details = span.attributes["langfuse.observation.cost_details"]
+    assert span.attributes[GEN_AI_USAGE_COST] == 0.0123
+    assert span.attributes[GEN_AI_OPERATION_NAME] == "chat"
+    details = span.attributes[LANGFUSE_OBSERVATION_COST_DETAILS]
     assert json.loads(details) == {"total": 0.0123}
-    assert span.attributes["langfuse.observation.metadata.provider"] == "openrouter"
+    assert span.attributes[LANGFUSE_OBSERVATION_METADATA_PROVIDER] == "openrouter"
 
 
 def test_record_cost_without_provider(monkeypatch):
@@ -62,12 +68,12 @@ def test_record_cost_without_provider(monkeypatch):
 
     record_cost(object(), lambda _resp: 0.0123)
 
-    assert span.attributes["gen_ai.usage.cost"] == 0.0123
-    assert span.attributes["gen_ai.operation.name"] == "chat"
-    assert json.loads(span.attributes["langfuse.observation.cost_details"]) == {
+    assert span.attributes[GEN_AI_USAGE_COST] == 0.0123
+    assert span.attributes[GEN_AI_OPERATION_NAME] == "chat"
+    assert json.loads(span.attributes[LANGFUSE_OBSERVATION_COST_DETAILS]) == {
         "total": 0.0123
     }
-    assert "langfuse.observation.metadata.provider" not in span.attributes
+    assert LANGFUSE_OBSERVATION_METADATA_PROVIDER not in span.attributes
 
 
 def test_record_cost_no_op_without_recording_span(monkeypatch):

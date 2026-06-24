@@ -15,6 +15,9 @@ import pytest
 
 from robotsix_llmio.core import tracing
 from robotsix_llmio.core.tracing import (
+    LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SESSION_ID,
+    LANGFUSE_TRACE_NAME,
     _active_public_key,
     _basic_auth_header,
     _langfuse_otlp_endpoint,
@@ -54,6 +57,9 @@ _REEXPORTED_SEMCONV_NAMES = (
     "LANGFUSE_OBSERVATION_COST_DETAILS",
     "LANGFUSE_OBSERVATION_METADATA_PROVIDER",
     "LANGFUSE_COST_DETAILS_TOTAL_KEY",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SESSION_ID",
+    "LANGFUSE_TRACE_NAME",
     "get_recording_span",
     "get_tracer",
     "start_span",
@@ -397,9 +403,9 @@ def test_trace_routing_inheritance_from_root(monkeypatch):
     assert child_span is not None
 
     # Root got pk-root from the contextvar.
-    assert root_span.attributes.get("langfuse.public_key") == "pk-root"
+    assert root_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
     # Child inherited pk-root from the trace-level mapping (Tier 2).
-    assert child_span.attributes.get("langfuse.public_key") == "pk-root"
+    assert child_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
 
 
 def test_trace_routing_no_fallback_multi_tenant(monkeypatch):
@@ -420,7 +426,7 @@ def test_trace_routing_no_fallback_multi_tenant(monkeypatch):
 
     span = _get_span_by_name(mem, "orphan")
     assert span is not None
-    assert "langfuse.public_key" not in (span.attributes or {})
+    assert LANGFUSE_PUBLIC_KEY not in (span.attributes or {})
 
 
 def test_trace_routing_fallback_single_tenant(monkeypatch):
@@ -436,7 +442,7 @@ def test_trace_routing_fallback_single_tenant(monkeypatch):
 
     span = _get_span_by_name(mem, "single")
     assert span is not None
-    assert span.attributes.get("langfuse.public_key") == "pk-test"
+    assert span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-test"
 
 
 def test_trace_routing_root_cleanup(monkeypatch):
@@ -546,22 +552,22 @@ def test_stamp_processor_direct_construction_tiers(monkeypatch):
         tracing._current_public_key.reset(pk_token)
         tracing._current_session.reset(sess_token)
     assert span1.attributes["session.id"] == "sess-1"
-    assert span1.attributes["langfuse.session.id"] == "sess-1"
-    assert span1.attributes["langfuse.public_key"] == "pk-ctx"
+    assert span1.attributes[LANGFUSE_SESSION_ID] == "sess-1"
+    assert span1.attributes[LANGFUSE_PUBLIC_KEY] == "pk-ctx"
     assert tracing._trace_routing[111] == "pk-ctx"
 
     # Tier 2: contextvar None but trace-level routing pre-populated.
     monkeypatch.setattr(tracing, "_trace_routing", {222: "pk-inherited"})
     span2 = _FakeSpan(trace_id=222)
     proc.on_start(span2)
-    assert span2.attributes["langfuse.public_key"] == "pk-inherited"
+    assert span2.attributes[LANGFUSE_PUBLIC_KEY] == "pk-inherited"
     assert "session.id" not in span2.attributes
 
     # Tier 3: contextvar None, no trace entry, single-tenant default.
     monkeypatch.setattr(tracing, "_trace_routing", {})
     span3 = _FakeSpan(trace_id=333)
     proc.on_start(span3)
-    assert span3.attributes["langfuse.public_key"] == "pk-x"
+    assert span3.attributes[LANGFUSE_PUBLIC_KEY] == "pk-x"
     assert tracing._trace_routing[333] == "pk-x"
 
     # on_end on a root span (parent=None) removes the trace_id mapping.
@@ -597,9 +603,9 @@ def test_stamp_processor_names_root_trace(monkeypatch):
     finally:
         tracing._current_session.reset(token)
 
-    assert root_empty.attributes["langfuse.trace.name"] == "robotsix-mill · ticket-xyz"
-    assert "langfuse.trace.name" not in child.attributes  # not re-stamped
-    assert root_named.attributes["langfuse.trace.name"] == "implement"
+    assert root_empty.attributes[LANGFUSE_TRACE_NAME] == "robotsix-mill · ticket-xyz"
+    assert LANGFUSE_TRACE_NAME not in child.attributes  # not re-stamped
+    assert root_named.attributes[LANGFUSE_TRACE_NAME] == "implement"
 
 
 def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
@@ -617,7 +623,7 @@ def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
     # Root: no session in context, empty name → unnameable at its on_start.
     root = _FakeSpan(trace_id=7, parent=None, name="")
     proc.on_start(root)
-    assert "langfuse.trace.name" not in root.attributes
+    assert LANGFUSE_TRACE_NAME not in root.attributes
 
     # A later child runs in a context that carries the session → names trace.
     token = tracing._current_session.set("robotsix-mill · ticket-7")
@@ -626,7 +632,7 @@ def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
         proc.on_start(child)
     finally:
         tracing._current_session.reset(token)
-    assert child.attributes["langfuse.trace.name"] == "robotsix-mill · ticket-7"
+    assert child.attributes[LANGFUSE_TRACE_NAME] == "robotsix-mill · ticket-7"
 
     proc.on_end(root)  # root end clears the per-trace guard
     assert 7 not in tracing._trace_named
@@ -646,7 +652,7 @@ def test_stamp_processor_root_unnamed_without_session(monkeypatch):
 
     root = _FakeSpan(trace_id=9, parent=None, name="")
     proc.on_start(root)
-    assert "langfuse.trace.name" not in root.attributes
+    assert LANGFUSE_TRACE_NAME not in root.attributes
 
 
 # --- _FilteredBatchSpanProcessor unit tests --------------------------------
@@ -677,7 +683,7 @@ def test_filtered_batch_processor_matching_key_passes_through(monkeypatch):
     proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
 
     span = _FakeSpan(trace_id=1)
-    span.attributes["langfuse.public_key"] = "pk-a"
+    span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-a"
     proc.on_end(span)
     proc.force_flush()
 
@@ -694,7 +700,7 @@ def test_filtered_batch_processor_mismatched_key_is_dropped(monkeypatch):
     proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
 
     span = _FakeSpan(trace_id=2)
-    span.attributes["langfuse.public_key"] = "pk-b"
+    span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-b"
     proc.on_end(span)
     proc.force_flush()
 
@@ -720,4 +726,4 @@ def test_filtered_batch_processor_missing_key_logs_and_drops(monkeypatch):
     assert len(exporter.exported) == 0
     assert len(debug_calls) == 1
     assert "my-span" in debug_calls[0]
-    assert "langfuse.public_key" in debug_calls[0]
+    assert LANGFUSE_PUBLIC_KEY in debug_calls[0]

@@ -100,6 +100,15 @@ from ._otel import (
     LANGFUSE_OBSERVATION_OUTPUT as LANGFUSE_OBSERVATION_OUTPUT,
 )
 from ._otel import (
+    LANGFUSE_PUBLIC_KEY as LANGFUSE_PUBLIC_KEY,
+)
+from ._otel import (
+    LANGFUSE_SESSION_ID as LANGFUSE_SESSION_ID,
+)
+from ._otel import (
+    LANGFUSE_TRACE_NAME as LANGFUSE_TRACE_NAME,
+)
+from ._otel import (
     OP_CHAT as OP_CHAT,
 )
 from ._otel import (
