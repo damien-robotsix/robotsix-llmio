@@ -8,7 +8,6 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 ### Provider ABC & agent assembly
 
 - `LLMProvider` — abstract base for every LLM provider; subclasses implement `new_model(tier)`
-- `Tier` — **deprecated** `StrEnum` with `DEFAULT` (capable) and `CHEAP` (fast/cheap); use `TierLevel` / the `level` parameter instead
 - `AgentHandle` — wraps a pydantic-ai Agent with its httpx client, exposing `close()` for cleanup
 - `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type; on the provider the public entry-point is `LLMProvider.build_agent(level=..., system_prompt=...)` where `level` is an integer 1–3
 
