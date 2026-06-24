@@ -62,6 +62,7 @@ modules:
   - id: robotsix_llmio-claude-sdk
     paths:
       - src/robotsix_llmio/claude_sdk/**
+      - tests/claude_sdk/conftest.py
       - tests/claude_sdk/test_claude_sdk.py
       - tests/claude_sdk/test_confine_hook.py
       - tests/claude_sdk/test_stream.py
