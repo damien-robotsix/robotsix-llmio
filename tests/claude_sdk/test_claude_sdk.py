@@ -727,22 +727,14 @@ def test_chat_messages_input_renders_system_and_user():
     ]
 
 
-def test_generation_span_input_includes_system_prompt(monkeypatch):
+def test_generation_span_input_includes_system_prompt(
+    monkeypatch, otel_exporter_tracer
+):
     """End-to-end: the ``chat`` generation span records system + user as chat
     messages, so the system prompt is visible in the trace (not just input)."""
-    pytest.importorskip("opentelemetry.sdk")
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
-
+    exporter, tracer = otel_exporter_tracer
     import robotsix_llmio.claude_sdk._tool_agent as _ta
 
-    exporter = InMemorySpanExporter()
-    provider_obj = TracerProvider()
-    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider_obj.get_tracer("test")
     # Route the module's spans to our isolated, recording provider (the offline
     # suite installs no global TracerProvider).
     monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
@@ -785,24 +777,14 @@ def test_generation_span_input_includes_system_prompt(monkeypatch):
     assert root[1]["role"] == "user" and "USER_MARKER" in root[1]["content"]
 
 
-def test_spans_set_gen_ai_provider_name(monkeypatch):
+def test_spans_set_gen_ai_provider_name(monkeypatch, otel_exporter_tracer):
     """Both the ``chat`` generation span and the root agent-run span stamp
     ``gen_ai.provider.name`` with the transport provider, matching the
     OpenRouter transport's span attributes."""
-    pytest.importorskip("opentelemetry.sdk")
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
-
+    exporter, tracer = otel_exporter_tracer
     import robotsix_llmio.claude_sdk._tool_agent as _ta
     from robotsix_llmio.claude_sdk.model import PROVIDER_NAME
 
-    exporter = InMemorySpanExporter()
-    provider_obj = TracerProvider()
-    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider_obj.get_tracer("test")
     monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
 
     fake = _install_fake_sdk(monkeypatch)
@@ -843,17 +825,12 @@ def test_spans_set_gen_ai_provider_name(monkeypatch):
 # --- no-tools request() span attributes (regression) -----------------------
 
 
-def test_notools_request_stamps_gen_ai_attributes(monkeypatch):
+def test_notools_request_stamps_gen_ai_attributes(monkeypatch, otel_exporter_tracer):
     """After ``ClaudeSDKModel.request()`` runs with a recording span active, that
     span carries provider.model identity, system, and token-usage attributes
     — independently of whether cost was recorded, and consistent with the
     tool-loop path."""
-    pytest.importorskip("opentelemetry.sdk")
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
+    exporter, tracer = otel_exporter_tracer
 
     fake = _install_fake_sdk(monkeypatch)
 
@@ -862,11 +839,6 @@ def test_notools_request_stamps_gen_ai_attributes(monkeypatch):
         yield fake.ResultMessage({"input_tokens": 10, "output_tokens": 5})
 
     fake.query = _fake_query
-
-    exporter = InMemorySpanExporter()
-    provider_obj = TracerProvider()
-    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider_obj.get_tracer("test")
 
     model = ClaudeSDKModel("opus")
 
@@ -891,15 +863,10 @@ def test_notools_request_stamps_gen_ai_attributes(monkeypatch):
     assert attrs["gen_ai.usage.output_tokens"] == 5
 
 
-def test_notools_request_skips_missing_usage(monkeypatch):
+def test_notools_request_skips_missing_usage(monkeypatch, otel_exporter_tracer):
     """When the SDK ResultMessage has no usage dict, token attributes are not set
     (no spurious zeros), but identity attributes are still stamped."""
-    pytest.importorskip("opentelemetry.sdk")
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
+    exporter, tracer = otel_exporter_tracer
 
     fake = _install_fake_sdk(monkeypatch)
 
@@ -908,11 +875,6 @@ def test_notools_request_skips_missing_usage(monkeypatch):
         yield fake.ResultMessage()  # no usage
 
     fake.query = _fake_query
-
-    exporter = InMemorySpanExporter()
-    provider_obj = TracerProvider()
-    provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider_obj.get_tracer("test")
 
     model = ClaudeSDKModel("sonnet")
 
