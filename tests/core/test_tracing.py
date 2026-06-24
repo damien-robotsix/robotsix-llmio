@@ -376,6 +376,7 @@ def _setup_tracing_pipeline(monkeypatch):
 
     # Clean up.
     tracing._provider.shutdown()
+    tracing._provider = None
     otel_trace.set_tracer_provider(old_provider)
 
 

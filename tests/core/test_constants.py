@@ -8,7 +8,6 @@ literal value and confirm both consumers reference the shared constant.
 from __future__ import annotations
 
 from robotsix_llmio.core import constants, langfuse_client
-from robotsix_llmio.openrouter import provider_cost
 
 
 def test_http_client_timeout_value() -> None:
@@ -16,5 +15,7 @@ def test_http_client_timeout_value() -> None:
 
 
 def test_consumers_reference_shared_constant() -> None:
+    from robotsix_llmio.openrouter import provider_cost
+
     assert langfuse_client.HTTP_CLIENT_TIMEOUT is constants.HTTP_CLIENT_TIMEOUT
     assert provider_cost.HTTP_CLIENT_TIMEOUT is constants.HTTP_CLIENT_TIMEOUT

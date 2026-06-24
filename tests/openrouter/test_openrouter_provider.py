@@ -89,7 +89,6 @@ def _install_fake_pydantic_openrouter(monkeypatch) -> MagicMock:
         ("pydantic_ai.providers", SimpleNamespace()),
         ("pydantic_ai.providers.openrouter", fake_openrouter),
     ]:
-        sys.modules[key] = val
         monkeypatch.setitem(sys.modules, key, val)
     return mock_provider_cls
 
