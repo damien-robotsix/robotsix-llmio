@@ -17,6 +17,57 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def _resolve_output_type(output_type: Any, level: int) -> Any:
+    """Resolve *output_type* for the given capability *level*.
+
+    At **level >= 2** the model runs in extended-thinking (reasoning) mode.
+    pydantic-ai's default for a raw structured type (a pydantic
+    ``BaseModel`` subclass, dataclass, etc.) is :class:`~pydantic_ai.ToolOutput`
+    — which forces ``tool_choice`` in the API call. DeepSeek's thinking mode
+    rejects a forced ``tool_choice``, so a raw structured type must be
+    converted to :class:`~pydantic_ai.PromptedOutput` (prompt-based JSON
+    output) to coexist with thinking.
+
+    Rules
+    -----
+
+    * ``level < 2`` — return *output_type* unchanged.
+    * ``output_type is str`` — return ``str`` unchanged (plain-text mode).
+    * *output_type* already an explicit output-mode marker instance
+      (:class:`~pydantic_ai.PromptedOutput`,
+       :class:`~pydantic_ai.ToolOutput`, or
+       :class:`~pydantic_ai.NativeOutput`) — return unchanged; never
+      double-wrap.
+    * *output_type* is a ``list`` / ``tuple`` that **contains** any
+      explicit marker instance — return unchanged; the caller has
+      expressed explicit intent.
+    * Otherwise (a raw structured type, or a ``list`` / ``tuple`` / union of
+      plain types) **and** ``level >= 2`` — return
+      ``PromptedOutput(output_type)``.
+    """
+    if level < 2:
+        return output_type
+
+    if output_type is str:
+        return output_type
+
+    from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
+
+    _MARKERS = (PromptedOutput, ToolOutput, NativeOutput)
+
+    if isinstance(output_type, _MARKERS):
+        return output_type
+
+    if isinstance(output_type, (list, tuple)) and any(
+        isinstance(entry, _MARKERS) for entry in output_type
+    ):
+        return output_type
+
+    # Not str, not an explicit marker, not a container-of-markers, and
+    # level >= 2 — wrap in PromptedOutput to avoid forced tool_choice.
+    return PromptedOutput(output_type)
+
+
 def _resolve_model_name(
     tier_config: TierConfig | None,
     level: int,
@@ -131,7 +182,15 @@ class LLMProvider(ABC):
         tools:
             Optional list of Python functions the agent may call.
         output_type:
-            Expected return type; defaults to :class:`str`.
+            Expected return type; defaults to :class:`str`.  At ``level >= 2``
+            a raw structured type (pydantic model, dataclass, etc.) is
+            automatically wrapped in
+            :class:`~pydantic_ai.PromptedOutput` to avoid the forced
+            ``tool_choice`` / thinking-mode conflict.  Pass an explicit
+            :class:`~pydantic_ai.ToolOutput`,
+            :class:`~pydantic_ai.NativeOutput`, or
+            :class:`~pydantic_ai.PromptedOutput` to opt out of the
+            auto-wrap.
         name:
             Optional name for the agent (used in traces).
         retries:
@@ -144,6 +203,8 @@ class LLMProvider(ABC):
             A ready-to-run agent handle wrapping a pydantic-ai ``Agent``
             and its ``httpx`` client.  Call ``.close()`` when done.
         """
+        resolved_output_type = _resolve_output_type(output_type, level)
+
         if model is not None:
             # Explicit override — bypass tier_config entirely.
             m, http_client = self.new_model(model=model, level=level)
@@ -152,7 +213,7 @@ class LLMProvider(ABC):
                 http_client,
                 system_prompt=system_prompt,
                 tools=tools,
-                output_type=output_type,
+                output_type=resolved_output_type,
                 name=name,
                 retries=retries,
             )
@@ -165,7 +226,7 @@ class LLMProvider(ABC):
             http_client,
             system_prompt=system_prompt,
             tools=tools,
-            output_type=output_type,
+            output_type=resolved_output_type,
             name=name,
             retries=retries,
         )

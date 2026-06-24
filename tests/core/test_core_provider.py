@@ -360,3 +360,213 @@ def test_call_with_retry_retries_on_transient_5xx():
     out = p.call_with_retry(fn, sleep=lambda _d: None)
     assert out == "ok"
     assert calls["n"] == 3
+
+
+# ---- _resolve_output_type unit tests ------------------------------------
+
+
+class _ExampleModel:
+    """Stand-in for a pydantic BaseModel subclass (lazy import avoided)."""
+
+    pass
+
+
+def test_resolve_output_type_level_1_raw_type_passthrough():
+    """At level 1, a raw type is passed through unchanged."""
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    assert _resolve_output_type(_ExampleModel, 1) is _ExampleModel
+
+
+def test_resolve_output_type_level_2_str_passthrough():
+    """str is always passed through, even at level 2."""
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    assert _resolve_output_type(str, 2) is str
+
+
+def test_resolve_output_type_level_2_raw_type_wrapped():
+    """At level 2, a raw type is wrapped in PromptedOutput."""
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    result = _resolve_output_type(_ExampleModel, 2)
+    assert isinstance(result, PromptedOutput)
+    assert result.outputs is _ExampleModel
+
+
+def test_resolve_output_type_level_2_prompted_output_unchanged():
+    """An explicit PromptedOutput is never double-wrapped."""
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    po = PromptedOutput(_ExampleModel)
+    result = _resolve_output_type(po, 2)
+    assert result is po
+
+
+def test_resolve_output_type_level_2_tool_output_unchanged():
+    """An explicit ToolOutput is never double-wrapped."""
+    from pydantic_ai import ToolOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    to = ToolOutput(_ExampleModel)
+    result = _resolve_output_type(to, 2)
+    assert result is to
+
+
+def test_resolve_output_type_level_2_native_output_unchanged():
+    """An explicit NativeOutput is never double-wrapped."""
+    from pydantic_ai import NativeOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    no = NativeOutput(_ExampleModel)
+    result = _resolve_output_type(no, 2)
+    assert result is no
+
+
+def test_resolve_output_type_level_2_list_of_raw_types_wrapped():
+    """At level 2, a list of raw types is wrapped in PromptedOutput."""
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    result = _resolve_output_type([_ExampleModel, str], 2)
+    assert isinstance(result, PromptedOutput)
+    assert result.outputs == [_ExampleModel, str]
+
+
+def test_resolve_output_type_level_2_list_with_marker_unchanged():
+    """A list containing an explicit marker is left unchanged."""
+    from pydantic_ai import ToolOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    to = ToolOutput(_ExampleModel)
+    mixed = [_ExampleModel, to]
+    assert _resolve_output_type(mixed, 2) is mixed
+
+
+def test_resolve_output_type_level_0_unchanged():
+    """At level 0 (sentinel), output_type is unchanged."""
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    assert _resolve_output_type(_ExampleModel, 0) is _ExampleModel
+
+
+def test_resolve_output_type_level_2_with_pydantic_basemodel():
+    """At level 2, a real pydantic BaseModel subclass is wrapped."""
+    from pydantic import BaseModel
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _resolve_output_type
+
+    class _RealModel(BaseModel):
+        x: int
+
+    result = _resolve_output_type(_RealModel, 2)
+    assert isinstance(result, PromptedOutput)
+    assert result.outputs is _RealModel
+
+
+# ---- _resolve_output_type integrated via build_agent ----------------------
+
+
+def test_build_agent_level_2_raw_type_passed_as_prompted_output(monkeypatch):
+    """At level=2, ``build_agent`` wraps a raw pydantic type in PromptedOutput
+    before passing it to ``_build_agent``."""
+    from pydantic import BaseModel
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core import provider as provider_module
+
+    class _Foo(BaseModel):
+        bar: str
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured["model"] = model
+        captured["http_client"] = http_client
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=2, system_prompt="sys", output_type=_Foo)
+    passed = captured["output_type"]
+    assert isinstance(passed, PromptedOutput)
+    assert passed.outputs is _Foo
+
+
+def test_build_agent_level_2_explicit_tool_output_unchanged(monkeypatch):
+    """At level=2 with an explicit ToolOutput, the exact instance is
+    forwarded to ``_build_agent`` (no double-wrap)."""
+    from pydantic import BaseModel
+    from pydantic_ai import ToolOutput
+
+    from robotsix_llmio.core import provider as provider_module
+
+    class _Foo(BaseModel):
+        bar: str
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    to = ToolOutput(_Foo)
+    p.build_agent(level=2, system_prompt="sys", output_type=to)
+    assert captured["output_type"] is to
+
+
+def test_build_agent_level_1_raw_type_not_wrapped(monkeypatch):
+    """At level=1, a raw type is NOT wrapped."""
+    from pydantic import BaseModel
+
+    from robotsix_llmio.core import provider as provider_module
+
+    class _Foo(BaseModel):
+        bar: str
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=1, system_prompt="sys", output_type=_Foo)
+    assert captured["output_type"] is _Foo
+
+
+def test_build_agent_model_override_level_2_wraps(monkeypatch):
+    """The model-override branch also applies the wrap at level 2."""
+    from pydantic import BaseModel
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core import provider as provider_module
+
+    class _Foo(BaseModel):
+        bar: str
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(model="custom", level=2, system_prompt="sys", output_type=_Foo)
+    passed = captured["output_type"]
+    assert isinstance(passed, PromptedOutput)
+    assert passed.outputs is _Foo
