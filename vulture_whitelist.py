@@ -72,6 +72,13 @@ LangfuseCostLogSource.fetch_logged_cost_by_provider
 LangfuseCostLogSource.prune_before
 
 # ---------------------------------------------------------------------------
+# core/sqlite_utils.py — Protocol method parameter names
+# ---------------------------------------------------------------------------
+
+sql
+parameters
+
+# ---------------------------------------------------------------------------
 # core/provider_cost.py — Protocol method + Discrepancy dataclass fields
 # ---------------------------------------------------------------------------
 

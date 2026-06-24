@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         is_transient,
     )
     from .run import arun_agent, run_agent
+    from .sqlite_utils import add_column_if_missing, run_additive_migrations
     from .text_utils import html_to_text
     from .tier_fallback import acall_with_tier_fallback, call_with_tier_fallback
     from .tracing import (
@@ -111,6 +112,7 @@ __all__ = [
     "acall_with_retry_and_fallback",
     "acall_with_tier_fallback",
     "active_routing_key",
+    "add_column_if_missing",
     "arun_agent",
     "build_agent",
     "build_agent_for_level",
@@ -136,6 +138,7 @@ __all__ = [
     "make_session_id",
     "parse_model_identifier",
     "reconcile",
+    "run_additive_migrations",
     "run_agent",
     "setup_langfuse_tracing",
     "start_span",
@@ -305,10 +308,18 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import retry
 
         return retry.is_transient
+    if name == "add_column_if_missing":
+        from . import sqlite_utils
+
+        return sqlite_utils.add_column_if_missing
     if name == "arun_agent":
         from . import run
 
         return run.arun_agent
+    if name == "run_additive_migrations":
+        from . import sqlite_utils
+
+        return sqlite_utils.run_additive_migrations
     if name == "run_agent":
         from . import run
 
