@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `src/robotsix_llmio/core/sqlite_utils.py`: `add_column_if_missing()` and `run_additive_migrations()` — additive SQLite column migration helpers that work with both raw `sqlite3.Connection` and SQLAlchemy connections. Lazy-exported from `robotsix_llmio.core`.
+
 ### Changed
 
 - `.github/workflows/release.yml`: switched trigger from `release: [published]` to `push: tags: ['v*']` and enabled `github-release` artifacts via `softprops/action-gh-release@v2`. A `git push --tags` now drives the full release pipeline (build → GitHub Release with dist assets → PyPI publish).
