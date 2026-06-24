@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - README.md: replaced phantom symbols `get_provider` and `register_provider` with the actual public API (`get_provider_for_level`, `TierConfig`).
+- docs/config/index.md: removed phantom symbol `TRANSPORT_ALIASES` and corrected `get_provider` to `get_provider_for_identifier`.
 
 ### Added
 

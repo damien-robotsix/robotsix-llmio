@@ -55,13 +55,13 @@ agent = provider.build_agent(
 
 ### Transport alias mappings
 
-- `TRANSPORT_ALIASES` — maps consumer-facing transport names to provider
-  registry names known to `get_provider`.
+Consumer-facing transport names are mapped to provider registry names
+known to `get_provider_for_identifier`:
 
-  | Consumer alias | Provider registry name |
-  |---|---|
-  | `claude-sdk` | `claude-sdk` |
-  | `openrouter[deepseek]` | `openrouter-deepseek` |
+| Consumer alias | Provider registry name |
+|---|---|
+| `claude-sdk` | `claude-sdk` |
+| `openrouter[deepseek]` | `openrouter-deepseek` |
 
 ### Schema & loader (tier configuration)
 
