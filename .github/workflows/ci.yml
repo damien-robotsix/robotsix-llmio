@@ -23,7 +23,7 @@ jobs:
       install-extras: "openrouter_deepseek claude_sdk tracing dev"
       cov-package: src/robotsix_llmio
       coverage-threshold: "90"
-      pytest-args: '-m "not live"'
+      pytest-args: '-m "not live" -n auto --dist load'
       run-deptry: false
       run-bandit: false
       mypy-advisory: false
