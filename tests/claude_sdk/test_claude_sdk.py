@@ -56,6 +56,18 @@ from robotsix_llmio.config.tier import (
     TierLevelConfig,
 )
 from robotsix_llmio.core.agent import AgentHandle
+from robotsix_llmio.core.tracing import (
+    GEN_AI_OPERATION_NAME,
+    GEN_AI_PROVIDER_NAME,
+    GEN_AI_REQUEST_MODEL,
+    GEN_AI_SYSTEM,
+    GEN_AI_USAGE_INPUT_TOKENS,
+    GEN_AI_USAGE_OUTPUT_TOKENS,
+    LANGFUSE_OBSERVATION_INPUT,
+    LANGFUSE_OBSERVATION_METADATA_REASONING,
+    OP_CHAT,
+    OP_INVOKE_AGENT,
+)
 
 # Inline TierConfig for tests that need a specific model at a given level.
 _HAIKU_AT_LEVEL1 = TierConfig(
@@ -761,7 +773,7 @@ def test_generation_span_input_includes_system_prompt(
     def _input_messages(predicate) -> list:
         matched = [s for s in spans if predicate(s)]
         assert matched, f"no matching span in {[s.name for s in spans]}"
-        return json.loads(matched[0].attributes["langfuse.observation.input"])
+        return json.loads(matched[0].attributes[LANGFUSE_OBSERVATION_INPUT])
 
     # The child generation span carries system + user...
     chat = _input_messages(lambda s: s.name.startswith("chat "))
@@ -771,7 +783,7 @@ def test_generation_span_input_includes_system_prompt(
     # ...and so does the root agent-run span (which becomes the trace), so the
     # system prompt is visible at the trace root, not only on the generation.
     root = _input_messages(
-        lambda s: s.attributes.get("gen_ai.operation.name") == "invoke_agent"
+        lambda s: s.attributes.get(GEN_AI_OPERATION_NAME) == OP_INVOKE_AGENT
     )
     assert root[0]["role"] == "system" and "SYS_MARKER" in root[0]["content"]
     assert root[1]["role"] == "user" and "USER_MARKER" in root[1]["content"]
@@ -808,18 +820,18 @@ def test_spans_set_gen_ai_provider_name(monkeypatch, otel_exporter_tracer):
 
     chat = next((s for s in spans if s.name.startswith("chat ")), None)
     assert chat is not None, f"no chat span in {[s.name for s in spans]}"
-    assert chat.attributes.get("gen_ai.provider.name") == PROVIDER_NAME
+    assert chat.attributes.get(GEN_AI_PROVIDER_NAME) == PROVIDER_NAME
 
     root = next(
         (
             s
             for s in spans
-            if s.attributes.get("gen_ai.operation.name") == "invoke_agent"
+            if s.attributes.get(GEN_AI_OPERATION_NAME) == OP_INVOKE_AGENT
         ),
         None,
     )
     assert root is not None, f"no root span in {[s.name for s in spans]}"
-    assert root.attributes.get("gen_ai.provider.name") == PROVIDER_NAME
+    assert root.attributes.get(GEN_AI_PROVIDER_NAME) == PROVIDER_NAME
 
 
 # --- no-tools request() span attributes (regression) -----------------------
@@ -855,12 +867,12 @@ def test_notools_request_stamps_gen_ai_attributes(monkeypatch, otel_exporter_tra
     spans = exporter.get_finished_spans()
     assert len(spans) == 1, f"expected 1 span, got {[s.name for s in spans]}"
     attrs = spans[0].attributes
-    assert attrs["gen_ai.operation.name"] == "chat"
-    assert attrs["gen_ai.provider.name"] == "claude-sdk"
-    assert attrs["gen_ai.system"] == "anthropic"
-    assert attrs["gen_ai.request.model"] == "opus"
-    assert attrs["gen_ai.usage.input_tokens"] == 10
-    assert attrs["gen_ai.usage.output_tokens"] == 5
+    assert attrs[GEN_AI_OPERATION_NAME] == OP_CHAT
+    assert attrs[GEN_AI_PROVIDER_NAME] == "claude-sdk"
+    assert attrs[GEN_AI_SYSTEM] == "anthropic"
+    assert attrs[GEN_AI_REQUEST_MODEL] == "opus"
+    assert attrs[GEN_AI_USAGE_INPUT_TOKENS] == 10
+    assert attrs[GEN_AI_USAGE_OUTPUT_TOKENS] == 5
 
 
 def test_notools_request_skips_missing_usage(monkeypatch, otel_exporter_tracer):
@@ -892,12 +904,12 @@ def test_notools_request_skips_missing_usage(monkeypatch, otel_exporter_tracer):
     assert len(spans) == 1
     attrs = spans[0].attributes
     # Identity always set.
-    assert attrs["gen_ai.provider.name"] == "claude-sdk"
-    assert attrs["gen_ai.system"] == "anthropic"
-    assert attrs["gen_ai.request.model"] == "sonnet"
+    assert attrs[GEN_AI_PROVIDER_NAME] == "claude-sdk"
+    assert attrs[GEN_AI_SYSTEM] == "anthropic"
+    assert attrs[GEN_AI_REQUEST_MODEL] == "sonnet"
     # Token keys absent entirely.
-    assert "gen_ai.usage.input_tokens" not in attrs
-    assert "gen_ai.usage.output_tokens" not in attrs
+    assert GEN_AI_USAGE_INPUT_TOKENS not in attrs
+    assert GEN_AI_USAGE_OUTPUT_TOKENS not in attrs
 
 
 def test_no_span_recording_is_noop(monkeypatch):
@@ -982,7 +994,7 @@ def test_tool_path_records_reasoning_on_generation_span(monkeypatch):
     chat = next((s for s in spans if s.name.startswith("chat ")), None)
     assert chat is not None, f"no chat span in {[s.name for s in spans]}"
     assert (
-        chat.attributes.get("langfuse.observation.metadata.reasoning")
+        chat.attributes.get(LANGFUSE_OBSERVATION_METADATA_REASONING)
         == "weighing the options"
     )
 
@@ -1030,7 +1042,7 @@ def test_notools_request_records_reasoning_metadata(monkeypatch):
     spans = exporter.get_finished_spans()
     assert len(spans) == 1
     assert (
-        spans[0].attributes.get("langfuse.observation.metadata.reasoning")
+        spans[0].attributes.get(LANGFUSE_OBSERVATION_METADATA_REASONING)
         == "planning the reply"
     )
 
