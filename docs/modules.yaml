@@ -29,6 +29,7 @@ modules:
       - tests/core/test_tracing.py
       - tests/core/test_tracing_live.py
       - tests/core/test_logging.py
+      - tests/core/test_sqlite_utils.py
       - tests/conftest.py
       - tests/test_exceptions.py
       - docs/core/**
