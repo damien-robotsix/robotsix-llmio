@@ -1,2 +1,2 @@
-test_command: pytest -q
+test_command: pytest -q -n 4
 languages: [python]

@@ -10,6 +10,7 @@ suite never installs a global TracerProvider.
 from __future__ import annotations
 
 import base64
+import contextlib
 
 import pytest
 
@@ -220,51 +221,54 @@ def test_on_export_result_hook_reports_outcomes(monkeypatch):
     from opentelemetry.sdk.trace.export import SpanExportResult
 
     fresh = TracerProvider()
-    monkeypatch.setattr(tracing, "_provider", fresh)
-    monkeypatch.setattr(tracing, "_projects", {})
+    try:
+        monkeypatch.setattr(tracing, "_provider", fresh)
+        monkeypatch.setattr(tracing, "_projects", {})
 
-    behavior = {"mode": "success"}
+        behavior = {"mode": "success"}
 
-    def fake_export(self, spans):  # no network — controlled outcome
-        if behavior["mode"] == "raise":
-            raise RuntimeError("boom")
-        return (
-            SpanExportResult.SUCCESS
-            if behavior["mode"] == "success"
-            else SpanExportResult.FAILURE
+        def fake_export(self, spans):  # no network — controlled outcome
+            if behavior["mode"] == "raise":
+                raise RuntimeError("boom")
+            return (
+                SpanExportResult.SUCCESS
+                if behavior["mode"] == "success"
+                else SpanExportResult.FAILURE
+            )
+
+        monkeypatch.setattr(_te.OTLPSpanExporter, "export", fake_export)
+
+        events: list[tuple] = []
+        assert (
+            setup_langfuse_tracing(
+                public_key="pk-hook",
+                secret_key="sk-hook",
+                base_url="https://lf.example.com",
+                on_export_result=lambda pk, ok, err: events.append((pk, ok, err)),
+            )
+            is True
         )
 
-    monkeypatch.setattr(_te.OTLPSpanExporter, "export", fake_export)
-
-    events: list[tuple] = []
-    assert (
-        setup_langfuse_tracing(
-            public_key="pk-hook",
-            secret_key="sk-hook",
-            base_url="https://lf.example.com",
-            on_export_result=lambda pk, ok, err: events.append((pk, ok, err)),
+        # Pull the wrapping exporter back off the provider's filtered processor.
+        procs = fresh._active_span_processor._span_processors
+        reporting = next(
+            p.span_exporter
+            for p in procs
+            if hasattr(getattr(p, "span_exporter", None), "_hook")
         )
-        is True
-    )
 
-    # Pull the wrapping exporter back off the provider's filtered processor.
-    procs = fresh._active_span_processor._span_processors
-    reporting = next(
-        p.span_exporter
-        for p in procs
-        if hasattr(getattr(p, "span_exporter", None), "_hook")
-    )
+        behavior["mode"] = "success"
+        reporting.export([])
+        behavior["mode"] = "failure"
+        reporting.export([])
+        behavior["mode"] = "raise"
+        reporting.export([])
 
-    behavior["mode"] = "success"
-    reporting.export([])
-    behavior["mode"] = "failure"
-    reporting.export([])
-    behavior["mode"] = "raise"
-    reporting.export([])
-
-    assert events[0] == ("pk-hook", True, None)
-    assert events[1][:2] == ("pk-hook", False) and events[1][2]
-    assert events[2][:2] == ("pk-hook", False) and "RuntimeError" in events[2][2]
+        assert events[0] == ("pk-hook", True, None)
+        assert events[1][:2] == ("pk-hook", False) and events[1][2]
+        assert events[2][:2] == ("pk-hook", False) and "RuntimeError" in events[2][2]
+    finally:
+        fresh.shutdown()
 
 
 def test_on_export_result_hook_exceptions_never_break_export(monkeypatch):
@@ -275,29 +279,32 @@ def test_on_export_result_hook_exceptions_never_break_export(monkeypatch):
     from opentelemetry.sdk.trace.export import SpanExportResult
 
     fresh = TracerProvider()
-    monkeypatch.setattr(tracing, "_provider", fresh)
-    monkeypatch.setattr(tracing, "_projects", {})
-    monkeypatch.setattr(
-        _te.OTLPSpanExporter, "export", lambda self, spans: SpanExportResult.SUCCESS
-    )
-
-    def _boom(pk, ok, err):
-        raise ValueError("hook blew up")
-
-    assert (
-        setup_langfuse_tracing(
-            public_key="pk-boom", secret_key="sk-boom", on_export_result=_boom
+    try:
+        monkeypatch.setattr(tracing, "_provider", fresh)
+        monkeypatch.setattr(tracing, "_projects", {})
+        monkeypatch.setattr(
+            _te.OTLPSpanExporter, "export", lambda self, spans: SpanExportResult.SUCCESS
         )
-        is True
-    )
-    procs = fresh._active_span_processor._span_processors
-    reporting = next(
-        p.span_exporter
-        for p in procs
-        if hasattr(getattr(p, "span_exporter", None), "_hook")
-    )
-    # Must return the underlying result, swallowing the hook's exception.
-    assert reporting.export([]) == SpanExportResult.SUCCESS
+
+        def _boom(pk, ok, err):
+            raise ValueError("hook blew up")
+
+        assert (
+            setup_langfuse_tracing(
+                public_key="pk-boom", secret_key="sk-boom", on_export_result=_boom
+            )
+            is True
+        )
+        procs = fresh._active_span_processor._span_processors
+        reporting = next(
+            p.span_exporter
+            for p in procs
+            if hasattr(getattr(p, "span_exporter", None), "_hook")
+        )
+        # Must return the underlying result, swallowing the hook's exception.
+        assert reporting.export([]) == SpanExportResult.SUCCESS
+    finally:
+        fresh.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +312,7 @@ def test_on_export_result_hook_exceptions_never_break_export(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+@contextlib.contextmanager
 def _setup_tracing_pipeline(monkeypatch):
     """Set up a real TracerProvider with _StampProcessor + InMemorySpanExporter.
 
@@ -368,6 +376,7 @@ def _setup_tracing_pipeline(monkeypatch):
 
     # Clean up.
     tracing._provider.shutdown()
+    tracing._provider = None
     otel_trace.set_tracer_provider(old_provider)
 
 
@@ -382,105 +391,108 @@ def _get_span_by_name(mem, name: str):
 def test_trace_routing_inheritance_from_root(monkeypatch):
     """A child span inherits the routing key from the root span's trace
     mapping even when the contextvar is cleared."""
-    mem = next(_setup_tracing_pipeline(monkeypatch))
-    from opentelemetry import trace
+    with _setup_tracing_pipeline(monkeypatch) as mem:
+        from opentelemetry import trace
 
-    tracer = trace.get_tracer("test")
+        tracer = trace.get_tracer("test")
 
-    with tracing.langfuse_project("pk-root"), tracer.start_as_current_span("root"):
-        # Clear the contextvar inside the root span (simulating a
-        # thread-pool task that lost it), then create a child.
-        token = tracing._current_public_key.set(None)
-        try:
-            with tracer.start_as_current_span("child"):
-                pass
-        finally:
-            tracing._current_public_key.reset(token)
+        with tracing.langfuse_project("pk-root"), tracer.start_as_current_span("root"):
+            # Clear the contextvar inside the root span (simulating a
+            # thread-pool task that lost it), then create a child.
+            token = tracing._current_public_key.set(None)
+            try:
+                with tracer.start_as_current_span("child"):
+                    pass
+            finally:
+                tracing._current_public_key.reset(token)
 
-    root_span = _get_span_by_name(mem, "root")
-    child_span = _get_span_by_name(mem, "child")
-    assert root_span is not None
-    assert child_span is not None
+        root_span = _get_span_by_name(mem, "root")
+        child_span = _get_span_by_name(mem, "child")
+        assert root_span is not None
+        assert child_span is not None
 
-    # Root got pk-root from the contextvar.
-    assert root_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
-    # Child inherited pk-root from the trace-level mapping (Tier 2).
-    assert child_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
+        # Root got pk-root from the contextvar.
+        assert root_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
+        # Child inherited pk-root from the trace-level mapping (Tier 2).
+        assert child_span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-root"
 
 
 def test_trace_routing_no_fallback_multi_tenant(monkeypatch):
     """With ≥2 registered projects and no contextvar, no routing key is
     stamped (span is unroutable)."""
-    mem = next(_setup_tracing_pipeline(monkeypatch))
-    from opentelemetry import trace
+    with _setup_tracing_pipeline(monkeypatch) as mem:
+        from opentelemetry import trace
 
-    # Register a second project.
-    assert (
-        tracing.setup_langfuse_tracing(public_key="pk-extra", secret_key="sk-extra")
-        is True
-    )
+        # Register a second project.
+        assert (
+            tracing.setup_langfuse_tracing(public_key="pk-extra", secret_key="sk-extra")
+            is True
+        )
 
-    tracer = trace.get_tracer("test")
-    with tracer.start_as_current_span("orphan"):
-        pass
+        tracer = trace.get_tracer("test")
+        with tracer.start_as_current_span("orphan"):
+            pass
 
-    span = _get_span_by_name(mem, "orphan")
-    assert span is not None
-    assert LANGFUSE_PUBLIC_KEY not in (span.attributes or {})
+        span = _get_span_by_name(mem, "orphan")
+        assert span is not None
+        assert LANGFUSE_PUBLIC_KEY not in (span.attributes or {})
 
 
 def test_trace_routing_fallback_single_tenant(monkeypatch):
     """With exactly one registered project and no contextvar, the span
     receives the default_public_key (backward compat)."""
-    mem = next(_setup_tracing_pipeline(monkeypatch))
-    from opentelemetry import trace
+    with _setup_tracing_pipeline(monkeypatch) as mem:
+        from opentelemetry import trace
 
-    # Only one project registered (pk-test), no contextvar active.
-    tracer = trace.get_tracer("test")
-    with tracer.start_as_current_span("single"):
-        pass
+        # Only one project registered (pk-test), no contextvar active.
+        tracer = trace.get_tracer("test")
+        with tracer.start_as_current_span("single"):
+            pass
 
-    span = _get_span_by_name(mem, "single")
-    assert span is not None
-    assert span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-test"
+        span = _get_span_by_name(mem, "single")
+        assert span is not None
+        assert span.attributes.get(LANGFUSE_PUBLIC_KEY) == "pk-test"
 
 
 def test_trace_routing_root_cleanup(monkeypatch):
     """When a root span ends, its trace_id is removed from _trace_routing."""
-    next(_setup_tracing_pipeline(monkeypatch))
-    from opentelemetry import trace
+    with _setup_tracing_pipeline(monkeypatch):
+        from opentelemetry import trace
 
-    tracer = trace.get_tracer("test")
+        tracer = trace.get_tracer("test")
 
-    with tracing.langfuse_project("pk-cleanup"):
-        with tracer.start_as_current_span("root") as root:
-            trace_id = root.get_span_context().trace_id
-            # The trace_id must have been recorded while the span is alive.
+        with tracing.langfuse_project("pk-cleanup"):
+            with tracer.start_as_current_span("root") as root:
+                trace_id = root.get_span_context().trace_id
+                # The trace_id must have been recorded while the span is alive.
+                with tracing._trace_routing_lock:
+                    assert tracing._trace_routing.get(trace_id) == "pk-cleanup"
+
+            # After the root span ends, the entry must be removed.
             with tracing._trace_routing_lock:
-                assert tracing._trace_routing.get(trace_id) == "pk-cleanup"
-
-        # After the root span ends, the entry must be removed.
-        with tracing._trace_routing_lock:
-            assert trace_id not in tracing._trace_routing
+                assert trace_id not in tracing._trace_routing
 
 
 def test_unrouted_span_warning(monkeypatch, caplog):
     """In multi-tenant mode, an unroutable span emits a WARNING log."""
-    next(_setup_tracing_pipeline(monkeypatch))
-    from opentelemetry import trace
+    with _setup_tracing_pipeline(monkeypatch):
+        from opentelemetry import trace
 
-    # Register a second project to enter multi-tenant mode.
-    tracing.setup_langfuse_tracing(public_key="pk-extra", secret_key="sk-extra")
+        # Register a second project to enter multi-tenant mode.
+        tracing.setup_langfuse_tracing(public_key="pk-extra", secret_key="sk-extra")
 
-    tracer = trace.get_tracer("test")
-    with tracer.start_as_current_span("orphan"):
-        pass
+        tracer = trace.get_tracer("test")
+        with tracer.start_as_current_span("orphan"):
+            pass
 
-    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert any(
-        "Cannot route span" in r.message and "multi-tenant" in r.message
-        for r in warnings
-    ), f"expected throttled multi-tenant warning, got: {[r.message for r in warnings]}"
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert any(
+            "Cannot route span" in r.message and "multi-tenant" in r.message
+            for r in warnings
+        ), (
+            f"expected throttled multi-tenant warning, "
+            f"got: {[r.message for r in warnings]}"
+        )
 
 
 def test_active_routing_key():
@@ -681,14 +693,16 @@ def test_filtered_batch_processor_matching_key_passes_through(monkeypatch):
 
     exporter = _ListSpanExporter()
     proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+    try:
+        span = _FakeSpan(trace_id=1)
+        span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-a"
+        proc.on_end(span)
+        proc.force_flush()
 
-    span = _FakeSpan(trace_id=1)
-    span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-a"
-    proc.on_end(span)
-    proc.force_flush()
-
-    assert len(exporter.exported) == 1
-    assert exporter.exported[0] is span
+        assert len(exporter.exported) == 1
+        assert exporter.exported[0] is span
+    finally:
+        proc.shutdown()
 
 
 def test_filtered_batch_processor_mismatched_key_is_dropped(monkeypatch):
@@ -698,13 +712,15 @@ def test_filtered_batch_processor_mismatched_key_is_dropped(monkeypatch):
 
     exporter = _ListSpanExporter()
     proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+    try:
+        span = _FakeSpan(trace_id=2)
+        span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-b"
+        proc.on_end(span)
+        proc.force_flush()
 
-    span = _FakeSpan(trace_id=2)
-    span.attributes[LANGFUSE_PUBLIC_KEY] = "pk-b"
-    proc.on_end(span)
-    proc.force_flush()
-
-    assert len(exporter.exported) == 0
+        assert len(exporter.exported) == 0
+    finally:
+        proc.shutdown()
 
 
 def test_filtered_batch_processor_missing_key_logs_and_drops(monkeypatch):
@@ -717,13 +733,15 @@ def test_filtered_batch_processor_missing_key_logs_and_drops(monkeypatch):
 
     exporter = _ListSpanExporter()
     proc = _FilteredBatchSpanProcessor(exporter, target_public_key="pk-a")
+    try:
+        span = _FakeSpan(trace_id=3, name="my-span")
+        # No langfuse.public_key set — simulate a span that was never stamped.
+        proc.on_end(span)
+        proc.force_flush()
 
-    span = _FakeSpan(trace_id=3, name="my-span")
-    # No langfuse.public_key set — simulate a span that was never stamped.
-    proc.on_end(span)
-    proc.force_flush()
-
-    assert len(exporter.exported) == 0
-    assert len(debug_calls) == 1
-    assert "my-span" in debug_calls[0]
-    assert LANGFUSE_PUBLIC_KEY in debug_calls[0]
+        assert len(exporter.exported) == 0
+        assert len(debug_calls) == 1
+        assert "my-span" in debug_calls[0]
+        assert LANGFUSE_PUBLIC_KEY in debug_calls[0]
+    finally:
+        proc.shutdown()

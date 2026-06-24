@@ -7,8 +7,6 @@ from typing import Any
 
 import pytest
 
-from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
-
 
 def _model(level: int):
     """Build a DeepSeek model for a capability *level* with reasoning policy
@@ -16,6 +14,7 @@ def _model(level: int):
     construction."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from robotsix_llmio.openrouter_deepseek.model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
 
     name = {
         1: "deepseek/deepseek-v4-flash",
