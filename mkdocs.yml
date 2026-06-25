@@ -33,6 +33,7 @@ nav:
   - OpenRouter DeepSeek: openrouter_deepseek/index.md
   - Claude SDK: claude_sdk/index.md
   - Weekly Pace: weekly_pace/index.md
+  - Tools: tools/index.md
   - API Reference:
       - Core: reference/core.md
       - Logging: reference/logging.md
