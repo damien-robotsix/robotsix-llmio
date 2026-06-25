@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `pip-audit` from the `dev` optional dependencies — CI now uses `uv audit --frozen` for dependency vulnerability auditing. CONTRIBUTING.md and AGENT.md updated to reference `uv audit` instead.
 - `bandit` dependency and pre-commit hook — replaced by Ruff's `S` ruleset which covers the same security checks inline during `ruff check`.
 - Stale `MODEL_LEVEL_TO_TIER` documentation references from `docs/config/index.md` and `docs/core/index.md`. The mapping was already removed from Python source; only doc references remained.
 - Stale env var declarations from `.env.example`: `LLMIO_LEVEL{n}_TRANSPORT`, `LLMIO_LEVEL{n}_PROVIDER` (deprecated aliases), and `LLMIO_PROVIDER` (deprecated fallback). These vars are no longer read by the config loader as of the provider/transport refactor in PR #202.
