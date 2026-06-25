@@ -93,7 +93,7 @@ ruff check .                  # lint
 ruff format --check .         # format verification (hook auto-formats)
 mypy src/                     # type-check
 bandit -r src/ -ll            # security scan
-pip-audit                     # dependency vulnerability audit
+uv audit                      # dependency vulnerability audit
 ```
 
 `ruff format --check .` mirrors what the `ruff-format` pre-commit hook enforces;
