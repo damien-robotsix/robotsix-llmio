@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `docs/tools/index.md` module guide for the `robotsix_llmio-tools` module
+
 - Parallel test execution via `pytest-xdist` (`-n auto`) in CI and local config to reduce suite wall-clock time on multi-core runners.
 - `src/robotsix_llmio/core/sqlite_utils.py`: `add_column_if_missing()` and `run_additive_migrations()` — additive SQLite column migration helpers that work with both raw `sqlite3.Connection` and SQLAlchemy connections. Lazy-exported from `robotsix_llmio.core`.
 
