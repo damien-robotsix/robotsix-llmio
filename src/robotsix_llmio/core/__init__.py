@@ -7,6 +7,7 @@ pydantic-ai or OpenTelemetry at module load time.
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING, Any
 
 # Static re-declaration of every lazily-exported name (see ``__getattr__``
@@ -147,241 +148,93 @@ __all__ = [
 ]
 
 
+# Dict-driven PEP 562 lazy imports — each entry maps an export name
+# to a (module_path, attr_name) tuple.  Relative paths (".foo") are
+# resolved against this package via importlib.import_module.
+_SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
+    # -- agent
+    "AgentHandle": (".agent", "AgentHandle"),
+    "build_agent": (".agent", "build_agent"),
+    # -- cost_log
+    "CostLogSource": (".cost_log", "CostLogSource"),
+    "CostRecord": (".cost_log", "CostRecord"),
+    "CostWindow": (".cost_log", "CostWindow"),
+    "LoggedCost": (".cost_log", "LoggedCost"),
+    # -- factory
+    "get_provider_for_identifier": (".factory", "get_provider_for_identifier"),
+    "get_provider_for_level": (".factory", "get_provider_for_level"),
+    "build_agent_for_level": (".factory", "build_agent_for_level"),
+    "default_tier_config": (".factory", "default_tier_config"),
+    # -- identifier
+    "MalformedIdentifierError": (".identifier", "MalformedIdentifierError"),
+    "ParsedIdentifier": (".identifier", "ParsedIdentifier"),
+    "parse_model_identifier": (".identifier", "parse_model_identifier"),
+    # -- http
+    "timeout_http_client": (".http", "timeout_http_client"),
+    # -- langfuse_async_client
+    "AsyncLangfuseReadClient": (".langfuse_async_client", "AsyncLangfuseReadClient"),
+    # -- langfuse_client
+    "LangfuseReadClient": (".langfuse_client", "LangfuseReadClient"),
+    # -- langfuse_cost
+    "LangfuseCostLogSource": (".langfuse_cost", "LangfuseCostLogSource"),
+    # -- provider
+    "LLMProvider": (".provider", "LLMProvider"),
+    # -- provider_cost
+    "DEFAULT_TOLERANCE": (".provider_cost", "DEFAULT_TOLERANCE"),
+    "Discrepancy": (".provider_cost", "Discrepancy"),
+    "ProviderCost": (".provider_cost", "ProviderCost"),
+    "ProviderCostSource": (".provider_cost", "ProviderCostSource"),
+    "reconcile": (".provider_cost", "reconcile"),
+    # -- retry
+    "acall_with_retry": (".retry", "acall_with_retry"),
+    "acall_with_retry_and_fallback": (".retry", "acall_with_retry_and_fallback"),
+    "call_with_retry": (".retry", "call_with_retry"),
+    "call_with_retry_and_fallback": (".retry", "call_with_retry_and_fallback"),
+    "is_rate_limited": (".retry", "is_rate_limited"),
+    "is_transient": (".retry", "is_transient"),
+    # -- tier_fallback
+    "acall_with_tier_fallback": (".tier_fallback", "acall_with_tier_fallback"),
+    "call_with_tier_fallback": (".tier_fallback", "call_with_tier_fallback"),
+    # -- sqlite_utils
+    "add_column_if_missing": (".sqlite_utils", "add_column_if_missing"),
+    "run_additive_migrations": (".sqlite_utils", "run_additive_migrations"),
+    # -- run
+    "arun_agent": (".run", "arun_agent"),
+    "run_agent": (".run", "run_agent"),
+    # -- text_utils
+    "html_to_text": (".text_utils", "html_to_text"),
+    # -- tracing
+    "TraceSpan": (".tracing", "TraceSpan"),
+    "active_routing_key": (".tracing", "active_routing_key"),
+    "current_session": (".tracing", "current_session"),
+    "flush_tracing": (".tracing", "flush_tracing"),
+    "get_recording_span": (".tracing", "get_recording_span"),
+    "get_tracer": (".tracing", "get_tracer"),
+    "install_signal_handlers": (".tracing", "install_signal_handlers"),
+    "langfuse_project": (".tracing", "langfuse_project"),
+    "langfuse_session": (".tracing", "langfuse_session"),
+    "langfuse_trace_url": (".tracing", "langfuse_trace_url"),
+    "make_session_id": (".tracing", "make_session_id"),
+    "setup_langfuse_tracing": (".tracing", "setup_langfuse_tracing"),
+    "start_span": (".tracing", "start_span"),
+    "start_trace": (".tracing", "start_trace"),
+    # -- robotsix_llmio.config (full dotted paths)
+    "LEVEL1_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL1_DEFAULT"),
+    "LEVEL2_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL2_DEFAULT"),
+    "LEVEL3_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL3_DEFAULT"),
+    "TierConfig": ("robotsix_llmio.config.tier", "TierConfig"),
+    "TierLevel": ("robotsix_llmio.config.tier", "TierLevel"),
+    "TierLevelConfig": ("robotsix_llmio.config.tier", "TierLevelConfig"),
+    "TierConfigLoadError": ("robotsix_llmio.config.loader", "TierConfigLoadError"),
+    "load_tier_config": ("robotsix_llmio.config.loader", "load_tier_config"),
+    "create_model": ("robotsix_llmio.config.factory", "create_model"),
+}
+
+
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
-    if name == "AgentHandle":
-        from . import agent
-
-        return agent.AgentHandle
-    if name == "build_agent":
-        from . import agent
-
-        return agent.build_agent
-    if name == "CostLogSource":
-        from . import cost_log
-
-        return cost_log.CostLogSource
-    if name == "CostRecord":
-        from . import cost_log
-
-        return cost_log.CostRecord
-    if name == "CostWindow":
-        from . import cost_log
-
-        return cost_log.CostWindow
-    if name == "LoggedCost":
-        from . import cost_log
-
-        return cost_log.LoggedCost
-    if name == "get_provider_for_identifier":
-        from . import factory
-
-        return factory.get_provider_for_identifier
-    if name == "get_provider_for_level":
-        from . import factory
-
-        return factory.get_provider_for_level
-    if name == "build_agent_for_level":
-        from . import factory
-
-        return factory.build_agent_for_level
-    if name == "default_tier_config":
-        from . import factory
-
-        return factory.default_tier_config
-    if name == "MalformedIdentifierError":
-        from . import identifier
-
-        return identifier.MalformedIdentifierError
-    if name == "ParsedIdentifier":
-        from . import identifier
-
-        return identifier.ParsedIdentifier
-    if name == "parse_model_identifier":
-        from . import identifier
-
-        return identifier.parse_model_identifier
-    if name == "timeout_http_client":
-        from . import http
-
-        return http.timeout_http_client
-    if name == "AsyncLangfuseReadClient":
-        from . import langfuse_async_client
-
-        return langfuse_async_client.AsyncLangfuseReadClient
-    if name == "LangfuseReadClient":
-        from . import langfuse_client
-
-        return langfuse_client.LangfuseReadClient
-    if name == "LangfuseCostLogSource":
-        from . import langfuse_cost
-
-        return langfuse_cost.LangfuseCostLogSource
-    if name == "LLMProvider":
-        from . import provider
-
-        return provider.LLMProvider
-    if name == "LEVEL1_DEFAULT":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.LEVEL1_DEFAULT
-    if name == "LEVEL2_DEFAULT":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.LEVEL2_DEFAULT
-    if name == "LEVEL3_DEFAULT":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.LEVEL3_DEFAULT
-    if name == "TierConfig":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.TierConfig
-    if name == "TierLevel":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.TierLevel
-    if name == "TierLevelConfig":
-        from robotsix_llmio.config import tier as _config_tier
-
-        return _config_tier.TierLevelConfig
-    if name == "TierConfigLoadError":
-        from robotsix_llmio.config import loader as _config_loader
-
-        return _config_loader.TierConfigLoadError
-    if name == "load_tier_config":
-        from robotsix_llmio.config import loader as _config_loader
-
-        return _config_loader.load_tier_config
-    if name == "create_model":
-        from robotsix_llmio.config import factory as _config_factory
-
-        return _config_factory.create_model
-    if name == "DEFAULT_TOLERANCE":
-        from . import provider_cost
-
-        return provider_cost.DEFAULT_TOLERANCE
-    if name == "Discrepancy":
-        from . import provider_cost
-
-        return provider_cost.Discrepancy
-    if name == "ProviderCost":
-        from . import provider_cost
-
-        return provider_cost.ProviderCost
-    if name == "ProviderCostSource":
-        from . import provider_cost
-
-        return provider_cost.ProviderCostSource
-    if name == "reconcile":
-        from . import provider_cost
-
-        return provider_cost.reconcile
-    if name == "acall_with_retry":
-        from . import retry
-
-        return retry.acall_with_retry
-    if name == "acall_with_retry_and_fallback":
-        from . import retry
-
-        return retry.acall_with_retry_and_fallback
-    if name == "call_with_retry":
-        from . import retry
-
-        return retry.call_with_retry
-    if name == "call_with_retry_and_fallback":
-        from . import retry
-
-        return retry.call_with_retry_and_fallback
-    if name == "acall_with_tier_fallback":
-        from . import tier_fallback
-
-        return tier_fallback.acall_with_tier_fallback
-    if name == "call_with_tier_fallback":
-        from . import tier_fallback
-
-        return tier_fallback.call_with_tier_fallback
-    if name == "is_rate_limited":
-        from . import retry
-
-        return retry.is_rate_limited
-    if name == "is_transient":
-        from . import retry
-
-        return retry.is_transient
-    if name == "add_column_if_missing":
-        from . import sqlite_utils
-
-        return sqlite_utils.add_column_if_missing
-    if name == "arun_agent":
-        from . import run
-
-        return run.arun_agent
-    if name == "run_additive_migrations":
-        from . import sqlite_utils
-
-        return sqlite_utils.run_additive_migrations
-    if name == "run_agent":
-        from . import run
-
-        return run.run_agent
-    if name == "html_to_text":
-        from . import text_utils
-
-        return text_utils.html_to_text
-    if name == "TraceSpan":
-        from . import tracing
-
-        return tracing.TraceSpan
-    if name == "active_routing_key":
-        from . import tracing
-
-        return tracing.active_routing_key
-    if name == "current_session":
-        from . import tracing
-
-        return tracing.current_session
-    if name == "flush_tracing":
-        from . import tracing
-
-        return tracing.flush_tracing
-    if name == "get_recording_span":
-        from . import tracing
-
-        return tracing.get_recording_span
-    if name == "get_tracer":
-        from . import tracing
-
-        return tracing.get_tracer
-    if name == "install_signal_handlers":
-        from . import tracing
-
-        return tracing.install_signal_handlers
-    if name == "langfuse_project":
-        from . import tracing
-
-        return tracing.langfuse_project
-    if name == "langfuse_session":
-        from . import tracing
-
-        return tracing.langfuse_session
-    if name == "langfuse_trace_url":
-        from . import tracing
-
-        return tracing.langfuse_trace_url
-    if name == "make_session_id":
-        from . import tracing
-
-        return tracing.make_session_id
-    if name == "setup_langfuse_tracing":
-        from . import tracing
-
-        return tracing.setup_langfuse_tracing
-    if name == "start_span":
-        from . import tracing
-
-        return tracing.start_span
-    if name == "start_trace":
-        from . import tracing
-
-        return tracing.start_trace
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        mod_path, attr = _SUBMODULE_ATTRS[name]
+    except KeyError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+    mod = importlib.import_module(mod_path, package=__package__)
+    return getattr(mod, attr)
