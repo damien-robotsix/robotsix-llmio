@@ -119,7 +119,7 @@ it reports formatting issues without modifying files.
 - Branch naming: short, kebab-case, topic-prefixed — e.g. `feat/…`, `fix/…`,
   `docs/…`, `chore/…`. This is a convention, not a CI gate.
 - CI **must** pass — the full test matrix (3.11, 3.12, 3.13), ruff, mypy,
-  bandit, and pip-audit. The `security` job runs on Python 3.13 only. CI also
+  bandit, and uv audit. The `security` job runs on Python 3.13 only. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
 - Pre-commit hooks must pass locally before pushing.
@@ -168,3 +168,4 @@ Trusted Publishing must be registered once by a project maintainer at
 at this repository (`robotsix-dev/robotsix-llmio`), the workflow filename
 `release.yml`, and the `pypi` GitHub Environment. This is a manual action
 performed once on PyPI and cannot be done from the repository.
+
