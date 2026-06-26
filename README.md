@@ -12,7 +12,7 @@ consumer only ever picks a **level** (1, 2, or 3).
 ## Layers
 
 1. **`robotsix_llmio.core`** — provider-agnostic base: the `LLMProvider` ABC,
-   the `Tier` enum (deprecated — prefer `TierLevel`), bounded retry/backoff
+   the `TierLevel` enum, bounded retry/backoff
    (`call_with_retry`, `is_transient`, `is_rate_limited`), cost-on-span
    recording, a timeout HTTP client, and the generic pydantic-ai `Agent`
    assembler. All numeric parameters (timeouts, retry counts, backoff) are
@@ -146,27 +146,6 @@ bindings, and `provider_kwargs=` for provider-constructor arguments. Two related
 helpers are exported alongside it: `get_provider_for_level(level)` (just the
 provider) and `default_tier_config()` (the baked binding as a `TierConfig`).
 
-### Migrating from `tier` to `level`
-
-The legacy `tier` parameter and `Tier` enum are deprecated.  Use `level` instead:
-
-| Old (`tier`)            | New (`level`)  |
-|-------------------------|----------------|
-| `tier=Tier.CHEAP`       | `level=1`      |
-| `tier=Tier.DEFAULT`     | `level=2`      |
-| *(no equivalent)*       | `level=3`      |
-
-| Old env var              | New env var                |
-|--------------------------|----------------------------|
-| `LLMIO_FLASH_MODEL`      | `LLMIO_LEVEL1_MODEL`       |
-| `LLMIO_FLASH_PROVIDER`   | `LLMIO_LEVEL1_PROVIDER`    |
-| `LLMIO_NORMAL_MODEL`     | `LLMIO_LEVEL2_MODEL`       |
-| `LLMIO_NORMAL_PROVIDER`  | `LLMIO_LEVEL2_PROVIDER`    |
-| `LLMIO_PROVIDER` (blanket)| `LLMIO_LEVEL{1,2,3}_PROVIDER` |
-
-The old env vars still work but emit `FutureWarning`.  The old `tier` parameter
-still works but emits `DeprecationWarning`.  Code using the deprecated APIs will
-continue to function — update at your own pace.
 
 See [docs/config/index.md](docs/config/index.md) for the full `TierConfig`
 schema and `create_model` factory API.
