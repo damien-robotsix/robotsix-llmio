@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `src/robotsix_llmio/core/tier_fallback.py`: replaced the manually-enumerated `_ALL_TIER_LEVELS` tuple with `tuple(TierLevel)`, so new enum members are automatically included in declaration order without a stale hardcoded list.
 - Extracted duplicated tier-config resolution logic from `LLMProvider.build_agent` and `ClaudeSDKProvider.build_agent` into a shared `_resolve_model_name()` helper in `core/provider.py`.
 - Extracted shared `_LangfuseReadClientBase` base class from `LangfuseReadClient` and `AsyncLangfuseReadClient`, deduplicating `__init__`, `base_url`, `url()`, and `auth_header()` methods.
 - Moved weekly-pace config models (`WeeklyPaceConfig`, `ModelWeightConfig`) from `src/robotsix_llmio/config/weekly_pace.py` into `src/robotsix_llmio/weekly_pace/_config.py`, consolidating all weekly-pace source under the module directory. A compatibility re-export at the old path preserves existing imports.

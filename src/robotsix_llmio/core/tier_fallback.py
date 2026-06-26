@@ -41,11 +41,7 @@ T = TypeVar("T")
 
 # Ordered tuple of all TierLevel members, used by _next_unvisited_tier
 # to determine priority by position (LEVEL1=0, LEVEL2=1, LEVEL3=2).
-_ALL_TIER_LEVELS: tuple[TierLevel, ...] = (
-    TierLevel.LEVEL1,
-    TierLevel.LEVEL2,
-    TierLevel.LEVEL3,
-)
+_ALL_TIER_LEVELS: tuple[TierLevel, ...] = tuple(TierLevel)
 
 
 def _next_unvisited_tier(
