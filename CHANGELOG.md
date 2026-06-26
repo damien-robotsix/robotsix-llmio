@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `.env.example`: corrected `LLMIO_LEVEL*_MODEL` example values to use the full `provider-prefix-model` format matching the baked tier defaults, preventing validation failures on onboarding.
+
 ### Added
 
 - Added `docs/tools/index.md` module guide for the `robotsix_llmio-tools` module
