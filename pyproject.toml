@@ -59,7 +59,7 @@ tracing = [
     "opentelemetry-exporter-otlp-proto-http",
 ]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "ruff", "mypy", "vulture", "pyyaml"]
+dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
@@ -125,6 +125,10 @@ testpaths = ["tests"]
 # never hits the network. Run them explicitly with `pytest -m live` (which
 # overrides this) — they still self-skip without OPENROUTER_API_KEY.
 addopts = ["-m", "not live", "--strict-markers", "--strict-config"]
+# Global test timeout: 30s catches hung tests quickly; method=thread is
+# compatible with pytest-xdist (-n auto) and works on all platforms.
+timeout = 30
+timeout_method = "thread"
 xfail_strict = true
 filterwarnings = [
     "error",

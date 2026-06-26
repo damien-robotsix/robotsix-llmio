@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- pytest-timeout plugin with a 30-second global timeout (``timeout_method = "thread"``) to catch hung tests in CI, and ``@pytest.mark.timeout(120)`` overrides on the 9 live Langfuse round-trip tests in ``tests/core/test_tracing_live.py``.
+
 - Added `docs/tools/index.md` module guide for the `robotsix_llmio-tools` module
 
 - Parallel test execution via `pytest-xdist` (`-n auto`) in CI and local config to reduce suite wall-clock time on multi-core runners.

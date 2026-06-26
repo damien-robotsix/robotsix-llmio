@@ -56,6 +56,7 @@ def _langfuse_traces(session_id: str) -> list[dict] | None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_roundtrip_has_cost() -> None:
     """A real provider call, grouped under a unique session, produces a Langfuse
     trace whose ``totalCost`` is populated from the per-call cost the model
@@ -124,6 +125,7 @@ def _langfuse_get(path: str, params: dict) -> dict | None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_tool_and_subagent() -> None:
     """A run that uses a tool AND delegates to a subagent, so we can see how
     nested tool/agent spans display in Langfuse.
@@ -244,6 +246,7 @@ def _require_claude() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
     """claude_sdk provider (subscription auth) — a traced run lands in Langfuse
     with cost.
@@ -300,6 +303,7 @@ def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     """claude_sdk WITH tools — the hand-instrumented SDK tool path produces a
     trace showing tool spans and a nested subagent (all subscription-auth).
@@ -410,6 +414,7 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
     """A tool-bearing claude_sdk agent used as a subagent — deep nesting.
 
@@ -509,6 +514,7 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_trace_url_resolves_to_real_trace() -> None:
     """langfuse_trace_url builds a UI URL with the project's real id, pointing at
     a trace that actually exists. The project id is discovered from the API, so
@@ -567,6 +573,7 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
     """A freshly logged session's cost is readable back through the neutral
     ``CostLogSource`` port (the read-side counterpart to the OTLP write seam)."""
@@ -627,6 +634,7 @@ def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_claude_sdk_workspace_confinement_blocks_out_of_scope_edit(tmp_path) -> None:
     """A tool-bearing claude_sdk agent built with ``workspace_root`` must be
     unable to edit files OUTSIDE that workspace, while edits inside succeed.
@@ -700,6 +708,7 @@ def _langfuse_traces_for_project(
 
 
 @pytest.mark.live
+@pytest.mark.timeout(120)
 def test_multi_tenant_no_cross_project_leakage() -> None:
     """Two Langfuse projects, each with its own session — verify each session's
     traces appear *only* in its owning project and never in the other.
