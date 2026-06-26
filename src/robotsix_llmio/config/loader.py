@@ -20,6 +20,7 @@ from robotsix_llmio.config.tier import (
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
     TierConfig,
+    TierLevel,
 )
 from robotsix_llmio.exceptions import RobotsixLLMIOError
 
@@ -96,7 +97,7 @@ def load_tier_config(
 
     # ---- 2.  Merge env + explicit dict ------------------------------------
     merged: dict[str, Any] = {}
-    for tier in ("level1", "level2", "level3"):
+    for tier in (m.value for m in TierLevel):
         tier_dict: dict[str, Any] = {}
 
         # Start with baked defaults for tiers that have them.
@@ -175,11 +176,7 @@ def _read_env_vars(env_prefix: str) -> dict[str, dict[str, Any]]:
     def _set(tier: str, field: str, value: Any) -> None:
         nested.setdefault(tier, {})[field] = value
 
-    for tier_upper, tier_lower in [
-        ("LEVEL1", "level1"),
-        ("LEVEL2", "level2"),
-        ("LEVEL3", "level3"),
-    ]:
+    for tier_upper, tier_lower in ((m.value.upper(), m.value) for m in TierLevel):
         # MODEL — full combined provider-model identifier, used verbatim.
         var_name = f"{env_prefix}{tier_upper}_MODEL"
         raw = os.environ.get(var_name)
