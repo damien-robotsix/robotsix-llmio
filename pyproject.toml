@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "robotsix-llmio"
 version = "0.1.0"
-description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. openrouter_deepseek)."
+description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. DeepSeek over OpenRouter)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -44,8 +44,6 @@ Documentation = "https://github.com/damien-robotsix/robotsix-llmio#readme"
 # The `openrouter` extra already pulls `openai` transitively (it's what
 # OpenAIChatModel runs on), so listing `openai` explicitly is redundant.
 openrouter = ["pydantic-ai-slim[openrouter]>=1.0"]
-# Layer 3 — derived DeepSeek provider. Chains the openrouter extra.
-openrouter_deepseek = ["robotsix-llmio[openrouter]"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
@@ -100,7 +98,11 @@ disallow_untyped_defs = false
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = "robotsix_llmio.openrouter_deepseek.*"
+module = "robotsix_llmio.openrouter._deepseek_model"
+disable_error_code = ["typeddict-item", "override", "misc", "literal-required"]
+
+[[tool.mypy.overrides]]
+module = "robotsix_llmio.openrouter._deepseek_provider"
 disable_error_code = ["typeddict-item", "override", "misc", "literal-required"]
 
 [[tool.mypy.overrides]]

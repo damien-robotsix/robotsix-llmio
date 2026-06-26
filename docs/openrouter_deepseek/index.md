@@ -1,4 +1,11 @@
-# robotsix_llmio openrouter-deepseek
+# robotsix_llmio openrouter-deepseek (deprecated)
+
+!!! warning "Deprecated"
+    This module has been consolidated into `robotsix_llmio.openrouter`.
+    Import from `robotsix_llmio.openrouter` instead:
+    ```python
+    from robotsix_llmio.openrouter import OpenRouterDeepseekProvider
+    ```
 
 Derived DeepSeek layer that pins the generic OpenRouter transport to
 DeepSeek models on OpenRouter. Hard-codes the model names

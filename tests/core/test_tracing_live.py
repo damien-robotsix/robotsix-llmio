@@ -68,7 +68,7 @@ def test_langfuse_trace_roundtrip_has_cost() -> None:
         langfuse_session,
         setup_langfuse_tracing,
     )
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     assert setup_langfuse_tracing() is True, "tracing should configure with creds"
 
@@ -143,7 +143,7 @@ def test_langfuse_trace_tool_and_subagent() -> None:
         langfuse_session,
         setup_langfuse_tracing,
     )
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     assert setup_langfuse_tracing() is True
 
@@ -528,7 +528,7 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
         setup_langfuse_tracing,
         start_trace,
     )
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     projects = _langfuse_get("/api/public/projects", {})
     assert projects and projects.get("data"), "could not discover the Langfuse project"
@@ -588,7 +588,7 @@ def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
         langfuse_session,
         setup_langfuse_tracing,
     )
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     assert setup_langfuse_tracing() is True, "tracing should configure with creds"
 
@@ -744,7 +744,7 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
         langfuse_session,
         setup_langfuse_tracing,
     )
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     _t._provider = None
     _t._projects.clear()

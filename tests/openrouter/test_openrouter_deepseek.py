@@ -13,8 +13,10 @@ def _model(level: int):
     stamped (as the provider does), without needing network/key beyond
     construction."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
-    from robotsix_llmio.openrouter_deepseek.model import OpenRouterDeepseekModel
-    from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
 
     name = {
         1: "deepseek/deepseek-v4-flash",
@@ -64,7 +66,7 @@ def test_reasoning_text_concatenates_only_thinking_parts_in_order():
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from pydantic_ai.messages import TextPart, ThinkingPart
 
-    from robotsix_llmio.openrouter_deepseek.model import _reasoning_text
+    from robotsix_llmio.openrouter._deepseek_model import _reasoning_text
 
     message = types.SimpleNamespace(
         parts=[
@@ -81,7 +83,7 @@ def test_reasoning_text_returns_empty_without_thinking_parts():
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from pydantic_ai.messages import TextPart
 
-    from robotsix_llmio.openrouter_deepseek.model import _reasoning_text
+    from robotsix_llmio.openrouter._deepseek_model import _reasoning_text
 
     message = types.SimpleNamespace(parts=[TextPart(content="visible")])
     assert _reasoning_text(message) == ""
@@ -90,7 +92,7 @@ def test_reasoning_text_returns_empty_without_thinking_parts():
 def test_reasoning_text_handles_missing_parts():
     """``parts=None`` / no ``parts`` attribute is guarded → empty string."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
-    from robotsix_llmio.openrouter_deepseek.model import _reasoning_text
+    from robotsix_llmio.openrouter._deepseek_model import _reasoning_text
 
     assert _reasoning_text(types.SimpleNamespace(parts=None)) == ""
     assert _reasoning_text(types.SimpleNamespace()) == ""
@@ -101,7 +103,7 @@ def test_reasoning_text_skips_non_str_content():
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from pydantic_ai.messages import ThinkingPart
 
-    from robotsix_llmio.openrouter_deepseek.model import _reasoning_text
+    from robotsix_llmio.openrouter._deepseek_model import _reasoning_text
 
     bad = ThinkingPart(content="x")
     bad.content = None  # type: ignore[assignment]
@@ -176,7 +178,7 @@ def test_map_model_response_level2_stamps_reasoning_content(monkeypatch):
         {"role": "assistant", "tool_calls": [{"id": "1"}]},
     )
     message = _thinking_message("foo", "bar")
-    from robotsix_llmio.openrouter_deepseek.model import _reasoning_text
+    from robotsix_llmio.openrouter._deepseek_model import _reasoning_text
 
     result = m._map_model_response(message)
     assert result["reasoning_content"] == _reasoning_text(message) == "foobar"
@@ -262,7 +264,7 @@ def test_map_model_response_level1_strips_with_tool_calls(monkeypatch):
 
 def test_deepseek_response_key_constants_pin_wire_values():
     """The extracted constants must keep their exact DeepSeek wire strings."""
-    from robotsix_llmio.openrouter_deepseek import model as ds_model
+    from robotsix_llmio.openrouter import _deepseek_model as ds_model
 
     assert ds_model._REASONING_KEY == "reasoning"
     assert ds_model._REASONING_CONTENT_KEY == "reasoning_content"

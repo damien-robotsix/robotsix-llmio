@@ -26,7 +26,9 @@ def test_identifier_openrouter_deepseek(
     """``openrouter[deepseek]-deepseek/deepseek-v4-flash`` resolves to
     OpenRouterDeepseekProvider."""
     monkeypatch.delenv("LLMIO_PROVIDER", raising=False)
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
 
     provider = get_provider_for_identifier(
         "openrouter[deepseek]-deepseek/deepseek-v4-flash",
@@ -39,7 +41,9 @@ def test_identifier_openrouter_deepseek(
 def test_identifier_forward_kwargs(monkeypatch: pytest.MonkeyPatch) -> None:
     """**kwargs are forwarded to the provider constructor."""
     monkeypatch.delenv("LLMIO_PROVIDER", raising=False)
-    from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
 
     provider = get_provider_for_identifier(
         "openrouter[deepseek]-deepseek/deepseek-v4-flash",

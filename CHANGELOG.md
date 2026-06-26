@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Consolidated `openrouter_deepseek` into `openrouter`**: the DeepSeek model and
+  provider classes (`OpenRouterDeepseekModel`, `OpenRouterDeepseekProvider`) now
+  live in `robotsix_llmio.openrouter` (private modules `_deepseek_model` and
+  `_deepseek_provider`). The `openrouter_deepseek` extra and its top-level
+  package are deprecated — a backward-compat shim re-exports from `openrouter`
+  with a deprecation warning. Import from `robotsix_llmio.openrouter` going
+  forward.
+
 ### Fixed
 
 - `.env.example`: corrected `LLMIO_LEVEL*_MODEL` example values to use the full `provider-prefix-model` format matching the baked tier defaults, preventing validation failures on onboarding.

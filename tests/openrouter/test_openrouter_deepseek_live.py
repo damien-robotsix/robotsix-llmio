@@ -16,7 +16,7 @@ from robotsix_llmio.config.tier import (
     LEVEL2_DEFAULT,
     TierConfig,
 )
-from robotsix_llmio.openrouter_deepseek.provider import OpenRouterDeepseekProvider
+from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
 
 def _require_key() -> None:

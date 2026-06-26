@@ -22,6 +22,8 @@ from .transient import is_openrouter_transient, is_openrouter_upstream_error
 # sync with ``__all__`` and ``__getattr__``.
 if TYPE_CHECKING:
     from ._async_client import AsyncOpenRouterClient
+    from ._deepseek_model import OpenRouterDeepseekModel
+    from ._deepseek_provider import OpenRouterDeepseekProvider
     from .model import OpenRouterModel, record_openrouter_cost
     from .provider import OpenRouterProvider
     from .provider_cost import (
@@ -33,6 +35,8 @@ if TYPE_CHECKING:
 __all__ = [
     "AsyncOpenRouterClient",
     "KeyUsage",
+    "OpenRouterDeepseekModel",
+    "OpenRouterDeepseekProvider",
     "OpenRouterKeyCostSource",
     "OpenRouterModel",
     "OpenRouterProvider",
@@ -52,6 +56,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from .provider import OpenRouterProvider
 
         return OpenRouterProvider
+    if name == "OpenRouterDeepseekModel":
+        from ._deepseek_model import OpenRouterDeepseekModel
+
+        return OpenRouterDeepseekModel
+    if name == "OpenRouterDeepseekProvider":
+        from ._deepseek_provider import OpenRouterDeepseekProvider
+
+        return OpenRouterDeepseekProvider
     if name in ("OpenRouterProviderCostSource", "OpenRouterKeyCostSource", "KeyUsage"):
         from . import provider_cost
 
