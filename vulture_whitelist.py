@@ -111,7 +111,8 @@ AsyncOpenRouterClient.fetch_credits
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 
-# StrEnum members referenced via TierLevel.LEVEL3 externally.
+# StrEnum members referenced via TierLevel.LEVEL{N} externally.
+TierLevel.LEVEL2
 TierLevel.LEVEL3
 
 # Pydantic model fields + validators accessed by pydantic's metaclass
