@@ -19,7 +19,7 @@ The library is organised into three logical roles:
   numeric constants (timeouts, retry counts, backoff schedules), the
   timeout-bounded async HTTP client, the generic pydantic-ai `Agent`
   assembler, the cost-on-span helpers, and the optional Langfuse OTLP
-  export plumbing. The `Tier` enum is retained as a deprecated surface.
+  export plumbing.
 - **Transport layers** — each speaks one wire protocol but stays
   model-family-agnostic. There are two siblings, both deriving directly
   from `core.LLMProvider`:
