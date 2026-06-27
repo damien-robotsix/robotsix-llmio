@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `ARCHITECTURE.md`: removed stale reference to the removed `Tier` enum, which was deleted in PR #259.
+- `README.md`: removed stale reference to deleted `Tier.DEFAULT` enum.
 - `.env.example`: corrected `LLMIO_LEVEL*_MODEL` example values to use the full `provider-prefix-model` format matching the baked tier defaults, preventing validation failures on onboarding.
 
 ### Added

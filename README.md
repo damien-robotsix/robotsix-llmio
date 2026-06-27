@@ -109,9 +109,7 @@ The library uses a three-tier model selection system exposed through the
 | 3     | High-level planning and refinement     | `LLMIO_LEVEL3_PROVIDER=claude-sdk`          |
 |       |                                        | `LLMIO_LEVEL3_MODEL=opus`                   |
 
-Level 1 is the default — cheap and fast is the safe default.  Level 3 currently
-maps to the same concrete tier as level 2 (`Tier.DEFAULT`) at the provider level;
-full three-tier differentiation is deferred to a follow-up release.  The
+Level 1 is the default — cheap and fast is the safe default.  Level 3 currently maps to the same configuration as level 2 at the provider level; full three-tier differentiation is deferred to a follow-up release.  The
 configuration system (`TierConfig` / `load_tier_config` / `call_with_tier_fallback`)
 already supports all three levels end-to-end.
 
