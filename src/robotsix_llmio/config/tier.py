@@ -3,10 +3,7 @@
 This module defines the *data model only*.  Wiring it into the provider
 factory, ``build_agent``, and ``new_model`` is a follow-up concern.
 
-The existing two-value :class:`~robotsix_llmio.core.Tier` enum is **not**
-modified — callers that pass ``Tier.DEFAULT`` / ``Tier.CHEAP`` continue
-to work unchanged.  The canonical path for tier resolution is
-:meth:`TierConfig.for_level`.
+The canonical path for tier resolution is :meth:`TierConfig.for_level`.
 """
 
 from __future__ import annotations
