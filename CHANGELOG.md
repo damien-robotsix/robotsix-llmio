@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `src/robotsix_llmio/config/tier.py`: removed outdated module docstring claiming callers can still pass `Tier.DEFAULT` / `Tier.CHEAP` — the `Tier` StrEnum was fully deleted in PR #259.
-- `ARCHITECTURE.md`: removed stale reference to the removed `Tier` enum, which was deleted in PR #259.
+- `ARCHITECTURE.md`: removed stale reference to the removed `Tier` enum at line 22, which was deleted in PR #259.
+- `ARCHITECTURE.md`: removed second stale `Tier` enum reference at line 102 — replaced with `TierLevel` directly.
 - `README.md`: removed stale reference to deleted `Tier.DEFAULT` enum.
 - `.env.example`: corrected `LLMIO_LEVEL*_MODEL` example values to use the full `provider-prefix-model` format matching the baked tier defaults, preventing validation failures on onboarding.
 
