@@ -99,10 +99,9 @@ docstring is the canonical statement:
 has no single model or provider; it is the base layer. Its actual
 files are:
 
-- `provider.py` — the `LLMProvider` ABC and the `Tier` enum (deprecated;
-  `TierLevel` in `config.tier` is the replacement), plus the
-  inherited `build_agent` / `call_with_retry` methods that derived
-  providers reuse unchanged.
+- `provider.py` — the `LLMProvider` ABC and `TierLevel` (in `config.tier`),
+  plus the inherited `build_agent` / `call_with_retry` methods that
+  derived providers reuse unchanged.
 - `agent.py` — `AgentHandle` (wraps a pydantic-ai `Agent` with its
   httpx client for deterministic close, delegating attribute access so
   call sites stay unchanged) and the generic `build_agent` function.
