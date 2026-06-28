@@ -67,7 +67,8 @@ LangfuseReadClient.observation_cost
 # core/langfuse_cost.py — public methods of the cost-source adapter
 # ---------------------------------------------------------------------------
 
-LangfuseCostLogSource.fetch_logged_cost
+# fetch_logged_cost is whitelisted once under core/cost_log.py above; vulture
+# matches bare names, so the CostLogSource entry already covers this class too.
 LangfuseCostLogSource.fetch_logged_cost_by_provider
 LangfuseCostLogSource.prune_before
 
@@ -99,7 +100,7 @@ signum
 # ---------------------------------------------------------------------------
 
 OpenRouterKeyCostSource.fetch_key_usage
-OpenRouterProviderCostSource.fetch_provider_cost
+# fetch_provider_cost is whitelisted once under core/provider_cost.py above.
 
 # ---------------------------------------------------------------------------
 # openrouter/_async_client.py — public async client methods
@@ -115,9 +116,9 @@ AsyncOpenRouterClient.fetch_credits
 TierLevel.LEVEL2
 TierLevel.LEVEL3
 
-# Pydantic model fields + validators accessed by pydantic's metaclass
-# machinery, not by direct Python name access that vulture would detect.
-TierLevelConfig._validate_identifier
+# Pydantic model fields accessed by pydantic's metaclass machinery, not by
+# direct Python name access that vulture would detect. (@model_validator /
+# @field_validator methods are handled by ignore_decorators in pyproject.toml.)
 TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2
