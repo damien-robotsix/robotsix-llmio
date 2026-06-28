@@ -33,14 +33,14 @@ nav:
   - OpenRouter DeepSeek: openrouter_deepseek/index.md
   - Claude SDK: claude_sdk/index.md
   - Weekly Pace: weekly_pace/index.md
-  - Tools: tools/index.md
+
   - API Reference:
       - Core: reference/core.md
       - Logging: reference/logging.md
       - OpenRouter: reference/openrouter.md
       - OpenRouter DeepSeek: reference/openrouter_deepseek.md
       - Claude SDK: reference/claude_sdk.md
-      - Tools: reference/tools.md
+
       - Config: reference/config.md
       - Weekly Pace: reference/weekly_pace.md
       - Exceptions: reference/exceptions.md

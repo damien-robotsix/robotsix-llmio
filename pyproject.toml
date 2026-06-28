@@ -85,7 +85,7 @@ select = [
 "src/robotsix_llmio/claude_sdk/_tool_agent.py" = ["S101"]
 "src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
 "src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
-"src/robotsix_llmio/tools/_builtins.py" = ["S311"]
+
 "tests/**/*.py" = ["S101", "S106"]
 
 [tool.mypy]

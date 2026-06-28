@@ -89,12 +89,4 @@ modules:
       - tests/weekly_pace/test_weekly_pace.py
       - docs/weekly_pace/**
       - docs/reference/weekly_pace.md
-  - id: robotsix_llmio-tools
-    description: >
-      Built-in example tools (get_time, echo, calculator, roll_dice) for
-      out-of-the-box agent functionality.
-    paths:
-      - src/robotsix_llmio/tools/**
-      - tests/tools/**
-      - docs/tools/**
-      - docs/reference/tools.md
+
