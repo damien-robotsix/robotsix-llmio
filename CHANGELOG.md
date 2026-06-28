@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `.robotsix-mill/periodic/langfuse_cleanup.yaml`: the Langfuse trace cleanup periodic
+  is now `global_only` (centralized in robotsix-mill, not per-repo). The stale config
+  file produced a warning on every discovery pass and is no longer needed.
+
 - `robotsix_llmio.tools` subpackage (`src/robotsix_llmio/tools/`, `tests/tools/`, `docs/tools/index.md`, `docs/reference/tools.md`) — the built-in example tools (`get_time`, `echo`, `calculator`, `roll_dice`) were entirely unused by any production code in the repository. The subpackage had zero imports from outside itself and served no purpose beyond maintenance overhead.
 - `pip-audit` from the `dev` optional dependencies — CI now uses `uv audit --frozen` for dependency vulnerability auditing. CONTRIBUTING.md and AGENT.md updated to reference `uv audit` instead.
 - `bandit` dependency and pre-commit hook — replaced by Ruff's `S` ruleset which covers the same security checks inline during `ruff check`.
