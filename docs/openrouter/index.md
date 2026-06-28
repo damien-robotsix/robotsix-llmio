@@ -25,9 +25,6 @@ from robotsix_llmio.openrouter import (
 )
 ```
 
-The legacy import path `robotsix_llmio.openrouter_deepseek` still works
-but emits a deprecation warning.
-
 ## Exports
 
 ### Provider & model
