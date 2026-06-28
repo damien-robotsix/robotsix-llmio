@@ -41,24 +41,21 @@ modules:
       - docs/changelog.md
   - id: robotsix_llmio-openrouter
     description: >
-      OpenRouter transport layer — base model-family-agnostic provider.
+      OpenRouter transport layer — base model-family-agnostic provider
+      with a derived DeepSeek layer that pins to DeepSeek models and
+      configures per-tier reasoning policy.
     paths:
       - src/robotsix_llmio/openrouter/**
+      - src/robotsix_llmio/openrouter_deepseek/__init__.py
       - tests/openrouter/test_openrouter.py
       - tests/openrouter/test_openrouter_provider.py
       - tests/openrouter/test_async_client.py
       - tests/openrouter/test_openrouter_provider_cost.py
+      - tests/openrouter/test_openrouter_deepseek.py
+      - tests/openrouter/test_openrouter_deepseek_live.py
       - docs/openrouter/**
+      - docs/openrouter_deepseek/index.md
       - docs/reference/openrouter.md
-  - id: robotsix_llmio-openrouter-deepseek
-    description: >
-      Derived DeepSeek layer that pins the generic OpenRouter transport
-      to DeepSeek models and configures per-tier reasoning policy.
-    paths:
-      - src/robotsix_llmio/openrouter_deepseek/**
-      - tests/openrouter_deepseek/test_openrouter_deepseek.py
-      - tests/openrouter_deepseek/test_openrouter_deepseek_live.py
-      - docs/openrouter_deepseek/**
       - docs/reference/openrouter_deepseek.md
   - id: robotsix_llmio-claude-sdk
     paths:

@@ -20,7 +20,7 @@ history that ENDS at a pending tool-result and is continued
 (``build_preseed_history``), a replayed ``conversation_state``, or a pause/resume
 mid tool-loop. Those assistant tool-call turns are synthetic or reconstructed
 and carry no reasoning, so they 400. Reproduced live in
-``tests/openrouter_deepseek/test_openrouter_deepseek_live.py``
+``tests/openrouter/test_openrouter_deepseek_live.py``
 (``test_pro_resume_from_pending_tool_return_does_not_400``).
 
 The fix: on the reasoning tier, every assistant tool-call turn carries a
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from ..openrouter.model import OpenRouterModel, _resolve_model_settings
+from .model import OpenRouterModel, _resolve_model_settings
 
 _PINNED_PROVIDER = "DeepSeek"
 _PIN_MODEL_PREFIX = "deepseek/"

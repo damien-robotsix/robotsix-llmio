@@ -2,8 +2,8 @@
 
 Model-family agnostic: this layer knows how to talk to OpenRouter (opt into
 ``usage.include`` and read ``usage.cost``) but applies no provider pin and no
-reasoning policy. Those quirks live in derived layers (e.g.
-``openrouter_deepseek``).
+reasoning policy. Those quirks live in derived modules (e.g.
+``_deepseek_model``).
 """
 
 from __future__ import annotations

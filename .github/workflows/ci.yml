@@ -48,14 +48,14 @@ jobs:
       - uses: ./.github/actions/setup-repo
         with:
           python-version: '3.13'
-      - run: uv sync --frozen --extra openrouter_deepseek --extra claude_sdk --extra tracing --extra dev
+      - run: uv sync --frozen --extra openrouter --extra claude_sdk --extra tracing --extra dev
       - run: uv run mypy src/
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   security:
     uses: damien-robotsix/robotsix-mill/.github/workflows/python-security.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
     with:
-      install-extras: "openrouter_deepseek claude_sdk dev"
+      install-extras: "openrouter claude_sdk dev"
       trufflehog-pr-diff: true
       trufflehog-extra-args: "--results=verified,unknown"
 

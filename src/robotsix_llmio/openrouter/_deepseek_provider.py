@@ -7,8 +7,8 @@ directly to :meth:`new_model`.
 
 from __future__ import annotations
 
-from ..openrouter.provider import OpenRouterProvider
-from .model import OpenRouterDeepseekModel
+from ._deepseek_model import OpenRouterDeepseekModel
+from .provider import OpenRouterProvider
 
 
 class OpenRouterDeepseekProvider(OpenRouterProvider):

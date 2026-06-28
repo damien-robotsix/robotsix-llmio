@@ -1,6 +1,32 @@
 # robotsix_llmio openrouter
 
-OpenRouter transport layer — base model-family-agnostic provider.
+OpenRouter transport layer — base model-family-agnostic provider, plus a
+derived DeepSeek layer that pins to DeepSeek models and configures per-tier
+reasoning policy.
+
+## DeepSeek (derived layer)
+
+The module also exports DeepSeek-specific classes that pin the generic
+OpenRouter transport to DeepSeek models on OpenRouter:
+
+- `OpenRouterDeepseekProvider` — provider that maps `level=2` to
+  `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `level=1`
+  to `"deepseek/deepseek-v4-flash"` (reasoning disabled).
+- `OpenRouterDeepseekModel` — model that injects
+  `provider: {only: ["DeepSeek"], allow_fallbacks: false}` and per-level
+  `reasoning` settings into every request.
+
+The DeepSeek classes are imported from `robotsix_llmio.openrouter`:
+
+```python
+from robotsix_llmio.openrouter import (
+    OpenRouterDeepseekModel,
+    OpenRouterDeepseekProvider,
+)
+```
+
+The legacy import path `robotsix_llmio.openrouter_deepseek` still works
+but emits a deprecation warning.
 
 ## Exports
 

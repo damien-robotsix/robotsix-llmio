@@ -30,7 +30,6 @@ nav:
   - Core: core/index.md
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
-  - OpenRouter DeepSeek: openrouter_deepseek/index.md
   - Claude SDK: claude_sdk/index.md
   - Weekly Pace: weekly_pace/index.md
 
@@ -38,7 +37,6 @@ nav:
       - Core: reference/core.md
       - Logging: reference/logging.md
       - OpenRouter: reference/openrouter.md
-      - OpenRouter DeepSeek: reference/openrouter_deepseek.md
       - Claude SDK: reference/claude_sdk.md
 
       - Config: reference/config.md

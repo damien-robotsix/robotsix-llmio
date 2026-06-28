@@ -153,9 +153,9 @@ The `claude-sdk` transport requires the `claude_sdk` extra:
 pip install "robotsix-llmio[claude_sdk]"
 ```
 
-The `openrouter[deepseek]` transport requires the `openrouter_deepseek` extra
+The `openrouter[deepseek]` transport requires the `openrouter` extra
 (which is the default when no extra is specified):
 
 ```bash
-pip install "robotsix-llmio[openrouter_deepseek]"
+pip install "robotsix-llmio[openrouter]"
 ```
