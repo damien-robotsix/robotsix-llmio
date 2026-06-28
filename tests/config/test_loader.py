@@ -13,8 +13,6 @@ Covers:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
@@ -27,14 +25,6 @@ from robotsix_llmio.config.tier import (
 # ========================================================================== #
 #  Helpers
 # ========================================================================== #
-
-
-@pytest.fixture(autouse=True)
-def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Remove all LLMIO_* variables so tests start from a known-clean env."""
-    for key in tuple(os.environ):
-        if key.startswith("LLMIO_"):
-            monkeypatch.delenv(key, raising=False)
 
 
 def set_env(monkeypatch: pytest.MonkeyPatch, **kwargs: str) -> None:

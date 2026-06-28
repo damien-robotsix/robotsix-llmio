@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from robotsix_llmio.config.factory import create_model
-from robotsix_llmio.core.provider import LLMProvider
 
 
 class TestCreateModelValidation:
@@ -26,16 +25,6 @@ class TestCreateModelValidation:
 class TestCreateModelHappyPath:
     """Valid calls delegate to ``get_provider`` (transport path) or
     ``get_provider_for_identifier`` (tier path)."""
-
-    @pytest.fixture
-    def mock_get_provider_for_identifier(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> MagicMock:
-        mock = MagicMock(return_value=MagicMock(spec=LLMProvider))
-        monkeypatch.setattr(
-            "robotsix_llmio.config.factory.get_provider_for_identifier", mock
-        )
-        return mock
 
     # -- Level-driven resolution (no transport) -------------------------------
 
@@ -113,16 +102,6 @@ class TestCreateModelHappyPath:
 class TestCreateModelDefaultFallback:
     """``create_model`` falls back to the baked level defaults only when no
     user-supplied ``tier_config`` is present."""
-
-    @pytest.fixture
-    def mock_get_provider_for_identifier(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> MagicMock:
-        mock = MagicMock(return_value=MagicMock(spec=LLMProvider))
-        monkeypatch.setattr(
-            "robotsix_llmio.config.factory.get_provider_for_identifier", mock
-        )
-        return mock
 
     @pytest.mark.parametrize("level", [1, 2, 3])
     def test_no_tier_config_uses_baked_level_default(

@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Deduplicated test fixtures in `tests/config/`**: extracted shared `clean_env` and
+  `mock_get_provider_for_identifier` fixtures into `tests/config/conftest.py`,
+  removing 5 duplicate definitions across `test_config_integration.py`,
+  `test_loader.py`, and `test_config_factory.py`.
+
 - **Consolidated `openrouter_deepseek` into `openrouter`**: the DeepSeek model and
   provider classes (`OpenRouterDeepseekModel`, `OpenRouterDeepseekProvider`) now
   live in `robotsix_llmio.openrouter` (private modules `_deepseek_model` and
