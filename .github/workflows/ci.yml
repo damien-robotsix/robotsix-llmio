@@ -20,7 +20,7 @@ jobs:
     uses: damien-robotsix/robotsix-mill/.github/workflows/python-ci.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
     with:
       python-version: ${{ matrix.python }}
-      install-extras: "openrouter openrouter_deepseek claude_sdk tracing dev"
+      install-extras: "openrouter claude_sdk tracing dev"
       cov-package: src/robotsix_llmio
       coverage-threshold: "90"
       pytest-args: '-m "not live" -n 4'

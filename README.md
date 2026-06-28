@@ -20,7 +20,7 @@ consumer only ever picks a **level** (1, 2, or 3).
 2. **`robotsix_llmio.openrouter`** — OpenRouter transport: auth/base-url,
    `usage.include` opt-in, cost extraction from `usage.cost`, and the
    OpenRouter upstream-error transient signature. Model-family agnostic.
-3. **`robotsix_llmio.openrouter_deepseek`** — the derived layer most consumers
+3. **`robotsix_llmio.openrouter`** — the derived layer most consumers
    plug in. Extends the OpenRouter layer with DeepSeek specifics: pin the
    upstream provider to DeepSeek (warm prompt cache) and a level→reasoning
    policy (levels 2–3→`effort: xhigh`; level 1→`reasoning disabled`).
@@ -73,7 +73,7 @@ agent.close()
 ## Install
 
 ```bash
-pip install "robotsix-llmio[openrouter_deepseek]"
+pip install "robotsix-llmio[openrouter]"
 # or, for the subscription-auth transport (also needs Node + `claude login`):
 pip install "robotsix-llmio[claude_sdk]"
 ```
@@ -191,7 +191,7 @@ The level-based `TierConfig` system eliminates the need for runtime provider
 registration — add a new provider by contributing a `TierLevelConfig` and
 setting the corresponding `LLMIO_LEVEL<N>_PROVIDER` variable. Importing a
 concrete provider class directly still works (e.g.
-`from robotsix_llmio.openrouter_deepseek import OpenRouterDeepseekProvider`),
+`from robotsix_llmio.openrouter import OpenRouterDeepseekProvider`),
 but `get_provider_for_level` is the preferred entry point.
 
 ## Error handling
