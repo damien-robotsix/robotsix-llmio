@@ -39,7 +39,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
 from ..exceptions import RobotsixLLMIOError
-from ._usage import map_usage_dict
+from ._usage import _best_usage_dict, map_usage_dict
 from .transient import is_claude_sdk_turn_limit
 
 PROVIDER_NAME = "claude-sdk"
@@ -146,9 +146,12 @@ def render_prompt(messages: list[ModelMessage]) -> str:
 
 
 def _map_usage(result: Any) -> RequestUsage:
-    """Map a Claude Agent SDK ``ResultMessage.usage`` dict onto pydantic-ai's
-    :class:`RequestUsage`. Defensive: a missing/partial dict yields zeros."""
-    usage = getattr(result, "usage", None) if result is not None else None
+    """Map a Claude Agent SDK ``ResultMessage.usage`` (or ``model_usage``)
+    dict onto pydantic-ai's :class:`RequestUsage`.
+
+    Defensive: a missing/partial dict yields zeros.
+    """
+    usage = _best_usage_dict(result)
     return map_usage_dict(usage)
 
 
@@ -313,8 +316,8 @@ class ClaudeSDKModel(Model):
             # traces show the reasoning, not just the final answer + tool calls.
             if reasoning:
                 span.set_attribute(LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning)
-            usage = getattr(result, "usage", None) if result is not None else None
-            if isinstance(usage, dict):
+            usage = _best_usage_dict(result)
+            if usage is not None:
                 in_tok = usage.get("input_tokens")
                 out_tok = usage.get("output_tokens")
                 if in_tok is not None:
