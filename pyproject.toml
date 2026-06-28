@@ -62,6 +62,12 @@ dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy",
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
 
+[tool.vulture]
+# Pydantic validators are invoked by the metaclass, never by direct name
+# access, so vulture always flags them. Ignore them by decorator instead of
+# listing each one in vulture_whitelist.py.
+ignore_decorators = ["@model_validator", "@field_validator"]
+
 [tool.ruff]
 line-length = 88
 
