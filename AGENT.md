@@ -10,6 +10,8 @@ Each robotsix_llmio module uses the per-module layout: code in `src/robotsix_llm
 
 **Rule:** When writing a new test that patches `httpx.Client` via `MockTransport`, use `install_transport` from `tests/core/conftest.py` with an explicit `module=` parameter pointing to the module under test (e.g. `module=langfuse_cost_module`). Do not define a private duplicate — this pattern of duplicated test helpers has been observed across multiple tickets and should not recur.
 
+**Rule:** When two or more test files under the same `tests/<module>/` subtree share a fixture (defined identically in both files), extract it into a `tests/<module>/conftest.py` instead — pytest discovers conftest fixtures automatically for all sibling tests, avoiding duplication and maintenance drift.
+
 ## CI / workflows
 
 **Rule:** A GitHub Actions step that uploads a *required* artifact (e.g. an SBOM) MUST set `if: always()` so it still runs when an earlier step in the same job exits non-zero. A non-zero exit from any preceding step (e.g. `uv audit`, lint, tests) skips all later steps in that job, which makes an `if-no-files-found: error` backstop unreachable and silently drops the artifact — do not rely on a preceding audit/lint/test step staying green to guarantee the upload runs.
