@@ -46,7 +46,6 @@ modules:
       configures per-tier reasoning policy.
     paths:
       - src/robotsix_llmio/openrouter/**
-      - src/robotsix_llmio/openrouter_deepseek/__init__.py
       - tests/openrouter/test_openrouter.py
       - tests/openrouter/test_openrouter_provider.py
       - tests/openrouter/test_async_client.py
@@ -54,9 +53,7 @@ modules:
       - tests/openrouter/test_openrouter_deepseek.py
       - tests/openrouter/test_openrouter_deepseek_live.py
       - docs/openrouter/**
-      - docs/openrouter_deepseek/index.md
       - docs/reference/openrouter.md
-      - docs/reference/openrouter_deepseek.md
   - id: robotsix_llmio-claude-sdk
     paths:
       - src/robotsix_llmio/claude_sdk/**
