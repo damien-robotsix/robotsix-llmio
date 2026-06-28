@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Claude-SDK token usage now captured in Langfuse traces: the shared SDK wrapper
+  reads `model_usage` (the field the Claude Agent SDK populates) in addition to
+  `usage`, so generation observations report non-zero `totalTokens` and
+  `usageDetails` instead of `0` / `{}`.
+
 ### Changed
 
 - **Consolidated `openrouter_deepseek` into `openrouter`**: the DeepSeek model and

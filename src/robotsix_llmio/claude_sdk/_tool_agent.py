@@ -633,12 +633,13 @@ class _SdkToolAgentHandle:
         tool calls.
         """
         from ..core.cost import record_cost
+        from ._usage import _best_usage_dict
         from .model import PROVIDER_NAME
 
         # Child generation span: the model exchange. Carries input/output +
         # token usage + the SDK cost estimate. Cost must sit on a child
         # observation to roll up — a root span becomes the trace, not summed.
-        usage_obj = getattr(result, "usage", None) if result is not None else None
+        usage_obj = _best_usage_dict(result)
         with start_span(
             get_tracer(_TRACER_NAME),
             f"chat {self._sdk_model}",
@@ -675,6 +676,7 @@ class _SdkToolAgentHandle:
     async def _run(
         self, user_prompt: str, message_history: list[Any] | None = None
     ) -> _SdkToolResult:
+        from ._usage import _best_usage_dict
         from .model import PROVIDER_NAME
 
         prompt, system_prompt = self._prepare_prompt(user_prompt, message_history)
@@ -704,7 +706,7 @@ class _SdkToolAgentHandle:
         return _SdkToolResult(
             output=_parse_output(text, self._output_type),
             _messages=[ModelResponse(parts=[TextPart(content=text)])],
-            _usage=getattr(result, "usage", None) if result is not None else None,
+            _usage=_best_usage_dict(result),
         )
 
     def close(self) -> None:

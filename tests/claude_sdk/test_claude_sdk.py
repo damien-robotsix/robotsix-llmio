@@ -65,6 +65,7 @@ from robotsix_llmio.core.tracing import (
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
     LANGFUSE_OBSERVATION_METADATA_REASONING,
+    LANGFUSE_OBSERVATION_OUTPUT,
     OP_CHAT,
     OP_INVOKE_AGENT,
 )
@@ -413,9 +414,16 @@ def _fake_sdk_module() -> SimpleNamespace:
             self.content = [_FakeTextBlock(text)]
 
     class _FakeResultMessage:
-        def __init__(self, usage: dict[str, int] | None = None) -> None:
+        def __init__(
+            self,
+            usage: dict[str, int] | None = None,
+            *,
+            model_usage: dict[str, int] | None = None,
+        ) -> None:
             self.usage = usage
+            self.model_usage = model_usage
             self.result = None
+            self.total_cost_usd = None
 
     class _FakeClaudeAgentOptions:
         def __init__(self, **kwargs: Any) -> None:
@@ -834,6 +842,78 @@ def test_spans_set_gen_ai_provider_name(monkeypatch, otel_exporter_tracer):
     assert root.attributes.get(GEN_AI_PROVIDER_NAME) == PROVIDER_NAME
 
 
+def test_tool_path_stamps_token_usage_on_generation_span(
+    monkeypatch, otel_exporter_tracer
+):
+    """The ``chat`` generation span carries non-zero token usage from the SDK
+    result, so Langfuse reports ``totalTokens`` and ``usageDetails``."""
+    exporter, tracer = otel_exporter_tracer
+    import robotsix_llmio.claude_sdk._tool_agent as _ta
+
+    monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("substantive answer")
+        yield fake.ResultMessage({"input_tokens": 42, "output_tokens": 17})
+
+    fake.query = _fake_query
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="be precise",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    handle.run_sync("hi")
+    handle.close()
+
+    spans = exporter.get_finished_spans()
+    chat = next((s for s in spans if s.name.startswith("chat ")), None)
+    assert chat is not None, f"no chat span in {[s.name for s in spans]}"
+
+    # Core invariant: when content was produced, token usage MUST be non-zero.
+    output = chat.attributes.get(LANGFUSE_OBSERVATION_OUTPUT)
+    assert output and output.strip(), "chat span has no output"
+    in_tok = chat.attributes.get(GEN_AI_USAGE_INPUT_TOKENS)
+    out_tok = chat.attributes.get(GEN_AI_USAGE_OUTPUT_TOKENS)
+    assert in_tok == 42, f"expected input_tokens=42, got {in_tok}"
+    assert out_tok == 17, f"expected output_tokens=17, got {out_tok}"
+
+
+def test_tool_path_prefers_model_usage_over_usage(monkeypatch, otel_exporter_tracer):
+    """When the SDK result has token data in ``model_usage`` rather than
+    ``usage``, the generation span still records non-zero tokens."""
+    exporter, tracer = otel_exporter_tracer
+    import robotsix_llmio.claude_sdk._tool_agent as _ta
+
+    monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("substantive answer")
+        yield fake.ResultMessage(model_usage={"input_tokens": 55, "output_tokens": 23})
+
+    fake.query = _fake_query
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="be precise",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+    )
+    handle.run_sync("hi")
+    handle.close()
+
+    spans = exporter.get_finished_spans()
+    chat = next((s for s in spans if s.name.startswith("chat ")), None)
+    assert chat is not None, f"no chat span in {[s.name for s in spans]}"
+    assert chat.attributes.get(GEN_AI_USAGE_INPUT_TOKENS) == 55
+    assert chat.attributes.get(GEN_AI_USAGE_OUTPUT_TOKENS) == 23
+
+
 # --- no-tools request() span attributes (regression) -----------------------
 
 
@@ -873,6 +953,44 @@ def test_notools_request_stamps_gen_ai_attributes(monkeypatch, otel_exporter_tra
     assert attrs[GEN_AI_REQUEST_MODEL] == "opus"
     assert attrs[GEN_AI_USAGE_INPUT_TOKENS] == 10
     assert attrs[GEN_AI_USAGE_OUTPUT_TOKENS] == 5
+
+
+def test_notools_request_stamps_tokens_from_model_usage(
+    monkeypatch,
+    otel_exporter_tracer,
+):
+    """When the SDK result carries token data in ``model_usage`` rather than
+    ``usage``, the generation span still records non-zero tokens."""
+    exporter, tracer = otel_exporter_tracer
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("hello world")
+        yield fake.ResultMessage(model_usage={"input_tokens": 30, "output_tokens": 12})
+
+    fake.query = _fake_query
+
+    model = ClaudeSDKModel("opus")
+
+    async def _run():
+        with tracer.start_as_current_span("root"):
+            return await model.request(
+                [ModelRequest(parts=[UserPromptPart(content="hi")])],
+                model_settings=None,
+                model_request_parameters=ModelRequestParameters(output_mode="text"),
+            )
+
+    resp = asyncio.run(_run())
+    # The pydantic-ai usage should also reflect model_usage tokens.
+    assert resp.usage.input_tokens == 30
+    assert resp.usage.output_tokens == 12
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1, f"expected 1 span, got {[s.name for s in spans]}"
+    attrs = spans[0].attributes
+    assert attrs[GEN_AI_USAGE_INPUT_TOKENS] == 30
+    assert attrs[GEN_AI_USAGE_OUTPUT_TOKENS] == 12
 
 
 def test_notools_request_skips_missing_usage(monkeypatch, otel_exporter_tracer):
