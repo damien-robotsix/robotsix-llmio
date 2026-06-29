@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Refdocs module** (`robotsix_llmio.refdocs`) — direct HTTP access for
+  documentation search and retrieval, replacing the agent-comm broker
+  intermediary. Exports `RefdocsSettings`, `AsyncRefdocsClient`, and
+  `build_refdocs_tools()`.
 - **New `robotsix_llmio.knowledge` module** — direct-HTTP knowledge-store
   client (`KnowledgeClient`) with search and document retrieval, plus
   `build_knowledge_tools(client)` for pydantic-ai agent integration.

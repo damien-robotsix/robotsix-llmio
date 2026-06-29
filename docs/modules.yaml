@@ -63,6 +63,14 @@ modules:
       - tests/claude_sdk/test_stream.py
       - docs/claude_sdk/**
       - docs/reference/claude_sdk.md
+  - id: robotsix_llmio-refdocs
+    description: >
+      Direct HTTP access for documentation search and retrieval —
+      replaces the agent-comm broker intermediary.
+    paths:
+      - src/robotsix_llmio/refdocs/**
+      - tests/refdocs/**
+      - docs/refdocs/**
   - id: robotsix_llmio-config
     description: >
       Consumer-facing configuration layer — TierConfig schema, loader,
