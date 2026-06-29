@@ -71,6 +71,7 @@ modules:
       - src/robotsix_llmio/refdocs/**
       - tests/refdocs/**
       - docs/refdocs/**
+      - docs/reference/refdocs.md
   - id: robotsix_llmio-config
     description: >
       Consumer-facing configuration layer — TierConfig schema, loader,
@@ -90,6 +91,7 @@ modules:
       - src/robotsix_llmio/knowledge/**
       - tests/knowledge/**
       - docs/knowledge/**
+      - docs/reference/knowledge.md
 
   - id: robotsix_llmio-self-review
     description: >
@@ -101,4 +103,5 @@ modules:
       - src/robotsix_llmio/self_review/**
       - tests/self_review/**
       - docs/self_review/**
+      - docs/reference/self_review.md
 
