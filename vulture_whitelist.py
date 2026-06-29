@@ -13,6 +13,14 @@ __getattr__
 # setup_logging is a public API entry point (called by library consumers).
 setup_logging
 
+# ---------------------------------------------------------------------------
+# refdocs/_async_client.py
+# ---------------------------------------------------------------------------
+
+# client.timeout set on an httpx.AsyncClient — consumed internally by httpx
+# on each request, beyond vulture's static analysis.
+client.timeout
+
 # Span is imported under TYPE_CHECKING for annotations in _otel.py.
 Span
 
