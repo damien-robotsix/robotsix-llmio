@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Removed the bracketed-qualifier syntax from provider-model identifiers.**
+  `parse_model_identifier` now splits purely on the first hyphen
+  (`<provider>-<model-name>`); the `provider[qualifier]-…` form is no longer
+  parsed. The baked defaults are simplified from
+  `openrouter[deepseek]-deepseek/deepseek-v4-flash` to
+  `openrouter-deepseek/deepseek-v4-flash` (and the level-2 equivalent), which
+  parse to the identical `provider`/`model_name`. Also corrected stale
+  `transport=` / `LLMIO_LEVEL*_TRANSPORT` examples in `docs/config/index.md`
+  to the real combined-identifier API.
+
 ### Removed
 
 - **Removed the inert `sub_alias` field/property** from `ParsedIdentifier`

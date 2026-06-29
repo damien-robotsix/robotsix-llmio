@@ -79,10 +79,9 @@ def test_tier_level_config_minimal_construction():
     assert cfg.provider_kwargs == {}
 
 
-def test_tier_level_config_with_bracketed_qualifier():
-    """A valid identifier with a bracketed qualifier constructs and parses
-    cleanly — the qualifier is stripped, leaving the bare provider."""
-    cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
+def test_tier_level_config_openrouter_identifier():
+    """An OpenRouter identifier constructs and parses cleanly."""
+    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro")
     assert cfg.provider == "openrouter"
     assert cfg.model_name == "deepseek/deepseek-v4-pro"
 
@@ -115,7 +114,7 @@ def test_tier_level_config_model_dump_round_trip():
     """A constructed instance round-trips through ``model_dump()`` →
     ``TierLevelConfig(**dump)`` without losing data."""
     original = TierLevelConfig(
-        model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
+        model="openrouter-deepseek/deepseek-v4-flash",
         provider_kwargs={"base_url": "https://custom"},
     )
     reloaded = TierLevelConfig(**original.model_dump())
@@ -135,7 +134,7 @@ def test_tier_level_config_model_dump_emits_model_not_transport():
 def test_tier_level_config_json_round_trip():
     """``model_dump_json()`` → ``model_validate_json()`` preserves equality."""
     original = TierLevelConfig(
-        model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
+        model="openrouter-deepseek/deepseek-v4-flash",
         provider_kwargs={"key": "val"},
     )
     json_str = original.model_dump_json()
@@ -178,13 +177,13 @@ def test_tier_level_config_malformed_identifier_raises():
 
 
 def test_level1_default():
-    assert LEVEL1_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash"
     assert LEVEL1_DEFAULT.provider == "openrouter"
     assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash"
 
 
 def test_level2_default():
-    assert LEVEL2_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert LEVEL2_DEFAULT.model == "openrouter-deepseek/deepseek-v4-pro"
     assert LEVEL2_DEFAULT.provider == "openrouter"
     assert LEVEL2_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
 
@@ -207,10 +206,10 @@ def test_tier_level_config_parsed_accessors_simple():
     assert cfg.model_name == "haiku"
 
 
-def test_tier_level_config_parsed_accessors_with_bracketed_qualifier():
-    """Parsed accessors work for an identifier with a bracketed qualifier
-    (which is stripped from the parsed provider)."""
-    cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
+def test_tier_level_config_parsed_accessors_openrouter():
+    """Parsed accessors work for an OpenRouter identifier whose model name
+    contains a slash."""
+    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro")
     assert cfg.provider == "openrouter"
     assert cfg.model_name == "deepseek/deepseek-v4-pro"
 
@@ -231,11 +230,11 @@ def test_tier_config_full_construction():
     """Explicitly providing all three levels uses those values."""
     cfg = TierConfig(
         level1=TierLevelConfig(model="claudeSDK-haiku"),
-        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
+        level2=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro"),
         level3=TierLevelConfig(model="claudeSDK-opus"),
     )
     assert cfg.level1.model == "claudeSDK-haiku"
-    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.level3.model == "claudeSDK-opus"
 
 
@@ -290,12 +289,12 @@ def test_tier_config_model_validate_full_dict():
     """All three tiers can be supplied in the dict."""
     data = {
         "level1": {"model": "claudeSDK-haiku"},
-        "level2": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-pro"},
+        "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
         "level3": {"model": "claudeSDK-opus"},
     }
     cfg = TierConfig.model_validate(data)
     assert cfg.level1.model == "claudeSDK-haiku"
-    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.level3.model == "claudeSDK-opus"
 
 
@@ -312,7 +311,7 @@ def test_tier_config_model_dump_round_trip():
     """Full config survives ``model_dump()`` → ``model_validate()``."""
     original = TierConfig(
         level1=TierLevelConfig(model="claudeSDK-opus", provider_kwargs={"x": 1}),
-        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
+        level2=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro"),
         level3=TierLevelConfig(model="claudeSDK-haiku"),
     )
     reloaded = TierConfig.model_validate(original.model_dump())
@@ -352,11 +351,11 @@ def test_for_level_2_returns_level2():
     """``for_level(2)`` returns ``self.level2`` — explicit or default."""
     cfg = TierConfig(
         level1=TierLevelConfig(model="claudeSDK-haiku"),
-        level2=TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro"),
+        level2=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro"),
     )
     result = cfg.for_level(2)
     assert result is cfg.level2
-    assert result.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert result.model == "openrouter-deepseek/deepseek-v4-pro"
     assert result.provider == "openrouter"
 
 

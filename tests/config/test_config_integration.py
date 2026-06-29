@@ -38,7 +38,7 @@ class TestLoaderToFactoryChain:
         cfg = load_tier_config(
             {
                 "level1": {
-                    "model": "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+                    "model": "openrouter-deepseek/deepseek-v4-flash",
                     "provider_kwargs": {"base_url": "https://proxy.example.com"},
                 }
             }
@@ -48,7 +48,7 @@ class TestLoaderToFactoryChain:
         result = create_model(level=1, tier_config=cfg)
 
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+            "openrouter-deepseek/deepseek-v4-flash",
             base_url="https://proxy.example.com",
         )
         assert result is mock_get_provider_for_identifier.return_value
@@ -60,7 +60,7 @@ class TestLoaderToFactoryChain:
         cfg = load_tier_config(
             {
                 "level1": {
-                    "model": "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+                    "model": "openrouter-deepseek/deepseek-v4-flash",
                 },
                 "level3": {"model": "claudeSDK-opus"},
             }
@@ -92,9 +92,9 @@ class TestYamlRoundTrip:
         produces a ``TierConfig`` whose fields match the YAML."""
         yaml_text = """
         level1:
-          model: "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+          model: "openrouter-deepseek/deepseek-v4-flash"
         level2:
-          model: "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+          model: "openrouter-deepseek/deepseek-v4-pro"
         level3:
           model: "claudeSDK-opus"
         """
@@ -102,8 +102,8 @@ class TestYamlRoundTrip:
 
         cfg = load_tier_config(config_dict)
 
-        assert cfg.level1.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
-        assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+        assert cfg.level1.model == "openrouter-deepseek/deepseek-v4-flash"
+        assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-pro"
         assert cfg.level3.model == "claudeSDK-opus"
 
     def test_yaml_with_provider_kwargs_round_trips(self) -> None:
@@ -131,12 +131,12 @@ class TestYamlRoundTrip:
         """Full chain: YAML string → dict → loader → ``create_model``."""
         yaml_text = """
         level1:
-          model: "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+          model: "openrouter-deepseek/deepseek-v4-flash"
         """
         cfg = load_tier_config(yaml.safe_load(yaml_text))
 
         create_model(level=1, tier_config=cfg)
 
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+            "openrouter-deepseek/deepseek-v4-flash",
         )

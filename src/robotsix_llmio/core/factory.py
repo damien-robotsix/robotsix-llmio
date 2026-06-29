@@ -69,7 +69,7 @@ def get_provider_for_identifier(identifier: str, **kwargs: Any) -> LLMProvider:
     identifier:
         Combined provider-model identifier — e.g.
         ``"claudeSDK-opus"`` or
-        ``"openrouter[deepseek]-deepseek/deepseek-v4-flash"``.
+        ``"openrouter-deepseek/deepseek-v4-flash"``.
     **kwargs:
         Forwarded to the resolved provider class constructor.
 
@@ -122,8 +122,8 @@ def default_tier_config() -> TierConfig:
     """Return a :class:`TierConfig` built from the baked per-level defaults.
 
     This is the single source of the baked per-level *(provider, model)*
-    binding: level 1 → ``openrouter[deepseek]-deepseek/deepseek-v4-flash``,
-    level 2 → ``openrouter[deepseek]-deepseek/deepseek-v4-pro``,
+    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash``,
+    level 2 → ``openrouter-deepseek/deepseek-v4-pro``,
     level 3 → ``claudeSDK-opus`` (see
     :data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
     :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`, and

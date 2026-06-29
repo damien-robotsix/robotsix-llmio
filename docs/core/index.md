@@ -31,7 +31,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 - `MalformedIdentifierError` — raised when a provider-model identifier string is malformed (e.g. unbalanced brackets, missing model part)
 - `ParsedIdentifier` — `NamedTuple` holding the parsed components of a provider-model identifier: `provider` and `model_name` (any bracketed qualifier is stripped during parsing)
-- `parse_model_identifier` — parses a combined provider-model identifier (e.g. ``claudeSDK-opus`` or ``openrouter[deepseek]-deepseek/deepseek-v4-flash``) into a `ParsedIdentifier`
+- `parse_model_identifier` — parses a combined provider-model identifier (e.g. ``claudeSDK-opus`` or ``openrouter-deepseek/deepseek-v4-flash``) into a `ParsedIdentifier`
 
 ### Factory
 

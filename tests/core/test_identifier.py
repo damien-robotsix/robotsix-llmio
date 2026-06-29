@@ -21,7 +21,7 @@ class TestParseModelIdentifier:
 
     def test_openrouter_deepseek_with_model(self):
         result = parse_model_identifier(
-            "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+            "openrouter-deepseek/deepseek-v4-flash"
         )
         assert result == ParsedIdentifier(
             provider="openrouter",
@@ -35,18 +35,13 @@ class TestParseModelIdentifier:
         )
 
     def test_model_name_contains_slashes(self):
-        result = parse_model_identifier("openrouter[deepseek]-deepseek/deepseek-v4-pro")
+        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-pro")
         assert result.model_name == "deepseek/deepseek-v4-pro"
 
-    def test_no_brackets(self):
-        result = parse_model_identifier("claudeSDK-haiku")
-        assert result.provider == "claudeSDK"
-        assert result.model_name == "haiku"
-
-    def test_provider_with_bracketed_qualifier_stripped(self):
-        result = parse_model_identifier("openrouter[deepseek]-some/model")
+    def test_provider_split_on_first_hyphen(self):
+        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
         assert result.provider == "openrouter"
-        assert result.model_name == "some/model"
+        assert result.model_name == "deepseek/deepseek-v4-flash"
 
 
 class TestMalformedIdentifiers:
@@ -63,26 +58,6 @@ class TestMalformedIdentifiers:
     def test_empty_model(self):
         with pytest.raises(MalformedIdentifierError, match="Empty model name"):
             parse_model_identifier("claudeSDK-")
-
-    def test_unbalanced_open_bracket(self):
-        with pytest.raises(MalformedIdentifierError, match="Unbalanced brackets"):
-            parse_model_identifier("openrouter[deepseek")
-
-    def test_unbalanced_close_bracket(self):
-        with pytest.raises(MalformedIdentifierError, match="Unbalanced brackets"):
-            parse_model_identifier("openrouter]deepseek[-model")
-
-    def test_empty_brackets(self):
-        with pytest.raises(MalformedIdentifierError, match="Empty brackets"):
-            parse_model_identifier("provider[]-model")
-
-    def test_empty_provider_with_brackets(self):
-        with pytest.raises(MalformedIdentifierError, match="Empty provider"):
-            parse_model_identifier("[sub]-model")
-
-    def test_content_after_brackets(self):
-        with pytest.raises(MalformedIdentifierError, match="Unexpected content after"):
-            parse_model_identifier("provider[sub]extra-model")
 
 
 class TestMalformedIdentifierError:
@@ -106,7 +81,7 @@ class TestParsedIdentifier:
         assert len(p) == 2
 
     def test_field_access(self):
-        p = parse_model_identifier("openrouter[deepseek]-deepseek/deepseek-v4-flash")
+        p = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
         assert p.provider == "openrouter"
         assert p.model_name == "deepseek/deepseek-v4-flash"
 

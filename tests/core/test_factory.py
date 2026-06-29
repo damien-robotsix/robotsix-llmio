@@ -23,7 +23,7 @@ def test_identifier_claude_sdk_opus(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_identifier_openrouter_deepseek(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``openrouter[deepseek]-deepseek/deepseek-v4-flash`` resolves to
+    """``openrouter-deepseek/deepseek-v4-flash`` resolves to
     OpenRouterDeepseekProvider."""
     monkeypatch.delenv("LLMIO_PROVIDER", raising=False)
     from robotsix_llmio.openrouter._deepseek_provider import (
@@ -31,7 +31,7 @@ def test_identifier_openrouter_deepseek(
     )
 
     provider = get_provider_for_identifier(
-        "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+        "openrouter-deepseek/deepseek-v4-flash",
         api_key="test-key",
     )
 
@@ -46,7 +46,7 @@ def test_identifier_forward_kwargs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     provider = get_provider_for_identifier(
-        "openrouter[deepseek]-deepseek/deepseek-v4-flash",
+        "openrouter-deepseek/deepseek-v4-flash",
         api_key="test-key",
         base_url="https://x",
     )
