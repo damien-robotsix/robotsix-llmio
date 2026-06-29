@@ -6,7 +6,7 @@ Covers:
 - ``*_PROVIDER_KWARGS`` parsing (valid and invalid JSON)
 - Explicit ``config_dict`` overriding env vars
 - Partial ``config_dict`` merge
-- Missing ``level1`` → ``TierConfigLoadError``
+- Omitted tiers (including ``level1``) → baked defaults
 - Re-export smoke tests from ``robotsix_llmio.config`` and
   ``robotsix_llmio.core``
 """
@@ -17,6 +17,7 @@ import pytest
 
 from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
 from robotsix_llmio.config.tier import (
+    LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
     TierLevelConfig,
@@ -38,14 +39,13 @@ def set_env(monkeypatch: pytest.MonkeyPatch, **kwargs: str) -> None:
 # ========================================================================== #
 
 
-def test_no_args_raises():
-    """With no env vars and no explicit dict, level1 is missing → error."""
-    with pytest.raises(TierConfigLoadError) as exc_info:
-        load_tier_config()
-    msg = str(exc_info.value)
-    assert "level1" in msg.lower()
-    # The original pydantic error should be chained.
-    assert exc_info.value.__cause__ is not None
+def test_no_args_returns_baked_defaults():
+    """With no env vars and no explicit dict, all three tiers fall back to
+    their baked defaults."""
+    cfg = load_tier_config()
+    assert cfg.level1 == LEVEL1_DEFAULT
+    assert cfg.level2 == LEVEL2_DEFAULT
+    assert cfg.level3 == LEVEL3_DEFAULT
 
 
 # ========================================================================== #
@@ -80,10 +80,12 @@ def test_explicit_dict_full():
 
 
 def test_explicit_dict_none_passed():
-    """Passing ``config_dict=None`` is the same as omitting it."""
-    # Still raises because level1 is missing.
-    with pytest.raises(TierConfigLoadError):
-        load_tier_config(None)
+    """Passing ``config_dict=None`` is the same as omitting it — baked
+    defaults for every tier."""
+    cfg = load_tier_config(None)
+    assert cfg.level1 == LEVEL1_DEFAULT
+    assert cfg.level2 == LEVEL2_DEFAULT
+    assert cfg.level3 == LEVEL3_DEFAULT
 
 
 # ========================================================================== #
@@ -276,25 +278,27 @@ def test_partial_dict_only_level2_model(monkeypatch: pytest.MonkeyPatch):
 
 
 # ========================================================================== #
-#  Missing level1 entirely
+#  Omitted level1 falls back to its baked default
 # ========================================================================== #
 
 
-def test_missing_level1_raises():
-    """If level1 is missing from both env and dict, TierConfigLoadError is raised."""
-    with pytest.raises(TierConfigLoadError) as exc_info:
-        load_tier_config({})
-    assert exc_info.value.__cause__ is not None
+def test_missing_level1_uses_default():
+    """If level1 is missing from both env and dict, it falls back to
+    ``LEVEL1_DEFAULT`` (no error)."""
+    cfg = load_tier_config({})
+    assert cfg.level1 == LEVEL1_DEFAULT
 
 
 def test_missing_level1_partial_other_tiers(monkeypatch: pytest.MonkeyPatch):
-    """Providing only level2/level3 without level1 still raises."""
+    """Providing only level2/level3 leaves level1 at its baked default."""
     set_env(
         monkeypatch,
         LLMIO_LEVEL2_MODEL="claudeSDK-haiku",
     )
-    with pytest.raises(TierConfigLoadError):
-        load_tier_config({"level3": {"model": "claudeSDK-sonnet"}})
+    cfg = load_tier_config({"level3": {"model": "claudeSDK-sonnet"}})
+    assert cfg.level1 == LEVEL1_DEFAULT
+    assert cfg.level2.model == "claudeSDK-haiku"
+    assert cfg.level3.model == "claudeSDK-sonnet"
 
 
 # ========================================================================== #

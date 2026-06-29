@@ -17,6 +17,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from robotsix_llmio.config.tier import (
+    LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
     TierConfig,
@@ -42,13 +43,15 @@ class TierConfigLoadError(Exception):
 # --------------------------------------------------------------------------- #
 
 _BAKED_BASE: dict[str, dict[str, Any]] = {
+    "level1": LEVEL1_DEFAULT.model_dump(),
     "level2": LEVEL2_DEFAULT.model_dump(),
     "level3": LEVEL3_DEFAULT.model_dump(),
 }
-"""Dict forms of the module-level baked defaults for levels that have them.
+"""Dict forms of the module-level baked defaults for every tier.
 
-``level1`` is intentionally absent — it has no default and must be supplied
-by the caller or environment.
+All three tiers have a baked default, so partial env/dict overrides merge
+field-by-field over the corresponding default (and an omitted tier resolves
+to its default outright).
 """
 
 # --------------------------------------------------------------------------- #
@@ -63,8 +66,9 @@ def load_tier_config(
 ) -> TierConfig:
     """Load a validated :class:`TierConfig` by merging three sources.
 
-    1. **Baked defaults** — the ``TierConfig`` model supplies ``level2`` and
-       ``level3`` defaults; ``level1`` is *required* and has no default.
+    1. **Baked defaults** — the ``TierConfig`` model supplies a default for
+       every tier (``level1``, ``level2``, ``level3``), so any omitted tier
+       falls back to its baked default.
     2. **Environment variables** — every recognised variable under
        *env_prefix* (see table below).
     3. **Explicit dict** (*config_dict*) — highest precedence; merged per-tier
@@ -90,7 +94,7 @@ def load_tier_config(
     TierConfigLoadError
         If a ``*_PROVIDER_KWARGS`` environment variable contains invalid
         JSON, or if the merged configuration fails pydantic validation
-        (e.g. because ``level1`` was not supplied).
+        (e.g. an unknown provider prefix in a supplied ``model``).
     """
     # ---- 1.  Read environment variables -----------------------------------
     env_nested = _read_env_vars(env_prefix)
@@ -119,8 +123,7 @@ def load_tier_config(
                 tier_dict.update(_to_dict(cfg_tier))
 
         # Only include the tier if we have *something* for it (otherwise
-        # pydantic applies the ``default_factory`` for level2/level3, or
-        # raises ValidationError for the required level1).
+        # pydantic applies the per-tier ``default_factory``).
         if tier_dict:
             merged[tier] = tier_dict
 

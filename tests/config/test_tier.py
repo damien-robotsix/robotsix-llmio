@@ -305,10 +305,13 @@ def test_tier_config_model_validate_full_dict():
     assert cfg.level3.model == "claudeSDK-opus"
 
 
-def test_tier_config_missing_level1_raises():
-    """``level1`` is required — omitting it from the dict raises."""
-    with pytest.raises(ValueError):
-        TierConfig.model_validate({})
+def test_tier_config_omitting_level1_uses_default():
+    """``level1`` falls back to ``LEVEL1_DEFAULT`` when omitted, so an empty
+    config validates to the fully baked default."""
+    cfg = TierConfig.model_validate({})
+    assert cfg.level1 == LEVEL1_DEFAULT
+    assert cfg.level2 == LEVEL2_DEFAULT
+    assert cfg.level3 == LEVEL3_DEFAULT
 
 
 def test_tier_config_model_dump_round_trip():
