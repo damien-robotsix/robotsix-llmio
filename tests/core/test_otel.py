@@ -43,9 +43,30 @@ EXPECTED: dict[str, str] = {
     ),
     # Langfuse OTLP wire path.
     "_LANGFUSE_OTEL_TRACES_PATH": "/api/public/otel/v1/traces",
+    # Environment-variable names (consumed by tracing.py for credentials).
+    "ENV_LANGFUSE_PUBLIC_KEY": "LANGFUSE_PUBLIC_KEY",
+    "ENV_LANGFUSE_SECRET_KEY": "LANGFUSE_SECRET_KEY",
+    "ENV_LANGFUSE_BASE_URL": "LANGFUSE_BASE_URL",
+    "ENV_LANGFUSE_PROJECT_ID": "LANGFUSE_PROJECT_ID",
 }
 
 
 def test_otel_constants_match_wire_strings() -> None:
     for name, value in EXPECTED.items():
         assert getattr(_otel, name) == value, name
+
+
+def test_env_example_matches_env_var_constants() -> None:
+    """Every ``ENV_LANGFUSE_*`` constant's value must appear as a key in
+    ``.env.example`` so the file stays in sync with the code."""
+    import pathlib
+
+    env_constants = {
+        _otel.ENV_LANGFUSE_PUBLIC_KEY,
+        _otel.ENV_LANGFUSE_SECRET_KEY,
+        _otel.ENV_LANGFUSE_BASE_URL,
+        _otel.ENV_LANGFUSE_PROJECT_ID,
+    }
+    env_example = pathlib.Path(".env.example").read_text()
+    for name in env_constants:
+        assert f"{name}=" in env_example, f"{name} not found in .env.example"
