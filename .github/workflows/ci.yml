@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.11", "3.12", "3.13"]
-    uses: damien-robotsix/robotsix-mill/.github/workflows/python-ci.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@5cd8c1facb02299da618979e7a55f1953f9c075a # main
     with:
       python-version: ${{ matrix.python }}
       install-extras: "openrouter claude_sdk tracing dev"
@@ -53,7 +53,7 @@ jobs:
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   security:
-    uses: damien-robotsix/robotsix-mill/.github/workflows/python-security.yml@0977e0113ba543c57c3a75063051a6feb56d789d # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@5cd8c1facb02299da618979e7a55f1953f9c075a # main
     with:
       install-extras: "openrouter claude_sdk dev"
       trufflehog-pr-diff: true
