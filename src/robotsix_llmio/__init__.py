@@ -20,13 +20,21 @@ if TYPE_CHECKING:
         get_provider_for_level,
     )
     from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
+    from .self_review import (
+        SelfReviewClient,
+        SelfReviewClientError,
+        build_recent_activity_tools,
+    )
 
 __all__ = [
     "KnowledgeClient",
     "KnowledgeClientError",
     "RobotsixLLMIOError",
+    "SelfReviewClient",
+    "SelfReviewClientError",
     "build_agent_for_level",
     "build_knowledge_tools",
+    "build_recent_activity_tools",
     "default_tier_config",
     "get_provider_for_level",
 ]
@@ -49,4 +57,12 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import knowledge
 
         return getattr(knowledge, name)
+    if name in (
+        "SelfReviewClient",
+        "build_recent_activity_tools",
+        "SelfReviewClientError",
+    ):
+        from . import self_review
+
+        return getattr(self_review, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

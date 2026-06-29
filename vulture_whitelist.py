@@ -117,6 +117,15 @@ OpenRouterKeyCostSource.fetch_key_usage
 AsyncOpenRouterClient.fetch_credits
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# self_review/_client.py
+# ---------------------------------------------------------------------------
+
+# Reserved for future use (cross-referencing activity against conversation
+# history). Currently accepted but unused in the tool adapter.
+conversation_store
+
+# ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 

@@ -91,3 +91,14 @@ modules:
       - tests/knowledge/**
       - docs/knowledge/**
 
+  - id: robotsix_llmio-self-review
+    description: >
+      Direct-HTTP self-review / recent-activity client replacing the agent-comm
+      broker. SelfReviewClient makes plain httpx calls to a self-review REST API
+      (list-activity + get-activity), and build_recent_activity_tools wraps it
+      into pydantic-ai-compatible async tool functions.
+    paths:
+      - src/robotsix_llmio/self_review/**
+      - tests/self_review/**
+      - docs/self_review/**
+

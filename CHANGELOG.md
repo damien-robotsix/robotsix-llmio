@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **New `robotsix_llmio.self_review` module** — direct-HTTP self-review /
+  recent-activity client (`SelfReviewClient`) with list-activity and
+  get-activity methods, plus `build_recent_activity_tools(client,
+  conversation_store)` for pydantic-ai agent integration. Replaces the
+  agent-comm broker intermediary with plain `httpx` calls. All errors
+  subclass `RobotsixLLMIOError` (`SelfReviewClientError`). Wired into the
+  top-level package alongside `KnowledgeClient` for consistent
+  discoverability.
 - **Refdocs module** (`robotsix_llmio.refdocs`) — direct HTTP access for
   documentation search and retrieval, replacing the agent-comm broker
   intermediary. Exports `RefdocsSettings`, `AsyncRefdocsClient`, and
-  `build_refdocs_tools()`.
+  `build_refdocs_tools()`. (mill: Self-review / recent activity: direct HTTP access (20260629T103859Z-self-review-recent-activity-direct-http-c110))
 - **New `robotsix_llmio.knowledge` module** — direct-HTTP knowledge-store
   client (`KnowledgeClient`) with search and document retrieval, plus
   `build_knowledge_tools(client)` for pydantic-ai agent integration.
