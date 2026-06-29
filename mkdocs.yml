@@ -31,7 +31,6 @@ nav:
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
   - Claude SDK: claude_sdk/index.md
-  - Weekly Pace: weekly_pace/index.md
 
   - API Reference:
       - Core: reference/core.md
@@ -40,6 +39,5 @@ nav:
       - Claude SDK: reference/claude_sdk.md
 
       - Config: reference/config.md
-      - Weekly Pace: reference/weekly_pace.md
       - Exceptions: reference/exceptions.md
   - Changelog: changelog.md

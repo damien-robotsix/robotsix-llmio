@@ -23,9 +23,9 @@ paths-ignore:
 # Suppressing this query repo-wide is safe because:
 #   * All __all__ / __getattr__ blocks are tested (tests/config/test_lazy_imports.py
 #     and friends verify every name resolves).
-#   * Modules that *don't* use PEP 562 (e.g. weekly_pace/__init__.py) use
-#     static imports or in-file definitions, so they would never trigger
-#     this query anyway.
+#   * Modules that *don't* use PEP 562 (static imports / in-file definitions)
+#     never emit this query in the first place, so the suppression only
+#     affects the PEP-562 lazy-export packages it is meant for.
 #   * There is no CodeQL path-scoped filter for "files that use __getattr__",
 #     and maintaining a per-file deny-list is fragile as new PEP-562 modules are added.
 query-filters:

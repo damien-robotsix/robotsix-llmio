@@ -86,6 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Removed the `weekly_pace` module**: the weekly Claude usage pace governor
+  (`src/robotsix_llmio/weekly_pace/`, the `config/weekly_pace.py` compatibility
+  shim, the `WeeklyPaceConfig` / `ModelWeightConfig` / `PaceGovernor` exports
+  from `robotsix_llmio.config`, and all associated tests and documentation)
+  has been deleted. It was a standalone, unused component not wired into the
+  agent factory.
+
 - `.robotsix-mill/periodic/langfuse_cleanup.yaml`: the Langfuse trace cleanup periodic
   is now `global_only` (centralized in robotsix-mill, not per-repo). The stale config
   file produced a warning on every discovery pass and is no longer needed.

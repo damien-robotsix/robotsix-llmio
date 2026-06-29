@@ -72,15 +72,4 @@ modules:
       - tests/config/**
       - docs/config/**
       - docs/reference/config.md
-  - id: robotsix_llmio-weekly-pace
-    description: >
-      Weekly Claude usage pace governor — compares weighted Claude
-      consumption against the elapsed week fraction to spread usage
-      across the week.
-    paths:
-      - src/robotsix_llmio/weekly_pace/**
-      - tests/weekly_pace/__init__.py
-      - tests/weekly_pace/test_weekly_pace.py
-      - docs/weekly_pace/**
-      - docs/reference/weekly_pace.md
 
