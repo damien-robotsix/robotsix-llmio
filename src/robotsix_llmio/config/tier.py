@@ -42,11 +42,10 @@ class TierLevelConfig(BaseModel):
     """A single tier's provider-model binding.
 
     Describes which combined *provider-model* identifier to use for a given
-    :class:`TierLevel`.  The identifier encodes both the provider (as a
-    hyphen-free prefix, optionally with a bracketed qualifier that is
-    stripped during parsing) and the concrete model name — e.g.
-    ``"claudeSDK-opus"`` or
-    ``"openrouter[deepseek]-deepseek/deepseek-v4-flash"``.
+    :class:`TierLevel`.  The identifier is ``<provider>-<model-name>``: the
+    provider prefix (before the first hyphen) and the concrete model name —
+    e.g. ``"claudeSDK-opus"`` or
+    ``"openrouter-deepseek/deepseek-v4-flash"``.
 
     A :func:`~pydantic.model_validator` parses the identifier and confirms
     the provider prefix is a known backend; the concrete model name is the
@@ -57,8 +56,8 @@ class TierLevelConfig(BaseModel):
         description=(
             "Combined provider-model identifier — e.g. "
             "``'claudeSDK-opus'`` or "
-            "``'openrouter[deepseek]-deepseek/deepseek-v4-flash'``. "
-            "The provider prefix (before the first out-of-bracket hyphen) "
+            "``'openrouter-deepseek/deepseek-v4-flash'``. "
+            "The provider prefix (before the first hyphen) "
             "drives lazy backend import; the remainder is the concrete "
             "model name fed to the backend."
         ),
@@ -111,11 +110,11 @@ class TierLevelConfig(BaseModel):
 # --------------------------------------------------------------------------- #
 
 LEVEL1_DEFAULT = TierLevelConfig(
-    model="openrouter[deepseek]-deepseek/deepseek-v4-flash",
+    model="openrouter-deepseek/deepseek-v4-flash",
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
-    model="openrouter[deepseek]-deepseek/deepseek-v4-pro",
+    model="openrouter-deepseek/deepseek-v4-pro",
 )
 
 LEVEL3_DEFAULT = TierLevelConfig(
@@ -138,7 +137,7 @@ class TierConfig(BaseModel):
 
     Example YAML/JSON (override level 1 only; levels 2 and 3 stay default)::
 
-        {"level1": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-flash"}}
+        {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash"}}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
     :class:`TierLevelConfig`.

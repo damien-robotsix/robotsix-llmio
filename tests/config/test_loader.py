@@ -69,13 +69,13 @@ def test_explicit_dict_full():
         {
             "level1": {"model": "claudeSDK-haiku"},
             "level2": {
-                "model": "openrouter[deepseek]-deepseek/deepseek-v4-pro",
+                "model": "openrouter-deepseek/deepseek-v4-pro",
             },
             "level3": {"model": "claudeSDK-opus"},
         }
     )
     assert cfg.level1.model_name == "haiku"
-    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.level3.model_name == "opus"
 
 
@@ -228,11 +228,11 @@ def test_explicit_dict_overrides_env(monkeypatch: pytest.MonkeyPatch):
     cfg = load_tier_config(
         {
             "level1": {
-                "model": "openrouter[deepseek]-deepseek/deepseek-v4-pro",
+                "model": "openrouter-deepseek/deepseek-v4-pro",
             }
         }
     )
-    assert cfg.level1.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
+    assert cfg.level1.model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.level1.provider == "openrouter"
     assert cfg.level1.model_name == "deepseek/deepseek-v4-pro"
 
@@ -271,9 +271,9 @@ def test_partial_dict_only_level2_model(monkeypatch: pytest.MonkeyPatch):
         LLMIO_LEVEL1_MODEL="claudeSDK-opus",
     )
     cfg = load_tier_config(
-        {"level2": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-flash"}}
+        {"level2": {"model": "openrouter-deepseek/deepseek-v4-flash"}}
     )
-    assert cfg.level2.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
+    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-flash"
     assert cfg.level2.model_name == "deepseek/deepseek-v4-flash"
 
 

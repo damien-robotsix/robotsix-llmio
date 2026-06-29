@@ -1,7 +1,7 @@
 # robotsix_llmio config
 
 Consumer-facing configuration layer — `TierConfig` schema, loader,
-transport aliases, and the `create_model` factory.
+provider prefixes, and the `create_model` factory.
 
 The config package is the **entry point consumers should import from**
 to obtain a working model/agent without naming a concrete provider class
@@ -44,24 +44,24 @@ agent = provider.build_agent(
     config.
 
   Returns a fully-instantiated `LLMProvider`.  Raises `ValueError` for
-  unknown transports or invalid levels, and `ImportError` when a required
-  optional extra is not installed.
+  unknown provider prefixes or invalid levels, and `ImportError` when a
+  required optional extra is not installed.
 
-### Transport alias mappings
+### Provider prefixes
 
-Consumer-facing transport names are mapped to provider registry names
-known to `get_provider_for_identifier`:
+An identifier is `<provider>-<model-name>`. The provider prefix (before the
+first hyphen) selects the backend known to `get_provider_for_identifier`:
 
-| Consumer alias | Provider registry name |
+| Provider prefix | Backend |
 |---|---|
-| `claude-sdk` | `claude-sdk` |
-| `openrouter[deepseek]` | `openrouter-deepseek` |
+| `claudeSDK` | Claude Agent SDK |
+| `openrouter` | OpenRouter (incl. DeepSeek models) |
 
 ### Schema & loader (tier configuration)
 
 - `TierConfig` — pydantic model for three-tier provider+model configuration
 - `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3` tier-selector values
-- `TierLevelConfig` — pydantic model binding a single tier's transport and model
+- `TierLevelConfig` — pydantic model binding a single tier to a provider-model identifier
 - `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT` — default `TierLevelConfig`
   instances per level
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
@@ -79,10 +79,7 @@ loaded through `load_tier_config`.
 from robotsix_llmio.config import TierConfig, TierLevelConfig, create_model
 
 cfg = TierConfig(
-    level1=TierLevelConfig(
-        transport="openrouter[deepseek]",
-        model="deepseek/deepseek-v4-flash",
-    ),
+    level1=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-flash"),
     # level2 and level3 use baked defaults
 )
 
@@ -99,10 +96,8 @@ Set per-level environment variables and call `load_tier_config` to merge
 them with baked defaults:
 
 ```bash
-export LLMIO_LEVEL1_TRANSPORT="openrouter[deepseek]"
-export LLMIO_LEVEL1_MODEL="deepseek/deepseek-v4-flash"
-export LLMIO_LEVEL2_TRANSPORT="openrouter[deepseek]"
-export LLMIO_LEVEL2_MODEL="deepseek/deepseek-v4-pro"
+export LLMIO_LEVEL1_MODEL="openrouter-deepseek/deepseek-v4-flash"
+export LLMIO_LEVEL2_MODEL="openrouter-deepseek/deepseek-v4-pro"
 export LLMIO_LEVEL2_PROVIDER_KWARGS='{"api_key":"sk-or-..."}'
 ```
 
@@ -117,7 +112,7 @@ An explicit dict can override individual fields at highest precedence:
 
 ```python
 cfg = load_tier_config({
-    "level2": {"model": "deepseek/deepseek-v4-pro"},
+    "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
 })
 ```
 
@@ -131,24 +126,24 @@ The loader merges three sources in order of increasing precedence:
 The library ships with the following baked defaults so **level 1** works
 out of the box and levels 2+3 have sensible fallbacks:
 
-| Constant | Transport | Model |
-|----------|-----------|-------|
-| `LEVEL1_DEFAULT` | `openrouter[deepseek]` | `deepseek/deepseek-v4-flash` |
-| `LEVEL2_DEFAULT` | `openrouter[deepseek]` | `deepseek/deepseek-v4-pro` |
-| `LEVEL3_DEFAULT` | `claude-sdk` | `opus` |
+| Constant | Identifier |
+|----------|------------|
+| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` |
+| `LEVEL2_DEFAULT` | `openrouter-deepseek/deepseek-v4-pro` |
+| `LEVEL3_DEFAULT` | `claudeSDK-opus` |
 
 Level 1 is the default when no level is specified — cheap and fast is the
 safe default.
 
 ## Extra dependencies
 
-The `claude-sdk` transport requires the `claude_sdk` extra:
+The `claudeSDK` provider requires the `claude_sdk` extra:
 
 ```bash
 pip install "robotsix-llmio[claude_sdk]"
 ```
 
-The `openrouter[deepseek]` transport requires the `openrouter` extra
+The `openrouter` provider requires the `openrouter` extra
 (which is the default when no extra is specified):
 
 ```bash
