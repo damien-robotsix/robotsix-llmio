@@ -43,8 +43,9 @@ class TierLevelConfig(BaseModel):
 
     Describes which combined *provider-model* identifier to use for a given
     :class:`TierLevel`.  The identifier encodes both the provider (as a
-    hyphen-free prefix, optionally with a bracketed sub-alias) and the
-    concrete model name — e.g. ``"claudeSDK-opus"`` or
+    hyphen-free prefix, optionally with a bracketed qualifier that is
+    stripped during parsing) and the concrete model name — e.g.
+    ``"claudeSDK-opus"`` or
     ``"openrouter[deepseek]-deepseek/deepseek-v4-flash"``.
 
     A :func:`~pydantic.model_validator` parses the identifier and confirms
@@ -78,13 +79,6 @@ class TierLevelConfig(BaseModel):
         from robotsix_llmio.core.identifier import parse_model_identifier
 
         return parse_model_identifier(self.model).provider
-
-    @property
-    def sub_alias(self) -> str | None:
-        """Sub-alias parsed from the identifier, if any."""
-        from robotsix_llmio.core.identifier import parse_model_identifier
-
-        return parse_model_identifier(self.model).sub_alias
 
     @property
     def model_name(self) -> str:

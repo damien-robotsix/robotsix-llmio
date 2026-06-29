@@ -76,15 +76,14 @@ def test_tier_level_config_minimal_construction():
     assert cfg.model == "claudeSDK-opus"
     assert cfg.provider == "claudeSDK"
     assert cfg.model_name == "opus"
-    assert cfg.sub_alias is None
     assert cfg.provider_kwargs == {}
 
 
-def test_tier_level_config_with_sub_alias():
-    """A valid identifier with a sub-alias constructs and parses cleanly."""
+def test_tier_level_config_with_bracketed_qualifier():
+    """A valid identifier with a bracketed qualifier constructs and parses
+    cleanly — the qualifier is stripped, leaving the bare provider."""
     cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
     assert cfg.provider == "openrouter"
-    assert cfg.sub_alias == "deepseek"
     assert cfg.model_name == "deepseek/deepseek-v4-pro"
 
 
@@ -109,7 +108,6 @@ def test_tier_level_config_field_types():
     assert isinstance(cfg.model, str)
     assert isinstance(cfg.provider_kwargs, dict)
     assert isinstance(cfg.provider, str)
-    assert cfg.sub_alias is None or isinstance(cfg.sub_alias, str)
     assert isinstance(cfg.model_name, str)
 
 
@@ -182,21 +180,18 @@ def test_tier_level_config_malformed_identifier_raises():
 def test_level1_default():
     assert LEVEL1_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-flash"
     assert LEVEL1_DEFAULT.provider == "openrouter"
-    assert LEVEL1_DEFAULT.sub_alias == "deepseek"
     assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash"
 
 
 def test_level2_default():
     assert LEVEL2_DEFAULT.model == "openrouter[deepseek]-deepseek/deepseek-v4-pro"
     assert LEVEL2_DEFAULT.provider == "openrouter"
-    assert LEVEL2_DEFAULT.sub_alias == "deepseek"
     assert LEVEL2_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
 
 
 def test_level3_default():
     assert LEVEL3_DEFAULT.model == "claudeSDK-opus"
     assert LEVEL3_DEFAULT.provider == "claudeSDK"
-    assert LEVEL3_DEFAULT.sub_alias is None
     assert LEVEL3_DEFAULT.model_name == "opus"
 
 
@@ -209,15 +204,14 @@ def test_tier_level_config_parsed_accessors_simple():
     """Parsed accessors work for a simple provider-model identifier."""
     cfg = TierLevelConfig(model="claudeSDK-haiku")
     assert cfg.provider == "claudeSDK"
-    assert cfg.sub_alias is None
     assert cfg.model_name == "haiku"
 
 
-def test_tier_level_config_parsed_accessors_with_sub_alias():
-    """Parsed accessors work for an identifier with bracketed sub-alias."""
+def test_tier_level_config_parsed_accessors_with_bracketed_qualifier():
+    """Parsed accessors work for an identifier with a bracketed qualifier
+    (which is stripped from the parsed provider)."""
     cfg = TierLevelConfig(model="openrouter[deepseek]-deepseek/deepseek-v4-pro")
     assert cfg.provider == "openrouter"
-    assert cfg.sub_alias == "deepseek"
     assert cfg.model_name == "deepseek/deepseek-v4-pro"
 
 

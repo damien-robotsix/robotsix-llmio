@@ -2,7 +2,8 @@
 
 Parses a combined ``provider-model`` tier identifier (e.g.
 ``claudeSDK-opus`` or ``openrouter[deepseek]-deepseek/deepseek-v4-flash``)
-into its provider prefix, optional sub-alias, and concrete model name.
+into its provider prefix and concrete model name. Any bracketed qualifier
+on the prefix (``[deepseek]``) is validated but stripped.
 
 Isolated as a leaf (only imports :class:`RobotsixLLMIOError` from the
 top-level ``exceptions`` module) so that both ``config.tier`` and
@@ -27,10 +28,8 @@ class ParsedIdentifier(NamedTuple):
     ----------
     provider:
         The hyphen-free provider prefix (e.g. ``"claudeSDK"`` or
-        ``"openrouter"``).
-    sub_alias:
-        The optional bracketed sub-alias (e.g. ``"deepseek"`` for
-        ``"openrouter[deepseek]"``), or ``None``.
+        ``"openrouter"``).  Any bracketed qualifier (e.g. ``"[deepseek]"``)
+        is stripped during parsing.
     model_name:
         Everything after the first out-of-bracket hyphen —
         the concrete model name fed to the backend.  May contain
@@ -38,7 +37,6 @@ class ParsedIdentifier(NamedTuple):
     """
 
     provider: str
-    sub_alias: str | None
     model_name: str
 
 
@@ -50,9 +48,10 @@ def parse_model_identifier(identifier: str) -> ParsedIdentifier:
         <provider-prefix>-<model-name>
 
     where ``<provider-prefix>`` is ``<provider>`` or
-    ``<provider>[<sub-alias>]``, ``<provider>`` contains no hyphen, and
-    ``<model-name>`` is everything after the **first hyphen that is
-    outside any bracket** (it may itself contain hyphens and slashes).
+    ``<provider>[<qualifier>]`` (the bracketed qualifier is validated but
+    stripped — only ``<provider>`` is returned), ``<provider>`` contains no
+    hyphen, and ``<model-name>`` is everything after the **first hyphen that
+    is outside any bracket** (it may itself contain hyphens and slashes).
 
     Parameters
     ----------
@@ -114,9 +113,8 @@ def parse_model_identifier(identifier: str) -> ParsedIdentifier:
             f"Unbalanced brackets in identifier {identifier!r}"
         )
 
-    # ---------- extract provider and optional sub-alias ----------
+    # ---------- extract provider, stripping any bracketed qualifier ----------
     provider: str
-    sub_alias: str | None = None
 
     bracket_start = prefix.find("[")
     if bracket_start != -1:
@@ -126,26 +124,21 @@ def parse_model_identifier(identifier: str) -> ParsedIdentifier:
                 f"Unbalanced brackets in identifier {identifier!r}"
             )
         provider = prefix[:bracket_start]
-        sub_alias = prefix[bracket_start + 1 : bracket_end]
+        bracketed = prefix[bracket_start + 1 : bracket_end]
         if not provider:
             raise MalformedIdentifierError(
                 f"Empty provider in identifier {identifier!r}"
             )
-        if not sub_alias:
+        if not bracketed:
             raise MalformedIdentifierError(
-                f"Empty sub-alias in brackets in identifier {identifier!r}"
+                f"Empty brackets in identifier {identifier!r}"
             )
         # Nothing may follow the closing bracket.
         if bracket_end + 1 < len(prefix):
             raise MalformedIdentifierError(
-                f"Unexpected content after sub-alias brackets in"
-                f" identifier {identifier!r}"
+                f"Unexpected content after brackets in identifier {identifier!r}"
             )
     else:
         provider = prefix
 
-    return ParsedIdentifier(
-        provider=provider,
-        sub_alias=sub_alias,
-        model_name=model_name,
-    )
+    return ParsedIdentifier(provider=provider, model_name=model_name)

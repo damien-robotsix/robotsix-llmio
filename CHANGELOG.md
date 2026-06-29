@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Removed the inert `sub_alias` field/property** from `ParsedIdentifier`
+  and `TierLevelConfig`. The bracketed identifier qualifier
+  (`openrouter[deepseek]-…`) was parsed and exposed but never consumed —
+  routing is keyed solely on the provider prefix. The parser still accepts
+  and strips the bracketed qualifier, so existing identifiers are unaffected;
+  `ParsedIdentifier` is now a 2-tuple `(provider, model_name)`.
+
 ### Changed
 
 - **`TierConfig.level1` is now optional**, falling back to `LEVEL1_DEFAULT`
