@@ -137,10 +137,12 @@ LEVEL3_DEFAULT = TierLevelConfig(
 class TierConfig(BaseModel):
     """Three-tier provider+model configuration.
 
-    ``level1`` is required; ``level2`` and ``level3`` fall back to
-    module-level baked defaults when omitted.
+    All three slots are optional: each falls back to its module-level baked
+    default (:data:`LEVEL1_DEFAULT`, :data:`LEVEL2_DEFAULT`,
+    :data:`LEVEL3_DEFAULT`) when omitted, so ``TierConfig()`` yields the fully
+    baked default configuration.
 
-    Example YAML/JSON::
+    Example YAML/JSON (override level 1 only; levels 2 and 3 stay default)::
 
         {"level1": {"model": "openrouter[deepseek]-deepseek/deepseek-v4-flash"}}
 
@@ -149,6 +151,7 @@ class TierConfig(BaseModel):
     """
 
     level1: TierLevelConfig = Field(
+        default_factory=lambda: LEVEL1_DEFAULT,
         description="Level 1 — cheap, obvious, repetitive tasks.",
     )
     level2: TierLevelConfig = Field(

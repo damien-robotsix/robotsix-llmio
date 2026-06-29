@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`TierConfig.level1` is now optional**, falling back to `LEVEL1_DEFAULT`
+  like `level2`/`level3` — so `TierConfig()` (and `load_tier_config()` with no
+  input) yields the fully baked default configuration instead of raising. The
+  loader's `_BAKED_BASE` now seeds level 1 too, so partial level-1 overrides
+  merge over the default. Note: a blank or misspelled config no longer raises a
+  validation error; it resolves to the baked defaults.
+
 ### Docs
 
 - Document `AsyncOpenRouterClient` in `docs/openrouter/index.md` under "Cost
