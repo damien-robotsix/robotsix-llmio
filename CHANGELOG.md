@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Centralized Langfuse env-var name constants**: the four ``LANGFUSE_*``
+  environment-variable names consumed by tracing are now defined as
+  ``ENV_LANGFUSE_*`` constants in ``core/_otel.py`` (alongside the existing
+  semantic-convention constants), replacing raw string literals in
+  ``core/tracing.py``. A new test verifies ``.env.example`` stays in
+  sync.
+
 - **Removed deprecated `openrouter_deepseek` shim**: the backward-compatibility
   shim module (`src/robotsix_llmio/openrouter_deepseek/`), its docs, and the
   stale CI `openrouter_deepseek` extra have been deleted. All imports now use

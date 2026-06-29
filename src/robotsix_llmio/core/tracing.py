@@ -41,6 +41,10 @@ from ._otel import (
 )
 from ._otel import (
     _LANGFUSE_OTEL_TRACES_PATH,
+    ENV_LANGFUSE_BASE_URL,
+    ENV_LANGFUSE_PROJECT_ID,
+    ENV_LANGFUSE_PUBLIC_KEY,
+    ENV_LANGFUSE_SECRET_KEY,
 )
 
 # Public re-exports of the OTel/Langfuse semantic-convention constants so
@@ -229,17 +233,17 @@ def setup_langfuse_tracing(
     """
     global _provider, _default_public_key
 
-    public_key = public_key or os.environ.get("LANGFUSE_PUBLIC_KEY")
-    secret_key = secret_key or os.environ.get("LANGFUSE_SECRET_KEY")
+    public_key = public_key or os.environ.get(ENV_LANGFUSE_PUBLIC_KEY)
+    secret_key = secret_key or os.environ.get(ENV_LANGFUSE_SECRET_KEY)
     if not (public_key and secret_key):
         return False
-    project_id = project_id or os.environ.get("LANGFUSE_PROJECT_ID")
+    project_id = project_id or os.environ.get(ENV_LANGFUSE_PROJECT_ID)
     if public_key in _projects:
         # Backfill a project id learned on a later call (for langfuse_trace_url).
         if project_id and not _projects[public_key].get("project_id"):
             _projects[public_key]["project_id"] = project_id
         return True
-    base_url = base_url or os.environ.get("LANGFUSE_BASE_URL") or _DEFAULT_BASE_URL
+    base_url = base_url or os.environ.get(ENV_LANGFUSE_BASE_URL) or _DEFAULT_BASE_URL
 
     from opentelemetry import trace
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
