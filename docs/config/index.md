@@ -67,11 +67,6 @@ known to `get_provider_for_identifier`:
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
 - `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
 
-### Weekly pace (Claude usage governor)
-
-- `WeeklyPaceConfig` — configuration for the weekly Claude usage pace governor
-- `ModelWeightConfig` — per-model weight mapping for weighted consumption calculations
-
 ## Consumer config shape
 
 Consumers can define tier configuration in two ways: programmatically with

@@ -37,20 +37,17 @@ if TYPE_CHECKING:
         ParsedIdentifier,
         parse_model_identifier,
     )
-    from robotsix_llmio.weekly_pace._config import ModelWeightConfig, WeeklyPaceConfig
 
 __all__ = [
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
     "MalformedIdentifierError",
-    "ModelWeightConfig",
     "ParsedIdentifier",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
-    "WeeklyPaceConfig",
     "create_model",
     "get_provider_for_identifier",
     "load_tier_config",
@@ -91,14 +88,6 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import loader
 
         return loader.load_tier_config
-    if name == "ModelWeightConfig":
-        from robotsix_llmio.weekly_pace import _config
-
-        return _config.ModelWeightConfig
-    if name == "WeeklyPaceConfig":
-        from robotsix_llmio.weekly_pace import _config
-
-        return _config.WeeklyPaceConfig
     if name == "create_model":
         from . import factory
 

@@ -123,19 +123,3 @@ TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2
 TierConfig.level3
-
-# ---------------------------------------------------------------------------
-# weekly_pace/_config.py — Pydantic model fields
-# ---------------------------------------------------------------------------
-
-ModelWeightConfig.opus
-ModelWeightConfig.sonnet
-ModelWeightConfig.haiku
-
-# ---------------------------------------------------------------------------
-# weekly_pace/__init__.py — public API
-# ---------------------------------------------------------------------------
-
-PaceGovernor
-PaceGovernor.should_use_claude
-PaceGovernor.record_usage

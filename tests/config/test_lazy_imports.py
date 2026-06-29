@@ -66,8 +66,6 @@ def test_re_export_load_tier_config():
     [
         "MalformedIdentifierError",
         "ParsedIdentifier",
-        "ModelWeightConfig",
-        "WeeklyPaceConfig",
         "create_model",
         "get_provider_for_identifier",
         "parse_model_identifier",
