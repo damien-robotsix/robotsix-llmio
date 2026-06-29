@@ -72,4 +72,14 @@ modules:
       - tests/config/**
       - docs/config/**
       - docs/reference/config.md
+  - id: robotsix_llmio-knowledge
+    description: >
+      Direct-HTTP knowledge-store client replacing the agent-comm broker.
+      KnowledgeClient makes plain httpx calls to a knowledge-store REST API
+      (search + get-document), and build_knowledge_tools wraps it into
+      pydantic-ai-compatible async tool functions.
+    paths:
+      - src/robotsix_llmio/knowledge/**
+      - tests/knowledge/**
+      - docs/knowledge/**
 

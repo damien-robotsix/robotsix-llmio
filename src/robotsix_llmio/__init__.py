@@ -19,10 +19,14 @@ if TYPE_CHECKING:
         default_tier_config,
         get_provider_for_level,
     )
+    from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
 
 __all__ = [
+    "KnowledgeClient",
+    "KnowledgeClientError",
     "RobotsixLLMIOError",
     "build_agent_for_level",
+    "build_knowledge_tools",
     "default_tier_config",
     "get_provider_for_level",
 ]
@@ -41,4 +45,8 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from .core import factory
 
         return factory.default_tier_config
+    if name in ("KnowledgeClient", "build_knowledge_tools", "KnowledgeClientError"):
+        from . import knowledge
+
+        return getattr(knowledge, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
