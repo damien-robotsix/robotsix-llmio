@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docs: wire knowledge, refdocs, and self_review modules into mkdocs site.**
+  Added nav entries in `mkdocs.yml`, home-page links in `docs/index.md`,
+  and mkdocstrings reference stubs (`docs/reference/knowledge.md`,
+  `docs/reference/refdocs.md`, `docs/reference/self_review.md`) so all
+  three modules appear in the built documentation site.
 - **New `robotsix_llmio.self_review` module** — direct-HTTP self-review /
   recent-activity client (`SelfReviewClient`) with list-activity and
   get-activity methods, plus `build_recent_activity_tools(client,
