@@ -50,6 +50,9 @@ from robotsix_llmio.openrouter import (
 - `OpenRouterProviderCostSource` — reads OpenRouter's billed spend for a time
   window via `GET /api/v1/activity`, summing across each UTC day the window
   covers
+- `AsyncOpenRouterClient` — async REST client for per-key usage (`fetch_key_usage`)
+  and account credits (`fetch_credits`); async counterpart of
+  `OpenRouterKeyCostSource`
 - `record_openrouter_cost` — stamps per-call cost, token counts, cache details,
   and gen_ai attributes onto the active OTel span (no-op without OTel or a
   recording span)

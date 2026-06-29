@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+
+- Document `AsyncOpenRouterClient` in `docs/openrouter/index.md` under "Cost
+  sources & recording" (it was already exported but missing from the narrative
+  index).
+
 ### Fixed
 
 - Claude-SDK token usage now captured in Langfuse traces: the shared SDK wrapper
