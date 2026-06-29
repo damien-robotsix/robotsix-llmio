@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New `robotsix_llmio.knowledge` module** — direct-HTTP knowledge-store
+  client (`KnowledgeClient`) with search and document retrieval, plus
+  `build_knowledge_tools(client)` for pydantic-ai agent integration.
+  Replaces the agent-comm broker intermediary with plain `httpx` calls.
+  All errors subclass `RobotsixLLMIOError` (`KnowledgeClientError`).
+
 ### Changed
 
 - **Removed the bracketed-qualifier syntax from provider-model identifiers.**
