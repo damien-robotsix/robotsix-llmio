@@ -161,9 +161,7 @@ def build_knowledge_tools(client: KnowledgeClient) -> list[Any]:
             title = r.get("title", "Untitled")
             snippet = r.get("snippet", "")
             score = r.get("score", 0.0)
-            lines.append(
-                f"- [{doc_id}] {title} (score={score:.2f})\n  {snippet}"
-            )
+            lines.append(f"- [{doc_id}] {title} (score={score:.2f})\n  {snippet}")
         return "\n".join(lines)
 
     async def get_knowledge_document(doc_id: str) -> str:

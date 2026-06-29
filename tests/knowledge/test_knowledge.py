@@ -13,9 +13,9 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from robotsix_llmio.knowledge import KnowledgeClientError, _client as knowledge_module
+from robotsix_llmio.knowledge import KnowledgeClientError
+from robotsix_llmio.knowledge import _client as knowledge_module
 from robotsix_llmio.knowledge._client import KnowledgeClient, build_knowledge_tools
-
 
 # --------------------------------------------------------------------------- #
 # Test helpers
@@ -33,9 +33,7 @@ def _install_transport(
     def _fake_timeout_client() -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=transport)
 
-    monkeypatch.setattr(
-        knowledge_module, "timeout_http_client", _fake_timeout_client
-    )
+    monkeypatch.setattr(knowledge_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -110,15 +108,14 @@ def test_search_network_error_raises_knowledge_client_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Simulate a transport-level failure (e.g. connection refused)."""
+
     # Replace timeout_http_client with a fake that raises inside the context
     # manager's __aenter__ (i.e. when the async with block tries to create
     # the client).
     def _fake_timeout_client() -> httpx.AsyncClient:
         raise ConnectionError("connection refused")
 
-    monkeypatch.setattr(
-        knowledge_module, "timeout_http_client", _fake_timeout_client
-    )
+    monkeypatch.setattr(knowledge_module, "timeout_http_client", _fake_timeout_client)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="connection refused"):
