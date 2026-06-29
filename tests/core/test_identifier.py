@@ -20,9 +20,7 @@ class TestParseModelIdentifier:
         assert result == ParsedIdentifier(provider="claudeSDK", model_name="opus")
 
     def test_openrouter_deepseek_with_model(self):
-        result = parse_model_identifier(
-            "openrouter-deepseek/deepseek-v4-flash"
-        )
+        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
         assert result == ParsedIdentifier(
             provider="openrouter",
             model_name="deepseek/deepseek-v4-flash",
