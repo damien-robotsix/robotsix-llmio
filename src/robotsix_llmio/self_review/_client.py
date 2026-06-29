@@ -59,7 +59,7 @@ class SelfReviewClient:
             ``action``, ``summary``, and ``timestamp``. An empty list
             means no recent activity.
         """
-        params: dict[str, int] = {"limit": limit}
+        params: dict[str, str | int] = {"limit": limit}
         data = await self._get("/activity", params=params)
         results: list[dict[str, Any]] = data.get("activities", [])
         return results

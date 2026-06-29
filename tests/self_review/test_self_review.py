@@ -36,9 +36,7 @@ def _install_transport(
     def _fake_timeout_client() -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=transport)
 
-    monkeypatch.setattr(
-        self_review_module, "timeout_http_client", _fake_timeout_client
-    )
+    monkeypatch.setattr(self_review_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -118,9 +116,7 @@ def test_list_activity_network_error_raises_self_review_client_error(
     def _fake_timeout_client() -> httpx.AsyncClient:
         raise ConnectionError("connection refused")
 
-    monkeypatch.setattr(
-        self_review_module, "timeout_http_client", _fake_timeout_client
-    )
+    monkeypatch.setattr(self_review_module, "timeout_http_client", _fake_timeout_client)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="connection refused"):
@@ -413,6 +409,4 @@ def test_self_review_client_error_can_be_caught_as_base() -> None:
     except RobotsixLLMIOError:
         pass  # expected
     else:
-        pytest.fail(
-            "SelfReviewClientError should be catchable as RobotsixLLMIOError"
-        )
+        pytest.fail("SelfReviewClientError should be catchable as RobotsixLLMIOError")
