@@ -6,7 +6,7 @@ pydantic-ai, no OTel. Direct HTTP access replaces the agent-comm broker.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from ..core.http import timeout_http_client
 from ._base import _DEFAULT_BASE_URL
@@ -84,4 +84,4 @@ class AsyncRefdocsClient:
             raise RuntimeError(
                 f"Refdocs {path} request failed: HTTP {resp.status_code}"
             )
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
