@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Enable `env_doc_sync` periodic workflow.** Added
+  `.robotsix-mill/periodic/env_doc_sync.yaml` to enable the built-in
+  `env_doc_sync` workflow, which automatically files tickets when
+  environment variables are missing from or stale in documentation.
 - **Docs: wire knowledge, refdocs, and self_review modules into mkdocs site.**
   Added nav entries in `mkdocs.yml`, home-page links in `docs/index.md`,
   and mkdocstrings reference stubs (`docs/reference/knowledge.md`,
