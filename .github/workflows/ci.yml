@@ -15,6 +15,7 @@ jobs:
   ci:
     permissions:
       contents: read
+      security-events: write
     strategy:
       matrix:
         python: ["3.11", "3.12", "3.13"]
