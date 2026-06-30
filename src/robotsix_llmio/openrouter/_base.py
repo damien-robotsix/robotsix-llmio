@@ -5,6 +5,4 @@ inference provider and the provider-cost adapter so the URL is maintained in
 one place.
 """
 
-from __future__ import annotations
-
 _DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"

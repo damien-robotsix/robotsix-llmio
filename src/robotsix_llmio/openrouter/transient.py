@@ -1,7 +1,5 @@
 """OpenRouter-specific transient signatures, layered on the core set."""
 
-from __future__ import annotations
-
 from ..core import retry as _core_retry
 
 

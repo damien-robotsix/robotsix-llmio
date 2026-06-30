@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Removed vestigial `from __future__ import annotations` from
+  `src/robotsix_llmio/openrouter/_base.py` and
+  `src/robotsix_llmio/openrouter/transient.py` — the import had no effect
+  (no PEP 604 `|` union syntax or forward references in either file).
+
 - **Removed the inert `sub_alias` field/property** from `ParsedIdentifier`
   and `TierLevelConfig`. The bracketed identifier qualifier
   (`openrouter[deepseek]-…`) was parsed and exposed but never consumed —
