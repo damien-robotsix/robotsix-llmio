@@ -147,13 +147,16 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     ``_close_async_client``: capture the registered finalize, drop the
     strong reference, ``gc.collect()`` to flush, then fire the captured
     finalize (the equivalent of the weakref callback path) and assert the
-    wrapper recorded exactly one call carrying the original client."""
-    real_close = http_module._close_async_client
+    wrapper recorded exactly one call carrying the original client.
+
+    The wrapper deliberately does NOT call the real ``_close_async_client``
+    — creating a temporary asyncio event loop during GC/teardown is fragile
+    across Python versions (particularly 3.12).  The real close path is
+    covered by the §2 tests."""
     calls: list[Any] = []
 
     def wrapper(client: Any) -> None:
         calls.append(client)
-        real_close(client)
 
     monkeypatch.setattr(http_module, "_close_async_client", wrapper)
 
@@ -176,11 +179,9 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     _ref = weakref.ref(client)
     del client
     # Python ≥ 3.11 may emit ResourceWarning for unclosed sockets
-    # inside httpx's connection pool during GC sweep, and also for
-    # asyncio transports when the finalizer fires and closes the
-    # client via a temporary event loop.  The client is deliberately
-    # left open to verify the weakref-finalizer routing path, so
-    # suppress those warnings.
+    # inside httpx's connection pool during GC sweep.  The client is
+    # deliberately left open to verify the weakref-finalizer routing
+    # path, so suppress those warnings.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ResourceWarning)
         gc.collect()
