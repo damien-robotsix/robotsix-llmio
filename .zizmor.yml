@@ -1,0 +1,15 @@
+# zizmor configuration — workflow-security linting
+#
+# Artipacked: the actions listed below are widely-used, SHA-pinned, and
+# distributed as pre-built artifacts by their maintainers (GitHub, Astral,
+# zizmor).  No source-based or attested alternatives exist.  SHA pinning
+# provides integrity; the artipacked risk is accepted.
+rules:
+  artipacked:
+    ignore:
+      - "actions/checkout"
+      - "actions/upload-artifact"
+      - "github/codeql-action/*"
+      - "astral-sh/ruff-action"
+      - "astral-sh/setup-uv"
+      - "zizmorcore/zizmor-action"
