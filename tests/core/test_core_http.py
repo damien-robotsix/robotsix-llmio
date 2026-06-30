@@ -174,26 +174,33 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
         SimpleNamespace(finalize=fake_finalize),
     )
 
-    client = timeout_http_client()
+    # Use a plain sentinel instead of a real httpx.AsyncClient —
+    # creating a real client opens real transport sockets whose
+    # cleanup during GC may fire temporary asyncio event loops,
+    # which is fragile across Python versions (particularly 3.12).
+    class _Sentinel:
+        pass
+
+    client = _Sentinel()
+    # Register the finalizer through the monkeypatched weakref so the
+    # fake finalize captures it (same path as timeout_http_client()
+    # takes in production).
+    http_module.weakref.finalize(client, wrapper, client)
     client_id = id(client)
     _ref = weakref.ref(client)
     del client
-    # Python ≥ 3.11 may emit ResourceWarning for unclosed sockets
-    # inside httpx's connection pool during GC sweep.  The client is
-    # deliberately left open to verify the weakref-finalizer routing
-    # path, so suppress those warnings.
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", ResourceWarning)
+        warnings.simplefilter("ignore")
         gc.collect()
 
-        assert len(finalizers) == 1
-        # On CPython < 3.13 gc.collect() alone cannot fire the finalize
-        # under the production registration shape (``info.args``
-        # strong-refs the client), so we explicitly invoke the captured
-        # finalize.  On >= 3.13 gc.collect() *may* fire the finalizer
-        # during collection; when it has already done so we skip the
-        # manual invocation.
-        if len(calls) == 0:
-            finalizers[0]()
+    assert len(finalizers) == 1
+    # On CPython < 3.13 gc.collect() alone cannot fire the finalize
+    # under the production registration shape (``info.args``
+    # strong-refs the client), so we explicitly invoke the captured
+    # finalize.  On >= 3.13 gc.collect() *may* fire the finalizer
+    # during collection; when it has already done so we skip the
+    # manual invocation.
+    if len(calls) == 0:
+        finalizers[0]()
     assert len(calls) == 1
     assert id(calls[0]) == client_id

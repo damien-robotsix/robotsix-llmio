@@ -6,6 +6,7 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    cooldown: "5m"
     labels:
       - "dependencies"
     groups:
@@ -22,6 +23,7 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    cooldown: "5m"
     labels:
       - "dependencies"
       - "github-actions"
@@ -36,6 +38,7 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    cooldown: "5m"
     labels:
       - "dependencies"
       - "pre-commit"

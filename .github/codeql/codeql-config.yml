@@ -31,3 +31,11 @@ paths-ignore:
 query-filters:
   - exclude:
       id: py/undefined-export
+
+  # zizmor/artipacked — SHA-pinned well-known actions (actions/checkout,
+  # actions/upload-artifact, github/codeql-action, astral-sh/*,
+  # zizmorcore/zizmor-action).  No source-based or attested alternatives
+  # exist.  SHA pinning provides integrity; the risk is accepted.
+  # Composite actions use inline ``# zizmor: ignore`` comments instead.
+  - exclude:
+      id: zizmor/artipacked
