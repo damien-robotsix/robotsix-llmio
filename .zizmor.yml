@@ -4,12 +4,13 @@
 # distributed as pre-built artifacts by their maintainers (GitHub, Astral,
 # zizmor).  No source-based or attested alternatives exist.  SHA pinning
 # provides integrity; the artipacked risk is accepted.
+#
+# Ignore entries use base filenames (e.g. ci.yml, not .github/workflows/ci.yml).
+# Composite action findings cannot be suppressed here; use inline
+# ``# zizmor: ignore`` comments in the composite action.yml instead.
 rules:
   artipacked:
     ignore:
-      - "actions/checkout"
-      - "actions/upload-artifact"
-      - "github/codeql-action/*"
-      - "astral-sh/ruff-action"
-      - "astral-sh/setup-uv"
-      - "zizmorcore/zizmor-action"
+      - ci.yml
+      - lint-workflows.yml
+      - release.yml
