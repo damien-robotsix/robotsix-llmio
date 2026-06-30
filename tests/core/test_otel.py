@@ -56,17 +56,22 @@ def test_otel_constants_match_wire_strings() -> None:
         assert getattr(_otel, name) == value, name
 
 
-def test_env_example_matches_env_var_constants() -> None:
-    """Every ``ENV_LANGFUSE_*`` constant's value must appear as a key in
-    ``.env.example`` so the file stays in sync with the code."""
+def test_env_example_documents_langfuse_live_test_credentials() -> None:
+    """The Langfuse credentials the live tracing tests consume must be listed
+    in ``tests/.env.example`` so contributors can discover what to set.
+
+    ``tests/.env.example`` documents only the credentials the opt-in live test
+    suite needs (the library's full runtime env interface lives in the README),
+    so ``LANGFUSE_PROJECT_ID`` — read at runtime but not by any test — is
+    intentionally excluded here."""
     import pathlib
 
     env_constants = {
         _otel.ENV_LANGFUSE_PUBLIC_KEY,
         _otel.ENV_LANGFUSE_SECRET_KEY,
         _otel.ENV_LANGFUSE_BASE_URL,
-        _otel.ENV_LANGFUSE_PROJECT_ID,
     }
-    env_example = pathlib.Path(".env.example").read_text()
+    env_example_path = pathlib.Path(__file__).parents[1] / ".env.example"
+    env_example = env_example_path.read_text()
     for name in env_constants:
-        assert f"{name}=" in env_example, f"{name} not found in .env.example"
+        assert f"{name}=" in env_example, f"{name} not found in {env_example_path}"

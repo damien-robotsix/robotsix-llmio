@@ -81,9 +81,26 @@ pip install "robotsix-llmio[claude_sdk]"
 ## Configuration
 
 The API key can be passed directly to the provider constructor or set via the
-`OPENROUTER_API_KEY` environment variable. Copy `.env.example` to `.env` and
-replace the placeholder with a real key — `.env` is git-ignored so the secret
-never leaves your machine.
+`OPENROUTER_API_KEY` environment variable.
+
+The library reads all runtime configuration straight from the process
+environment — it does **not** load any `.env` file itself. Set these in your
+shell or deployment platform as needed:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `OPENROUTER_API_KEY` | Key required by `OpenRouterProvider` and derived providers | — (required) |
+| `REFDOCS_API_KEY` | Bearer token for the refdocs REST API | — |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable Langfuse trace/cost export when **both** are set | unset → tracing off |
+| `LANGFUSE_BASE_URL` | Langfuse endpoint | `https://cloud.langfuse.com` |
+| `LANGFUSE_PROJECT_ID` | Optional Langfuse project id | — |
+| `LLMIO_LEVEL{1,2,3}_MODEL` | Override the baked tier model (see [Three-tier configuration](#three-tier-configuration)) | baked defaults |
+| `LLMIO_LEVEL{1,2,3}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+| `LOG_FORMAT` | Logging format | `console` |
+
+If you keep these in a local `.env`, load it yourself (e.g. `set -a; source
+.env; set +a`) before running your app — and keep it out of version control.
 
 To route requests through a custom OpenRouter-compatible endpoint (e.g. a proxy
 or mirror), pass `base_url=` when constructing the provider:
@@ -100,7 +117,7 @@ The library uses a three-tier model selection system exposed through the
 `level` parameter on `LLMProvider.build_agent()`.  Each level is backed by a
 `TierLevelConfig` that specifies a provider and model:
 
-| Level | Intended use                           | Example `.env` snippet                      |
+| Level | Intended use                           | Example env vars                            |
 |-------|----------------------------------------|---------------------------------------------|
 | 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_PROVIDER=openrouter-deepseek` |
 |       |                                        | `LLMIO_LEVEL1_MODEL=deepseek/deepseek-v4-flash` |
