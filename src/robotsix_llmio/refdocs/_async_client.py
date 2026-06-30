@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from ..core.http import timeout_http_client
+from . import RefdocsClientError
 from ._base import _DEFAULT_BASE_URL
 
 
@@ -41,7 +42,7 @@ class AsyncRefdocsClient:
         Hits ``GET {base_url}/search?q={query}``. Returns a list of result
         dicts, each with at least ``"path"`` and ``"title"`` keys.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``RefdocsClientError`` on any non-2xx response.
         """
         data = await self._get("/search", params={"q": query})
         results = data.get("results")
@@ -55,7 +56,7 @@ class AsyncRefdocsClient:
         Hits ``GET {base_url}/docs/{path}``. Returns the document body as
         a string.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``RefdocsClientError`` on any non-2xx response.
         """
         data = await self._get(f"/docs/{path}")
         return str(data.get("content") or "")
@@ -69,7 +70,8 @@ class AsyncRefdocsClient:
     ) -> dict[str, Any]:
         """Send a GET to *path* and return the JSON response body.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``RefdocsClientError`` on any non-2xx response or
+        network failure.
         """
         import httpx
 
@@ -77,11 +79,18 @@ class AsyncRefdocsClient:
         headers: dict[str, str] = {}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
-        async with timeout_http_client() as client:
-            client.timeout = httpx.Timeout(self._request_timeout)
-            resp = await client.get(url, headers=headers, params=params)
+
+        try:
+            async with timeout_http_client() as client:
+                client.timeout = httpx.Timeout(self._request_timeout)
+                resp = await client.get(url, headers=headers, params=params)
+        except Exception as exc:
+            raise RefdocsClientError(
+                f"Refdocs request to {path} failed: {exc}"
+            ) from exc
+
         if not (200 <= resp.status_code < 300):
-            raise RuntimeError(
+            raise RefdocsClientError(
                 f"Refdocs {path} request failed: HTTP {resp.status_code}"
             )
         return cast(dict[str, Any], resp.json())

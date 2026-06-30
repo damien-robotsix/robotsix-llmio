@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Refdocs: define `RefdocsClientError` and use it for HTTP/transport errors.**
+  The refdocs async client now raises `RefdocsClientError` (a subclass of
+  `RobotsixLLMIOError`) instead of bare `RuntimeError` on HTTP failures and
+  transport exceptions, matching the sibling `knowledge` and `self_review`
+  modules.
+
 - **Docs: wire knowledge, refdocs, and self_review modules into mkdocs site.**
   Added nav entries in `mkdocs.yml`, home-page links in `docs/index.md`,
   and mkdocstrings reference stubs (`docs/reference/knowledge.md`,
