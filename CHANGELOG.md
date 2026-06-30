@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Registered `tests/.env.example` under the `robotsix_llmio-core` module in `docs/modules.yaml`.
+
 - **Docs: wire knowledge, refdocs, and self_review modules into mkdocs site.**
   Added nav entries in `mkdocs.yml`, home-page links in `docs/index.md`,
   and mkdocstrings reference stubs (`docs/reference/knowledge.md`,
