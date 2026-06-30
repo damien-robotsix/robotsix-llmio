@@ -29,8 +29,10 @@ CLI at runtime (see the README's "Alternative transport — Claude Agent SDK"
 section). Tests that need the Claude CLI are skipped when it's absent —
 contributors without Node can still run the rest of the suite.
 
-Copy `.env.example` to `.env` and set `OPENROUTER_API_KEY` **only** if you
-intend to run live API tests (see "Running tests" below).
+Copy `tests/.env.example` to `tests/.env` and set `OPENROUTER_API_KEY` **only**
+if you intend to run live API tests (see "Running tests" below). `tests/.env`
+holds credentials for the opt-in live suite only — the library's runtime
+environment variables are documented in the README's "Configuration" section.
 
 ## 2. Pre-commit hooks
 
@@ -49,7 +51,7 @@ pre-commit run --all-files
 ```
 
 `.secrets.baseline` records known/audited dummy values (placeholder API keys in
-`.env.example` and literal test fixtures) so the `detect-secrets` hook doesn't
+`tests/.env.example` and literal test fixtures) so the `detect-secrets` hook doesn't
 block on them; regenerate it via `detect-secrets scan` when needed.
 
 Hooks pinned in `.pre-commit-config.yaml`:

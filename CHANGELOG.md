@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Enable `env_doc_sync` periodic workflow.** Added
-  `.robotsix-mill/periodic/env_doc_sync.yaml` to enable the built-in
-  `env_doc_sync` workflow, which automatically files tickets when
-  environment variables are missing from or stale in documentation.
 - **Docs: wire knowledge, refdocs, and self_review modules into mkdocs site.**
   Added nav entries in `mkdocs.yml`, home-page links in `docs/index.md`,
   and mkdocstrings reference stubs (`docs/reference/knowledge.md`,
@@ -38,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Scoped the dotenv template to tests; moved runtime env docs to the README.**
+  Removed the repo-root `.env.example` (which doubled as the library's runtime
+  configuration reference) and replaced it with `tests/.env.example`, holding
+  only the credentials the opt-in live test suite needs (`OPENROUTER_API_KEY`,
+  `LANGFUSE_*`). The library's full runtime environment-variable interface is
+  now documented in a table in the README's "Configuration" section — the
+  appropriate home, since the library reads the environment directly and never
+  loads a `.env` file. Updated `CONTRIBUTING.md`, `AGENT.md`, and the
+  `tests/core/test_otel.py` sync test accordingly.
 - **Removed the bracketed-qualifier syntax from provider-model identifiers.**
   `parse_model_identifier` now splits purely on the first hyphen
   (`<provider>-<model-name>`); the `provider[qualifier]-…` form is no longer
