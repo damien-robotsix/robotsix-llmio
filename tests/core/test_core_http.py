@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
+import warnings
 import weakref
 from types import SimpleNamespace
 from typing import Any
@@ -188,7 +189,9 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     client_id = id(client)
     _ref = weakref.ref(client)
     del client
-    gc.collect()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        gc.collect()
 
     assert len(finalizers) == 1
     # On CPython < 3.13 gc.collect() alone cannot fire the finalize
