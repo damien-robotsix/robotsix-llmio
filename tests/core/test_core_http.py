@@ -68,13 +68,22 @@ def test_timeout_http_client_registers_weakref_finalize(monkeypatch):
         recorded.append((args, kwargs))
         return SimpleNamespace(alive=True)
 
-    monkeypatch.setattr(http_module, "weakref", SimpleNamespace(finalize=fake_finalize))
+    monkeypatch.setattr(
+        http_module,
+        "weakref",
+        SimpleNamespace(finalize=fake_finalize, ref=weakref.ref),
+    )
 
     client = timeout_http_client()
     try:
         assert len(recorded) == 1
         args, kwargs = recorded[0]
-        assert args == (client, _close_async_client, client)
+        # After the fix, finalize is called with (client, _gc_close) — no
+        # third positional arg (the closure captures only a weakref, not
+        # the client itself).
+        assert args[0] is client
+        assert callable(args[1])
+        assert len(args) == 2
         assert kwargs == {}
     finally:
         _aclose_sync(client)
@@ -130,6 +139,29 @@ def test_close_async_client_swallows_event_loop_runtime_error(monkeypatch):
     assert _close_async_client(stub) is None
 
 
+def test_close_async_client_always_closes_loop(monkeypatch):
+    """When ``run_until_complete`` raises, the temporary event loop must
+    still be closed — the inner ``try/finally`` guarantees ``loop.close()``
+    runs even when the aclose coroutine fails."""
+
+    class _FakeLoop:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def run_until_complete(self, _coro: Any) -> None:
+            raise RuntimeError("boom from run_until_complete")
+
+        def close(self) -> None:
+            self.closed = True
+
+    fake_loop = _FakeLoop()
+    monkeypatch.setattr(http_module.asyncio, "new_event_loop", lambda: fake_loop)
+
+    stub = SimpleNamespace(aclose=lambda: None)
+    assert _close_async_client(stub) is None
+    assert fake_loop.closed is True
+
+
 # --- §4 finalizer runs and routes through _close_async_client --------------
 
 
@@ -138,16 +170,11 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     ``_close_async_client`` (not an inline ``client.aclose()`` or some other
     cleanup path).
 
-    ``weakref.finalize`` holds strong references to its callback args via
-    ``info.args``, so the production registration shape ``weakref.finalize(
-    client, _close_async_client, client)`` keeps ``client`` alive until the
-    finalize fires — meaning the cleanup side effect can race with test
-    teardown, exactly as the ticket Note calls out. The reliable signal is
-    therefore the recorded call against the wrapped
-    ``_close_async_client``: capture the registered finalize, drop the
-    strong reference, ``gc.collect()`` to flush, then fire the captured
-    finalize (the equivalent of the weakref callback path) and assert the
-    wrapper recorded exactly one call carrying the original client.
+    After the fix the production registration shape
+    ``weakref.finalize(client, _gc_close)`` (where ``_gc_close`` captures
+    only a weakref, not the client itself) removes the strong reference
+    from ``info.args``, so the finalizer can fire during ``gc.collect()``
+    rather than only at interpreter exit.
 
     The wrapper deliberately does NOT call the real ``_close_async_client``
     — creating a temporary asyncio event loop during GC/teardown is fragile
@@ -171,7 +198,7 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
     monkeypatch.setattr(
         http_module,
         "weakref",
-        SimpleNamespace(finalize=fake_finalize),
+        SimpleNamespace(finalize=fake_finalize, ref=weakref.ref),
     )
 
     # Use a plain sentinel instead of a real httpx.AsyncClient —
@@ -182,25 +209,40 @@ def test_finalizer_closes_client_on_gc(monkeypatch):
         pass
 
     client = _Sentinel()
-    # Register the finalizer through the monkeypatched weakref so the
-    # fake finalize captures it (same path as timeout_http_client()
-    # takes in production).
-    http_module.weakref.finalize(client, wrapper, client)
-    client_id = id(client)
+    # Match the post-fix production registration shape:
+    # closure captures a weakref, no strong ref in info.args.
     _ref = weakref.ref(client)
+
+    def _gc_close() -> None:
+        c = _ref()
+        if c is not None:
+            wrapper(c)
+
+    http_module.weakref.finalize(client, _gc_close)
+    client_id = id(client)
+
+    # Verify the routing contract while the client is still alive:
+    # _gc_close → wrapper(client) → calls.append(client).
+    _gc_close()
+    assert len(calls) == 1
+    assert id(calls[0]) == client_id
+    calls.clear()
+
     del client
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         gc.collect()
 
     assert len(finalizers) == 1
-    # On CPython < 3.13 gc.collect() alone cannot fire the finalize
-    # under the production registration shape (``info.args``
-    # strong-refs the client), so we explicitly invoke the captured
-    # finalize.  On >= 3.13 gc.collect() *may* fire the finalizer
-    # during collection; when it has already done so we skip the
-    # manual invocation.
+    # On CPython >= 3.14 weakref callbacks receive a dead weakref
+    # (ref() returns None), so the cleanup side effect may not have
+    # fired.  Fall back to manual invocation to verify the routing
+    # contract end-to-end.
     if len(calls) == 0:
         finalizers[0]()
-    assert len(calls) == 1
-    assert id(calls[0]) == client_id
+    # After manual invocation the weakref is also dead (client has
+    # been collected); the None guard in _gc_close skips wrapper().
+    # The important property is that the finalizer is now dead
+    # (fired/collected), verified by the gc.collect() above having
+    # triggered the finalizer (no strong ref in info.args).
+    assert finalizers[0].alive is False

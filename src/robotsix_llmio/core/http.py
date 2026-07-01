@@ -20,8 +20,10 @@ def _close_async_client(client: Any) -> None:
     """
     try:
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(client.aclose())
-        loop.close()
+        try:
+            loop.run_until_complete(client.aclose())
+        finally:
+            loop.close()
     except (RuntimeError, OSError):
         # Expected event-loop/transport teardown errors during GC/finalize
         # (loop-state RuntimeError, socket-close OSError) are safe to ignore;
@@ -42,5 +44,12 @@ def timeout_http_client() -> httpx.AsyncClient:
             constants.MODEL_REQUEST_TIMEOUT, connect=constants.CONNECT_TIMEOUT
         )
     )
-    weakref.finalize(client, _close_async_client, client)
+    _ref = weakref.ref(client)
+
+    def _gc_close() -> None:
+        c = _ref()
+        if c is not None:
+            _close_async_client(c)
+
+    weakref.finalize(client, _gc_close)
     return client

@@ -4,6 +4,7 @@ no real ``pydantic_ai.Agent``, httpx client, or network is constructed."""
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from typing import Any
 
@@ -96,7 +97,60 @@ def test_close_with_none_http_client_is_noop(monkeypatch):
     assert calls == []
 
 
-# --- §3 build_agent() kwargs assembly --------------------------------------
+# --- §3 AgentHandle.aclose() ---------------------------------------------
+
+
+class _FakeHttpClient:
+    """Stand-in for ``httpx.AsyncClient`` with a recordable ``aclose()``."""
+
+    def __init__(self) -> None:
+        self.aclose_calls = 0
+
+    async def aclose(self) -> None:
+        self.aclose_calls += 1
+
+
+def test_aclose_calls_aclose_on_http_client_and_nulls():
+    """``await handle.aclose()`` invokes ``aclose()`` on the wrapped client
+    exactly once and then nulls ``_http_client``."""
+    client = _FakeHttpClient()
+    handle = AgentHandle(agent=SimpleNamespace(), http_client=client)
+
+    async def _run() -> None:
+        await handle.aclose()
+
+    asyncio.run(_run())
+
+    assert client.aclose_calls == 1
+    assert handle._http_client is None
+
+
+def test_aclose_is_idempotent():
+    """A second ``await handle.aclose()`` is a no-op — the
+    ``if self._http_client is not None`` guard short-circuits."""
+    client = _FakeHttpClient()
+    handle = AgentHandle(agent=SimpleNamespace(), http_client=client)
+
+    async def _run() -> None:
+        await handle.aclose()
+        await handle.aclose()
+
+    asyncio.run(_run())
+
+    assert client.aclose_calls == 1
+
+
+def test_aclose_with_none_http_client_is_noop():
+    """A handle with ``http_client=None`` makes ``aclose()`` a safe no-op."""
+    handle = AgentHandle(agent=SimpleNamespace(), http_client=None)
+
+    async def _run() -> None:
+        await handle.aclose()
+
+    asyncio.run(_run())  # no exception
+
+
+# --- §4 build_agent() kwargs assembly --------------------------------------
 
 
 class _FakeAgent:
