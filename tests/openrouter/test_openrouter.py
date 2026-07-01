@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from robotsix_llmio.openrouter.model import (
     PROVIDER_NAME,
@@ -215,9 +214,8 @@ class _FakeStream:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 @patch("robotsix_llmio.openrouter.model.get_recording_span")
-async def test_cost_capturing_stream_records_cost_on_exhaustion(mock_get_span):
+def test_cost_capturing_stream_records_cost_on_exhaustion(mock_get_span):
     span = MagicMock()
     mock_get_span.return_value = span
 
@@ -236,67 +234,74 @@ async def test_cost_capturing_stream_records_cost_on_exhaustion(mock_get_span):
     ]
     stream = _CostCapturingStream(_FakeStream(chunks))
 
-    collected: list = []
-    async for chunk in stream:
-        collected.append(chunk)
+    async def _run():
+        collected: list = []
+        async for chunk in stream:
+            collected.append(chunk)
+        return collected
 
+    collected = asyncio.run(_run())
     assert len(collected) == 3
     mock_get_span.assert_called_once()
     span.set_attribute.assert_any_call("gen_ai.usage.cost", 0.007)
 
 
-@pytest.mark.asyncio
 @patch("robotsix_llmio.openrouter.model.get_recording_span")
-async def test_cost_capturing_stream_noop_when_no_usage_chunk(mock_get_span):
+def test_cost_capturing_stream_noop_when_no_usage_chunk(mock_get_span):
     chunks = [
         SimpleNamespace(usage=None),
         SimpleNamespace(usage=None),
     ]
     stream = _CostCapturingStream(_FakeStream(chunks))
 
-    collected: list = []
-    async for chunk in stream:
-        collected.append(chunk)
+    async def _run():
+        collected: list = []
+        async for chunk in stream:
+            collected.append(chunk)
+        return collected
 
+    collected = asyncio.run(_run())
     assert len(collected) == 2
     mock_get_span.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_cost_capturing_stream_aenter_aexit_delegate():
+def test_cost_capturing_stream_aenter_aexit_delegate():
     inner = MagicMock()
     inner.__aenter__ = AsyncMock(return_value=inner)
     inner.__aexit__ = AsyncMock(return_value=None)
 
-    stream = _CostCapturingStream(inner)
-    result = await stream.__aenter__()
-    assert result is stream
-    inner.__aenter__.assert_called_once()
+    async def _run():
+        stream = _CostCapturingStream(inner)
+        result = await stream.__aenter__()
+        assert result is stream
+        inner.__aenter__.assert_called_once()
 
-    await stream.__aexit__(None, None, None)
-    inner.__aexit__.assert_called_once()
+        await stream.__aexit__(None, None, None)
+        inner.__aexit__.assert_called_once()
+
+    asyncio.run(_run())
 
 
-@pytest.mark.asyncio
 @patch("robotsix_llmio.openrouter.model.isinstance", return_value=True)
 @patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
 @patch("robotsix_llmio.openrouter.model.OpenAIChatModel._completions_create")
-async def test_completions_create_stream_returns_capturing_wrapper(
+def test_completions_create_stream_returns_capturing_wrapper(
     mock_super, mock_init, mock_isinstance
 ):
     mock_super.return_value = _FakeStream([])
 
-    model = OpenRouterModel("x/y")
-    result = await model._completions_create([], True, {}, {})
+    async def _run():
+        model = OpenRouterModel("x/y")
+        return await model._completions_create([], True, {}, {})
 
+    result = asyncio.run(_run())
     assert isinstance(result, _CostCapturingStream)
 
 
-@pytest.mark.asyncio
 @patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
 @patch("robotsix_llmio.openrouter.model.OpenAIChatModel._completions_create")
 @patch("robotsix_llmio.openrouter.model.get_recording_span")
-async def test_completions_create_non_stream_records_cost_directly(
+def test_completions_create_non_stream_records_cost_directly(
     mock_get_span, mock_super, mock_init
 ):
     span = MagicMock()
@@ -305,8 +310,10 @@ async def test_completions_create_non_stream_records_cost_directly(
         usage=SimpleNamespace(cost=0.01, model_extra=None)
     )
 
-    model = OpenRouterModel("x/y")
-    result = await model._completions_create([], False, {}, {})
+    async def _run():
+        model = OpenRouterModel("x/y")
+        return await model._completions_create([], False, {}, {})
 
+    result = asyncio.run(_run())
     assert not isinstance(result, _CostCapturingStream)
     span.set_attribute.assert_any_call("gen_ai.usage.cost", 0.01)
