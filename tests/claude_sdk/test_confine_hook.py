@@ -14,6 +14,7 @@ import asyncio
 
 from robotsix_llmio.claude_sdk._tool_agent import (
     _is_within,
+    _make_bash_confine_hook,
     _make_confine_hook,
 )
 from robotsix_llmio.claude_sdk.provider import (
@@ -25,6 +26,17 @@ def _run_hook(root, tool_name, tool_input):
     hook = _make_confine_hook(str(root))
     return asyncio.run(
         hook({"tool_name": tool_name, "tool_input": tool_input}, "tu_1", None)
+    )
+
+
+def _run_bash_hook(root, command):
+    hook = _make_bash_confine_hook(str(root))
+    return asyncio.run(
+        hook(
+            {"tool_name": "Bash", "tool_input": {"command": command}},
+            "tu_1",
+            None,
+        )
     )
 
 
@@ -96,6 +108,48 @@ def test_hook_denies_relative_dotdot_escape(tmp_path):
 def test_hook_allows_calls_without_a_path(tmp_path):
     # A matched tool that somehow carries no path key must not be denied.
     assert _run_hook(tmp_path, "Edit", {}) == {}
+
+
+# --- Bash hook ------------------------------------------------------------
+
+
+def test_bash_hook_denies_sed_outside_workspace(tmp_path):
+    out = _run_bash_hook(tmp_path, "sed -i 's/a/b/' /app/src/x.py")
+    assert _denied(out)
+    reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "/app/src/x.py" in reason
+
+
+def test_bash_hook_denies_redirect_outside_workspace(tmp_path):
+    out = _run_bash_hook(tmp_path, "cat > /app/src/y.py")
+    assert _denied(out)
+    reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "/app/src/y.py" in reason
+
+
+def test_bash_hook_denies_ln_hardlink_to_outside(tmp_path):
+    out = _run_bash_hook(tmp_path, "ln /app/src/x.py ./link.py")
+    assert _denied(out)
+    reason = out["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "/app/src/x.py" in reason
+
+
+def test_bash_hook_allows_relative_paths(tmp_path):
+    assert _run_bash_hook(tmp_path, "sed -i 's/a/b/' src/a.py") == {}
+
+
+def test_bash_hook_allows_absolute_inside_workspace(tmp_path):
+    assert _run_bash_hook(tmp_path, f"cat {tmp_path}/src/a.py") == {}
+
+
+def test_bash_hook_allows_empty_command(tmp_path):
+    assert _run_bash_hook(tmp_path, "") == {}
+
+
+def test_bash_hook_allows_missing_command_key(tmp_path):
+    hook = _make_bash_confine_hook(str(tmp_path))
+    out = asyncio.run(hook({"tool_name": "Bash", "tool_input": {}}, "tu_1", None))
+    assert out == {}
 
 
 # --- threading through build_agent ----------------------------------------

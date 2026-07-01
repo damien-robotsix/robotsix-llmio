@@ -371,6 +371,53 @@ def _make_confine_hook(workspace_root: str) -> HookCallback:
     return cast("HookCallback", _hook)
 
 
+def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
+    """PreToolUse hook that denies Bash commands naming absolute paths outside
+    *workspace_root*.
+
+    Parsing is heuristic: tokens that start with ``/`` (absolute paths) are
+    extracted and resolved. Commands that construct paths at runtime via
+    subshells, ``eval``, or base64 encoding are NOT caught — this is
+    documented by design."""
+    root = os.path.realpath(workspace_root)
+
+    async def _hook(
+        input: dict[str, Any], tool_use_id: str | None, context: Any
+    ) -> dict[str, Any]:
+        tool_input = input.get("tool_input") or {}
+        command = str(tool_input.get("command") or "")
+        if not command:
+            return {}
+        # Extract absolute-path-like tokens: sequences of non-whitespace chars
+        # starting with / after a word boundary (whitespace, operator, or BOL).
+        for match in re.finditer(
+            r"(?:(?<=\s)|(?<=^)|(?<=[;|&><\x27\x22=({!,`]))"
+            r"(/[^\s\x27\x22\\;|&><`)}]+)",
+            command,
+        ):
+            candidate = match.group(1).rstrip("'\";)}")  # strip trailing punct
+            if candidate and not _is_within(root, candidate):
+                log.warning(
+                    "Bash: denied out-of-workspace path %s (confined to %s)",
+                    candidate,
+                    root,
+                )
+                return {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": (
+                            f"Refused: Bash command references {candidate!r}, "
+                            f"which resolves outside the confined workspace "
+                            f"{root}. Use paths inside the workspace checkout instead."
+                        ),
+                    }
+                }
+        return {}
+
+    return cast("HookCallback", _hook)
+
+
 @dataclass
 class _SdkToolResult:
     """Minimal result mirroring pydantic-ai's ``AgentRunResult`` interface.
@@ -562,7 +609,11 @@ class _SdkToolAgentHandle:
                     HookMatcher(
                         matcher=_EDIT_TOOLS,
                         hooks=[_make_confine_hook(self._workspace_root)],
-                    )
+                    ),
+                    HookMatcher(
+                        matcher="Bash",
+                        hooks=[_make_bash_confine_hook(self._workspace_root)],
+                    ),
                 ]
             }
 

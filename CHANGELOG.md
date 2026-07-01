@@ -1,5 +1,10 @@
 ## 0.0.0 (unreleased)
 
+- Add Bash command workspace confinement for claude_sdk tool agents: a
+  new ``PreToolUse`` hook denies ``Bash`` commands referencing absolute
+  paths outside ``workspace_root``, closing a bypass that allowed
+  host-file mutation via shell redirects and hardlinks even when the
+  edit-tool confinement hook was in place.
 - build(deps): bump actionlint from v1.7.7 to v1.7.12
 - build(deps): bump ruff-pre-commit from v0.15.18 to v0.15.20
 - Add `.github/workflows/dependency-review.yml` to gate PRs against known-vulnerable dependencies using `actions/dependency-review-action@v5.0.0` with `fail-on-severity: moderate` and an allow-list of common open-source licenses.
