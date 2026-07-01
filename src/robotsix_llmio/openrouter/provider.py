@@ -14,6 +14,7 @@ from typing import Any
 from robotsix_llmio.openrouter import OpenRouterAPIError
 
 from ..core import timeout_http_client
+from ..core.http import _close_async_client
 from ..core.provider import LLMProvider
 from ._base import _DEFAULT_BASE_URL
 from .model import OpenRouterModel
@@ -94,22 +95,26 @@ class OpenRouterProvider(LLMProvider):
 
         model_name = model
         http_client = timeout_http_client()
-        if self._base_url == _DEFAULT_BASE_URL:
-            pyd_provider = _PydOpenRouterProvider(
-                api_key=self._api_key, http_client=http_client
-            )
-        else:
-            from openai import AsyncOpenAI
+        try:
+            if self._base_url == _DEFAULT_BASE_URL:
+                pyd_provider = _PydOpenRouterProvider(
+                    api_key=self._api_key, http_client=http_client
+                )
+            else:
+                from openai import AsyncOpenAI
 
-            openai_client = AsyncOpenAI(
-                base_url=self._base_url,
-                api_key=self._api_key,
-                http_client=http_client,
-            )
-            pyd_provider = _PydOpenRouterProvider(openai_client=openai_client)
-        model_obj = self._model_class()(model_name, provider=pyd_provider)
-        self._post_build_model(model_obj, level)
-        return model_obj, http_client
+                openai_client = AsyncOpenAI(
+                    base_url=self._base_url,
+                    api_key=self._api_key,
+                    http_client=http_client,
+                )
+                pyd_provider = _PydOpenRouterProvider(openai_client=openai_client)
+            model_obj = self._model_class()(model_name, provider=pyd_provider)
+            self._post_build_model(model_obj, level)
+            return model_obj, http_client
+        except BaseException:
+            _close_async_client(http_client)
+            raise
 
     def _is_transient(self, exc: BaseException) -> bool:
         return is_openrouter_transient(exc)

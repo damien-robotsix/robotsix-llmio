@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -208,3 +208,57 @@ def test_new_model_calls_post_build_model(monkeypatch):
     called_model, called_level = provider._post_build_calls[0]
     assert called_model is model
     assert called_level == 2
+
+
+def test_new_model_closes_client_on_model_class_failure(monkeypatch):
+    """When ``_model_class()`` raises, ``http_client.aclose()`` is called
+    before the exception propagates."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = AsyncMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    provider._model_cls_mock.side_effect = ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        provider.new_model(model="test-model-default")
+
+    mock_http.aclose.assert_called_once()
+
+
+def test_new_model_closes_client_on_pyd_provider_failure(monkeypatch):
+    """When ``_PydOpenRouterProvider(...)`` raises, ``http_client.aclose()``
+    is called before the exception propagates."""
+    mock_provider_cls = _install_fake_pydantic_openrouter(monkeypatch)
+    mock_provider_cls.side_effect = RuntimeError("provider explosion")
+    mock_http = AsyncMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+
+    with pytest.raises(RuntimeError, match="provider explosion"):
+        provider.new_model(model="test-model-default")
+
+    mock_http.aclose.assert_called_once()
+
+
+def test_new_model_does_not_close_client_on_success(monkeypatch):
+    """On the happy path, ``http_client.aclose()`` is NOT called — the
+    caller receives the client and owns closing it."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = AsyncMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    provider.new_model(model="test-model-default")
+
+    mock_http.aclose.assert_not_called()
