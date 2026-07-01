@@ -1,6 +1,6 @@
-"""Tier-escalation loop for three-tier provider+model fallback.
+"""Tier-escalation loop for four-tier provider+model fallback.
 
-This module provides a dispatch helper that iterates through the three
+This module provides a dispatch helper that iterates through the four
 configured tiers in :class:`~robotsix_llmio.config.tier.TierConfig`
 automatically, catching failures at one level and promoting to the next.
 
@@ -16,13 +16,17 @@ Fallback direction
 2. If no higher unvisited tier exists, the next **lower** unvisited tier is tried.
 3. A tier is never revisited — the visited-set prevents ping-pong cycles.
 
-========  =========================================
-Start     Chain on successive failures
-========  =========================================
+========  ==================================================
+Start     Chain on successive failures (default depth 2)
+========  ==================================================
 LEVEL1    LEVEL1 → LEVEL2 → LEVEL3 → stop
-LEVEL2    LEVEL2 → LEVEL3 → LEVEL1 → stop
-LEVEL3    LEVEL3 → LEVEL2 → LEVEL1 → stop
-========  =========================================
+LEVEL2    LEVEL2 → LEVEL3 → LEVEL4 → stop
+LEVEL3    LEVEL3 → LEVEL4 → LEVEL2 → stop
+LEVEL4    LEVEL4 → LEVEL3 → LEVEL2 → stop
+========  ==================================================
+
+(The default ``max_fallback_depth=2`` allows two promotions, so at most
+three of the four tiers are visited per call.)
 """
 
 from __future__ import annotations
@@ -40,7 +44,7 @@ log = logging.getLogger("robotsix_llmio.tier_fallback")
 T = TypeVar("T")
 
 # Ordered tuple of all TierLevel members, used by _next_unvisited_tier
-# to determine priority by position (LEVEL1=0, LEVEL2=1, LEVEL3=2).
+# to determine priority by position (LEVEL1=0, LEVEL2=1, LEVEL3=2, LEVEL4=3).
 _ALL_TIER_LEVELS: tuple[TierLevel, ...] = tuple(TierLevel)
 
 
@@ -103,7 +107,7 @@ def call_with_tier_fallback(
         **fresh** for each tier level visited.
     tier_config:
         A validated :class:`TierConfig` providing ``level1``, ``level2``,
-        ``level3`` :class:`TierLevelConfig` attributes.
+        ``level3``, ``level4`` :class:`TierLevelConfig` attributes.
     level:
         The starting :class:`TierLevel` (default ``LEVEL1``).
     fallback_enabled:

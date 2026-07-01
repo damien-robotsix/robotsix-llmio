@@ -35,13 +35,14 @@ def create_model(
     Parameters
     ----------
     level:
-        Capability level (1, 2, or 3).  Level 1 selects the cheap/fast model;
-        levels 2 and 3 select progressively more capable defaults.
+        Capability level (1, 2, 3, or 4).  Level 1 selects the cheap/fast
+        model; levels 2-4 select progressively more capable defaults (level
+        4 is the frontier tier, ``claudeSDK-claude-fable-5`` by default).
     tier_config:
         Optional :class:`~.tier.TierConfig` to resolve the provider + model.
         When ``None``, a default is built from baked module-level defaults
         (:data:`~.tier.LEVEL1_DEFAULT`, :data:`~.tier.LEVEL2_DEFAULT`,
-        :data:`~.tier.LEVEL3_DEFAULT`).
+        :data:`~.tier.LEVEL3_DEFAULT`, :data:`~.tier.LEVEL4_DEFAULT`).
     **provider_kwargs:
         Forwarded to the provider constructor (e.g. ``api_key=...`` for the
         OpenRouter provider).  These override any ``provider_kwargs`` from
@@ -56,7 +57,7 @@ def create_model(
     Raises
     ------
     ValueError
-        If *level* is not 1, 2, or 3.
+        If *level* is not 1, 2, 3, or 4.
     ImportError
         If the provider's optional extra is not installed.
 
@@ -74,12 +75,19 @@ def create_model(
         )
     """
     if tier_config is None:
-        from .tier import LEVEL1_DEFAULT, LEVEL2_DEFAULT, LEVEL3_DEFAULT, TierConfig
+        from .tier import (
+            LEVEL1_DEFAULT,
+            LEVEL2_DEFAULT,
+            LEVEL3_DEFAULT,
+            LEVEL4_DEFAULT,
+            TierConfig,
+        )
 
         tier_config = TierConfig(
             level1=LEVEL1_DEFAULT,
             level2=LEVEL2_DEFAULT,
             level3=LEVEL3_DEFAULT,
+            level4=LEVEL4_DEFAULT,
         )
 
     tlc = tier_config.for_level(level)

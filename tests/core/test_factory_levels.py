@@ -58,6 +58,7 @@ def test_default_tier_config_bakes_per_level_defaults() -> None:
     assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash"
     assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.for_level(3).model == "claudeSDK-opus"
+    assert cfg.for_level(4).model == "claudeSDK-claude-fable-5"
 
 
 # -- get_provider_for_level -------------------------------------------------
@@ -101,7 +102,7 @@ def test_get_provider_for_level_invalid_level_raises(
 ) -> None:
     _patch_factory(monkeypatch)
     with pytest.raises(ValueError):
-        get_provider_for_level(4)
+        get_provider_for_level(5)
 
 
 # -- build_agent_for_level --------------------------------------------------
@@ -139,6 +140,20 @@ def test_build_agent_for_level_default_level3(
     call = provider.build_agent_calls[0]
     assert call["level"] == 3
     assert call["model"] == "opus"
+
+
+def test_build_agent_for_level_default_level4(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, provider = _patch_factory(monkeypatch)
+
+    build_agent_for_level(4, system_prompt="frontier task", output_type=str)
+
+    # ClaudeSDK provider resolved from the level-4 identifier.
+    assert calls[0][0] == "claudeSDK-claude-fable-5"
+    call = provider.build_agent_calls[0]
+    assert call["level"] == 4
+    assert call["model"] == "claude-fable-5"
 
 
 def test_build_agent_for_level_model_override_keeps_provider(
@@ -203,7 +218,7 @@ def test_build_agent_for_level_invalid_level_raises(
 ) -> None:
     _patch_factory(monkeypatch)
     with pytest.raises(ValueError):
-        build_agent_for_level(4, system_prompt="x")
+        build_agent_for_level(5, system_prompt="x")
 
 
 # -- exports ----------------------------------------------------------------

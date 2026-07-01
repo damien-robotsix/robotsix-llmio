@@ -20,6 +20,7 @@ from robotsix_llmio.config.tier import (
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
+    LEVEL4_DEFAULT,
     TierLevelConfig,
 )
 
@@ -40,12 +41,13 @@ def set_env(monkeypatch: pytest.MonkeyPatch, **kwargs: str) -> None:
 
 
 def test_no_args_returns_baked_defaults():
-    """With no env vars and no explicit dict, all three tiers fall back to
+    """With no env vars and no explicit dict, all four tiers fall back to
     their baked defaults."""
     cfg = load_tier_config()
     assert cfg.level1 == LEVEL1_DEFAULT
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
+    assert cfg.level4 == LEVEL4_DEFAULT
 
 
 # ========================================================================== #
@@ -128,6 +130,20 @@ def test_env_level3_model_override(monkeypatch: pytest.MonkeyPatch):
     cfg = load_tier_config()
     assert cfg.level3.model == "claudeSDK-haiku"
     assert cfg.level3.model_name == "haiku"
+
+
+def test_env_level4_model_override(monkeypatch: pytest.MonkeyPatch):
+    """``LLMIO_LEVEL4_MODEL`` overrides the baked level4 model."""
+    set_env(
+        monkeypatch,
+        LLMIO_LEVEL4_MODEL="claudeSDK-opus",
+    )
+    cfg = load_tier_config()
+    assert cfg.level4.model == "claudeSDK-opus"
+    assert cfg.level4.model_name == "opus"
+    # Untouched tiers keep their baked defaults.
+    assert cfg.level1 == LEVEL1_DEFAULT
+    assert cfg.level3 == LEVEL3_DEFAULT
 
 
 def test_env_model_must_be_valid_identifier(monkeypatch: pytest.MonkeyPatch):

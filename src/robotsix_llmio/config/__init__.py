@@ -1,4 +1,4 @@
-"""Three-tier configuration schema for provider+model bindings.
+"""Four-tier configuration schema for provider+model bindings.
 
 Prefer importing from :mod:`robotsix_llmio.core` — the public types are
 re-exported there for discoverability.
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         LEVEL1_DEFAULT,
         LEVEL2_DEFAULT,
         LEVEL3_DEFAULT,
+        LEVEL4_DEFAULT,
         TierConfig,
         TierLevel,
         TierLevelConfig,
@@ -42,6 +43,7 @@ __all__ = [
     "LEVEL1_DEFAULT",
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
+    "LEVEL4_DEFAULT",
     "MalformedIdentifierError",
     "ParsedIdentifier",
     "TierConfig",
@@ -68,6 +70,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import tier
 
         return tier.LEVEL3_DEFAULT
+    if name == "LEVEL4_DEFAULT":
+        from . import tier
+
+        return tier.LEVEL4_DEFAULT
     if name == "TierConfig":
         from . import tier
 

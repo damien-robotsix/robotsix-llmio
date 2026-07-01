@@ -156,6 +156,7 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
         (1, "deepseek/deepseek-v4-flash"),
         (2, "deepseek/deepseek-v4-pro"),
         (3, "opus"),
+        (4, "claude-fable-5"),
     ],
 )
 def test_build_agent_level_uses_default(mock_build_agent, level, expected_model):
@@ -166,10 +167,10 @@ def test_build_agent_level_uses_default(mock_build_agent, level, expected_model)
 
 def test_build_agent_level_out_of_range_raises(mock_build_agent):
     p = _MockProvider()
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 0"):
         p.build_agent(level=0, system_prompt="sys")
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
-        p.build_agent(level=4, system_prompt="sys")
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 5"):
+        p.build_agent(level=5, system_prompt="sys")
 
 
 def test_build_agent_threads_kwargs(monkeypatch):

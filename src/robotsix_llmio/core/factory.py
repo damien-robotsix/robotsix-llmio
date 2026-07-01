@@ -124,20 +124,23 @@ def default_tier_config() -> TierConfig:
     This is the single source of the baked per-level *(provider, model)*
     binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash``,
     level 2 → ``openrouter-deepseek/deepseek-v4-pro``,
-    level 3 → ``claudeSDK-opus`` (see
+    level 3 → ``claudeSDK-opus``,
+    level 4 → ``claudeSDK-claude-fable-5`` (see
     :data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`, and
-    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
+    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
+    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`, and
+    :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
 
     Returns
     -------
     TierConfig
-        A config whose three slots hold the module-level baked defaults.
+        A config whose four slots hold the module-level baked defaults.
     """
     from robotsix_llmio.config.tier import (
         LEVEL1_DEFAULT,
         LEVEL2_DEFAULT,
         LEVEL3_DEFAULT,
+        LEVEL4_DEFAULT,
         TierConfig,
     )
 
@@ -145,6 +148,7 @@ def default_tier_config() -> TierConfig:
         level1=LEVEL1_DEFAULT,
         level2=LEVEL2_DEFAULT,
         level3=LEVEL3_DEFAULT,
+        level4=LEVEL4_DEFAULT,
     )
 
 
@@ -166,8 +170,8 @@ def get_provider_for_level(
     Parameters
     ----------
     level:
-        Capability level — ``1`` (cheap), ``2`` (intermediate), or ``3``
-        (high-level planning).
+        Capability level — ``1`` (cheap), ``2`` (intermediate), ``3``
+        (high-level planning), or ``4`` (frontier).
     tier_config:
         Per-level *(provider, model)* binding to resolve against.  When
         ``None``, the baked defaults from :func:`default_tier_config` are
@@ -184,13 +188,13 @@ def get_provider_for_level(
     Raises
     ------
     ValueError
-        If *level* is not 1, 2, or 3 (via :meth:`TierConfig.for_level`),
+        If *level* is not 1, 2, 3, or 4 (via :meth:`TierConfig.for_level`),
         or if the level's identifier names an unknown provider prefix.
     MalformedIdentifierError
         If the level's identifier cannot be parsed.
     ImportError
         If the resolved provider's optional extra is not installed
-        (e.g. ``claude_sdk`` for ``level=3``).
+        (e.g. ``claude_sdk`` for ``level=3`` or ``level=4``).
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
     return get_provider_for_identifier(tlc.model, **{**tlc.provider_kwargs, **kwargs})
@@ -219,15 +223,17 @@ def build_agent_for_level(
 
     With everything left at its default a consumer calls
     ``build_agent_for_level(1, system_prompt=..., output_type=str,
-    name=...)`` for a cheap DeepSeek agent and
+    name=...)`` for a cheap DeepSeek agent,
     ``build_agent_for_level(3, system_prompt=..., tools=...,
-    output_type=str, name=...)`` for a Claude-opus agent.
+    output_type=str, name=...)`` for a Claude-opus agent, and
+    ``build_agent_for_level(4, system_prompt=..., name=...)`` for a
+    Claude-Fable-5 frontier agent.
 
     Parameters
     ----------
     level:
-        Capability level — ``1`` (cheap), ``2`` (intermediate), or ``3``
-        (high-level planning).
+        Capability level — ``1`` (cheap), ``2`` (intermediate), ``3``
+        (high-level planning), or ``4`` (frontier).
     tier_config:
         Per-level *(provider, model)* binding to resolve against.  When
         ``None``, the baked defaults from :func:`default_tier_config` are
@@ -252,13 +258,14 @@ def build_agent_for_level(
     Raises
     ------
     ValueError
-        If *level* is not 1, 2, or 3 (via :meth:`TierConfig.for_level`),
+        If *level* is not 1, 2, 3, or 4 (via :meth:`TierConfig.for_level`),
         or if the level's identifier names an unknown provider prefix.
     MalformedIdentifierError
         If the level's identifier cannot be parsed.
     ImportError
         If the resolved provider's optional extra is not installed
-        (``build_agent_for_level(3)`` requires the ``claude_sdk`` extra).
+        (``build_agent_for_level(3)`` and ``build_agent_for_level(4)``
+        require the ``claude_sdk`` extra).
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
     kwargs = provider_kwargs if provider_kwargs is not None else tlc.provider_kwargs

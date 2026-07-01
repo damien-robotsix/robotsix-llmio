@@ -14,7 +14,7 @@ class TestCreateModelValidation:
     """Input validation before delegation to ``get_provider``."""
 
     def test_invalid_level_raises_valueerror(self):
-        for bad_level in (0, 4, -1, 99):
+        for bad_level in (0, 5, -1, 99):
             with pytest.raises(ValueError) as excinfo:
                 create_model(level=bad_level)
             message = str(excinfo.value)

@@ -1,4 +1,4 @@
-"""Tests for the three-tier configuration schema.
+"""Tests for the four-tier configuration schema.
 
 Covers:
 - ``TierLevel`` enum values and ``str`` behaviour
@@ -18,6 +18,7 @@ from robotsix_llmio.config.tier import (
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
+    LEVEL4_DEFAULT,
     TierConfig,
     TierLevel,
     TierLevelConfig,
@@ -34,6 +35,7 @@ def test_tier_level_values():
     assert TierLevel.LEVEL1.value == "level1"
     assert TierLevel.LEVEL2.value == "level2"
     assert TierLevel.LEVEL3.value == "level3"
+    assert TierLevel.LEVEL4.value == "level4"
 
 
 def test_tier_level_is_str_enum():
@@ -48,21 +50,22 @@ def test_tier_level_str_comparison():
     assert TierLevel.LEVEL1.value == "level1"
     assert TierLevel.LEVEL2.value == "level2"
     assert TierLevel.LEVEL3.value == "level3"
+    assert TierLevel.LEVEL4.value == "level4"
 
 
 def test_tier_level_distinct_members():
     """Different members have different names and values."""
     members = list(TierLevel)
-    assert len(members) == 3
+    assert len(members) == 4
     # All values are distinct.
     values = {m.value for m in members}
-    assert len(values) == 3
+    assert len(values) == 4
 
 
 def test_tier_level_members():
-    """Only the three members exist — no extras."""
-    assert {m.name for m in TierLevel} == {"LEVEL1", "LEVEL2", "LEVEL3"}
-    assert len(list(TierLevel)) == 3
+    """Only the four members exist — no extras."""
+    assert {m.name for m in TierLevel} == {"LEVEL1", "LEVEL2", "LEVEL3", "LEVEL4"}
+    assert len(list(TierLevel)) == 4
 
 
 # ========================================================================== #
@@ -194,6 +197,12 @@ def test_level3_default():
     assert LEVEL3_DEFAULT.model_name == "opus"
 
 
+def test_level4_default():
+    assert LEVEL4_DEFAULT.model == "claudeSDK-claude-fable-5"
+    assert LEVEL4_DEFAULT.provider == "claudeSDK"
+    assert LEVEL4_DEFAULT.model_name == "claude-fable-5"
+
+
 # ========================================================================== #
 #  TierLevelConfig parsed accessors
 # ========================================================================== #
@@ -240,20 +249,22 @@ def test_tier_config_full_construction():
 
 def test_tier_config_defaults_when_omitted():
     """Constructing with only ``level1`` falls back to baked defaults for
-    ``level2`` and ``level3``."""
+    ``level2``, ``level3``, and ``level4``."""
     cfg = TierConfig(
         level1=TierLevelConfig(model="claudeSDK-haiku"),
     )
     assert cfg.level1.model == "claudeSDK-haiku"
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
+    assert cfg.level4 == LEVEL4_DEFAULT
 
 
 def test_tier_config_all_defaults():
-    """``TierConfig(level1=LEVEL1_DEFAULT)`` gives baked defaults for L2/L3."""
+    """``TierConfig(level1=LEVEL1_DEFAULT)`` gives baked defaults for L2/L3/L4."""
     cfg = TierConfig(level1=LEVEL1_DEFAULT)
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
+    assert cfg.level4 == LEVEL4_DEFAULT
 
 
 def test_tier_config_partial_override_level2():
@@ -272,6 +283,14 @@ def test_tier_config_partial_override_level3():
     assert cfg.level2 == LEVEL2_DEFAULT
 
 
+def test_tier_config_partial_override_level4():
+    """Specifying ``level4`` overrides the default; ``level3`` stays baked."""
+    custom = TierLevelConfig(model="claudeSDK-opus")
+    cfg = TierConfig(level1=LEVEL1_DEFAULT, level4=custom)
+    assert cfg.level4 is custom
+    assert cfg.level3 == LEVEL3_DEFAULT
+
+
 def test_tier_config_model_validate_from_dict():
     """``model_validate`` from a plain dict populates all tiers, applying
     baked defaults for omitted ones."""
@@ -283,19 +302,22 @@ def test_tier_config_model_validate_from_dict():
     assert cfg.level1.provider == "claudeSDK"
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
+    assert cfg.level4 == LEVEL4_DEFAULT
 
 
 def test_tier_config_model_validate_full_dict():
-    """All three tiers can be supplied in the dict."""
+    """All four tiers can be supplied in the dict."""
     data = {
         "level1": {"model": "claudeSDK-haiku"},
         "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
         "level3": {"model": "claudeSDK-opus"},
+        "level4": {"model": "claudeSDK-claude-fable-5"},
     }
     cfg = TierConfig.model_validate(data)
     assert cfg.level1.model == "claudeSDK-haiku"
     assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-pro"
     assert cfg.level3.model == "claudeSDK-opus"
+    assert cfg.level4.model == "claudeSDK-claude-fable-5"
 
 
 def test_tier_config_omitting_level1_uses_default():
@@ -305,6 +327,7 @@ def test_tier_config_omitting_level1_uses_default():
     assert cfg.level1 == LEVEL1_DEFAULT
     assert cfg.level2 == LEVEL2_DEFAULT
     assert cfg.level3 == LEVEL3_DEFAULT
+    assert cfg.level4 == LEVEL4_DEFAULT
 
 
 def test_tier_config_model_dump_round_trip():
@@ -371,18 +394,30 @@ def test_for_level_3_returns_level3():
     assert result.provider == "claudeSDK"
 
 
+def test_for_level_4_returns_level4():
+    """``for_level(4)`` returns ``self.level4`` — explicit or default."""
+    cfg = TierConfig(
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
+        level4=TierLevelConfig(model="claudeSDK-claude-fable-5"),
+    )
+    result = cfg.for_level(4)
+    assert result is cfg.level4
+    assert result.model == "claudeSDK-claude-fable-5"
+    assert result.provider == "claudeSDK"
+
+
 def test_for_level_0_raises():
     """``for_level(0)`` raises ValueError."""
     cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 0"):
         cfg.for_level(0)
 
 
-def test_for_level_4_raises():
-    """``for_level(4)`` raises ValueError."""
+def test_for_level_5_raises():
+    """``for_level(5)`` raises ValueError."""
     cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
-        cfg.for_level(4)
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 5"):
+        cfg.for_level(5)
 
 
 def test_for_level_returns_default_level2_when_not_explicitly_set():
@@ -399,6 +434,14 @@ def test_for_level_returns_default_level3_when_not_explicitly_set():
     cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
     result = cfg.for_level(3)
     assert result == LEVEL3_DEFAULT
+
+
+def test_for_level_returns_default_level4_when_not_explicitly_set():
+    """``for_level(4)`` falls back to the baked LEVEL4_DEFAULT when level4
+    is not explicitly configured."""
+    cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
+    result = cfg.for_level(4)
+    assert result == LEVEL4_DEFAULT
 
 
 # ========================================================================== #
@@ -428,7 +471,7 @@ def test_core_reexports_tier_level_config():
 
 
 def test_core_reexports_defaults():
-    """The three baked defaults are importable from ``robotsix_llmio.core``."""
+    """The four baked defaults are importable from ``robotsix_llmio.core``."""
     from robotsix_llmio.core import (
         LEVEL1_DEFAULT as L1D,
     )
@@ -438,7 +481,11 @@ def test_core_reexports_defaults():
     from robotsix_llmio.core import (
         LEVEL3_DEFAULT as L3D,
     )
+    from robotsix_llmio.core import (
+        LEVEL4_DEFAULT as L4D,
+    )
 
     assert L1D is LEVEL1_DEFAULT
     assert L2D is LEVEL2_DEFAULT
     assert L3D is LEVEL3_DEFAULT
+    assert L4D is LEVEL4_DEFAULT
