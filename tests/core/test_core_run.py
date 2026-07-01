@@ -22,13 +22,18 @@ class _HTTPErr(Exception):
 
 
 class _FakeHandle:
-    """A handle that only records how many times ``close()`` was called."""
+    """A handle that records how many times ``close()`` and ``aclose()``
+    were called."""
 
     def __init__(self) -> None:
         self.closed = 0
+        self.aclose_count = 0
 
     def close(self) -> None:
         self.closed += 1
+
+    async def aclose(self) -> None:
+        self.aclose_count += 1
 
 
 def _noop_sleep(_d: float) -> None:
@@ -123,7 +128,7 @@ def test_arun_agent_happy_path_returns_and_closes_once():
 
     out = asyncio.run(arun_agent(handle, run, label="t", sleep=_anoop_sleep))
     assert out == "ok"
-    assert handle.closed == 1
+    assert handle.aclose_count == 1
 
 
 def test_arun_agent_closes_when_run_raises_non_transient():
@@ -134,7 +139,7 @@ def test_arun_agent_closes_when_run_raises_non_transient():
 
     with pytest.raises(_HTTPErr):
         asyncio.run(arun_agent(handle, run, label="t", sleep=_anoop_sleep))
-    assert handle.closed == 1
+    assert handle.aclose_count == 1
 
 
 def test_arun_agent_retries_transient_then_succeeds():
@@ -150,7 +155,7 @@ def test_arun_agent_retries_transient_then_succeeds():
     out = asyncio.run(arun_agent(handle, run, label="t", sleep=_anoop_sleep))
     assert out == "ok"
     assert calls["n"] == 3
-    assert handle.closed == 1
+    assert handle.aclose_count == 1
 
 
 def test_arun_agent_uses_fallback_after_primary_exhausted():
@@ -171,7 +176,7 @@ def test_arun_agent_uses_fallback_after_primary_exhausted():
     assert out == "fallback-ok"
     assert calls["primary"] > 1
     assert calls["fallback"] == 1
-    assert handle.closed == 1
+    assert handle.aclose_count == 1
 
 
 def test_arun_agent_offline_trace_input_output_noop():
@@ -192,4 +197,4 @@ def test_arun_agent_offline_trace_input_output_noop():
         )
     )
     assert out == "done"
-    assert handle.closed == 1
+    assert handle.aclose_count == 1

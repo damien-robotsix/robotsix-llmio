@@ -95,8 +95,9 @@ async def arun_agent(
 
     Same composition, except *run*/*fallback* are awaited and the retry uses
     :func:`acall_with_retry` / :func:`acall_with_retry_and_fallback` with
-    *sleep* defaulting to :func:`asyncio.sleep`. ``start_trace`` (sync context
-    manager) and ``handle.close()`` (sync) are used as-is inside the coroutine.
+    *sleep* defaulting to :func:`asyncio.sleep`. ``handle.aclose()`` is
+    awaited in the ``finally`` block to close the HTTP client in the caller's
+    running event loop.
     """
     with start_trace(label, session_id=session_id, project=project) as span:
         try:
@@ -118,4 +119,4 @@ async def arun_agent(
             span.set_output(result)
             return result
         finally:
-            handle.close()
+            await handle.aclose()

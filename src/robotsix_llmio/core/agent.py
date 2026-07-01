@@ -23,6 +23,12 @@ class AgentHandle:
             _close_async_client(self._http_client)
             self._http_client = None
 
+    async def aclose(self) -> None:
+        """Close the HTTP client from an async context. Idempotent."""
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
+
     def __getattr__(self, name: str) -> Any:
         return getattr(self._agent, name)
 
