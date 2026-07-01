@@ -1,4 +1,4 @@
-"""Tier configuration schema — three configurable provider+model bindings.
+"""Tier configuration schema — four configurable provider+model bindings.
 
 This module defines the *data model only*.  Wiring it into the provider
 factory, ``build_agent``, and ``new_model`` is a follow-up concern.
@@ -14,23 +14,25 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 # --------------------------------------------------------------------------- #
-#  TierLevel — three configuration tiers                                      #
+#  TierLevel — four configuration tiers                                       #
 # --------------------------------------------------------------------------- #
 
 
 class TierLevel(StrEnum):
-    """Three-tier configuration selector.
+    """Four-tier configuration selector.
 
-    | Member   | Value     | Purpose                                   |
-    |----------|-----------|-------------------------------------------|
-    | LEVEL1   | ``level1`` | Cheap, obvious, repetitive tasks          |
-    | LEVEL2   | ``level2`` | Intermediate (e.g. implementing code)     |
-    | LEVEL3   | ``level3`` | High-level organisation and planning      |
+    | Member   | Value      | Purpose                                        |
+    |----------|------------|------------------------------------------------|
+    | LEVEL1   | ``level1`` | Cheap, obvious, repetitive tasks               |
+    | LEVEL2   | ``level2`` | Intermediate (e.g. implementing code)          |
+    | LEVEL3   | ``level3`` | High-level organisation and planning           |
+    | LEVEL4   | ``level4`` | Frontier — hardest reasoning and long-horizon  |
     """
 
     LEVEL1 = "level1"
     LEVEL2 = "level2"
     LEVEL3 = "level3"
+    LEVEL4 = "level4"
 
 
 # --------------------------------------------------------------------------- #
@@ -121,21 +123,25 @@ LEVEL3_DEFAULT = TierLevelConfig(
     model="claudeSDK-opus",
 )
 
+LEVEL4_DEFAULT = TierLevelConfig(
+    model="claudeSDK-claude-fable-5",
+)
+
 
 # --------------------------------------------------------------------------- #
-#  TierConfig — aggregates three TierLevelConfig slots                        #
+#  TierConfig — aggregates four TierLevelConfig slots                         #
 # --------------------------------------------------------------------------- #
 
 
 class TierConfig(BaseModel):
-    """Three-tier provider+model configuration.
+    """Four-tier provider+model configuration.
 
-    All three slots are optional: each falls back to its module-level baked
+    All four slots are optional: each falls back to its module-level baked
     default (:data:`LEVEL1_DEFAULT`, :data:`LEVEL2_DEFAULT`,
-    :data:`LEVEL3_DEFAULT`) when omitted, so ``TierConfig()`` yields the fully
-    baked default configuration.
+    :data:`LEVEL3_DEFAULT`, :data:`LEVEL4_DEFAULT`) when omitted, so
+    ``TierConfig()`` yields the fully baked default configuration.
 
-    Example YAML/JSON (override level 1 only; levels 2 and 3 stay default)::
+    Example YAML/JSON (override level 1 only; levels 2-4 stay default)::
 
         {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash"}}
 
@@ -155,6 +161,10 @@ class TierConfig(BaseModel):
         default_factory=lambda: LEVEL3_DEFAULT,
         description="Level 3 — high-level organisation and planning.",
     )
+    level4: TierLevelConfig = Field(
+        default_factory=lambda: LEVEL4_DEFAULT,
+        description="Level 4 — frontier: hardest reasoning and long-horizon work.",
+    )
 
     def for_level(self, level: int) -> TierLevelConfig:
         """Return the :class:`TierLevelConfig` for the given integer *level*.
@@ -164,9 +174,10 @@ class TierConfig(BaseModel):
         | 1         | ``self.level1`` |
         | 2         | ``self.level2`` |
         | 3         | ``self.level3`` |
+        | 4         | ``self.level4`` |
 
         Raises:
-            ValueError: If *level* is not 1, 2, or 3.
+            ValueError: If *level* is not 1, 2, 3, or 4.
         """
         if level == 1:
             return self.level1
@@ -174,4 +185,6 @@ class TierConfig(BaseModel):
             return self.level2
         if level == 3:
             return self.level3
-        raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
+        if level == 4:
+            return self.level4
+        raise ValueError(f"`level` must be 1, 2, 3, or 4, got {level!r}")

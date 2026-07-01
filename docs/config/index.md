@@ -32,8 +32,9 @@ agent = provider.build_agent(
   ) -> LLMProvider:
   ```
 
-  - **`level`** (1, 2, or 3) — selects the capability tier.  Level 1 picks the
-    cheap/fast default; levels 2 and 3 pick progressively more capable defaults.
+  - **`level`** (1, 2, 3, or 4) — selects the capability tier.  Level 1 picks the
+    cheap/fast default; levels 2–4 pick progressively more capable defaults
+    (level 4 is the frontier tier, `claudeSDK-claude-fable-5` by default).
     Defaults to 1.
   - **`tier_config`** — optional `TierConfig` instance supplying custom
     per-level defaults.  When `None`, a default is built from the baked
@@ -117,20 +118,21 @@ cfg = load_tier_config({
 ```
 
 The loader merges three sources in order of increasing precedence:
-1. Baked defaults (`LEVEL2_DEFAULT`, `LEVEL3_DEFAULT`).
-2. Environment variables (`LLMIO_LEVEL{1,2,3}_*`).
+1. Baked defaults (`LEVEL1_DEFAULT` … `LEVEL4_DEFAULT`).
+2. Environment variables (`LLMIO_LEVEL{1,2,3,4}_*`).
 3. Explicit dict argument.
 
 ## Default levels
 
 The library ships with the following baked defaults so **level 1** works
-out of the box and levels 2+3 have sensible fallbacks:
+out of the box and levels 2–4 have sensible fallbacks:
 
 | Constant | Identifier |
 |----------|------------|
 | `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` |
 | `LEVEL2_DEFAULT` | `openrouter-deepseek/deepseek-v4-pro` |
 | `LEVEL3_DEFAULT` | `claudeSDK-opus` |
+| `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` |
 
 Level 1 is the default when no level is specified — cheap and fast is the
 safe default.

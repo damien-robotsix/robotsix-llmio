@@ -20,6 +20,7 @@ from robotsix_llmio.config.tier import (
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
+    LEVEL4_DEFAULT,
     TierConfig,
     TierLevel,
 )
@@ -46,10 +47,11 @@ _BAKED_BASE: dict[str, dict[str, Any]] = {
     "level1": LEVEL1_DEFAULT.model_dump(),
     "level2": LEVEL2_DEFAULT.model_dump(),
     "level3": LEVEL3_DEFAULT.model_dump(),
+    "level4": LEVEL4_DEFAULT.model_dump(),
 }
 """Dict forms of the module-level baked defaults for every tier.
 
-All three tiers have a baked default, so partial env/dict overrides merge
+All four tiers have a baked default, so partial env/dict overrides merge
 field-by-field over the corresponding default (and an omitted tier resolves
 to its default outright).
 """
@@ -67,8 +69,8 @@ def load_tier_config(
     """Load a validated :class:`TierConfig` by merging three sources.
 
     1. **Baked defaults** — the ``TierConfig`` model supplies a default for
-       every tier (``level1``, ``level2``, ``level3``), so any omitted tier
-       falls back to its baked default.
+       every tier (``level1``, ``level2``, ``level3``, ``level4``), so any
+       omitted tier falls back to its baked default.
     2. **Environment variables** — every recognised variable under
        *env_prefix* (see table below).
     3. **Explicit dict** (*config_dict*) — highest precedence; merged per-tier
@@ -78,7 +80,7 @@ def load_tier_config(
     ----------
     config_dict:
         Optional dictionary whose keys are tier names (``"level1"``,
-        ``"level2"``, ``"level3"``) and values are dicts of
+        ``"level2"``, ``"level3"``, ``"level4"``) and values are dicts of
         ``TierLevelConfig`` fields.  When ``None``, only environment
         variables and baked defaults are used.
     env_prefix:
@@ -87,7 +89,7 @@ def load_tier_config(
     Returns
     -------
     TierConfig
-        A fully-validated three-tier configuration.
+        A fully-validated four-tier configuration.
 
     Raises
     ------

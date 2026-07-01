@@ -80,9 +80,9 @@ class ClaudeSDKProvider(LLMProvider):
     ) -> Any:
         """Build a ready-to-run agent for the requested capability *level*.
 
-        Uses the integer *level* (1 → cheap, 2/3 → capable) with
-        *tier_config*.  When *tier_config* is ``None``, a default is built
-        from baked module-level defaults.
+        Uses the integer *level* (1 → cheap, 2/3 → capable, 4 → frontier)
+        with *tier_config*.  When *tier_config* is ``None``, a default is
+        built from baked module-level defaults.
 
         When *tools* is non-empty, returns a :class:`_SdkToolAgentHandle` that
         drives the SDK tool loop directly — intermediate ``ToolCallPart``

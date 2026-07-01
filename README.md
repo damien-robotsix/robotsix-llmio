@@ -7,7 +7,7 @@
 
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
-consumer only ever picks a **level** (1, 2, or 3).
+consumer only ever picks a **level** (1, 2, 3, or 4).
 
 ## Layers
 
@@ -36,7 +36,9 @@ consumer only ever picks a **level** (1, 2, or 3).
 from `core.LLMProvider`) that needs **no API key**: it drives the local `claude`
 CLI through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk),
 so it authenticates with your `claude login` (Claude Code subscription / OAuth)
-credentials. `ClaudeSDKProvider` maps `level 2→opus`, `level 1→haiku`.
+credentials. Models are resolved from the tier configuration: the baked
+defaults bind `level 3` to `claudeSDK-opus` and `level 4` to
+`claudeSDK-claude-fable-5` (Claude Fable 5, the frontier tier).
 
 Because the SDK runs its own agent loop and executes tools internally — returning
 only final text, never raw `tool_use` blocks — this transport supports
@@ -58,9 +60,9 @@ class City(BaseModel):
     country: str
 
 agent = provider.build_agent(
-    level=1, system_prompt="Extract the city.",
+    level=4, system_prompt="Extract the city.",
     output_type=PromptedOutput(City), name="extract",
-)
+)  # level 4 resolves to claude-fable-5 via the baked tier defaults
 result = provider.call_with_retry(lambda: agent.run_sync("Tell me about Kyoto."))
 print(result.output)  # name='Kyoto' country='Japan'
 agent.close()
@@ -111,24 +113,22 @@ provider = get_provider_for_level(level=1, api_key="sk-...", base_url="https://p
 
 The default endpoint is `https://openrouter.ai/api/v1`.
 
-## Three-tier configuration
+## Four-tier configuration
 
-The library uses a three-tier model selection system exposed through the
+The library uses a four-tier model selection system exposed through the
 `level` parameter on `LLMProvider.build_agent()`.  Each level is backed by a
-`TierLevelConfig` that specifies a provider and model:
+`TierLevelConfig` holding a combined `provider-model` identifier:
 
-| Level | Intended use                           | Example env vars                            |
-|-------|----------------------------------------|---------------------------------------------|
-| 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_PROVIDER=openrouter-deepseek` |
-|       |                                        | `LLMIO_LEVEL1_MODEL=deepseek/deepseek-v4-flash` |
-| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_PROVIDER=openrouter-deepseek` |
-|       |                                        | `LLMIO_LEVEL2_MODEL=deepseek/deepseek-v4-pro`   |
-| 3     | High-level planning and refinement     | `LLMIO_LEVEL3_PROVIDER=claude-sdk`          |
-|       |                                        | `LLMIO_LEVEL3_MODEL=opus`                   |
+| Level | Intended use                           | Example env var (combined identifier)                    |
+|-------|----------------------------------------|----------------------------------------------------------|
+| 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_MODEL=openrouter-deepseek/deepseek-v4-flash` |
+| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_MODEL=openrouter-deepseek/deepseek-v4-pro`   |
+| 3     | High-level planning and refinement     | `LLMIO_LEVEL3_MODEL=claudeSDK-opus`                        |
+| 4     | Frontier — hardest reasoning and long-horizon work | `LLMIO_LEVEL4_MODEL=claudeSDK-claude-fable-5`   |
 
-Level 1 is the default — cheap and fast is the safe default.  Level 3 currently maps to the same configuration as level 2 at the provider level; full three-tier differentiation is deferred to a follow-up release.  The
+Level 1 is the default — cheap and fast is the safe default.  The
 configuration system (`TierConfig` / `load_tier_config` / `call_with_tier_fallback`)
-already supports all three levels end-to-end.
+supports all four levels end-to-end.
 
 You can also set `LLMIO_LEVEL<N>_PROVIDER_KWARGS` as a JSON object for extra
 constructor arguments (e.g. `{"base_url": "https://proxy.example/api/v1"}`).
@@ -150,11 +150,17 @@ cheap = build_agent_for_level(1, system_prompt="Classify this.", name="classify"
 planner = build_agent_for_level(
     3, system_prompt="Plan this epic.", tools=[], name="plan"
 )
+
+# Level 4 → Claude SDK (claude-fable-5): frontier tier for the hardest
+# reasoning and long-horizon work. Requires the `claude_sdk` extra.
+architect = build_agent_for_level(
+    4, system_prompt="Design the migration strategy.", name="architect"
+)
 ```
 
 With everything left at its default the baked per-level defaults apply
 (level 1 → `deepseek/deepseek-v4-flash`, level 2 → `deepseek/deepseek-v4-pro`,
-level 3 → `opus`) — each on its **own** provider, so a DeepSeek model never runs
+level 3 → `opus`, level 4 → `claude-fable-5`) — each on its **own** provider, so a DeepSeek model never runs
 on the Claude transport. `model=` overrides only the model name (the provider
 stays the one bound to the level); pass a custom `tier_config=` to override the
 bindings, and `provider_kwargs=` for provider-constructor arguments. Two related
@@ -167,7 +173,7 @@ schema and `create_model` factory API.
 
 ## Use
 
-Obtain a provider through `get_provider_for_level` and pick a **level** (1, 2, or 3).
+Obtain a provider through `get_provider_for_level` and pick a **level** (1, 2, 3, or 4).
 Level 1 is the default — cheap and fast.
 
 For new code, prefer `create_model` — it resolves the provider from your

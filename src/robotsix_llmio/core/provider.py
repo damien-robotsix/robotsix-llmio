@@ -78,13 +78,15 @@ def _resolve_model_name(
     from the baked module-level defaults
     (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
     :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
+    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`,
+    :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
     """
     if tier_config is None:
         from robotsix_llmio.config.tier import (
             LEVEL1_DEFAULT,
             LEVEL2_DEFAULT,
             LEVEL3_DEFAULT,
+            LEVEL4_DEFAULT,
             TierConfig,
         )
 
@@ -92,6 +94,7 @@ def _resolve_model_name(
             level1=LEVEL1_DEFAULT,
             level2=LEVEL2_DEFAULT,
             level3=LEVEL3_DEFAULT,
+            level4=LEVEL4_DEFAULT,
         )
     return tier_config.for_level(level).model_name
 
@@ -117,7 +120,7 @@ class LLMProvider(ABC):
         model:
             The concrete model name (e.g. ``"deepseek/deepseek-v4-flash"``).
         level:
-            Capability level (1, 2, or 3) for per-level policy hooks.
+            Capability level (1, 2, 3, or 4) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``
             call" — providers should apply a safe default.
         """
@@ -151,11 +154,12 @@ class LLMProvider(ABC):
         Parameters
         ----------
         level:
-            Integer 1-3 selecting the capability tier:
+            Integer 1-4 selecting the capability tier:
 
             - ``1`` — cheap, fast, repetitive tasks
             - ``2`` — intermediate, e.g. implementing code
             - ``3`` — high-level planning / refine
+            - ``4`` — frontier: hardest reasoning and long-horizon work
 
         tier_config:
             When provided, resolution is::
@@ -167,7 +171,8 @@ class LLMProvider(ABC):
             is built from the baked module-level defaults
             (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
             :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
-            :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`).
+            :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`,
+            :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
 
             Ignored when *model* is provided (see below).
         model:

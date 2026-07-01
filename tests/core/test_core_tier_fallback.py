@@ -36,8 +36,11 @@ async def _anoop_sleep(_d: float) -> None:
 _L1_CFG = TierLevelConfig(model="claudeSDK-opus")
 _L2_CFG = TierLevelConfig(model="claudeSDK-haiku")
 _L3_CFG = TierLevelConfig(model="claudeSDK-sonnet")
+_L4_CFG = TierLevelConfig(model="claudeSDK-claude-fable-5")
 
-_STD_TIER_CONFIG = TierConfig(level1=_L1_CFG, level2=_L2_CFG, level3=_L3_CFG)
+_STD_TIER_CONFIG = TierConfig(
+    level1=_L1_CFG, level2=_L2_CFG, level3=_L3_CFG, level4=_L4_CFG
+)
 
 
 def _factory_that_succeeds(
@@ -133,20 +136,29 @@ def test_next_unvisited_from_level1_all_higher_visited_returns_lower_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL1,
-            frozenset({TierLevel.LEVEL2, TierLevel.LEVEL3}),
+            frozenset({TierLevel.LEVEL2, TierLevel.LEVEL3, TierLevel.LEVEL4}),
         )
         is None
     )
 
 
 def test_next_unvisited_from_level2_prefers_higher():
-    # LEVEL2 → LEVEL3 first (higher), then LEVEL1 (lower)
+    # LEVEL2 → LEVEL3 first (nearest higher), then LEVEL4, then LEVEL1 (lower)
     assert _next_unvisited_tier(TierLevel.LEVEL2, frozenset()) == TierLevel.LEVEL3
+
+
+def test_next_unvisited_from_level2_level3_visited_returns_level4():
+    assert (
+        _next_unvisited_tier(TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3}))
+        == TierLevel.LEVEL4
+    )
 
 
 def test_next_unvisited_from_level2_higher_visited_returns_lower():
     assert (
-        _next_unvisited_tier(TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3}))
+        _next_unvisited_tier(
+            TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3, TierLevel.LEVEL4})
+        )
         == TierLevel.LEVEL1
     )
 
@@ -155,20 +167,29 @@ def test_next_unvisited_from_level2_all_others_visited_returns_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL2,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL3}),
+            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL3, TierLevel.LEVEL4}),
         )
         is None
     )
 
 
-def test_next_unvisited_from_level3_only_lower():
-    # LEVEL3 → LEVEL2 (highest lower), then LEVEL1
-    assert _next_unvisited_tier(TierLevel.LEVEL3, frozenset()) == TierLevel.LEVEL2
+def test_next_unvisited_from_level3_prefers_higher_level4():
+    # LEVEL3 → LEVEL4 first (higher), then LEVEL2, then LEVEL1
+    assert _next_unvisited_tier(TierLevel.LEVEL3, frozenset()) == TierLevel.LEVEL4
 
 
-def test_next_unvisited_from_level3_level2_visited_returns_level1():
+def test_next_unvisited_from_level3_level4_visited_returns_level2():
     assert (
-        _next_unvisited_tier(TierLevel.LEVEL3, frozenset({TierLevel.LEVEL2}))
+        _next_unvisited_tier(TierLevel.LEVEL3, frozenset({TierLevel.LEVEL4}))
+        == TierLevel.LEVEL2
+    )
+
+
+def test_next_unvisited_from_level3_higher_and_level2_visited_returns_level1():
+    assert (
+        _next_unvisited_tier(
+            TierLevel.LEVEL3, frozenset({TierLevel.LEVEL2, TierLevel.LEVEL4})
+        )
         == TierLevel.LEVEL1
     )
 
@@ -177,7 +198,22 @@ def test_next_unvisited_from_level3_all_visited_returns_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL3,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2}),
+            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL4}),
+        )
+        is None
+    )
+
+
+def test_next_unvisited_from_level4_only_lower():
+    # LEVEL4 → LEVEL3 (nearest lower), then LEVEL2, then LEVEL1
+    assert _next_unvisited_tier(TierLevel.LEVEL4, frozenset()) == TierLevel.LEVEL3
+
+
+def test_next_unvisited_from_level4_all_visited_returns_none():
+    assert (
+        _next_unvisited_tier(
+            TierLevel.LEVEL4,
+            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL3}),
         )
         is None
     )
@@ -270,9 +306,9 @@ def test_fallback_level1_to_level2_to_level3():
     assert tracking["factory_calls"] == ["opus", "haiku", "sonnet"]
 
 
-def test_fallback_level2_to_level3_to_level1():
-    """Start at level2: level2 fails → level3 fails → level1 succeeds.
-    Demonstrates bidirectional fallback: higher first, then lower."""
+def test_fallback_level2_to_level3_to_level4():
+    """Start at level2: level2 fails → level3 fails → level4 succeeds.
+    Escalation prefers higher tiers while any remain unvisited."""
     tracking: dict = {}
     counter = {"remaining": 2}
 
@@ -283,7 +319,7 @@ def test_fallback_level2_to_level3_to_level1():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
                 raise RuntimeError(f"fail-{tlc.model_name}")
-            return "l1-ok"
+            return "l4-ok"
 
         return fn
 
@@ -295,13 +331,13 @@ def test_fallback_level2_to_level3_to_level1():
         max_fallback_depth=2,
         sleep=_noop_sleep,
     )
-    assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["haiku", "sonnet", "opus"]
+    assert out == "l4-ok"
+    assert tracking["factory_calls"] == ["haiku", "sonnet", "claude-fable-5"]
 
 
-def test_fallback_level3_to_level2_to_level1():
-    """Start at level3: level3 fails → level2 fails → level1 succeeds.
-    Only lower tiers available."""
+def test_fallback_level3_to_level4_to_level2():
+    """Start at level3: level3 fails → level4 (higher) fails → level2
+    (nearest lower) succeeds. Demonstrates bidirectional fallback."""
     tracking: dict = {}
     counter = {"remaining": 2}
 
@@ -312,7 +348,7 @@ def test_fallback_level3_to_level2_to_level1():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
                 raise RuntimeError(f"fail-{tlc.model_name}")
-            return "l1-ok"
+            return "l2-ok"
 
         return fn
 
@@ -324,8 +360,37 @@ def test_fallback_level3_to_level2_to_level1():
         max_fallback_depth=2,
         sleep=_noop_sleep,
     )
-    assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["sonnet", "haiku", "opus"]
+    assert out == "l2-ok"
+    assert tracking["factory_calls"] == ["sonnet", "claude-fable-5", "haiku"]
+
+
+def test_fallback_level4_to_level3_to_level2():
+    """Start at level4: no higher tier exists, so fallback walks down —
+    level4 fails → level3 fails → level2 succeeds."""
+    tracking: dict = {}
+    counter = {"remaining": 2}
+
+    def factory(tlc: TierLevelConfig):
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
+
+        def fn():
+            if counter["remaining"] > 0:
+                counter["remaining"] -= 1
+                raise RuntimeError(f"fail-{tlc.model_name}")
+            return "l2-ok"
+
+        return fn
+
+    out = call_with_tier_fallback(
+        factory,
+        tier_config=_STD_TIER_CONFIG,
+        level=TierLevel.LEVEL4,
+        fallback_enabled=True,
+        max_fallback_depth=2,
+        sleep=_noop_sleep,
+    )
+    assert out == "l2-ok"
+    assert tracking["factory_calls"] == ["claude-fable-5", "sonnet", "haiku"]
 
 
 def test_exhausted_all_levels_reraises_last_error():
@@ -608,8 +673,8 @@ def test_acall_fallback_level1_to_level2_to_level3():
     assert tracking["factory_calls"] == ["opus", "haiku", "sonnet"]
 
 
-def test_acall_fallback_level2_to_level3_to_level1():
-    """Async bidirectional: start at level2 → level3 → level1."""
+def test_acall_fallback_level2_to_level3_to_level4():
+    """Async escalation: start at level2 → level3 → level4."""
     tracking: dict = {}
     counter = {"remaining": 2}
 
@@ -620,7 +685,7 @@ def test_acall_fallback_level2_to_level3_to_level1():
             if counter["remaining"] > 0:
                 counter["remaining"] -= 1
                 raise RuntimeError(f"fail-{tlc.model_name}")
-            return "l1-ok"
+            return "l4-ok"
 
         return fn
 
@@ -634,8 +699,8 @@ def test_acall_fallback_level2_to_level3_to_level1():
             sleep=_anoop_sleep,
         )
     )
-    assert out == "l1-ok"
-    assert tracking["factory_calls"] == ["haiku", "sonnet", "opus"]
+    assert out == "l4-ok"
+    assert tracking["factory_calls"] == ["haiku", "sonnet", "claude-fable-5"]
 
 
 def test_acall_exhausted_all_levels_reraises_last_error():
