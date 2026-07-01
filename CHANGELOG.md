@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Remove vestigial `from __future__ import annotations` from `core/constants.py`, `refdocs/_base.py`, and `exceptions.py` where no PEP 604 unions or forward references exist.
 - ClaudeSDK provider: fix `build_agent(level=1, output_type=MyModel)` raising
   `UserError` because the DeepSeek-specific level-gate in `_resolve_output_type`
   left the raw model unwrapped. The no-tools path now wraps non-str structured
