@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Corrected stale documentation claims across six doc files: removed YAML references from `load_tier_config` entries, fixed `new_model` signature in core docs, removed mention of removed bracket-qualifier feature from `ParsedIdentifier`, updated `ClaudeSDKTurnLimitError` to reflect `_MAX_TURNS` agent-loop cap, corrected `OpenRouterProvider` description (mapping is in `TierConfig`), removed false claim that `openrouter` extra is the default, and removed obsolete "transport aliases" references.
 - Fix check-then-act race in `_StampProcessor.on_start` trace naming: consolidate two separate lock acquisitions into a single critical section covering the check, name computation, attribute set, and set insertion, so concurrent spans of the same trace cannot both observe the guard as unset.
 - Update ARCHITECTURE.md: fix stale references to the deleted `openrouter_deepseek` package, correct `OpenRouterProvider` from abstract to concrete, update PEP 562 lazy-import coverage list, fix test paths, and align extras list with `pyproject.toml`.
 - Remove vestigial `from __future__ import annotations` from `core/constants.py`, `refdocs/_base.py`, and `exceptions.py` where no PEP 604 unions or forward references exist.

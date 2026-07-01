@@ -66,7 +66,7 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 - `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT` — default `TierLevelConfig`
   instances per level
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
-- `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
+- `load_tier_config` — loads and validates a `TierConfig` from environment overrides and defaults
 
 ## Consumer config shape
 
@@ -145,8 +145,7 @@ The `claudeSDK` provider requires the `claude_sdk` extra:
 pip install "robotsix-llmio[claude_sdk]"
 ```
 
-The `openrouter` provider requires the `openrouter` extra
-(which is the default when no extra is specified):
+The `openrouter` provider requires the `openrouter` extra:
 
 ```bash
 pip install "robotsix-llmio[openrouter]"

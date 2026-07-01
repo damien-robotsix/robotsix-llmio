@@ -30,8 +30,8 @@ from robotsix_llmio.openrouter import (
 ### Provider & model
 
 - `OpenRouterProvider` — base provider that builds cost-instrumented OpenRouter
-  models per tier; subclasses override tier→model mapping and optionally inject
-  provider-family quirks (pin, reasoning policy)
+  models; tier→model mapping is supplied by `TierConfig` — subclasses optionally
+  inject provider-family quirks such as upstream pinning and per-tier reasoning policy
 - `OpenRouterModel` — `OpenAIChatModel` subclass that opts into OpenRouter usage
   accounting (`usage.include`) and stamps `usage.cost` onto the active OTel span
 

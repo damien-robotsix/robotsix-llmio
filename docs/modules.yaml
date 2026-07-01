@@ -76,7 +76,7 @@ modules:
   - id: robotsix_llmio-config
     description: >
       Consumer-facing configuration layer — TierConfig schema, loader,
-      transport aliases, and the create_model factory.
+      and the create_model factory.
     paths:
       - src/robotsix_llmio/config/**
       - tests/config/**
