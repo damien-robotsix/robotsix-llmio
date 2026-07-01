@@ -223,6 +223,122 @@ def test_map_usage_dict_non_dict():
         assert (u.cache_read_tokens, u.cache_write_tokens) == (0, 0)
 
 
+# --- per-model camelCase aggregation ---------------------------------------
+
+
+def test_aggregate_per_model_single_model():
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model
+
+    d = {
+        "claude-3-5-haiku-20241022": {
+            "inputTokens": 200,
+            "outputTokens": 50,
+            "cacheReadInputTokens": 10,
+            "cacheCreationInputTokens": 0,
+        }
+    }
+    out = _aggregate_per_model(d)
+    assert out == {
+        "input_tokens": 200,
+        "output_tokens": 50,
+        "cache_read_input_tokens": 10,
+        "cache_creation_input_tokens": 0,
+    }
+
+
+def test_aggregate_per_model_multi_model():
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model
+
+    d = {
+        "claude-3-5-haiku-20241022": {"inputTokens": 200, "outputTokens": 50},
+        "claude-3-5-sonnet-20241022": {"inputTokens": 100, "outputTokens": 30},
+    }
+    out = _aggregate_per_model(d)
+    assert out == {"input_tokens": 300, "output_tokens": 80}
+
+
+def test_aggregate_per_model_partial_keys():
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model
+
+    d = {
+        "claude-3-5-haiku-20241022": {"inputTokens": 200},
+    }
+    out = _aggregate_per_model(d)
+    assert out == {"input_tokens": 200}
+
+
+def test_aggregate_per_model_not_per_model_format():
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model
+
+    # Values are not dicts → not the per-model format.
+    assert _aggregate_per_model({"input_tokens": 4}) is None
+    assert _aggregate_per_model({"a": 1, "b": 2}) is None
+
+
+def test_aggregate_per_model_empty():
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model
+
+    assert _aggregate_per_model({}) is None
+
+
+def test_best_usage_dict_prefers_model_usage_per_model():
+    """``_best_usage_dict`` aggregates the per-model camelCase
+    ``model_usage`` and returns flat snake_case, ignoring ``usage``."""
+    from robotsix_llmio.claude_sdk._usage import _best_usage_dict
+
+    class _R:
+        model_usage: ClassVar = {
+            "claude-3-5-haiku-20241022": {"inputTokens": 200, "outputTokens": 50},
+        }
+        usage: ClassVar = {"input_tokens": 999, "output_tokens": 999}  # ignored
+
+    out = _best_usage_dict(_R)
+    assert out == {"input_tokens": 200, "output_tokens": 50}
+
+
+def test_best_usage_dict_falls_back_to_usage():
+    """When ``model_usage`` is absent, ``_best_usage_dict`` uses the flat
+    ``usage`` dict."""
+    from robotsix_llmio.claude_sdk._usage import _best_usage_dict
+
+    class _R:
+        usage: ClassVar = {"input_tokens": 10, "output_tokens": 5}
+
+    out = _best_usage_dict(_R)
+    assert out == {"input_tokens": 10, "output_tokens": 5}
+
+
+def test_best_usage_dict_model_usage_empty_falls_through():
+    """When ``model_usage`` is an empty dict, ``_best_usage_dict`` falls
+    through to ``usage``."""
+    from robotsix_llmio.claude_sdk._usage import _best_usage_dict
+
+    class _R:
+        model_usage: ClassVar = {}
+        usage: ClassVar = {"input_tokens": 42, "output_tokens": 17}
+
+    out = _best_usage_dict(_R)
+    assert out == {"input_tokens": 42, "output_tokens": 17}
+
+
+def test_map_usage_dict_from_per_model():
+    """End-to-end: ``map_usage_dict`` receives the aggregated flat dict and
+    returns correct ``RequestUsage``."""
+    from robotsix_llmio.claude_sdk._usage import _aggregate_per_model, map_usage_dict
+
+    d = {
+        "claude-3-5-haiku-20241022": {
+            "inputTokens": 200,
+            "outputTokens": 50,
+            "cacheReadInputTokens": 10,
+            "cacheCreationInputTokens": 7,
+        }
+    }
+    u = map_usage_dict(_aggregate_per_model(d))
+    assert (u.input_tokens, u.output_tokens) == (200, 50)
+    assert (u.cache_read_tokens, u.cache_write_tokens) == (10, 7)
+
+
 # --- model identity --------------------------------------------------------
 
 
