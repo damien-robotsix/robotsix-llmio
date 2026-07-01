@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import threading
+from unittest.mock import Mock
 
 import pytest
 
@@ -665,6 +667,77 @@ def test_stamp_processor_root_unnamed_without_session(monkeypatch):
     root = _FakeSpan(trace_id=9, parent=None, name="")
     proc.on_start(root)
     assert LANGFUSE_TRACE_NAME not in root.attributes
+
+
+def test_stamp_processor_concurrent_trace_name_guard(monkeypatch):
+    """Two spans of the same trace starting concurrently must set the trace
+    name attribute at most once — the child must never overwrite the root's
+    explicit name with the session-id fallback."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
+    proc = _StampProcessor()
+
+    # Two spans sharing the same trace_id:
+    # - root: root span with explicit name "implement"
+    # - child: a later span that carries the session contextvar
+    root = _FakeSpan(trace_id=42, parent=None, name="implement")
+    child = _FakeSpan(trace_id=42, parent=root.get_span_context(), name="chat opus")
+
+    # Replace set_attribute with a mock so we can assert call count.
+    root_setattr = Mock(wraps=root.set_attribute)
+    root.set_attribute = root_setattr
+    child_setattr = Mock(wraps=child.set_attribute)
+    child.set_attribute = child_setattr
+
+    errors = []
+    token = tracing._current_session.set("robotsix-mill · ticket-concurrent")
+
+    def start_root() -> None:
+        try:
+            proc.on_start(root)
+        except Exception as exc:
+            errors.append(exc)
+
+    def start_child() -> None:
+        try:
+            proc.on_start(child)
+        except Exception as exc:
+            errors.append(exc)
+
+    try:
+        t1 = threading.Thread(target=start_root)
+        t2 = threading.Thread(target=start_child)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+    finally:
+        tracing._current_session.reset(token)
+
+    assert not errors, f"on_start raised: {errors}"
+
+    # Exactly one span (the root) should set the trace name.
+    root_calls = root_setattr.call_args_list
+    child_calls = child_setattr.call_args_list
+    root_name_calls = [
+        c for c in root_calls if c.args and c.args[0] == LANGFUSE_TRACE_NAME
+    ]
+    child_name_calls = [
+        c for c in child_calls if c.args and c.args[0] == LANGFUSE_TRACE_NAME
+    ]
+
+    assert len(root_name_calls) == 1, (
+        f"root should get trace name exactly once, got {len(root_name_calls)}"
+    )
+    assert len(child_name_calls) == 0, (
+        f"child must not set trace name, got {len(child_name_calls)}"
+    )
+    assert root_name_calls[0].args[1] == "implement"
 
 
 # --- _FilteredBatchSpanProcessor unit tests --------------------------------
