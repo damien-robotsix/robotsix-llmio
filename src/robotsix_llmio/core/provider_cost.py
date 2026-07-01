@@ -49,7 +49,7 @@ class ProviderCostSource(Protocol):
 
     def fetch_provider_cost(self, window: CostWindow) -> ProviderCost:
         """Return the provider-billed cost over *window*."""
-        ...
+        pass
 
 
 @dataclass(frozen=True)
