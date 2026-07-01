@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from pydantic_ai.exceptions import UserError
+
 from ..core.tracing import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_PROVIDER_NAME,
@@ -211,6 +213,15 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         # Normalize: plain callables become pydantic_ai.Tool (idempotent).
         if not isinstance(t, pydantic_ai.Tool):
             t = pydantic_ai.Tool(t)
+
+        if t.takes_ctx:
+            raise UserError(
+                f"ClaudeSDKModel does not support tools that take a RunContext "
+                f"(tool {t.name!r} has takes_ctx=True): the Claude Agent SDK "
+                f"invokes tools with only their JSON arguments, so no run "
+                f"context can be supplied. Rewrite the tool to take plain "
+                f"arguments only."
+            )
 
         name: str = t.name
         # The SDK's @tool wants a str description; pydantic-ai's may be None.

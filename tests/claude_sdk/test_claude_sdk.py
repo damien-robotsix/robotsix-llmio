@@ -28,6 +28,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.tools import RunContext
 from pydantic_ai.tools import Tool as PydanticTool
 
 from robotsix_llmio.claude_sdk._tool_agent import (
@@ -638,6 +639,20 @@ def test_tool_definition_mapping_from_plain_callable(monkeypatch):
     assert reg["schema"]["type"] == "object"
     assert "name" in reg["schema"]["properties"]
     assert reg["schema"]["properties"]["name"]["type"] == "string"
+
+
+def test_takes_ctx_tool_raises_user_error_at_build_time(monkeypatch):
+    """A tool with ``takes_ctx=True`` raises ``UserError`` at conversion time,
+    not at invocation time — matching ``_reject_unsupported`` fail-fast."""
+    _install_fake_sdk(monkeypatch)
+
+    def _ctx_tool(ctx: RunContext, x: int) -> str:
+        return str(x)
+
+    ctx_tool = PydanticTool(_ctx_tool, takes_ctx=True)
+
+    with pytest.raises(UserError, match=r"takes_ctx|RunContext"):
+        _convert_tools([ctx_tool])
 
 
 # ---------------------------------------------------------------------------
