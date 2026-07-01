@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
-[![CI](https://github.com/damien-robotsix/robotsix-mill/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-mill/actions/workflows/ci.yml)
+[![CI](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml)
 [![PyPI - License](https://img.shields.io/pypi/l/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
 
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
@@ -203,9 +203,10 @@ agent.close()
 
 The backend is resolved from config — no consumer code change is needed to swap
 it. By default `get_provider_for_level` resolves the provider bound to the
-level in `TierConfig` (e.g. level 1 → `openrouter-deepseek`); override those
-bindings with the `LLMIO_LEVEL<N>_PROVIDER` / `LLMIO_LEVEL<N>_MODEL` environment
-variables or by passing an explicit `tier_config=`. `get_provider_for_level`
+level in `TierConfig`. To override those bindings via environment variables
+(`LLMIO_LEVEL<N>_PROVIDER` / `LLMIO_LEVEL<N>_MODEL`), pass
+`tier_config=load_tier_config()` explicitly — the level factories do not read
+the environment on their own. `get_provider_for_level`
 forwards any extra keyword arguments to the chosen backend's constructor, so
 pass the kwargs that backend accepts (e.g. `api_key=` for `openrouter-deepseek`,
 nothing for `claude-sdk`).
