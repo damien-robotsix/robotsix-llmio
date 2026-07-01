@@ -74,7 +74,10 @@ def _log_stream_message(message: Any, turn: list[int], label: str) -> None:
                 getattr(message, "duration_ms", "?"),
             )
     except Exception:
-        pass
+        log.debug(
+            "_log_message: unexpected SDK message shape; diagnostic logging skipped",
+            exc_info=True,
+        )
 
 
 async def _stream_query(
