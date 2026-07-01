@@ -1442,6 +1442,27 @@ class _Verdict(_BM):
     auto_merge_eligible: bool = False
 
 
+class _AltVerdict(_BM):
+    outcome: str
+
+
+def _make_minimal_handle(
+    output_type: Any = str,
+    sdk_model: str = "opus",
+    system_prompt: str = "sys",
+    server: Any = None,
+    allowed_tools: list[str] | None = None,
+) -> _SdkToolAgentHandle:
+    """Construct ``_SdkToolAgentHandle`` with stub arguments for unit tests."""
+    return _SdkToolAgentHandle(
+        sdk_model=sdk_model,
+        system_prompt=system_prompt,
+        server=server,
+        allowed_tools=allowed_tools or [],
+        output_type=output_type,
+    )
+
+
 def test_parse_output_str_passthrough():
     assert _parse_output("anything", str) == "anything"
 
@@ -1492,7 +1513,10 @@ def test_extract_picks_last_valid_object():
 
 
 def test_extract_no_json_falls_back_to_text():
-    assert _parse_output("no json at all here", _Verdict) == "no json at all here"
+    import pytest
+
+    with pytest.raises(ValueError, match="no JSON object found"):
+        _parse_output("no json at all here", _Verdict)
 
 
 def test_extract_nested_object_captured_whole():
@@ -1501,3 +1525,65 @@ def test_extract_nested_object_captured_whole():
         "verdict": "APPROVE",
         "nested": {"a": {"b": [1, 2]}},
     }
+
+
+# --- multi-output structured output (PromptedOutput) -----------------------
+
+
+def test_parse_output_multi_output_first_type_matches():
+    """A-shaped JSON validates against the first model in PromptedOutput."""
+    from pydantic_ai import PromptedOutput
+
+    text = '{"verdict": "APPROVE", "auto_merge_eligible": false}'
+    result = _parse_output(text, PromptedOutput([_Verdict, _AltVerdict]))
+    assert isinstance(result, _Verdict)
+    assert result.verdict == "APPROVE"
+
+
+def test_parse_output_multi_output_second_type_matches():
+    """B-shaped JSON falls through to the second model in PromptedOutput."""
+    from pydantic_ai import PromptedOutput
+
+    text = '{"outcome": "rejected"}'
+    result = _parse_output(text, PromptedOutput([_Verdict, _AltVerdict]))
+    assert isinstance(result, _AltVerdict)
+    assert result.outcome == "rejected"
+
+
+def test_parse_output_multi_output_no_match_raises():
+    """JSON matching no declared model raises (not silently returns str)."""
+    import pytest
+    from pydantic import ValidationError
+    from pydantic_ai import PromptedOutput
+
+    text = '{"unrecognised_field": 42}'
+    with pytest.raises(ValidationError):
+        _parse_output(text, PromptedOutput([_Verdict, _AltVerdict]))
+
+
+def test_prepare_prompt_multi_output_anyof_schema():
+    """System prompt contains anyOf when PromptedOutput wraps multiple types."""
+    from pydantic_ai import PromptedOutput
+
+    handle = _make_minimal_handle(output_type=PromptedOutput([_Verdict, _AltVerdict]))
+    _, system_prompt = handle._prepare_prompt("hello", None)
+    assert "anyOf" in system_prompt
+
+
+def test_prepare_prompt_single_prompted_output_no_anyof():
+    """Single-model PromptedOutput uses a flat schema (no anyOf)."""
+    from pydantic_ai import PromptedOutput
+
+    handle = _make_minimal_handle(output_type=PromptedOutput(_Verdict))
+    _, system_prompt = handle._prepare_prompt("hello", None)
+    assert "anyOf" not in system_prompt
+    assert "verdict" in system_prompt
+
+
+def test_sdk_tool_agent_handle_rejects_list_output_type():
+    """Bare list output_type raises UserError at construction time."""
+    import pytest
+    from pydantic_ai.exceptions import UserError
+
+    with pytest.raises(UserError, match="list/union output_type is not supported"):
+        _make_minimal_handle(output_type=[_Verdict, _AltVerdict])
