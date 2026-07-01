@@ -85,12 +85,11 @@ class OpenRouterDeepseekModel(OpenRouterModel):
         if settings is None:
             return
         extra_body = dict(settings.get("extra_body") or {})
-        if "provider" in extra_body:
-            return  # caller set explicit routing — respect it
-        extra_body["provider"] = {
-            "only": [_PINNED_PROVIDER],
-            "allow_fallbacks": False,
-        }
+        if "provider" not in extra_body:
+            extra_body["provider"] = {
+                "only": [_PINNED_PROVIDER],
+                "allow_fallbacks": False,
+            }
         if "reasoning" not in extra_body:
             extra_body["reasoning"] = dict(self.reasoning_setting)
         settings["extra_body"] = extra_body
