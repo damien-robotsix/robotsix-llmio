@@ -7,6 +7,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from robotsix_llmio.exceptions import RobotsixLLMIOError
+
+
+class RefdocsClientError(RobotsixLLMIOError):
+    """Error from the refdocs client (HTTP, auth, malformed response)."""
+
+
 # Static re-declaration of every lazily-exported name (see ``__getattr__``
 # below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
 # False at runtime), so they add no import-time cost and preserve the PEP 562
@@ -19,6 +26,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AsyncRefdocsClient",
+    "RefdocsClientError",
     "RefdocsSettings",
     "build_refdocs_tools",
 ]
