@@ -14,6 +14,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
+from robotsix_llmio.refdocs import RefdocsClientError
 from robotsix_llmio.refdocs import _async_client as _async_client_module
 from robotsix_llmio.refdocs._async_client import AsyncRefdocsClient
 from robotsix_llmio.refdocs._settings import RefdocsSettings
@@ -93,14 +94,14 @@ def test_search_missing_results_key_defaults_to_empty(monkeypatch):
     assert results == []
 
 
-def test_search_non_2xx_raises_runtime_error(monkeypatch):
+def test_search_non_2xx_raises_refdocs_client_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"error": "internal"})
 
     _install_transport(monkeypatch, handler)
 
     client = AsyncRefdocsClient()
-    with pytest.raises(RuntimeError, match="HTTP 500"):
+    with pytest.raises(RefdocsClientError, match="HTTP 500"):
         asyncio.run(client.search("query"))
 
 
@@ -136,14 +137,14 @@ def test_get_doc_missing_content_defaults_to_empty(monkeypatch):
     assert content == ""
 
 
-def test_get_doc_non_2xx_raises_runtime_error(monkeypatch):
+def test_get_doc_non_2xx_raises_refdocs_client_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
     _install_transport(monkeypatch, handler)
 
     client = AsyncRefdocsClient()
-    with pytest.raises(RuntimeError, match="HTTP 404"):
+    with pytest.raises(RefdocsClientError, match="HTTP 404"):
         asyncio.run(client.get_doc("missing"))
 
 
