@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from openai import AsyncStream
+from openai.types.chat import ChatCompletionChunk
 from pydantic_ai.models.openai import OpenAIChatModel
 
 from robotsix_llmio.core.tracing import (
@@ -138,6 +140,40 @@ def record_openrouter_cost(response: Any) -> None:
                 span.set_attribute(GEN_AI_USAGE_REASONING_TOKENS, reasoning)
 
 
+class _CostCapturingStream:
+    """Proxy around ``AsyncStream[ChatCompletionChunk]`` that calls
+    ``record_openrouter_cost`` with the final usage-bearing chunk on
+    stream exhaustion.  Satisfies the async-context-manager + async-
+    iterator protocols that pydantic-ai requires of the
+    ``_completions_create`` return value when ``stream=True``.
+    """
+
+    def __init__(self, stream: AsyncStream[ChatCompletionChunk]) -> None:
+        self._stream = stream
+        self._last_usage_chunk: ChatCompletionChunk | None = None
+
+    async def __aenter__(self) -> _CostCapturingStream:
+        await self._stream.__aenter__()
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self._stream.__aexit__(*args)
+
+    def __aiter__(self) -> _CostCapturingStream:
+        return self
+
+    async def __anext__(self) -> ChatCompletionChunk:
+        try:
+            chunk: ChatCompletionChunk = await self._stream.__anext__()
+            if chunk.usage is not None:
+                self._last_usage_chunk = chunk
+            return chunk
+        except StopAsyncIteration:
+            if self._last_usage_chunk is not None:
+                record_openrouter_cost(self._last_usage_chunk)
+            raise
+
+
 class OpenRouterModel(OpenAIChatModel):
     """``OpenAIChatModel`` that opts into OpenRouter usage accounting and emits
     ``usage.cost`` onto the active OTel span. No pin, no reasoning policy."""
@@ -145,5 +181,7 @@ class OpenRouterModel(OpenAIChatModel):
     async def _completions_create(self, *args: Any, **kwargs: Any) -> Any:
         _inject_usage_include(args, kwargs)
         response = await super()._completions_create(*args, **kwargs)
+        if isinstance(response, AsyncStream):
+            return _CostCapturingStream(response)
         record_openrouter_cost(response)
         return response
