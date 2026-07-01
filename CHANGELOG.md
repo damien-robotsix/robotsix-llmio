@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Fix `[project.urls]` in `pyproject.toml`: rename `Source` to `Repository`, point `Documentation` to the deployed MkDocs site, and add a `Changelog` URL.
 - Fix README CI badge URL (was pointing at robotsix-mill instead of robotsix-llmio) and clarify env var scoping of ``LLMIO_LEVEL<N>_*`` variables in ``get_provider_for_level`` docs. Remove stale "follow-up concern" sentence from ``tier.py`` module docstring.
 - Fix stale references in CONTRIBUTING.md: remove bandit (replaced by ruff S rules), fix mypy override module name (`openrouter_deepseek` → `openrouter`), update layer diagram, correct GitHub org (`robotsix-dev` → `damien-robotsix`).
 - Corrected stale documentation claims across six doc files: removed YAML references from `load_tier_config` entries, fixed `new_model` signature in core docs, removed mention of removed bracket-qualifier feature from `ParsedIdentifier`, updated `ClaudeSDKTurnLimitError` to reflect `_MAX_TURNS` agent-loop cap, corrected `OpenRouterProvider` description (mapping is in `TierConfig`), removed false claim that `openrouter` extra is the default, and removed obsolete "transport aliases" references.
