@@ -54,12 +54,10 @@ class _StampProcessor(SpanProcessor):
         # any span). The guard set applies the fallback at most once and never
         # overwrites an explicit root name (the root is always seen first).
         with _t._trace_routing_lock:
-            already_named = trace_id in _t._trace_named
-        if not already_named:
-            name = span.name if (span.parent is None and span.name) else sid
-            if name:
-                span.set_attribute(LANGFUSE_TRACE_NAME, name)
-                with _t._trace_routing_lock:
+            if trace_id not in _t._trace_named:
+                name = span.name if (span.parent is None and span.name) else sid
+                if name:
+                    span.set_attribute(LANGFUSE_TRACE_NAME, name)
                     _t._trace_named.add(trace_id)
 
         # Three-tier routing key resolution:
