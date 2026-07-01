@@ -1,3 +1,6 @@
+## 0.0.0 (unreleased)
+
+- Add `security_posture` periodic workflow to `.robotsix-mill/periodic/` for automated security posture review.
 # Changelog
 
 All notable changes to this project will be documented in this file.
