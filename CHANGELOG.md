@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Fix `extra_body.provider` override suppressing the per-tier reasoning policy in `OpenRouterDeepseekModel._inject_pin`. Custom provider routing now coexists with reasoning injection (reasoning is injected independently of the provider pin).
 - Add Bash command workspace confinement for claude_sdk tool agents: a
   new ``PreToolUse`` hook denies ``Bash`` commands referencing absolute
   paths outside ``workspace_root``, closing a bypass that allowed

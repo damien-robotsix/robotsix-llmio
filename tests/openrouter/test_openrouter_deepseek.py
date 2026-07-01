@@ -58,6 +58,25 @@ def test_pin_respects_caller_provider_override():
     assert ms["extra_body"]["provider"]["only"] == ["Other"]  # untouched
 
 
+@pytest.mark.parametrize(
+    "level,expected_reasoning",
+    [
+        (1, {"enabled": False}),
+        (2, {"effort": "xhigh"}),
+    ],
+)
+def test_inject_pin_applies_reasoning_even_when_provider_preset(
+    level: int, expected_reasoning: dict[str, Any]
+):
+    """Regression: custom ``extra_body.provider`` must not suppress the
+    per-tier reasoning policy (the early return was dropping reasoning)."""
+    m = _model(level)
+    ms: dict[str, Any] = {"extra_body": {"provider": {"only": ["Other"]}}}
+    m._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["only"] == ["Other"]  # still respected
+    assert ms["extra_body"]["reasoning"] == expected_reasoning
+
+
 # --- _reasoning_text -------------------------------------------------------
 
 
