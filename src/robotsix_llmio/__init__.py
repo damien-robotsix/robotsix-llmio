@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         get_provider_for_level,
     )
     from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
+    from .openrouter import OpenRouterAPIError
     from .self_review import (
         SelfReviewClient,
         SelfReviewClientError,
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 __all__ = [
     "KnowledgeClient",
     "KnowledgeClientError",
+    "OpenRouterAPIError",
     "RobotsixLLMIOError",
     "SelfReviewClient",
     "SelfReviewClientError",
@@ -57,6 +59,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import knowledge
 
         return getattr(knowledge, name)
+    if name == "OpenRouterAPIError":
+        from . import openrouter
+
+        return openrouter.OpenRouterAPIError
     if name in (
         "SelfReviewClient",
         "build_recent_activity_tools",

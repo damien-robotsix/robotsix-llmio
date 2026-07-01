@@ -11,6 +11,7 @@ import os
 import httpx
 import pytest
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
 from robotsix_llmio.openrouter import provider_cost as orpc
 from robotsix_llmio.openrouter.provider_cost import (
     OpenRouterKeyCostSource,
@@ -76,8 +77,8 @@ def test_openrouter_fetch_raises_on_error(monkeypatch):
     src = OpenRouterProviderCostSource(management_key="bad")
     try:
         src.fetch_provider_cost(_window("2026-06-02T00:00:00", "2026-06-03T00:00:00"))
-        raise AssertionError("expected RuntimeError on non-2xx")
-    except RuntimeError as e:
+        raise AssertionError("expected OpenRouterAPIError on non-2xx")
+    except OpenRouterAPIError as e:
         assert "403" in str(e)
 
 
@@ -112,7 +113,7 @@ def test_openrouter_key_usage_raises_on_error(monkeypatch):
         return httpx.Response(401, text="nope")
 
     _mock_client_factory(monkeypatch, orpc, handler)
-    with pytest.raises(RuntimeError, match="401"):
+    with pytest.raises(OpenRouterAPIError, match="401"):
         OpenRouterKeyCostSource(api_key="bad").fetch_key_usage()
 
 

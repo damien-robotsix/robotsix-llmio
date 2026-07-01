@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
 from robotsix_llmio.openrouter.provider import OpenRouterProvider
 
 
@@ -28,9 +29,9 @@ class _Concrete(OpenRouterProvider):
 
 def test_missing_key_raises(monkeypatch):
     """With no explicit key and no env var, construction raises a clear
-    ``RuntimeError`` naming the missing OpenRouter API key."""
+    ``OpenRouterAPIError`` naming the missing OpenRouter API key."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="OpenRouter API key missing"):
+    with pytest.raises(OpenRouterAPIError, match="OpenRouter API key missing"):
         _Concrete(api_key=None)
 
 
