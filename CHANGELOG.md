@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Fix backoff jitter applied after the cap in transient retry logic, which allowed sleep times to reach 1.5× the documented ``TRANSIENT_BACKOFF_CAP``. Jitter is now applied to the raw exponential value before capping, so the final delay never exceeds the cap.
 - Fix `call_with_retry` / `acall_with_retry`: rate-limit (`UsageLimitExceeded`) on the last retry attempt now correctly triggers the one-shot `fallback_fn` instead of re-raising immediately. Fallback activation no longer consumes a transient-retry slot — the fallback always gets the same full retry budget as the primary.
 - Fix `extra_body.provider` override suppressing the per-tier reasoning policy in `OpenRouterDeepseekModel._inject_pin`. Custom provider routing now coexists with reasoning injection (reasoning is injected independently of the provider pin).
 - Add Bash command workspace confinement for claude_sdk tool agents: a
