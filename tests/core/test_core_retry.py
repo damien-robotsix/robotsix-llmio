@@ -516,3 +516,67 @@ def test_acall_with_retry_fallback_gets_full_retry_budget():
     assert out == "fallback-ok"
     assert calls["primary"] == 4
     assert calls["fallback"] == TRANSIENT_RETRIES + 1
+
+
+# --- backoff jitter-after-cap regression -----------------------------------
+
+
+def test_backoff_delay_never_exceeds_cap_sync(monkeypatch):
+    """Jitter is applied to the raw exponential value BEFORE capping, so the
+    final delay never exceeds TRANSIENT_BACKOFF_CAP regardless of jitter."""
+    from robotsix_llmio.core.constants import TRANSIENT_BACKOFF_CAP, TRANSIENT_RETRIES
+
+    # Force uniform(a, b) to always return b (max jitter).
+    monkeypatch.setattr(
+        "robotsix_llmio.core.retry.random.uniform",
+        lambda a, b: b,
+    )
+    delays: list[float] = []
+
+    def record_sleep(d: float) -> None:
+        delays.append(d)
+
+    calls = {"n": 0}
+
+    def fn():
+        calls["n"] += 1
+        raise _HTTPErr(503)
+
+    with pytest.raises(_HTTPErr):
+        call_with_retry(fn, sleep=record_sleep)
+
+    # One delay per retry attempt (TRANSIENT_RETRIES total).
+    assert len(delays) == TRANSIENT_RETRIES
+    for delay in delays:
+        assert delay <= TRANSIENT_BACKOFF_CAP, (
+            f"delay {delay} exceeds cap {TRANSIENT_BACKOFF_CAP}"
+        )
+
+
+def test_backoff_delay_never_exceeds_cap_async(monkeypatch):
+    """Async: jitter-before-cap — delay never exceeds TRANSIENT_BACKOFF_CAP."""
+    from robotsix_llmio.core.constants import TRANSIENT_BACKOFF_CAP, TRANSIENT_RETRIES
+
+    monkeypatch.setattr(
+        "robotsix_llmio.core.retry.random.uniform",
+        lambda a, b: b,
+    )
+    delays: list[float] = []
+
+    async def record_sleep(d: float) -> None:
+        delays.append(d)
+
+    calls = {"n": 0}
+
+    async def fn():
+        calls["n"] += 1
+        raise _HTTPErr(503)
+
+    with pytest.raises(_HTTPErr):
+        asyncio.run(acall_with_retry(fn, sleep=record_sleep))
+
+    assert len(delays) == TRANSIENT_RETRIES
+    for delay in delays:
+        assert delay <= TRANSIENT_BACKOFF_CAP, (
+            f"delay {delay} exceeds cap {TRANSIENT_BACKOFF_CAP}"
+        )

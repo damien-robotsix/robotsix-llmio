@@ -169,11 +169,9 @@ def call_with_retry(
                 if attempt >= attempts:
                     _safe_flush()
                     raise
-                delay = min(
-                    constants.TRANSIENT_BACKOFF_CAP,
-                    constants.TRANSIENT_BACKOFF_BASE * (2**attempt),
-                )
-                delay += random.uniform(0, delay / 2)  # jitter
+                raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
+                raw += random.uniform(0, raw / 2)  # jitter before cap
+                delay = min(constants.TRANSIENT_BACKOFF_CAP, raw)
                 cumulative_backoff += delay
                 log.warning(
                     "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
@@ -296,11 +294,9 @@ async def acall_with_retry(
                 if attempt >= attempts:
                     _safe_flush()
                     raise
-                delay = min(
-                    constants.TRANSIENT_BACKOFF_CAP,
-                    constants.TRANSIENT_BACKOFF_BASE * (2**attempt),
-                )
-                delay += random.uniform(0, delay / 2)  # jitter
+                raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
+                raw += random.uniform(0, raw / 2)  # jitter before cap
+                delay = min(constants.TRANSIENT_BACKOFF_CAP, raw)
                 cumulative_backoff += delay
                 log.warning(
                     "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
