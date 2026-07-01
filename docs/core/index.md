@@ -7,7 +7,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 ### Provider ABC & agent assembly
 
-- `LLMProvider` — abstract base for every LLM provider; subclasses implement `new_model(tier)`
+- `LLMProvider` — abstract base for every LLM provider; subclasses implement `new_model(*, model=None, level=0)`
 - `AgentHandle` — wraps a pydantic-ai Agent with its httpx client, exposing `close()` for cleanup
 - `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type; on the provider the public entry-point is `LLMProvider.build_agent(level=..., system_prompt=...)` where `level` is an integer 1–4
 
@@ -22,7 +22,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`), `LEVEL4` (→ `level=4`) tier-selector values
 - `TierLevelConfig` — pydantic model binding a single tier's transport and model
 - `create_model` — consumer-facing factory returning a configured `LLMProvider`
-- `load_tier_config` — loads and validates a `TierConfig` from YAML and environment
+- `load_tier_config` — loads and validates a `TierConfig` from environment overrides and defaults
 ### Agent runners
 
 - `run_agent` — runs an `AgentHandle` under a trace span with bounded retry, always closing the handle
@@ -31,7 +31,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 ### Identifier parsing
 
 - `MalformedIdentifierError` — raised when a provider-model identifier string is malformed (e.g. unbalanced brackets, missing model part)
-- `ParsedIdentifier` — `NamedTuple` holding the parsed components of a provider-model identifier: `provider` and `model_name` (any bracketed qualifier is stripped during parsing)
+- `ParsedIdentifier` — `NamedTuple` holding the parsed components of a provider-model identifier: `provider` and `model_name`
 - `parse_model_identifier` — parses a combined provider-model identifier (e.g. ``claudeSDK-opus`` or ``openrouter-deepseek/deepseek-v4-flash``) into a `ParsedIdentifier`
 
 ### Factory
