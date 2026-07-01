@@ -1,8 +1,5 @@
 """Tier configuration schema — four configurable provider+model bindings.
 
-This module defines the *data model only*.  Wiring it into the provider
-factory, ``build_agent``, and ``new_model`` is a follow-up concern.
-
 The canonical path for tier resolution is :meth:`TierConfig.for_level`.
 """
 
