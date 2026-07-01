@@ -75,27 +75,13 @@ def _resolve_model_name(
     """Resolve a concrete model name from *tier_config* for the given *level*.
 
     When *tier_config* is ``None``, a default :class:`TierConfig` is built
-    from the baked module-level defaults
-    (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
+    via the no-arg constructor, which produces independent deep copies of
+    the module-level baked defaults.
     """
     if tier_config is None:
-        from robotsix_llmio.config.tier import (
-            LEVEL1_DEFAULT,
-            LEVEL2_DEFAULT,
-            LEVEL3_DEFAULT,
-            LEVEL4_DEFAULT,
-            TierConfig,
-        )
+        from robotsix_llmio.config.tier import TierConfig
 
-        tier_config = TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-            level3=LEVEL3_DEFAULT,
-            level4=LEVEL4_DEFAULT,
-        )
+        tier_config = TierConfig()
     return tier_config.for_level(level).model_name
 
 
@@ -168,11 +154,8 @@ class LLMProvider(ABC):
                 new_model(model=tlc.model_name)
 
             When ``None``, a default :class:`~robotsix_llmio.config.tier.TierConfig`
-            is built from the baked module-level defaults
-            (:data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
-            :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
-            :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`,
-            :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
+            is built via the no-arg constructor, which produces independent
+            deep copies of the baked defaults.
 
             Ignored when *model* is provided (see below).
         model:

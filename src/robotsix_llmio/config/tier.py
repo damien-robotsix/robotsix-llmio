@@ -150,19 +150,19 @@ class TierConfig(BaseModel):
     """
 
     level1: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL1_DEFAULT,
+        default_factory=lambda: LEVEL1_DEFAULT.model_copy(deep=True),
         description="Level 1 — cheap, obvious, repetitive tasks.",
     )
     level2: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL2_DEFAULT,
+        default_factory=lambda: LEVEL2_DEFAULT.model_copy(deep=True),
         description="Level 2 — intermediate tasks (e.g. implementing code).",
     )
     level3: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL3_DEFAULT,
+        default_factory=lambda: LEVEL3_DEFAULT.model_copy(deep=True),
         description="Level 3 — high-level organisation and planning.",
     )
     level4: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL4_DEFAULT,
+        default_factory=lambda: LEVEL4_DEFAULT.model_copy(deep=True),
         description="Level 4 — frontier: hardest reasoning and long-horizon work.",
     )
 

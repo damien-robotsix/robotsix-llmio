@@ -125,31 +125,21 @@ def default_tier_config() -> TierConfig:
     binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash``,
     level 2 → ``openrouter-deepseek/deepseek-v4-pro``,
     level 3 → ``claudeSDK-opus``,
-    level 4 → ``claudeSDK-claude-fable-5`` (see
-    :data:`~robotsix_llmio.config.tier.LEVEL1_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`,
-    :data:`~robotsix_llmio.config.tier.LEVEL3_DEFAULT`, and
-    :data:`~robotsix_llmio.config.tier.LEVEL4_DEFAULT`).
+    level 4 → ``claudeSDK-claude-fable-5``.
+
+    The no-arg ``TierConfig()`` constructor uses ``default_factory``
+    lambdas that produce independent deep copies of the module-level
+    default singletons, so each call returns a fresh config whose slots
+    do not alias the singletons or each other.
 
     Returns
     -------
     TierConfig
-        A config whose four slots hold the module-level baked defaults.
+        A config whose four slots hold fresh copies of the baked defaults.
     """
-    from robotsix_llmio.config.tier import (
-        LEVEL1_DEFAULT,
-        LEVEL2_DEFAULT,
-        LEVEL3_DEFAULT,
-        LEVEL4_DEFAULT,
-        TierConfig,
-    )
+    from robotsix_llmio.config.tier import TierConfig
 
-    return TierConfig(
-        level1=LEVEL1_DEFAULT,
-        level2=LEVEL2_DEFAULT,
-        level3=LEVEL3_DEFAULT,
-        level4=LEVEL4_DEFAULT,
-    )
+    return TierConfig()
 
 
 def get_provider_for_level(

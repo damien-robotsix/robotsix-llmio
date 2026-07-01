@@ -40,9 +40,8 @@ def create_model(
         4 is the frontier tier, ``claudeSDK-claude-fable-5`` by default).
     tier_config:
         Optional :class:`~.tier.TierConfig` to resolve the provider + model.
-        When ``None``, a default is built from baked module-level defaults
-        (:data:`~.tier.LEVEL1_DEFAULT`, :data:`~.tier.LEVEL2_DEFAULT`,
-        :data:`~.tier.LEVEL3_DEFAULT`, :data:`~.tier.LEVEL4_DEFAULT`).
+        When ``None``, a default ``TierConfig()`` is built; its ``default_factory``
+        lambdas produce independent deep copies of the baked defaults.
     **provider_kwargs:
         Forwarded to the provider constructor (e.g. ``api_key=...`` for the
         OpenRouter provider).  These override any ``provider_kwargs`` from
@@ -75,20 +74,9 @@ def create_model(
         )
     """
     if tier_config is None:
-        from .tier import (
-            LEVEL1_DEFAULT,
-            LEVEL2_DEFAULT,
-            LEVEL3_DEFAULT,
-            LEVEL4_DEFAULT,
-            TierConfig,
-        )
+        from .tier import TierConfig
 
-        tier_config = TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-            level3=LEVEL3_DEFAULT,
-            level4=LEVEL4_DEFAULT,
-        )
+        tier_config = TierConfig()
 
     tlc = tier_config.for_level(level)
 
