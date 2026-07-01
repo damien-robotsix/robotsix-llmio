@@ -117,7 +117,18 @@ class KnowledgeClient:
             raise KnowledgeClientError(
                 f"Knowledge store {path} returned HTTP {resp.status_code}"
             )
-        return resp.json()  # type: ignore[no-any-return]
+        try:
+            body = resp.json()
+        except Exception as exc:
+            raise KnowledgeClientError(
+                f"Knowledge store {path} returned a non-JSON body"
+            ) from exc
+        if not isinstance(body, dict):
+            raise KnowledgeClientError(
+                f"Knowledge store {path} returned unexpected JSON shape"
+                " (expected object)"
+            )
+        return body
 
 
 # ---------------------------------------------------------------------- #

@@ -176,6 +176,35 @@ def test_no_api_key_no_auth_header(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+#  Non-JSON / JSON-array body guards
+# --------------------------------------------------------------------------- #
+
+
+def test_search_html_body_raises_refdocs_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>Bad Gateway</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    _install_transport(monkeypatch, handler)
+    client = AsyncRefdocsClient(base_url="http://rd")
+    with pytest.raises(RefdocsClientError, match="non-JSON"):
+        asyncio.run(client.search("q"))
+
+
+def test_search_json_array_body_raises_refdocs_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=["unexpected", "array"])
+
+    _install_transport(monkeypatch, handler)
+    client = AsyncRefdocsClient(base_url="http://rd")
+    with pytest.raises(RefdocsClientError, match="unexpected JSON shape"):
+        asyncio.run(client.search("q"))
+
+
+# --------------------------------------------------------------------------- #
 #  RefdocsSettings
 # --------------------------------------------------------------------------- #
 

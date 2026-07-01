@@ -343,6 +343,39 @@ def test_get_knowledge_document_tool_handles_error(
 
 
 # --------------------------------------------------------------------------- #
+# Non-JSON / JSON-array body guards
+# --------------------------------------------------------------------------- #
+
+
+def test_search_html_body_raises_knowledge_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>Bad Gateway</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    _install_transport(monkeypatch, handler)
+    client = KnowledgeClient(base_url="http://ks:8000/api/v1")
+    with pytest.raises(KnowledgeClientError, match="non-JSON"):
+        asyncio.run(client.search("q"))
+
+
+def test_search_json_array_body_raises_knowledge_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=["unexpected", "array"])
+
+    _install_transport(monkeypatch, handler)
+    client = KnowledgeClient(base_url="http://ks:8000/api/v1")
+    with pytest.raises(KnowledgeClientError, match="unexpected JSON shape"):
+        asyncio.run(client.search("q"))
+
+
+# --------------------------------------------------------------------------- #
 # Error hierarchy
 # --------------------------------------------------------------------------- #
 

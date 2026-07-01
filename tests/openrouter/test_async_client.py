@@ -176,6 +176,35 @@ def test_fetch_credits_missing_data_defaults(monkeypatch):
     assert result["remaining"] == 0.0
 
 
+# --------------------------------------------------------------------------- #
+# Non-JSON / JSON-array body guards
+# --------------------------------------------------------------------------- #
+
+
+def test_fetch_key_usage_html_body_raises_openrouter_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>Bad Gateway</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    _install_transport(monkeypatch, handler)
+    client = AsyncOpenRouterClient(api_key="k")
+    with pytest.raises(OpenRouterAPIError, match="non-JSON"):
+        asyncio.run(client.fetch_key_usage())
+
+
+def test_fetch_key_usage_json_array_body_raises_openrouter_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=["unexpected", "array"])
+
+    _install_transport(monkeypatch, handler)
+    client = AsyncOpenRouterClient(api_key="k")
+    with pytest.raises(OpenRouterAPIError, match="unexpected JSON shape"):
+        asyncio.run(client.fetch_key_usage())
+
+
 def test_fetch_credits_non_2xx_raises_runtime_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"error": "forbidden"})

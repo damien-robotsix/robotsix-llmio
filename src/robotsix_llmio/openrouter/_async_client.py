@@ -81,4 +81,14 @@ class AsyncOpenRouterClient:
             raise OpenRouterAPIError(
                 f"OpenRouter {path} request failed: HTTP {resp.status_code}"
             )
-        return resp.json().get("data") or {}
+        try:
+            body = resp.json()
+        except Exception as exc:
+            raise OpenRouterAPIError(
+                f"OpenRouter {path} returned a non-JSON body"
+            ) from exc
+        if not isinstance(body, dict):
+            raise OpenRouterAPIError(
+                f"OpenRouter {path} returned unexpected JSON shape (expected object)"
+            )
+        return body.get("data") or {}
