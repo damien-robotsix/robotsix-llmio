@@ -98,13 +98,15 @@ class ClaudeSDKProvider(LLMProvider):
             *tier_config* as usual.
 
         *workspace_root* confines the agent's built-in file-mutating tools
-        (``Write``/``Edit``/``MultiEdit``/``NotebookEdit``) to that directory:
-        the SDK runs with ``cwd=workspace_root`` and a ``PreToolUse`` hook
-        denies any edit whose target resolves outside it. Without it a
-        tool-bearing agent can edit files anywhere the process reaches (e.g.
-        the host app's own source) because ``permission_mode`` is
-        ``bypassPermissions``. All built-in tools stay available — only
-        out-of-scope *writes* are refused. Ignored on the no-tools path
+        to that directory: the SDK runs with ``cwd=workspace_root`` and a
+        ``PreToolUse`` hook denies any write whose target resolves outside
+        it. Without it a tool-bearing agent can edit files anywhere the
+        process reaches (e.g. the host app's own source) because
+        ``permission_mode`` is ``bypassPermissions``. All built-in tools stay
+        available — only out-of-scope file mutations are refused, from both
+        the built-in edit tools (``Write``/``Edit``/``MultiEdit``/
+        ``NotebookEdit``) and ``Bash`` commands whose arguments reference
+        absolute paths outside the workspace. Ignored on the no-tools path
         (no tools → nothing to confine)."""
         if not tools:
             return super().build_agent(
