@@ -55,19 +55,28 @@ _JSON_OUTPUT_INSTRUCTION = (
 )
 
 
-def _get_inner_type(output_type: Any) -> Any:
-    """Return the pydantic model class from *output_type*.
-
-    Handles plain ``BaseModel`` subclasses and ``PromptedOutput`` wrappers.
-    """
+def _output_validators(output_type: Any) -> list[Any]:
+    """Return the ordered list of pydantic model classes for *output_type*."""
     from pydantic_ai import PromptedOutput
 
     if isinstance(output_type, PromptedOutput):
         outputs = output_type.outputs
         if isinstance(outputs, (list, tuple)):
-            return outputs[0]
-        return outputs
-    return output_type
+            return list(outputs)
+        return [outputs]
+    return [output_type]
+
+
+def _build_schema_json(output_type: Any) -> str:
+    """Build the JSON schema string to embed in the system prompt.
+
+    Single model → its own schema.  Multiple models → ``{"anyOf": [...]}``,
+    matching the shape pydantic-ai uses for union output in prompted mode.
+    """
+    validators = _output_validators(output_type)
+    if len(validators) == 1:
+        return json.dumps(validators[0].model_json_schema())
+    return json.dumps({"anyOf": [v.model_json_schema() for v in validators]})
 
 
 def _fenced_blocks(text: str) -> list[str]:
@@ -152,18 +161,29 @@ def _parse_output(text: str, output_type: Any) -> Any:
     """Parse final assistant text against *output_type*.
 
     ``str`` → text as-is.  Otherwise extract a JSON object (tolerating a prose
-    preamble and/or a ```json fence) and validate with the inner pydantic
-    model. Falls back to the raw text only when no JSON object can be found.
+    preamble and/or a ```json fence) and validate against each declared output
+    validator in order, returning the first one that validates successfully.
+    Raises ``ValueError`` when no JSON object can be found (instead of silently
+    returning raw text to a structured-type caller).
     """
     if output_type is str:
         return text
 
-    validator = _get_inner_type(output_type)
+    validators = _output_validators(output_type)
     data = _extract_json_object(text)
-    if isinstance(data, dict):
-        return validator.model_validate(data)
-    # Fallback: return raw text if JSON extraction failed.
-    return text
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"_parse_output: no JSON object found in model response; "
+            f"expected a JSON object matching the declared output type. "
+            f"Response text: {text!r}"
+        )
+    last_exc: Exception | None = None
+    for v in validators:
+        try:
+            return v.model_validate(data)
+        except Exception as exc:
+            last_exc = exc
+    raise last_exc  # type: ignore[misc]
 
 
 def _chat_messages_input(system_prompt: str, user_text: str) -> str:
@@ -469,6 +489,13 @@ class _SdkToolAgentHandle:
         self._server = server
         self._allowed_tools = allowed_tools
         self._output_type = output_type
+        if isinstance(output_type, (list, tuple)):
+            from pydantic_ai.exceptions import UserError
+
+            raise UserError(
+                "list/union output_type is not supported on the claude_sdk tool path. "
+                "Wrap the types in PromptedOutput([TypeA, TypeB]) explicitly."
+            )
         self._name = name or "claude_sdk agent"
         self._workspace_root = str(workspace_root) if workspace_root else None
         # When False, restrict the agent to ONLY the injected MCP tools — the
@@ -566,8 +593,7 @@ class _SdkToolAgentHandle:
 
         # Augment system prompt with JSON schema for structured output.
         if self._output_type is not str:
-            inner = _get_inner_type(self._output_type)
-            schema_json = json.dumps(inner.model_json_schema())
+            schema_json = _build_schema_json(self._output_type)
             system_prompt = f"{system_prompt}\n\n" + _JSON_OUTPUT_INSTRUCTION.format(
                 schema=schema_json
             )
