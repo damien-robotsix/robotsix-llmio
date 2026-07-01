@@ -292,6 +292,53 @@ def test_prune_before_delete_non_2xx_raises(monkeypatch):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
+def test_prune_before_delayed_deletion_terminates(monkeypatch):
+    """If GET returns the same ids after DELETE (async lag), the loop terminates
+    without re-DELETEing and returns the correct unique count."""
+    cutoff = datetime(2026, 6, 1, tzinfo=UTC)
+    get_responses = iter(
+        [
+            [{"id": "t1"}, {"id": "t2"}],  # first list
+            [{"id": "t1"}, {"id": "t2"}],  # same ids still listed (lag)
+        ]
+    )
+    delete_calls: list[list[str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": next(get_responses)})
+        body = json.loads(request.content)
+        delete_calls.append(body["traceIds"])
+        return httpx.Response(200, json={})
+
+    captured = install_transport(monkeypatch, handler)
+    count = make_adapter().prune_before(cutoff)
+
+    assert count == 2
+    assert delete_calls == [["t1", "t2"]]  # DELETE issued exactly once
+    assert sum(1 for r in captured if r.method == "GET") == 2
+
+
+def test_prune_before_max_iterations_raises(monkeypatch):
+    """RuntimeError is raised when _MAX_PRUNE_ITERATIONS is exceeded."""
+    import robotsix_llmio.core.langfuse_cost as _lcm
+
+    monkeypatch.setattr(_lcm, "_MAX_PRUNE_ITERATIONS", 2)
+
+    call_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        if request.method == "GET":
+            call_count += 1
+            return httpx.Response(200, json={"data": [{"id": f"t{call_count}"}]})
+        return httpx.Response(200, json={})
+
+    install_transport(monkeypatch, handler)
+    with pytest.raises(RuntimeError, match="iterations"):
+        make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
+
+
 # --------------------------------------------------------------------------- #
 # _parse_timestamp
 # --------------------------------------------------------------------------- #

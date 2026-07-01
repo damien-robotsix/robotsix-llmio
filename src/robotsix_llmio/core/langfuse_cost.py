@@ -34,6 +34,8 @@ from .langfuse_client import (
     _parse_timestamp,
 )
 
+_MAX_PRUNE_ITERATIONS: int = 10_000
+
 __all__ = ["LangfuseCostLogSource"]
 
 
@@ -140,9 +142,18 @@ class LangfuseCostLogSource:
         """
         url = f"{self._client.base_url}{_TRACES_PATH}"
         headers = {"Authorization": self._client.auth_header()}
+        seen: set[str] = set()
         deleted = 0
+        _iterations = 0
         with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             while True:
+                if _iterations >= _MAX_PRUNE_ITERATIONS:
+                    raise RuntimeError(
+                        f"prune_before: exceeded {_MAX_PRUNE_ITERATIONS} iterations "
+                        "without exhausting traces; possible async-deletion lag "
+                        "or API inconsistency"
+                    )
+                _iterations += 1
                 # page=1 + asc: after each delete the oldest shifts forward, so
                 # page 1 keeps yielding the next oldest batch ≤ cutoff.
                 resp = client.get(
@@ -162,12 +173,13 @@ class LangfuseCostLogSource:
                     )
                 data = resp.json().get("data") or []
                 ids = [str(t["id"]) for t in data if t.get("id")]
-                if not ids:
+                new_ids = [id for id in ids if id not in seen]
+                if not new_ids:
                     break
                 del_resp = client.request(
                     "DELETE",
                     url,
-                    json={"traceIds": ids},
+                    json={"traceIds": new_ids},
                     headers=headers,
                 )
                 if not (200 <= del_resp.status_code < 300):
@@ -175,7 +187,8 @@ class LangfuseCostLogSource:
                         f"Langfuse traces delete (prune) failed: "
                         f"HTTP {del_resp.status_code}: {del_resp.text[:200]}"
                     )
-                deleted += len(ids)
+                seen.update(new_ids)
+                deleted += len(new_ids)
         return deleted
 
     @staticmethod
