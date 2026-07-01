@@ -81,8 +81,11 @@ LangfuseCostLogSource.fetch_logged_cost_by_provider
 LangfuseCostLogSource.prune_before
 
 # ---------------------------------------------------------------------------
-# core/sqlite_utils.py — Protocol method parameter names
+# core/sqlite_utils.py — Protocol method parameter names / public API
 # ---------------------------------------------------------------------------
+
+# run_multi_table_migrations is a public API consumed by callers of this module.
+run_multi_table_migrations
 
 sql
 parameters
