@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Add `.github/workflows/dependency-review.yml` to gate PRs against known-vulnerable dependencies using `actions/dependency-review-action@v5.0.0` with `fail-on-severity: moderate` and an allow-list of common open-source licenses.
 - Define `RefdocsClientError(RobotsixLLMIOError)` in `refdocs/__init__.py` and use it in `_async_client._get()` instead of bare `RuntimeError`, consistent with the typed-exception pattern in `knowledge/` and `self_review/`.
 - Define `OpenRouterAPIError` (subclass of `RobotsixLLMIOError`) and raise it
   instead of bare `RuntimeError` in the OpenRouter transport, provider, and
