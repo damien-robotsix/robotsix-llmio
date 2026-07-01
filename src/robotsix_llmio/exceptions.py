@@ -1,7 +1,5 @@
 """Base exception hierarchy for robotsix-llmio."""
 
-from __future__ import annotations
-
 
 class RobotsixLLMIOError(Exception):
     """Base exception for all robotsix-llmio errors.

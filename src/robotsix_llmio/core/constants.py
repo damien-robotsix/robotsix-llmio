@@ -8,8 +8,6 @@ that override is added explicitly on the derived provider — not exposed as a
 general knob here.
 """
 
-from __future__ import annotations
-
 # HTTP — hard per-request timeout so a hung/glacial provider connection raises
 # instead of blocking forever. The capable tier routinely runs 60-190s.
 MODEL_REQUEST_TIMEOUT: float = 900.0
