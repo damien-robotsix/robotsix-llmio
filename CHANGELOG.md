@@ -1,5 +1,9 @@
 ## 0.0.0 (unreleased)
 
+- ClaudeSDK provider: fix `build_agent(level=1, output_type=MyModel)` raising
+  `UserError` because the DeepSeek-specific level-gate in `_resolve_output_type`
+  left the raw model unwrapped. The no-tools path now wraps non-str structured
+  types in `PromptedOutput` at all levels before delegating to super().
 - Fix ``OpenRouterProvider.new_model`` resource leak: close ``httpx.AsyncClient`` when any constructor (pydantic-ai provider, ``AsyncOpenAI``, model class, or ``_post_build_model``) raises, instead of leaking the client to GC.
 - Fix backoff jitter applied after the cap in transient retry logic, which allowed sleep times to reach 1.5× the documented ``TRANSIENT_BACKOFF_CAP``. Jitter is now applied to the raw exponential value before capping, so the final delay never exceeds the cap.
 - Fix `call_with_retry` / `acall_with_retry`: rate-limit (`UsageLimitExceeded`) on the last retry attempt now correctly triggers the one-shot `fallback_fn` instead of re-raising immediately. Fallback activation no longer consumes a transient-retry slot — the fallback always gets the same full retry budget as the primary.

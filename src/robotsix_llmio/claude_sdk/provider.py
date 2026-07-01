@@ -109,6 +109,18 @@ class ClaudeSDKProvider(LLMProvider):
         absolute paths outside the workspace. Ignored on the no-tools path
         (no tools → nothing to confine)."""
         if not tools:
+            # _resolve_output_type's level < 2 early-return is a DeepSeek-specific
+            # rule and does not apply to ClaudeSDKModel, which requires PromptedOutput
+            # at ALL levels for non-str structured output.
+            if output_type is not str:
+                from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
+
+                _MARKERS = (PromptedOutput, ToolOutput, NativeOutput)
+                if not isinstance(output_type, _MARKERS) and not (
+                    isinstance(output_type, (list, tuple))
+                    and any(isinstance(e, _MARKERS) for e in output_type)
+                ):
+                    output_type = PromptedOutput(output_type)
             return super().build_agent(
                 level=level,
                 tier_config=tier_config,

@@ -1587,3 +1587,104 @@ def test_sdk_tool_agent_handle_rejects_list_output_type():
 
     with pytest.raises(UserError, match="list/union output_type is not supported"):
         _make_minimal_handle(output_type=[_Verdict, _AltVerdict])
+
+
+# ---------------------------------------------------------------------------
+# build_agent output_type wrapping for claude-sdk no-tools path
+# ---------------------------------------------------------------------------
+
+
+def test_build_agent_level1_raw_model_wrapped_in_prompted_output():
+    """At level=1 with a raw pydantic model, the no-tools path wraps it in
+    PromptedOutput before delegating to super(), so ClaudeSDKModel does not
+    reject it."""
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="You are helpful.",
+        output_type=_Verdict,
+        tools=None,
+    )
+    from pydantic_ai import PromptedOutput
+
+    assert isinstance(handle._agent.output_type, PromptedOutput)  # type: ignore[attr-defined]
+    unwrapped = handle._agent.output_type.outputs  # type: ignore[attr-defined]
+    assert unwrapped is _Verdict
+    handle.close()
+
+
+def test_build_agent_level1_str_output_type_unchanged():
+    """str output_type at level=1 is not wrapped (already a valid type)."""
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="You are helpful.",
+        output_type=str,
+        tools=[],
+    )
+    assert handle._agent.output_type is str  # type: ignore[attr-defined]
+    handle.close()
+
+
+def test_build_agent_level1_already_wrapped_no_double_wrap():
+    """When the caller passes PromptedOutput explicitly at level=1, it is not
+    double-wrapped."""
+    from pydantic_ai import PromptedOutput
+
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="You are helpful.",
+        output_type=PromptedOutput(_Verdict),
+        tools=None,
+    )
+    # Should still be a single PromptedOutput wrapping _Verdict.
+    assert isinstance(handle._agent.output_type, PromptedOutput)  # type: ignore[attr-defined]
+    assert handle._agent.output_type.outputs is _Verdict  # type: ignore[attr-defined]
+    handle.close()
+
+
+def test_build_agent_level2_raw_model_still_works():
+    """At level=2 the local wrap applies (output_type is not yet a marker),
+    then _resolve_output_type sees PromptedOutput and passes it through —
+    no double-wrap, and the agent builds correctly."""
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=2,
+        tier_config=_OPUS_AT_LEVEL2,
+        system_prompt="You are helpful.",
+        output_type=_Verdict,
+        tools=None,
+    )
+    from pydantic_ai import PromptedOutput
+
+    assert isinstance(handle._agent.output_type, PromptedOutput)  # type: ignore[attr-defined]
+    assert handle._agent.output_type.outputs is _Verdict  # type: ignore[attr-defined]
+    handle.close()
+
+
+def test_build_agent_tool_path_output_type_unaffected(monkeypatch):
+    """The tool path passes output_type through to _SdkToolAgentHandle
+    unchanged — the local wrap only runs on the no-tools branch."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("done")
+        yield fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+
+    fake.query = _fake_query
+
+    provider = ClaudeSDKProvider()
+    handle = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        output_type=_Verdict,
+    )
+    # The tool path stores output_type directly — no PromptedOutput wrap.
+    assert handle._output_type is _Verdict  # type: ignore[attr-defined]
+    handle.close()
