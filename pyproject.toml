@@ -35,9 +35,10 @@ dependencies = [
 
 [project.urls]
 Homepage      = "https://github.com/damien-robotsix/robotsix-llmio"
-Source        = "https://github.com/damien-robotsix/robotsix-llmio"
+Repository    = "https://github.com/damien-robotsix/robotsix-llmio"
+Documentation = "https://damien-robotsix.github.io/robotsix-llmio/"
+Changelog     = "https://github.com/damien-robotsix/robotsix-llmio/blob/main/CHANGELOG.md"
 Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
-Documentation = "https://github.com/damien-robotsix/robotsix-llmio#readme"
 
 [project.optional-dependencies]
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
