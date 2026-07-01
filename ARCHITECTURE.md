@@ -26,16 +26,16 @@ The library is organised into three logical roles:
   - `robotsix_llmio.openrouter` — OpenRouter transport: auth / base URL
     / `usage.include` opt-in / cost extraction from `usage.cost` /
     OpenRouter-specific transient signature. `OpenRouterProvider` is
-    **abstract**: it leaves the model name to the caller (resolved from
-    `TierConfig` upstream).
+    concrete: the model name is resolved from `TierConfig` by the caller.
   - `robotsix_llmio.claude_sdk` — Claude Agent SDK transport: drives
     the local `claude` CLI through `claude_agent_sdk` (no API key —
     authenticates via your `claude login` session). Concrete: ships default
-    model names resolved by `TierConfig` defaults (`opus` / `haiku`).
-- **Derived per-family layer (`robotsix_llmio.openrouter_deepseek`)** —
-  extends `openrouter.OpenRouterProvider` with DeepSeek-specific quirks
-  (pinned upstream provider, per-level reasoning policy, `reasoning_content`
-  round-trip) and pins the model names to `deepseek/deepseek-v4-pro` /
+    model name resolved by `TierConfig` (defaults to `opus`).
+- **Derived DeepSeek classes (`robotsix_llmio.openrouter`)** —
+  `OpenRouterDeepseekProvider` and `OpenRouterDeepseekModel` live in the same
+  `openrouter` package and extend `OpenRouterProvider` with DeepSeek-specific
+  quirks (pinned upstream provider, per-level reasoning policy, `reasoning_content`
+  round-trip), pinning model names to `deepseek/deepseek-v4-pro` /
   `deepseek/deepseek-v4-flash`.
 
 ```mermaid
@@ -51,7 +51,6 @@ classDiagram
         +_is_transient(exc)
     }
     class OpenRouterProvider {
-        <<abstract>>
         +_model_class()
         +_post_build_model(model, level)
     }
@@ -83,16 +82,17 @@ separable:
 
 `openrouter/` and `claude_sdk/` both follow this layout in full.
 
-`openrouter_deepseek/` follows the same layout **minus** `transient.py`
-— it inherits OpenRouter's transient signature via
-`OpenRouterProvider._is_transient`. The package's `__init__.py`
-docstring is the canonical statement:
+`openrouter/` contains both the base `OpenRouterProvider` / `OpenRouterModel`
+and the derived DeepSeek classes (`OpenRouterDeepseekProvider`,
+`OpenRouterDeepseekModel`). The DeepSeek classes inherit OpenRouter's
+transient signature via `OpenRouterProvider._is_transient`. The package's
+`__init__.py` docstring is the canonical statement:
 
-> Requires the `openrouter_deepseek` extra (which pulls the OpenRouter
-> transport deps). The model/provider are loaded lazily via PEP 562
-> `__getattr__` so a missing extra surfaces a clear install hint only
-> when the model/provider is actually used. Transient retry is inherited
-> from the OpenRouter layer (this layer adds no DeepSeek-specific
+> Requires the `openrouter` extra (which pulls the OpenRouter transport
+> deps). The model/provider are loaded lazily via PEP 562 `__getattr__`
+> so a missing extra surfaces a clear install hint only when the
+> model/provider is actually used. Transient retry is inherited from
+> the OpenRouter layer (the DeepSeek classes add no DeepSeek-specific
 > transient signature).
 
 `core/` does **NOT** follow the model/provider/transient layout — it
@@ -144,7 +144,7 @@ files are:
 
 ## The PEP 562 `__getattr__` lazy-import convention
 
-Three of the four sub-packages' `__init__.py` files use a module-level
+All package `__init__.py` files use a module-level
 [PEP 562](https://peps.python.org/pep-0562/) `__getattr__` to defer the
 import of `model` / `provider` until the heavy symbol is actually
 accessed. The same convention serves two purposes at once:
@@ -152,31 +152,30 @@ accessed. The same convention serves two purposes at once:
 1. Importing the lightweight `transient` helpers (cheap predicates used
    at retry-decision sites) does not drag in `pydantic-ai`, OpenTelemetry,
    `httpx`, or the Claude Agent SDK at module load.
-2. For the optional-extra packages (`openrouter_deepseek`, `claude_sdk`),
+2. For the optional-extra packages (`openrouter`, `claude_sdk`),
    a missing extra surfaces as a clear `ImportError` with an install
    hint **only when the heavy symbol is touched**, not on a plain
-   `import robotsix_llmio.openrouter_deepseek`. The hint wording —
+   `import robotsix_llmio.openrouter`. The hint wording —
    reused verbatim across the optional-extra packages so future
    contributors copy it — looks like:
 
    ```python
    raise ImportError(
-       "robotsix_llmio.openrouter_deepseek requires the "
-       "'openrouter_deepseek' extra. Install with: "
-       "pip install 'robotsix-llmio[openrouter_deepseek]'"
+       "robotsix_llmio.openrouter requires the "
+       "'openrouter' extra. Install with: "
+       "pip install 'robotsix-llmio[openrouter]'"
    ) from exc
    ```
 
-**Applied in** (exactly these three files):
+**Applied in** (all seven package `__init__.py` files):
 
-- `src/robotsix_llmio/openrouter/__init__.py`
-- `src/robotsix_llmio/openrouter_deepseek/__init__.py`
 - `src/robotsix_llmio/claude_sdk/__init__.py`
-
-**Not applied in** `src/robotsix_llmio/core/__init__.py`, which eagerly
-re-exports its public surface. The core package is always installed and
-nothing it imports is optional or particularly heavy, so there is
-nothing to defer.
+- `src/robotsix_llmio/config/__init__.py`
+- `src/robotsix_llmio/core/__init__.py`
+- `src/robotsix_llmio/knowledge/__init__.py`
+- `src/robotsix_llmio/openrouter/__init__.py`
+- `src/robotsix_llmio/refdocs/__init__.py`
+- `src/robotsix_llmio/self_review/__init__.py`
 
 ## Design decisions worth knowing
 
@@ -200,7 +199,7 @@ short rationale grounded in the source.
 - **Hook-based extension on `OpenRouterProvider`.** The two
     overridable hooks — `_model_class()`, `_post_build_model()` —
     are the contract a per-family derived layer fills in.
-    `openrouter_deepseek.provider` is the worked example: it pins
+    `openrouter.provider` is the worked example: it pins
     the model class and stamps per-level reasoning policy in
     `_post_build_model`.
 - **`AgentHandle` for deterministic cleanup.** `core/agent.py` wraps
@@ -300,15 +299,13 @@ sub-directory for modules that have their own test suite:
   - `test_core_retry.py` — transient / rate-limit classification,
     backoff progression, fallback handling.
   - `test_core_provider.py` — the `LLMProvider` contract.
+  - `test_tracing.py` — tracing unit tests.
+  - `test_tracing_live.py` — live tracing (opt-in).
 - `tests/openrouter/`:
   - `test_openrouter.py` — OpenRouter transport unit tests.
-- `tests/test_tracing.py` — tracing unit tests.
-- `tests/test_tracing_live.py` — live tracing (opt-in).
-- `tests/openrouter_deepseek/`:
-  - `test_openrouter_deepseek.py` — unit tests.
-  - `test_openrouter_deepseek_live.py` — live tests; reproduces the
-    DeepSeek thinking-mode 400 that the `reasoning_content` round-trip
-    fixes.
+  - `test_openrouter_deepseek.py` — unit tests for the DeepSeek derived layer.
+  - `test_openrouter_deepseek_live.py` — live tests; reproduces the DeepSeek
+    thinking-mode 400 that the `reasoning_content` round-trip fixes.
 - `tests/claude_sdk/`:
   - `test_claude_sdk.py` — unit tests.
   - `test_confine_hook.py` — exercises the workspace-confinement
@@ -326,8 +323,8 @@ logged-in `claude` CLI).
 
 - [README.md](README.md) — the usage surface (install, examples,
   environment variables, Langfuse wiring).
-- [`pyproject.toml`](pyproject.toml) — the four optional extras
-  (`openrouter`, `openrouter_deepseek`, `claude_sdk`, `tracing`) and the
+- [`pyproject.toml`](pyproject.toml) — the five optional extras
+  (`openrouter`, `claude_sdk`, `tracing`, `docs`, `dev`) and the
   live-test marker configuration.
 - [`docs/modules.yaml`](docs/modules.yaml) — the per-module path
   taxonomy (source / tests / docs paths per module id) consumed by the
