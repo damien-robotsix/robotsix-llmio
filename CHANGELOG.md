@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Fix `call_with_retry` / `acall_with_retry`: rate-limit (`UsageLimitExceeded`) on the last retry attempt now correctly triggers the one-shot `fallback_fn` instead of re-raising immediately. Fallback activation no longer consumes a transient-retry slot — the fallback always gets the same full retry budget as the primary.
 - Fix `extra_body.provider` override suppressing the per-tier reasoning policy in `OpenRouterDeepseekModel._inject_pin`. Custom provider routing now coexists with reasoning injection (reasoning is injected independently of the provider pin).
 - Add Bash command workspace confinement for claude_sdk tool agents: a
   new ``PreToolUse`` hook denies ``Bash`` commands referencing absolute

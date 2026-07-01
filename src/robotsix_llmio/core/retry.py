@@ -127,6 +127,10 @@ def call_with_retry(
     Non-transient errors re-raise immediately; the last error re-raises once
     retries are exhausted.
 
+    Fallback activation does **not** consume a transient-retry slot — the
+    fallback gets the same full retry budget as the primary, regardless of how
+    many transient retries the primary consumed before hitting the rate limit.
+
     *is_transient_fn* lets a provider layer widen the transient set (e.g. the
     OpenRouter upstream-error or DeepSeek reasoning-400 signatures).
     """
@@ -135,18 +139,36 @@ def call_with_retry(
     rate_limit_count = 0
     cumulative_backoff = 0.0
 
-    for attempt in range(attempts + 1):
+    attempt = 0
+    while attempt <= attempts:
         try:
             if using_fallback:
                 assert fallback_fn is not None  # type-narrowing
                 return fallback_fn()
             return fn()
         except Exception as e:
-            if attempt >= attempts:
+            if is_rate_limited(e):
+                rate_limit_count += 1
+                if not using_fallback and fallback_fn is not None:
+                    using_fallback = True
+                    log.warning(
+                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
+                        what,
+                    )
+                    _record_rate_limit_span(
+                        count=rate_limit_count,
+                        cumulative_backoff=cumulative_backoff,
+                        fallback_activated=True,
+                    )
+                    attempt = 0  # fresh retry budget for fallback
+                    continue
                 _safe_flush()
                 raise
 
             if is_transient_fn(e):
+                if attempt >= attempts:
+                    _safe_flush()
+                    raise
                 delay = min(
                     constants.TRANSIENT_BACKOFF_CAP,
                     constants.TRANSIENT_BACKOFF_BASE * (2**attempt),
@@ -163,26 +185,13 @@ def call_with_retry(
                 )
                 _safe_flush()
                 sleep(delay)
+                attempt += 1
                 continue
 
-            if is_rate_limited(e):
-                rate_limit_count += 1
-                if not using_fallback and fallback_fn is not None:
-                    using_fallback = True
-                    log.warning(
-                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
-                        what,
-                    )
-                    _record_rate_limit_span(
-                        count=rate_limit_count,
-                        cumulative_backoff=cumulative_backoff,
-                        fallback_activated=True,
-                    )
-                    continue  # try fallback immediately, same attempt slot
+            # non-retryable
+            if attempt >= attempts:
                 _safe_flush()
                 raise
-
-            # non-retryable
             _safe_flush()
             raise
     raise AssertionError("unreachable")  # pragma: no cover
@@ -257,18 +266,36 @@ async def acall_with_retry(
     rate_limit_count = 0
     cumulative_backoff = 0.0
 
-    for attempt in range(attempts + 1):
+    attempt = 0
+    while attempt <= attempts:
         try:
             if using_fallback:
                 assert fallback_fn is not None  # type-narrowing
                 return await fallback_fn()
             return await fn()
         except Exception as e:
-            if attempt >= attempts:
+            if is_rate_limited(e):
+                rate_limit_count += 1
+                if not using_fallback and fallback_fn is not None:
+                    using_fallback = True
+                    log.warning(
+                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
+                        what,
+                    )
+                    _record_rate_limit_span(
+                        count=rate_limit_count,
+                        cumulative_backoff=cumulative_backoff,
+                        fallback_activated=True,
+                    )
+                    attempt = 0  # fresh retry budget for fallback
+                    continue
                 _safe_flush()
                 raise
 
             if is_transient_fn(e):
+                if attempt >= attempts:
+                    _safe_flush()
+                    raise
                 delay = min(
                     constants.TRANSIENT_BACKOFF_CAP,
                     constants.TRANSIENT_BACKOFF_BASE * (2**attempt),
@@ -285,26 +312,13 @@ async def acall_with_retry(
                 )
                 _safe_flush()
                 await sleep(delay)
+                attempt += 1
                 continue
 
-            if is_rate_limited(e):
-                rate_limit_count += 1
-                if not using_fallback and fallback_fn is not None:
-                    using_fallback = True
-                    log.warning(
-                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
-                        what,
-                    )
-                    _record_rate_limit_span(
-                        count=rate_limit_count,
-                        cumulative_backoff=cumulative_backoff,
-                        fallback_activated=True,
-                    )
-                    continue  # try fallback immediately, same attempt slot
+            # non-retryable
+            if attempt >= attempts:
                 _safe_flush()
                 raise
-
-            # non-retryable
             _safe_flush()
             raise
     raise AssertionError("unreachable")  # pragma: no cover
