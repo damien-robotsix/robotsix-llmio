@@ -33,6 +33,6 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: '\.secrets\.baseline$'
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.7
+    rev: v1.7.12
     hooks:
       - id: actionlint-docker
