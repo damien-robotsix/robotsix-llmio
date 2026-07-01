@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
+
 from ..core.http import timeout_http_client
 from ._base import _DEFAULT_BASE_URL
 from .provider_cost import KeyUsage
@@ -31,7 +33,7 @@ class AsyncOpenRouterClient:
 
         Hits ``GET {base_url}/auth/key``.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``OpenRouterAPIError`` on transport or HTTP errors.
         """
         data = await self._get("/auth/key")
         limit = data.get("limit")
@@ -48,7 +50,7 @@ class AsyncOpenRouterClient:
         ``total_credits``, ``total_usage``, and ``remaining`` (each
         rounded to 6 decimal places).
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``OpenRouterAPIError`` on transport or HTTP errors.
         """
         data = await self._get("/credits")
         total_credits = float(data.get("total_credits") or 0.0)
@@ -64,14 +66,19 @@ class AsyncOpenRouterClient:
         """Send a GET to *path* and return the ``"data"`` key of the JSON
         response body.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``OpenRouterAPIError`` on transport or HTTP errors.
         """
         url = f"{self._base_url}{path}"
         headers = {"Authorization": f"Bearer {self._key}"}
-        async with timeout_http_client() as client:
-            resp = await client.get(url, headers=headers)
+        try:
+            async with timeout_http_client() as client:
+                resp = await client.get(url, headers=headers)
+        except Exception as exc:
+            raise OpenRouterAPIError(
+                f"OpenRouter {path} request failed: {exc}"
+            ) from exc
         if not (200 <= resp.status_code < 300):
-            raise RuntimeError(
+            raise OpenRouterAPIError(
                 f"OpenRouter {path} request failed: HTTP {resp.status_code}"
             )
         return resp.json().get("data") or {}

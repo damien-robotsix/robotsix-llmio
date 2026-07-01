@@ -19,6 +19,8 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
+
 from ..core.constants import HTTP_CLIENT_TIMEOUT
 from ..core.cost_log import CostWindow
 from ..core.provider_cost import ProviderCost
@@ -56,14 +58,19 @@ class OpenRouterKeyCostSource:
     def fetch_key_usage(self) -> KeyUsage:
         """Current cumulative usage of the authenticating key.
 
-        Raises ``RuntimeError`` on any non-2xx response.
+        Raises ``OpenRouterAPIError`` on transport or HTTP errors.
         """
         url = f"{self._base_url}/auth/key"
         headers = {"Authorization": f"Bearer {self._key}"}
-        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
-            resp = client.get(url, headers=headers)
+        try:
+            with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
+                resp = client.get(url, headers=headers)
+        except Exception as exc:
+            raise OpenRouterAPIError(
+                f"OpenRouter auth/key request failed: {exc}"
+            ) from exc
         if not (200 <= resp.status_code < 300):
-            raise RuntimeError(
+            raise OpenRouterAPIError(
                 f"OpenRouter auth/key request failed: "
                 f"HTTP {resp.status_code}: {resp.text[:200]}"
             )
@@ -94,8 +101,9 @@ class OpenRouterProviderCostSource:
     def fetch_provider_cost(self, window: CostWindow) -> ProviderCost:
         """Sum OpenRouter's billed spend across every UTC day *window* covers.
 
-        Raises ``RuntimeError`` on any non-2xx response rather than silently
-        returning zero (a silent zero would read as "all spend unlogged").
+        Raises ``OpenRouterAPIError`` on transport or HTTP errors rather than
+        silently returning zero (a silent zero would read as "all spend
+        unlogged").
         """
         total = 0.0
         breakdown: dict[str, float] = {}
@@ -103,23 +111,30 @@ class OpenRouterProviderCostSource:
         headers = {"Authorization": f"Bearer {self._key}"}
         url = f"{self._base_url}/activity"
 
-        with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
-            for date_str in _utc_dates(window):
-                resp = client.get(url, params={"date": date_str}, headers=headers)
-                if not (200 <= resp.status_code < 300):
-                    raise RuntimeError(
-                        f"OpenRouter activity request failed for {date_str}: "
-                        f"HTTP {resp.status_code}: {resp.text[:200]}"
-                    )
-                data = resp.json().get("data") or []
-                for entry in data:
-                    usage = float(entry.get("usage", 0) or 0)
-                    byok = float(entry.get("byok_usage_inference", 0) or 0)
-                    sub_total = usage + byok
-                    total += sub_total
-                    model = str(entry.get("model", "unknown"))
-                    breakdown[model] = breakdown.get(model, 0.0) + sub_total
-                    request_count += int(entry.get("num_requests", 0) or 0)
+        try:
+            with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
+                for date_str in _utc_dates(window):
+                    resp = client.get(url, params={"date": date_str}, headers=headers)
+                    if not (200 <= resp.status_code < 300):
+                        raise OpenRouterAPIError(
+                            f"OpenRouter activity request failed for {date_str}: "
+                            f"HTTP {resp.status_code}: {resp.text[:200]}"
+                        )
+                    data = resp.json().get("data") or []
+                    for entry in data:
+                        usage = float(entry.get("usage", 0) or 0)
+                        byok = float(entry.get("byok_usage_inference", 0) or 0)
+                        sub_total = usage + byok
+                        total += sub_total
+                        model = str(entry.get("model", "unknown"))
+                        breakdown[model] = breakdown.get(model, 0.0) + sub_total
+                        request_count += int(entry.get("num_requests", 0) or 0)
+        except OpenRouterAPIError:
+            raise
+        except Exception as exc:
+            raise OpenRouterAPIError(
+                f"OpenRouter activity request failed: {exc}"
+            ) from exc
 
         return ProviderCost(
             total_cost=total,

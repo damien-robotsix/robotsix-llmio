@@ -13,6 +13,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
 from robotsix_llmio.openrouter import _async_client as _async_client_module
 from robotsix_llmio.openrouter._async_client import AsyncOpenRouterClient
 from robotsix_llmio.openrouter.provider_cost import KeyUsage
@@ -84,7 +85,7 @@ def test_fetch_key_usage_non_2xx_raises_runtime_error(monkeypatch):
     _install_transport(monkeypatch, handler)
 
     client = AsyncOpenRouterClient(api_key="k")
-    with pytest.raises(RuntimeError, match="HTTP 401"):
+    with pytest.raises(OpenRouterAPIError, match="HTTP 401"):
         asyncio.run(client.fetch_key_usage())
 
 
@@ -182,5 +183,5 @@ def test_fetch_credits_non_2xx_raises_runtime_error(monkeypatch):
     _install_transport(monkeypatch, handler)
 
     client = AsyncOpenRouterClient(api_key="k")
-    with pytest.raises(RuntimeError, match="HTTP 403"):
+    with pytest.raises(OpenRouterAPIError, match="HTTP 403"):
         asyncio.run(client.fetch_credits())

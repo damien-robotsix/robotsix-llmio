@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from robotsix_llmio.openrouter import OpenRouterAPIError
+
 from ..core import timeout_http_client
 from ..core.provider import LLMProvider
 from ._base import _DEFAULT_BASE_URL
@@ -42,7 +44,7 @@ class OpenRouterProvider(LLMProvider):
         """
         self._api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
         if not self._api_key:
-            raise RuntimeError(
+            raise OpenRouterAPIError(
                 "OpenRouter API key missing: pass api_key= or set OPENROUTER_API_KEY."
             )
         self._base_url = base_url

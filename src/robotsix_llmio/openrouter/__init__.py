@@ -9,7 +9,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from robotsix_llmio.exceptions import RobotsixLLMIOError
+
 from .transient import is_openrouter_transient, is_openrouter_upstream_error
+
+
+class OpenRouterAPIError(RobotsixLLMIOError):
+    """Error from the OpenRouter client (HTTP, auth, malformed response)."""
+
 
 # Static re-declaration of every lazily-exported name (see ``__getattr__``
 # below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
@@ -35,6 +42,7 @@ if TYPE_CHECKING:
 __all__ = [
     "AsyncOpenRouterClient",
     "KeyUsage",
+    "OpenRouterAPIError",
     "OpenRouterDeepseekModel",
     "OpenRouterDeepseekProvider",
     "OpenRouterKeyCostSource",

@@ -1,5 +1,8 @@
 ## 0.0.0 (unreleased)
 
+- Define `OpenRouterAPIError` (subclass of `RobotsixLLMIOError`) and raise it
+  instead of bare `RuntimeError` in the OpenRouter transport, provider, and
+  cost-source modules. Re-export from the top-level package.
 - Add `security_posture` periodic workflow to `.robotsix-mill/periodic/` for automated security posture review.
 # Changelog
 
