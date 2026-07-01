@@ -116,7 +116,17 @@ class SelfReviewClient:
             raise SelfReviewClientError(
                 f"Self-review {path} returned HTTP {resp.status_code}"
             )
-        return resp.json()  # type: ignore[no-any-return]
+        try:
+            body = resp.json()
+        except Exception as exc:
+            raise SelfReviewClientError(
+                f"Self-review {path} returned a non-JSON body"
+            ) from exc
+        if not isinstance(body, dict):
+            raise SelfReviewClientError(
+                f"Self-review {path} returned unexpected JSON shape (expected object)"
+            )
+        return body
 
 
 # ---------------------------------------------------------------------- #

@@ -227,6 +227,39 @@ def test_get_activity_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Non-JSON / JSON-array body guards
+# --------------------------------------------------------------------------- #
+
+
+def test_list_activity_html_body_raises_self_review_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>Bad Gateway</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    _install_transport(monkeypatch, handler)
+    client = SelfReviewClient(base_url="http://sr:8000/api/v1")
+    with pytest.raises(SelfReviewClientError, match="non-JSON"):
+        asyncio.run(client.list_activity())
+
+
+def test_list_activity_json_array_body_raises_self_review_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=["unexpected", "array"])
+
+    _install_transport(monkeypatch, handler)
+    client = SelfReviewClient(base_url="http://sr:8000/api/v1")
+    with pytest.raises(SelfReviewClientError, match="unexpected JSON shape"):
+        asyncio.run(client.list_activity())
+
+
+# --------------------------------------------------------------------------- #
 # build_recent_activity_tools
 # --------------------------------------------------------------------------- #
 

@@ -94,4 +94,14 @@ class AsyncRefdocsClient:
 
         if not (200 <= resp.status_code < 300):
             raise RefdocsClientError(f"Refdocs {path} returned HTTP {resp.status_code}")
-        return cast(dict[str, Any], resp.json())
+        try:
+            body = resp.json()
+        except Exception as exc:
+            raise RefdocsClientError(
+                f"Refdocs {path} returned a non-JSON body"
+            ) from exc
+        if not isinstance(body, dict):
+            raise RefdocsClientError(
+                f"Refdocs {path} returned unexpected JSON shape (expected object)"
+            )
+        return cast(dict[str, Any], body)
