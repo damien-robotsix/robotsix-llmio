@@ -94,7 +94,6 @@ Reproduce CI locally before pushing:
 ruff check .                  # lint
 ruff format --check .         # format verification (hook auto-formats)
 mypy src/                     # type-check
-bandit -r src/ -ll            # security scan
 uv audit                      # dependency vulnerability audit
 ```
 
@@ -108,9 +107,10 @@ it reports formatting issues without modifying files.
 - **Type hints** are required on public APIs. `mypy src/` runs in CI under a
   strict-ish config (`ignore_missing_imports = false`,
   `warn_unused_configs = true`). The only relaxed area is
-  `robotsix_llmio.openrouter_deepseek.*`, where a mypy override silences
+  `robotsix_llmio.openrouter.*`, where a mypy override silences
   errors that come from subclassing pydantic-ai's `OpenAIChatModel`.
-- **Module layering**: core → openrouter → openrouter_deepseek; `claude_sdk` is
+- **Module layering**: core → openrouter (DeepSeek derived classes live inside
+`openrouter`); `claude_sdk` is
   a sibling of openrouter (see the [README](README.md) for the architectural
   narrative). Don't introduce new top-level tunable knobs — timeout, retry, and
   backoff values are baked constants by design.
@@ -121,7 +121,7 @@ it reports formatting issues without modifying files.
 - Branch naming: short, kebab-case, topic-prefixed — e.g. `feat/…`, `fix/…`,
   `docs/…`, `chore/…`. This is a convention, not a CI gate.
 - CI **must** pass — the full test matrix (3.11, 3.12, 3.13), ruff, mypy,
-  bandit, and uv audit. The `security` job runs on Python 3.13 only. CI also
+  and uv audit. The `security` job runs on Python 3.13 only. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
 - Pre-commit hooks must pass locally before pushing.
@@ -134,7 +134,7 @@ it reports formatting issues without modifying files.
 
 ## 7. Reporting issues
 
-Open a [GitHub issue](https://github.com/robotsix-dev/robotsix-llmio/issues)
+Open a [GitHub issue](https://github.com/damien-robotsix/robotsix-llmio/issues)
 with:
 
 - a minimal reproducer,
@@ -167,7 +167,7 @@ version with the release date.
 
 Trusted Publishing must be registered once by a project maintainer at
 <https://pypi.org/manage/project/robotsix-llmio/settings/publishing/>, pointing
-at this repository (`robotsix-dev/robotsix-llmio`), the workflow filename
+at this repository (`damien-robotsix/robotsix-llmio`), the workflow filename
 `release.yml`, and the `pypi` GitHub Environment. This is a manual action
 performed once on PyPI and cannot be done from the repository.
 
