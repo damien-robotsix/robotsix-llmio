@@ -12,6 +12,7 @@ import pytest
 from conftest import install_transport, make_adapter, make_window
 
 from robotsix_llmio.core.cost_log import CostLogSource, LoggedCost
+from robotsix_llmio.core.langfuse_client import LangfuseClientError
 
 
 def test_multi_page_aggregation(monkeypatch):
@@ -80,7 +81,7 @@ def test_non_2xx_raises(monkeypatch):
         return httpx.Response(401, text="unauthorized")
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="401"):
+    with pytest.raises(LangfuseClientError, match="401"):
         make_adapter().fetch_logged_cost(make_window())
 
 

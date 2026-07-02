@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         default_tier_config,
         get_provider_for_level,
     )
+    from .core.langfuse_client import LangfuseClientError
     from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
     from .openrouter import OpenRouterAPIError
     from .self_review import (
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 __all__ = [
     "KnowledgeClient",
     "KnowledgeClientError",
+    "LangfuseClientError",
     "OpenRouterAPIError",
     "RobotsixLLMIOError",
     "SelfReviewClient",
@@ -59,6 +61,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import knowledge
 
         return getattr(knowledge, name)
+    if name == "LangfuseClientError":
+        from .core import langfuse_client
+
+        return langfuse_client.LangfuseClientError
     if name == "OpenRouterAPIError":
         from . import openrouter
 

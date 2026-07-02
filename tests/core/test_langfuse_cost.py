@@ -15,6 +15,7 @@ import pytest
 from conftest import install_transport, make_adapter, make_window
 
 from robotsix_llmio.core.cost_log import LoggedCost
+from robotsix_llmio.core.langfuse_client import LangfuseClientError
 from robotsix_llmio.core.langfuse_cost import (
     _observation_cost,
     _observation_provider,
@@ -117,7 +118,7 @@ def test_fetch_logged_cost_non_2xx_raises(monkeypatch):
         return httpx.Response(500, text="boom")
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="500"):
+    with pytest.raises(LangfuseClientError, match="500"):
         make_adapter().fetch_logged_cost(make_window())
 
 
@@ -221,7 +222,7 @@ def test_fetch_by_provider_non_2xx_raises(monkeypatch):
         return httpx.Response(403, text="forbidden")
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="403"):
+    with pytest.raises(LangfuseClientError, match="403"):
         make_adapter().fetch_logged_cost_by_provider(make_window(), "openrouter")
 
 
@@ -277,7 +278,7 @@ def test_prune_before_non_2xx_raises(monkeypatch):
         return httpx.Response(503, text="unavailable")
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="503"):
+    with pytest.raises(LangfuseClientError, match="503"):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
@@ -288,7 +289,7 @@ def test_prune_before_delete_non_2xx_raises(monkeypatch):
         return httpx.Response(500, text="delete-failed")
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="delete"):
+    with pytest.raises(LangfuseClientError, match="delete"):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
@@ -320,7 +321,7 @@ def test_prune_before_delayed_deletion_terminates(monkeypatch):
 
 
 def test_prune_before_max_iterations_raises(monkeypatch):
-    """RuntimeError is raised when _MAX_PRUNE_ITERATIONS is exceeded."""
+    """LangfuseClientError is raised when _MAX_PRUNE_ITERATIONS is exceeded."""
     import robotsix_llmio.core.langfuse_cost as _lcm
 
     monkeypatch.setattr(_lcm, "_MAX_PRUNE_ITERATIONS", 2)
@@ -335,7 +336,7 @@ def test_prune_before_max_iterations_raises(monkeypatch):
         return httpx.Response(200, json={})
 
     install_transport(monkeypatch, handler)
-    with pytest.raises(RuntimeError, match="iterations"):
+    with pytest.raises(LangfuseClientError, match="iterations"):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 

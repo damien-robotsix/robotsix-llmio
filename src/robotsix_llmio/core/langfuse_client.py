@@ -29,9 +29,16 @@ from typing import Any
 
 import httpx
 
+from robotsix_llmio.exceptions import RobotsixLLMIOError
+
 from ._otel import _DEFAULT_LANGFUSE_BASE_URL as _DEFAULT_BASE_URL
 from ._otel import LANGFUSE_COST_DETAILS_TOTAL_KEY
 from .constants import HTTP_CLIENT_TIMEOUT
+
+
+class LangfuseClientError(RobotsixLLMIOError):
+    """Error from the Langfuse API client (HTTP, auth, iteration limit)."""
+
 
 _PAGE_LIMIT = 100
 _TRACES_PATH = "/api/public/traces"
@@ -93,7 +100,7 @@ class LangfuseReadClient(_LangfuseReadClientBase):
         """Paginate *url* (1-based ``page``), yielding each page's ``data``.
 
         Owns the ``httpx.Client``, the page loop, the ``Basic`` auth header, the
-        non-2xx ``RuntimeError`` (labelled with *error_label*), the
+        non-2xx ``LangfuseClientError`` (labelled with *error_label*), the
         empty-``data`` break, and the ``meta.totalPages`` termination. *url* may
         be an absolute URL or a path relative to :attr:`base_url`.
         """
@@ -109,7 +116,7 @@ class LangfuseReadClient(_LangfuseReadClientBase):
                     headers=headers,
                 )
                 if not (200 <= resp.status_code < 300):
-                    raise RuntimeError(
+                    raise LangfuseClientError(
                         f"Langfuse {error_label} failed: "
                         f"HTTP {resp.status_code}: {resp.text[:200]}"
                     )
