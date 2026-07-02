@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Centralise four environment-variable name strings into module-level constants (``_ENV_LOG_LEVEL``, ``_ENV_LOG_FORMAT``, ``_ENV_OPENROUTER_API_KEY``, ``_ENV_REFDOCS_API_KEY``) in ``logging.py``, ``openrouter/provider.py``, and ``refdocs/_settings.py``, following the ``ENV_LANGFUSE_*`` pattern in ``core/_otel.py``.
 - Add `site_url` to `mkdocs.yml` to fix MkDocs 1.6+ sitemap generation, social card images, canonical links, and 404 page asset paths.
 - Introduced `LangfuseClientError(RobotsixLLMIOError)` in `core.langfuse_client`, replacing bare `RuntimeError` at all Langfuse HTTP/auth/iteration-limit sites, and re-exported it from both `robotsix_llmio.core` and the top-level `robotsix_llmio` package so consumers can catch Langfuse-specific errors by type.
 - Fix `[project.urls]` in `pyproject.toml`: rename `Source` to `Repository`, point `Documentation` to the deployed MkDocs site, and add a `Changelog` URL.

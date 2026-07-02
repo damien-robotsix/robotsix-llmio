@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 
 from ._base import _DEFAULT_BASE_URL
 
+#: Environment variable name for the refdocs API key.
+_ENV_REFDOCS_API_KEY = "REFDOCS_API_KEY"
+
 
 @dataclass(frozen=True)
 class RefdocsSettings:
@@ -33,4 +36,4 @@ class RefdocsSettings:
     @property
     def resolved_api_key(self) -> str | None:
         """Return the explicit *api_key* or the ``REFDOCS_API_KEY`` env var."""
-        return self.api_key or os.environ.get("REFDOCS_API_KEY")
+        return self.api_key or os.environ.get(_ENV_REFDOCS_API_KEY)
