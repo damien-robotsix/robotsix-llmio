@@ -5,6 +5,8 @@
 [![CI](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml)
 [![PyPI - License](https://img.shields.io/pypi/l/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
 
+This repo follows the [robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards).
+
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
 consumer only ever picks a **level** (1, 2, 3, or 4).
