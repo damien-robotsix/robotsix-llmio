@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   ci:
+    if: ${{ github.actor != 'dependabot[bot]' }}
     permissions:
       contents: read
       security-events: write
@@ -63,6 +64,7 @@ jobs:
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   security:
+    if: ${{ github.actor != 'dependabot[bot]' }}
     permissions:
       contents: read
       security-events: write
@@ -75,7 +77,6 @@ jobs:
   codeql:
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -120,3 +121,32 @@ jobs:
         with:
           name: sbom
           path: sbom.cdx.json
+
+  dependabot-tests:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: ./.github/actions/setup-repo
+        with:
+          python-version: '3.13'
+      - run: uv sync --frozen --extra openrouter --extra claude_sdk --extra tracing --extra dev
+      - run: uv run pytest -m "not live" -n 4
+
+  required-checks:
+    if: always()
+    needs: [ci, ruff, mypy, security, codeql, dependabot-tests]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Verify required jobs passed
+        env:
+          RESULTS: "${{ needs.ci.result }} ${{ needs.ruff.result }} ${{ needs.mypy.result }} ${{ needs.security.result }} ${{ needs.codeql.result }} ${{ needs.dependabot-tests.result }}"
+        run: |
+          echo "dependency results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::a required job did not pass ($r)"; exit 1
+            fi
+          done

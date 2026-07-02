@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Fix Dependabot PRs blocked by reusable-workflow permission composition: add actor guards to `ci` and `security` jobs (skip on Dependabot so the `security-events: write` requirement doesn't cause a `startup_failure`), remove unnecessary `security-events: write` from `codeql` (which uses `upload: false` + artifact shipping), add an inline `dependabot-tests` job (read-only, no reusable calls), and add a `required-checks` aggregation gate with a stable name for branch protection.
 - Add robotsix-standards reference link to README.md and AGENT.md.
 - Centralise four environment-variable name strings into module-level constants (``_ENV_LOG_LEVEL``, ``_ENV_LOG_FORMAT``, ``_ENV_OPENROUTER_API_KEY``, ``_ENV_REFDOCS_API_KEY``) in ``logging.py``, ``openrouter/provider.py``, and ``refdocs/_settings.py``, following the ``ENV_LANGFUSE_*`` pattern in ``core/_otel.py``.
 - Add `site_url` to `mkdocs.yml` to fix MkDocs 1.6+ sitemap generation, social card images, canonical links, and 404 page asset paths.
