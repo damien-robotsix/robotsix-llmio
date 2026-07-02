@@ -1,5 +1,6 @@
 site_name: robotsix-llmio
 site_description: Provider-agnostic LLM I/O for pydantic-ai agents
+site_url: https://damien-robotsix.github.io/robotsix-llmio/
 repo_url: https://github.com/damien-robotsix/robotsix-llmio
 
 theme:

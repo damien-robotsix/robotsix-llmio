@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Add `site_url` to `mkdocs.yml` to fix MkDocs 1.6+ sitemap generation, social card images, canonical links, and 404 page asset paths.
 - Introduced `LangfuseClientError(RobotsixLLMIOError)` in `core.langfuse_client`, replacing bare `RuntimeError` at all Langfuse HTTP/auth/iteration-limit sites, and re-exported it from both `robotsix_llmio.core` and the top-level `robotsix_llmio` package so consumers can catch Langfuse-specific errors by type.
 - Fix `[project.urls]` in `pyproject.toml`: rename `Source` to `Repository`, point `Documentation` to the deployed MkDocs site, and add a `Changelog` URL.
 - Fix README CI badge URL (was pointing at robotsix-mill instead of robotsix-llmio) and clarify env var scoping of ``LLMIO_LEVEL<N>_*`` variables in ``get_provider_for_level`` docs. Remove stale "follow-up concern" sentence from ``tier.py`` module docstring.
