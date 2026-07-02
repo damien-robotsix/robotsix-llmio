@@ -1,0 +1,5 @@
+# Per-repo periodic workflow: presence enables changelog_autofill for this repo.
+# Scans open PRs whose CI has a failing "changelog" check, formats a bullet
+# entry from the PR title, inserts it under ## 0.0.0 (unreleased) in
+# CHANGELOG.md, commits, and pushes.
+name: changelog_autofill
