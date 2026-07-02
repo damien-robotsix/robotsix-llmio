@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Add `check-added-large-files`, `check-ast`, and `check-case-conflict` pre-commit hooks from `pre-commit-hooks`.
 - Add Dependabot auto-merge caller workflow (`.github/workflows/dependabot-auto-merge.yml`) so dependabot PRs auto-merge once required checks pass.
 - Remove `.github/workflows/release.yml`: per robotsix-standards, first-party libraries are consumed from git via uv `[tool.uv.sources]`, not from PyPI. No packages are published to PyPI.
 - Add robotsix-standards reference link to README.md and AGENT.md.
