@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   ci:
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    if: ${{ github.triggering_actor != 'dependabot[bot]' }}
     permissions:
       contents: read
       security-events: write
@@ -64,7 +64,7 @@ jobs:
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   security:
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    if: ${{ github.triggering_actor != 'dependabot[bot]' }}
     permissions:
       contents: read
       security-events: write
@@ -123,7 +123,7 @@ jobs:
           path: sbom.cdx.json
 
   dependabot-tests:
-    if: ${{ github.actor_id == '49699333' }}
+    if: ${{ github.triggering_actor == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
