@@ -123,7 +123,7 @@ jobs:
           path: sbom.cdx.json
 
   dependabot-tests:
-    if: ${{ github.triggering_actor == 'dependabot[bot]' }}
+    if: ${{ github.actor_id == '49699333' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
