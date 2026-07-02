@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Add Dependabot auto-merge caller workflow (`.github/workflows/dependabot-auto-merge.yml`) so dependabot PRs auto-merge once required checks pass.
 - Remove `.github/workflows/release.yml`: per robotsix-standards, first-party libraries are consumed from git via uv `[tool.uv.sources]`, not from PyPI. No packages are published to PyPI.
 - Add robotsix-standards reference link to README.md and AGENT.md.
 - Centralise four environment-variable name strings into module-level constants (``_ENV_LOG_LEVEL``, ``_ENV_LOG_FORMAT``, ``_ENV_OPENROUTER_API_KEY``, ``_ENV_REFDOCS_API_KEY``) in ``logging.py``, ``openrouter/provider.py``, and ``refdocs/_settings.py``, following the ``ENV_LANGFUSE_*`` pattern in ``core/_otel.py``.
