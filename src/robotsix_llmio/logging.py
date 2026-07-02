@@ -32,6 +32,12 @@ _NO_TRACE_ID = "-"
 #: repeat call can detect and reuse the existing handler (idempotency).
 _CONFIGURED_MARKER = "_robotsix_llmio_configured"
 
+#: Environment variable name for the log level (``_resolve_level``).
+_ENV_LOG_LEVEL = "LOG_LEVEL"
+
+#: Environment variable name for the log format (``_resolve_formatter``).
+_ENV_LOG_FORMAT = "LOG_FORMAT"
+
 #: Text format used for the ``"console"`` / ``"text"`` format.
 _CONSOLE_FORMAT = "%(asctime)s %(levelname)s %(name)s [%(trace_id)s] %(message)s"
 
@@ -89,7 +95,7 @@ class _JsonFormatter(logging.Formatter):
 def _resolve_level(level: int | str | None) -> int:
     """Resolve the effective log level.
 
-    First non-``None`` wins: explicit *level* → env ``LOG_LEVEL`` → ``"INFO"``.
+    First non-``None`` wins: explicit *level* → ``LOG_LEVEL`` env → ``"INFO"``.
     Accepts a level name (case-insensitive) or an int.
 
     Args:
@@ -99,7 +105,7 @@ def _resolve_level(level: int | str | None) -> int:
         The resolved numeric logging level.
     """
     resolved: int | str = (
-        level if level is not None else os.environ.get("LOG_LEVEL", "INFO")
+        level if level is not None else os.environ.get(_ENV_LOG_LEVEL, "INFO")
     )
     if isinstance(resolved, int):
         return resolved
@@ -109,7 +115,7 @@ def _resolve_level(level: int | str | None) -> int:
 def _resolve_formatter(fmt: str | None) -> logging.Formatter:
     """Resolve the formatter from *fmt*.
 
-    First non-``None`` wins: explicit *fmt* → env ``LOG_FORMAT`` → ``"console"``.
+    First non-``None`` wins: explicit *fmt* → ``LOG_FORMAT`` env → ``"console"``.
     ``"json"`` selects the JSON formatter; ``"console"``/``"text"`` (and any
     unrecognized value) selects the text formatter.
 
@@ -119,7 +125,7 @@ def _resolve_formatter(fmt: str | None) -> logging.Formatter:
     Returns:
         The resolved :class:`logging.Formatter`.
     """
-    name = fmt if fmt is not None else os.environ.get("LOG_FORMAT", "console")
+    name = fmt if fmt is not None else os.environ.get(_ENV_LOG_FORMAT, "console")
     if name.lower() == "json":
         return _JsonFormatter()
     return logging.Formatter(_CONSOLE_FORMAT)

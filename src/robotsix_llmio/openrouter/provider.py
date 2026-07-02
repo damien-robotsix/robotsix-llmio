@@ -20,6 +20,9 @@ from ._base import _DEFAULT_BASE_URL
 from .model import OpenRouterModel
 from .transient import is_openrouter_transient
 
+#: Environment variable name for the OpenRouter API key.
+_ENV_OPENROUTER_API_KEY = "OPENROUTER_API_KEY"
+
 
 class OpenRouterProvider(LLMProvider):
     """Builds cost-instrumented OpenRouter models from a model name.
@@ -43,10 +46,11 @@ class OpenRouterProvider(LLMProvider):
                 public OpenRouter API; pass a custom value to route requests
                 through a proxy or mirror.
         """
-        self._api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        self._api_key = api_key or os.environ.get(_ENV_OPENROUTER_API_KEY, "")
         if not self._api_key:
             raise OpenRouterAPIError(
-                "OpenRouter API key missing: pass api_key= or set OPENROUTER_API_KEY."
+                "OpenRouter API key missing: pass api_key= or set"
+                f" {_ENV_OPENROUTER_API_KEY}."
             )
         self._base_url = base_url
 
