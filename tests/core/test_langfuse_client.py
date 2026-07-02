@@ -16,7 +16,7 @@ import pytest
 from conftest import install_transport
 
 from robotsix_llmio.core import langfuse_client as langfuse_client_module
-from robotsix_llmio.core.langfuse_client import LangfuseReadClient
+from robotsix_llmio.core.langfuse_client import LangfuseClientError, LangfuseReadClient
 
 
 def _client() -> LangfuseReadClient:
@@ -104,7 +104,7 @@ def test_iter_pages_non_2xx_raises(monkeypatch):
         return httpx.Response(500, text="boom")
 
     install_transport(monkeypatch, handler, module=langfuse_client_module)
-    with pytest.raises(RuntimeError, match="traces request"):
+    with pytest.raises(LangfuseClientError, match="traces request"):
         list(_client().iter_pages("/api/public/traces", error_label="traces request"))
 
 

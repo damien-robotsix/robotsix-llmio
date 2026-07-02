@@ -47,7 +47,7 @@ if TYPE_CHECKING:
         parse_model_identifier,
     )
     from .langfuse_async_client import AsyncLangfuseReadClient
-    from .langfuse_client import LangfuseReadClient
+    from .langfuse_client import LangfuseClientError, LangfuseReadClient
     from .langfuse_cost import LangfuseCostLogSource
     from .provider import LLMProvider
     from .provider_cost import (
@@ -99,6 +99,7 @@ __all__ = [
     "CostWindow",
     "Discrepancy",
     "LLMProvider",
+    "LangfuseClientError",
     "LangfuseCostLogSource",
     "LangfuseReadClient",
     "LoggedCost",
@@ -176,6 +177,7 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     # -- langfuse_async_client
     "AsyncLangfuseReadClient": (".langfuse_async_client", "AsyncLangfuseReadClient"),
     # -- langfuse_client
+    "LangfuseClientError": (".langfuse_client", "LangfuseClientError"),
     "LangfuseReadClient": (".langfuse_client", "LangfuseReadClient"),
     # -- langfuse_cost
     "LangfuseCostLogSource": (".langfuse_cost", "LangfuseCostLogSource"),

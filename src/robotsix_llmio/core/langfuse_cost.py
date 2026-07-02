@@ -28,6 +28,7 @@ from .langfuse_client import (
     _OBSERVATIONS_PATH,
     _PAGE_LIMIT,
     _TRACES_PATH,
+    LangfuseClientError,
     LangfuseReadClient,
     _observation_cost,
     _observation_provider,
@@ -68,7 +69,7 @@ class LangfuseCostLogSource:
         Pages through the public traces endpoint (1-based ``page`` + ``limit``)
         until a page returns no data (or the response's ``meta.totalPages`` is
         reached), then sums trace-level ``totalCost`` and builds a
-        :class:`CostRecord` per trace. Raises ``RuntimeError`` on any non-2xx
+        :class:`CostRecord` per trace. Raises ``LangfuseClientError`` on any non-2xx
         response rather than silently returning zero.
         """
         url = f"{self._client.base_url}{_TRACES_PATH}"
@@ -104,7 +105,7 @@ class LangfuseCostLogSource:
         claude_sdk fleet (no independent billing API) reconciles 0-vs-0 instead
         of false-flagging all Claude spend. The public observations endpoint has
         no server-side metadata filter, so paginate ``type=GENERATION`` over the
-        window and filter client-side. Raises ``RuntimeError`` on non-2xx.
+        window and filter client-side. Raises ``LangfuseClientError`` on non-2xx.
         """
         url = f"{self._client.base_url}{_OBSERVATIONS_PATH}"
         base_params: dict[str, Any] = {
@@ -138,7 +139,7 @@ class LangfuseCostLogSource:
         reconciles only windows inside this horizon). Lists the oldest traces
         up to *cutoff* (``toTimestamp`` + ``timestamp.asc``) and bulk-deletes
         them in pages until none remain. Returns the count deleted; raises
-        ``RuntimeError`` on any non-2xx response.
+        ``LangfuseClientError`` on any non-2xx response.
         """
         url = f"{self._client.base_url}{_TRACES_PATH}"
         headers = {"Authorization": self._client.auth_header()}
@@ -148,7 +149,7 @@ class LangfuseCostLogSource:
         with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
             while True:
                 if _iterations >= _MAX_PRUNE_ITERATIONS:
-                    raise RuntimeError(
+                    raise LangfuseClientError(
                         f"prune_before: exceeded {_MAX_PRUNE_ITERATIONS} iterations "
                         "without exhausting traces; possible async-deletion lag "
                         "or API inconsistency"
@@ -167,7 +168,7 @@ class LangfuseCostLogSource:
                     headers=headers,
                 )
                 if not (200 <= resp.status_code < 300):
-                    raise RuntimeError(
+                    raise LangfuseClientError(
                         f"Langfuse traces list (prune) failed: "
                         f"HTTP {resp.status_code}: {resp.text[:200]}"
                     )
@@ -183,7 +184,7 @@ class LangfuseCostLogSource:
                     headers=headers,
                 )
                 if not (200 <= del_resp.status_code < 300):
-                    raise RuntimeError(
+                    raise LangfuseClientError(
                         f"Langfuse traces delete (prune) failed: "
                         f"HTTP {del_resp.status_code}: {del_resp.text[:200]}"
                     )

@@ -21,6 +21,7 @@ from robotsix_llmio.core import (
 )
 from robotsix_llmio.core import langfuse_client as langfuse_client_module
 from robotsix_llmio.core.langfuse_async_client import AsyncLangfuseReadClient
+from robotsix_llmio.core.langfuse_client import LangfuseClientError
 
 
 def _client() -> AsyncLangfuseReadClient:
@@ -134,7 +135,7 @@ def test_aiter_pages_non_2xx_raises(monkeypatch):
         ):
             pass
 
-    with pytest.raises(RuntimeError, match="traces request"):
+    with pytest.raises(LangfuseClientError, match="traces request"):
         asyncio.run(_run())
 
 
@@ -196,7 +197,7 @@ def test_fetch_trace_detail_non_2xx_raises(monkeypatch):
 
     install_async_transport(monkeypatch, handler, module=langfuse_async_client_module)
 
-    with pytest.raises(RuntimeError, match="trace detail failed"):
+    with pytest.raises(LangfuseClientError, match="trace detail failed"):
         asyncio.run(_client().fetch_trace_detail("missing"))
 
 

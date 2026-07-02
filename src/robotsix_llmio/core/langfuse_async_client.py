@@ -17,6 +17,7 @@ import httpx
 from .constants import HTTP_CLIENT_TIMEOUT
 from .langfuse_client import (
     _TRACES_PATH,
+    LangfuseClientError,
     _LangfuseReadClientBase,
     _observation_cost,
     _observation_provider,
@@ -47,7 +48,7 @@ class AsyncLangfuseReadClient(_LangfuseReadClientBase):
         """Paginate *url* (1-based ``page``), yielding each page's ``data``.
 
         Owns the ``httpx.AsyncClient``, the page loop, the ``Basic`` auth
-        header, the non-2xx ``RuntimeError`` (labelled with *error_label*),
+        header, the non-2xx ``LangfuseClientError`` (labelled with *error_label*),
         the empty-``data`` break, and the ``meta.totalPages`` termination.
         *url* may be an absolute URL or a path relative to :attr:`base_url`.
         """
@@ -63,7 +64,7 @@ class AsyncLangfuseReadClient(_LangfuseReadClientBase):
                     headers=headers,
                 )
                 if not (200 <= resp.status_code < 300):
-                    raise RuntimeError(
+                    raise LangfuseClientError(
                         f"Langfuse {error_label} failed: HTTP {resp.status_code}"
                     )
                 body = resp.json()
@@ -102,7 +103,7 @@ class AsyncLangfuseReadClient(_LangfuseReadClientBase):
         async with httpx.AsyncClient(timeout=HTTP_CLIENT_TIMEOUT) as client:
             resp = await client.get(target, headers=headers)
             if not (200 <= resp.status_code < 300):
-                raise RuntimeError(
+                raise LangfuseClientError(
                     f"Langfuse trace detail failed: HTTP {resp.status_code}"
                 )
             result: dict[str, Any] = resp.json()
