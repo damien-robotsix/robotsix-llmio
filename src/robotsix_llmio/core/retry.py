@@ -111,7 +111,7 @@ def _record_rate_limit_span(
         span.set_attribute("llmio.rate_limit.fallback_activated", True)
 
 
-def call_with_retry(
+def call_with_retry[T](
     fn: Callable[[], T],
     *,
     what: str = "model call",
@@ -195,7 +195,7 @@ def call_with_retry(
     raise AssertionError("unreachable")  # pragma: no cover
 
 
-def call_with_retry_and_fallback(
+def call_with_retry_and_fallback[T](
     primary: Callable[[], T],
     fallback: Callable[[], T] | None,
     *,
@@ -245,7 +245,7 @@ def call_with_retry_and_fallback(
             raise fallback_exc from primary_exc
 
 
-async def acall_with_retry(
+async def acall_with_retry[T](
     fn: Callable[[], Awaitable[T]],
     *,
     what: str = "model call",
@@ -320,7 +320,7 @@ async def acall_with_retry(
     raise AssertionError("unreachable")  # pragma: no cover
 
 
-async def acall_with_retry_and_fallback(
+async def acall_with_retry_and_fallback[T](
     primary: Callable[[], Awaitable[T]],
     fallback: Callable[[], Awaitable[T]] | None,
     *,
