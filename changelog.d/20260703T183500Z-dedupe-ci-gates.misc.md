@@ -1,0 +1,1 @@
+CI: remove the hand-rolled `ruff`, `mypy`, `audit`, and `sbom` jobs — each duplicated a gate the repo already receives from the shared python-ci.yml / python-security.yml workflows. The remaining hand-rolled jobs (`vulture`, `codeql`) now carry the justification comments the standard requires for any gate not called from robotsix-github-workflows.

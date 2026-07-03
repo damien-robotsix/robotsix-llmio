@@ -30,24 +30,11 @@ jobs:
       run-bandit: false
       mypy-advisory: false
 
-  ruff:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - name: Lint (ruff check)
-        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4.0.0
-        with:
-          args: "check --output-format=github"
-      - name: Format (ruff format)
-        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4.0.0
-        with:
-          args: "format --check --diff"
-
-  mypy:
+  vulture:
+    # Hand-rolled gate, justified: vulture (dead-code check) is a pre-commit
+    # hook in the standard set, but CI does not run `pre-commit run
+    # --all-files` yet and no shared workflow carries vulture — keep this job
+    # until one of the two exists (tracked as a standards gap).
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,8 +45,7 @@ jobs:
       - uses: ./.github/actions/setup-repo
         with:
           python-version: '3.13'
-      - run: uv sync --frozen --extra openrouter --extra claude_sdk --extra tracing --extra dev
-      - run: uv run mypy src/
+      - run: uv sync --frozen
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   security:
@@ -73,6 +59,11 @@ jobs:
       trufflehog-extra-args: "--results=verified,unknown"
 
   codeql:
+    # Hand-rolled gate, justified: the shared codeql.yml reusable workflow
+    # exists but takes no config-file input, and this repo needs
+    # .github/codeql/codeql-config.yml (documented PEP-562 false-positive
+    # suppressions and test-path excludes). Switch to the shared caller once
+    # it grows config support (enhancement ticketed on the workflows board).
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -97,35 +88,4 @@ jobs:
         with:
           name: codeql-results
           path: results.sarif
-          if-no-files-found: error
-
-  audit:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-repo
-      - run: uv audit --frozen
-
-  sbom:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-repo
-      - run: uv export --frozen --format cyclonedx1.5 --preview-features sbom-export > sbom.cdx.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        # if: always() — an earlier failing step must not skip a required
-        # artifact upload; if-no-files-found backstops the export itself
-        # (repo-baseline rule, born from an incident in this repo).
-        if: always()
-        with:
-          name: sbom
-          path: sbom.cdx.json
           if-no-files-found: error
