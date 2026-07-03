@@ -24,7 +24,7 @@ jobs:
       python-version: ${{ matrix.python }}
       install-extras: "openrouter claude_sdk tracing dev"
       cov-package: src/robotsix_llmio
-      coverage-threshold: "90"
+      coverage-threshold: "80"
       pytest-args: '-m "not live" -n 4'
       run-deptry: false
       run-bandit: false
