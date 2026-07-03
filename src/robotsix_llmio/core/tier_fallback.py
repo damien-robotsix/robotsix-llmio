@@ -86,7 +86,7 @@ def _next_unvisited_tier(
     return None
 
 
-def call_with_tier_fallback(
+def call_with_tier_fallback[T](
     fn_factory: Callable[[TierLevelConfig], Callable[[], T]],
     *,
     tier_config: TierConfig,
@@ -174,7 +174,7 @@ def call_with_tier_fallback(
         return result
 
 
-async def acall_with_tier_fallback(
+async def acall_with_tier_fallback[T](
     fn_factory: Callable[[TierLevelConfig], Callable[[], Awaitable[T]]],
     *,
     tier_config: TierConfig,

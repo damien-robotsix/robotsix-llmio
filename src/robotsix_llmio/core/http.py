@@ -24,7 +24,7 @@ def _close_async_client(client: Any) -> None:
             loop.run_until_complete(client.aclose())
         finally:
             loop.close()
-    except (RuntimeError, OSError):
+    except RuntimeError, OSError:
         # Expected event-loop/transport teardown errors during GC/finalize
         # (loop-state RuntimeError, socket-close OSError) are safe to ignore;
         # other exception types (e.g. AttributeError/TypeError from a broken
