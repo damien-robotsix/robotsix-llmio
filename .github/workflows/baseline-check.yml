@@ -1,0 +1,16 @@
+name: Baseline Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  baseline:
+    permissions:
+      contents: read
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/baseline-check.yml@05cc800b26156d42227cfc8a9288eda4e3f92ae7 # main
+    with:
+      has-docker: false
