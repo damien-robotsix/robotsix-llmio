@@ -8,7 +8,11 @@ robotsix-llmio is a **library** ([repo-baseline tier](https://damien-robotsix.gi
 
 **Rule:** When writing a new test that patches `httpx.Client` via `MockTransport`, use `install_transport` from `tests/core/conftest.py` with an explicit `module=` parameter pointing to the module under test (e.g. `module=langfuse_cost_module`). Do not define a private duplicate.
 
-**Rationale:** This pattern of duplicated test helpers has been observed across multiple tickets and should not recur. (Fixture-extraction into `conftest.py` in general is a fleet-wide rule — see [python.md — Tests](https://damien-robotsix.github.io/robotsix-standards/python/#tests).)
+See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/blob/main/docs/python.md#tests) for the shared-fixture-in-conftest rule.
+
+## CI / workflows
+
+See [repo-baseline.md — CI gates](https://github.com/damien-robotsix/robotsix-standards/blob/main/docs/repo-baseline.md#ci-and-security-gates) for the required-artifact `if: always()` rule.
 
 ## Configuration conventions
 
