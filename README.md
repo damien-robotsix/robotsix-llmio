@@ -1,9 +1,6 @@
 # robotsix-llmio
 
-[![PyPI - Version](https://img.shields.io/pypi/v/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
 [![CI](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml)
-[![PyPI - License](https://img.shields.io/pypi/l/robotsix-llmio.svg)](https://pypi.org/project/robotsix-llmio/)
 
 This repo follows the [robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards).
 
@@ -76,11 +73,22 @@ agent.close()
 
 ## Install
 
-```bash
-pip install "robotsix-llmio[openrouter]"
+The stack publishes to **no package index** — consume this library directly
+from git with [uv](https://docs.astral.sh/uv/), pinned to a commit SHA (see the
+[repo baseline](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/)):
+
+```toml
+[project]
+dependencies = ["robotsix-llmio[openrouter]"]
 # or, for the subscription-auth transport (also needs Node + `claude login`):
-pip install "robotsix-llmio[claude_sdk]"
+# dependencies = ["robotsix-llmio[claude_sdk]"]
+
+[tool.uv.sources]
+robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "<commit-sha>" }
 ```
+
+Update the pinned `rev` deliberately, through a reviewed bump — never track a
+branch. pip is not a supported install path (it ignores `[tool.uv.sources]`).
 
 ## Configuration
 
@@ -248,9 +256,8 @@ every subsequent agent run is traced. It's a **no-op** unless
 `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` are set (`LANGFUSE_BASE_URL`
 defaults to Langfuse Cloud), so it's always safe to call.
 
-```bash
-pip install "robotsix-llmio[tracing]"   # adds the OTLP exporter (no langfuse SDK)
-```
+Add the `tracing` extra — `robotsix-llmio[tracing]` — to pull in the OTLP
+exporter (no langfuse SDK needed).
 
 ```python
 from robotsix_llmio.core import setup_langfuse_tracing, langfuse_session, flush_tracing
