@@ -28,6 +28,9 @@ dependencies = [
     # keep the dependency surface minimal and let extras add provider support.
     "pydantic-ai-slim>=1.0",
     "httpx",
+    # Imported directly (models/validators throughout) — declared explicitly
+    # rather than relied on transitively via pydantic-ai-slim (deptry DEP003).
+    "pydantic>=2",
     # Pin starlette to a version that resolves CVE-2026-54283 and
     # CVE-2026-54282 (transitively pulled via claude-agent-sdk -> mcp).
     "starlette>=1.3.1",
@@ -42,9 +45,9 @@ Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
 
 [project.optional-dependencies]
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
-# The `openrouter` extra already pulls `openai` transitively (it's what
-# OpenAIChatModel runs on), so listing `openai` explicitly is redundant.
-openrouter = ["pydantic-ai-slim[openrouter]>=1.0"]
+# `openai` is imported directly (provider.py), so it is declared explicitly
+# rather than relied on transitively via the pydantic-ai-slim extra (DEP003).
+openrouter = ["pydantic-ai-slim[openrouter]>=1.0", "openai"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
@@ -70,6 +73,17 @@ default-groups = ["dev"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
+
+[tool.deptry]
+# The package itself is installed in the CI env, so deptry misreads
+# `import robotsix_llmio` as a transitive dependency without this hint.
+known_first_party = ["robotsix_llmio"]
+
+[tool.deptry.per_rule_ignores]
+# DEP002 (declared but never imported): starlette is a version floor for a
+# transitive dependency (CVE-2026-54283/-54282 via claude-agent-sdk -> mcp),
+# deliberately declared without being imported.
+DEP002 = ["starlette"]
 
 [tool.vulture]
 # Pydantic validators are invoked by the metaclass, never by direct name

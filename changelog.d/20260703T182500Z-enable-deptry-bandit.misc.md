@@ -1,0 +1,1 @@
+Enable the deptry and bandit gates in the shared CI workflow (they were opted out without justification). Fixes surfaced by deptry: `pydantic` and `openai` are now declared where they are imported instead of relied on transitively; `starlette` carries a commented DEP002 ignore (it is a CVE version floor, never imported).
