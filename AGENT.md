@@ -4,9 +4,9 @@ This repo follows the [robotsix stack standards](https://github.com/damien-robot
 
 ## Project layout
 
-Each robotsix_llmio module uses the per-module layout: code in `src/robotsix_llmio/<module>/`, tests in `tests/<module>/test_*.py`, and docs in `docs/<module>/index.md`. Never place test files in the flat `tests/` root, and register every module's `src`/`tests`/`docs` paths in `docs/modules.yaml`.
+Each robotsix_llmio module uses the per-module layout: code in `src/robotsix_llmio/<module>/`, tests in `tests/<module>/test_*.py`, and docs in `docs/<module>/index.md`. Never place test files in the flat `tests/` root.
 
-**Rule:** When adding a new test or source module under `tests/` or `src/robotsix_llmio/`, register its path in `docs/modules.yaml` in the same change — the manifest must stay in sync with the actual module tree.
+See robotsix-standards for module-registration conventions.
 
 ## Testing conventions
 
