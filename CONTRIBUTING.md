@@ -40,7 +40,7 @@ The `pre-commit` tool is **not** included in the `dev` extras — install it
 separately:
 
 ```bash
-uv tool install pre-commit        # or: pipx install pre-commit
+uv tool install pre-commit
 pre-commit install
 ```
 
@@ -139,35 +139,24 @@ with:
 
 - a minimal reproducer,
 - your Python version (`python --version`),
-- the installed extras (`pip show robotsix-llmio`),
+- the installed extras (`uv pip show robotsix-llmio`),
 - and — for provider-specific bugs — which transport you're using (OpenRouter /
   Claude SDK).
 
 ## 8. Releasing
 
-Releases are published to [PyPI](https://pypi.org/p/robotsix-llmio)
-automatically by the `.github/workflows/release.yml` GitHub Actions workflow.
-The flow is:
+The stack publishes to **no package index** — consumers depend on this library
+directly from git, pinned to a commit SHA (see the
+[repo baseline](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/)).
+A release is a version bump, a `v0.X.Y` tag, and a compiled changelog — nothing
+is published anywhere:
 
 1. Bump `version` in `pyproject.toml`, then commit/merge the bump to `main`.
-2. Tag the release and push the tag — this is the **only** step needed to trigger the full pipeline:
+2. Tag the release and push the tag:
    ```bash
    git tag v0.2.0 && git push origin v0.2.0
    ```
-   The tag push triggers `release.yml`, which builds the sdist + wheel, creates a **GitHub Release** with the build artifacts attached, and publishes to PyPI via Trusted Publishing (OIDC).
-3. The workflow builds the sdist + wheel (`python -m build`) and publishes them
-   to PyPI via **Trusted Publishing (OIDC)** — no API token is stored or
-   required.
 
 Record user-facing changes under the `## [Unreleased]` section of `CHANGELOG.md`
 as part of your PR. When cutting a release, rename `[Unreleased]` to the new
 version with the release date.
-
-### One-time maintainer setup
-
-Trusted Publishing must be registered once by a project maintainer at
-<https://pypi.org/manage/project/robotsix-llmio/settings/publishing/>, pointing
-at this repository (`damien-robotsix/robotsix-llmio`), the workflow filename
-`release.yml`, and the `pypi` GitHub Environment. This is a manual action
-performed once on PyPI and cannot be done from the repository.
-
