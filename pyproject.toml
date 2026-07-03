@@ -7,7 +7,7 @@ name = "robotsix-llmio"
 version = "0.1.0"
 description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. DeepSeek over OpenRouter)."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = { file = "LICENSE" }
 authors = [{ name = "Damien SIX", email = "damien.robotsix@gmail.com" }]
 classifiers = [
@@ -16,9 +16,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
@@ -57,8 +55,16 @@ tracing = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
 ]
-docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+
+# Dev/docs tooling is not part of the package: PEP 735 dependency groups,
+# not extras (robotsix-standards python.md). uv sync pulls `dev` in by
+# default via [tool.uv] default-groups.
+[dependency-groups]
 dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml"]
+docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
@@ -76,7 +82,7 @@ line-length = 88
 select = [
     "E", "F",   # pycodestyle errors + Pyflakes (was the default; now explicit)
     "I",        # isort — import sorting (no separate isort tool today)
-    "UP",       # pyupgrade — modernize for the >=3.11 floor
+    "UP",       # pyupgrade — modernize for the >=3.14 floor
     "B",        # flake8-bugbear
     "SIM",      # flake8-simplify
     "C4",       # flake8-comprehensions
@@ -84,17 +90,31 @@ select = [
     "S",        # flake8-bandit — security checks (replaces standalone bandit)
 ]
 
+# Every ignore carries a justification (robotsix-standards python.md).
 [tool.ruff.lint.per-file-ignores]
+# B018/F821: a vulture whitelist is, by design, a list of bare name
+# references to symbols defined elsewhere — useless expressions of
+# undefined names are the file's entire content.
 "vulture_whitelist.py" = ["B018", "F821"]
+# S110 (try-except-pass): best-effort cleanup of an already-failing SDK
+# stream — there is nothing useful to do or log on secondary failure.
 "src/robotsix_llmio/claude_sdk/_stream.py" = ["S110"]
+# S101: assert used for unreachable-branch documentation after an
+# exhaustive loop (not input validation).
 "src/robotsix_llmio/claude_sdk/_tool_agent.py" = ["S101"]
+# S110 (try-except-pass): swallowing errors from best-effort subprocess
+# teardown; the query result is already decided at that point.
 "src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
+# S101: asserts are mypy type-narrowing hints on invariants, not checks.
+# S311: random.uniform provides retry-backoff jitter — not cryptographic.
 "src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
 
+# S101: pytest tests assert by design. S106: hard-coded dummy credentials
+# are test fixtures, not secrets.
 "tests/**/*.py" = ["S101", "S106"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = false
 warn_unused_configs = true
@@ -123,9 +143,10 @@ ignore_missing_imports = true
 source = ["src/robotsix_llmio"]
 
 [tool.coverage.report]
-# Ratchet floor: set at/just below the current measured coverage (~90.76%).
-# Raise this over time; never lower it to make a red build pass.
-fail_under = 90
+# One fleet-wide floor (robotsix-standards): 80, raised only fleet-wide.
+# This local value keeps `pytest --cov` honest; the CI gate is the shared
+# python-ci.yml workflow.
+fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
