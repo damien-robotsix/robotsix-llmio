@@ -124,6 +124,10 @@ it reports formatting issues without modifying files.
   and uv audit. The `security` job runs on Python 3.13 only. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
+- **Every PR adds a changelog newsfragment** in `changelog.d/` — a short
+  Markdown file named `<anything-unique>.<type>.md` with type one of
+  `breaking`, `feature`, `bugfix`, `misc`. CI enforces this via `towncrier
+  check`; apply the `skip-changelog` label for changes with nothing to record.
 - Pre-commit hooks must pass locally before pushing.
 - New behaviour should ship with tests; bug fixes should ship with a regression
   test. Tests that depend on a live API must be decorated `@pytest.mark.live`
@@ -159,9 +163,9 @@ The flow is:
    to PyPI via **Trusted Publishing (OIDC)** — no API token is stored or
    required.
 
-Record user-facing changes under the `## [Unreleased]` section of `CHANGELOG.md`
-as part of your PR. When cutting a release, rename `[Unreleased]` to the new
-version with the release date.
+`CHANGELOG.md` is never edited by hand — it is compiled from the
+`changelog.d/` newsfragments with `towncrier build` when a release is cut
+(see [changelog & releases](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/#changelog-releases)).
 
 ### One-time maintainer setup
 
@@ -170,4 +174,3 @@ Trusted Publishing must be registered once by a project maintainer at
 at this repository (`damien-robotsix/robotsix-llmio`), the workflow filename
 `release.yml`, and the `pypi` GitHub Environment. This is a manual action
 performed once on PyPI and cannot be done from the repository.
-

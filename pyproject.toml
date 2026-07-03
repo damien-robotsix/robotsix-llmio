@@ -63,6 +63,31 @@ dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy",
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
 
+[tool.towncrier]
+directory = "changelog.d"
+filename = "CHANGELOG.md"
+name = "robotsix-llmio"
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Changed"
+showcontent = true
+
 [tool.vulture]
 # Pydantic validators are invoked by the metaclass, never by direct name
 # access, so vulture always flags them. Ignore them by decorator instead of

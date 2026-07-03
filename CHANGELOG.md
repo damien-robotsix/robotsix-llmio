@@ -1,3 +1,11 @@
+# Changelog
+
+This file is compiled from `changelog.d/` newsfragments by
+[towncrier](https://towncrier.readthedocs.io) at release time — do not edit it
+by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
+
+<!-- towncrier release notes start -->
+
 ## 0.0.0 (unreleased)
 
 - Export `record_cost` and `flush_current_provider` from `core.cost` via `core.__init__` (TYPE_CHECKING, `__all__`, and `_SUBMODULE_ATTRS`), matching the pattern of every other `core` submodule.

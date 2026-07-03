@@ -62,6 +62,26 @@ jobs:
       - run: uv run mypy src/
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
+  changelog:
+    # Hand-rolled gate, justified: robotsix-github-workflows carries no shared
+    # changelog-check workflow yet — replace this job with the shared caller
+    # once one exists (tracked as a standards gap).
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+      - name: towncrier check
+        # GITHUB_BASE_REF is provided by Actions on pull_request events.
+        run: uvx towncrier check --compare-with "origin/${GITHUB_BASE_REF}"
+
   security:
     permissions:
       contents: read
