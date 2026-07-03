@@ -1,71 +1,63 @@
+# Canonical module taxonomy for robotsix-llmio — what modules exist and
+# where their files live (schema: robotsix-modules).
+#
+# `package` enables the convention globs (src/<package>/<id>/**,
+# tests/<id>/**, docs/<id>/**) for entries that omit `paths`; a module
+# lists paths only when it owns out-of-convention files.
+
+package: robotsix_llmio
+
 modules:
-  - id: robotsix_llmio-core
+  - id: core
+    description: >-
+      Provider-agnostic base layer: the LLMProvider ABC, tier levels,
+      bounded retry/backoff, cost-on-span recording, Langfuse tracing,
+      the timeout HTTP client, and the generic pydantic-ai Agent
+      assembler. Also owns the package root (exceptions, logging) and
+      repo-level docs/changelog plumbing.
     paths:
       - src/robotsix_llmio/__init__.py
       - src/robotsix_llmio/exceptions.py
       - src/robotsix_llmio/logging.py
-      - src/robotsix_llmio/core/**
       - src/robotsix_llmio/py.typed
+      - src/robotsix_llmio/core/**
       - tests/.env.example
       - tests/__init__.py
-      - tests/core/conftest.py
-      - tests/core/test_core_agent.py
-      - tests/core/test_core_retry.py
-      - tests/core/test_core_run.py
-      - tests/core/test_constants.py
-      - tests/core/test_text_utils.py
-      - tests/core/test_core_provider.py
-      - tests/core/test_factory.py
-      - tests/core/test_factory_levels.py
-      - tests/core/test_core_http.py
-      - tests/core/test_core_cost.py
-      - tests/core/test_core_cost_log.py
-      - tests/core/test_langfuse_async_client.py
-      - tests/core/test_langfuse_client.py
-      - tests/core/test_langfuse_cost.py
-      - tests/core/test_core_provider_cost.py
-      - tests/core/test_core_tier_fallback.py
-      - tests/core/test_identifier.py
-      - tests/core/test_otel.py
-      - tests/core/test_tracing.py
-      - tests/core/test_tracing_live.py
-      - tests/core/test_logging.py
-      - tests/core/test_sqlite_utils.py
       - tests/conftest.py
+      - tests/core/**
       - tests/test_exceptions.py
       - docs/core/**
       - docs/reference/core.md
       - docs/reference/logging.md
       - docs/reference/exceptions.md
-      - docs/modules.yaml
       - docs/index.md
       - docs/changelog.md
-  - id: robotsix_llmio-openrouter
-    description: >
+
+  - id: openrouter
+    description: >-
       OpenRouter transport layer — base model-family-agnostic provider
       with a derived DeepSeek layer that pins to DeepSeek models and
       configures per-tier reasoning policy.
     paths:
       - src/robotsix_llmio/openrouter/**
-      - tests/openrouter/test_openrouter.py
-      - tests/openrouter/test_openrouter_provider.py
-      - tests/openrouter/test_async_client.py
-      - tests/openrouter/test_openrouter_provider_cost.py
-      - tests/openrouter/test_openrouter_deepseek.py
-      - tests/openrouter/test_openrouter_deepseek_live.py
+      - tests/openrouter/**
       - docs/openrouter/**
       - docs/reference/openrouter.md
-  - id: robotsix_llmio-claude-sdk
+
+  - id: claude-sdk
+    description: >-
+      Claude Agent SDK transport — a sibling of the OpenRouter layer that
+      drives the local `claude` CLI (subscription auth, no API key) and
+      supports text / prompted-JSON output only. Directory names use
+      snake_case (claude_sdk), hence the explicit paths.
     paths:
       - src/robotsix_llmio/claude_sdk/**
-      - tests/claude_sdk/conftest.py
-      - tests/claude_sdk/test_claude_sdk.py
-      - tests/claude_sdk/test_confine_hook.py
-      - tests/claude_sdk/test_stream.py
+      - tests/claude_sdk/**
       - docs/claude_sdk/**
       - docs/reference/claude_sdk.md
-  - id: robotsix_llmio-refdocs
-    description: >
+
+  - id: refdocs
+    description: >-
       Direct HTTP access for documentation search and retrieval —
       replaces the agent-comm broker intermediary.
     paths:
@@ -73,8 +65,9 @@ modules:
       - tests/refdocs/**
       - docs/refdocs/**
       - docs/reference/refdocs.md
-  - id: robotsix_llmio-config
-    description: >
+
+  - id: config
+    description: >-
       Consumer-facing configuration layer — TierConfig schema, loader,
       and the create_model factory.
     paths:
@@ -82,8 +75,9 @@ modules:
       - tests/config/**
       - docs/config/**
       - docs/reference/config.md
-  - id: robotsix_llmio-knowledge
-    description: >
+
+  - id: knowledge
+    description: >-
       Direct-HTTP knowledge-store client replacing the agent-comm broker.
       KnowledgeClient makes plain httpx calls to a knowledge-store REST API
       (search + get-document), and build_knowledge_tools wraps it into
@@ -94,14 +88,50 @@ modules:
       - docs/knowledge/**
       - docs/reference/knowledge.md
 
-  - id: robotsix_llmio-self-review
-    description: >
-      Direct-HTTP self-review / recent-activity client replacing the agent-comm
-      broker. SelfReviewClient makes plain httpx calls to a self-review REST API
-      (list-activity + get-activity), and build_recent_activity_tools wraps it
-      into pydantic-ai-compatible async tool functions.
+  - id: self-review
+    description: >-
+      Direct-HTTP self-review / recent-activity client replacing the
+      agent-comm broker. SelfReviewClient makes plain httpx calls to a
+      self-review REST API (list-activity + get-activity), and
+      build_recent_activity_tools wraps it into pydantic-ai-compatible
+      async tool functions. Directory names use snake_case (self_review),
+      hence the explicit paths.
     paths:
       - src/robotsix_llmio/self_review/**
       - tests/self_review/**
       - docs/self_review/**
       - docs/reference/self_review.md
+
+  - id: dev-tooling
+    description: >-
+      Developer tooling and repo configuration: pyproject, lockfile,
+      pre-commit hooks, CI workflows, mill periodic jobs, editor and
+      static-analysis config. Not part of the shipped package.
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - .pre-commit-config.yaml
+      - .github/**
+      - .robotsix-mill/**
+      - .editorconfig
+      - .gitignore
+      - .secrets.baseline
+      - .zizmor.yml
+      - vulture_whitelist.py
+      - mkdocs.yml
+      - docs/modules.yaml
+
+  - id: project-root
+    description: >-
+      Top-level housekeeping files: README, architecture and contributor
+      docs, license, security policy, and the compiled changelog with its
+      pending newsfragments.
+    paths:
+      - README.md
+      - ARCHITECTURE.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - changelog.d/**
+      - LICENSE
+      - SECURITY.md
+      - AGENT.md
