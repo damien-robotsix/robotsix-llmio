@@ -150,7 +150,7 @@ def _extract_json_object(text: str) -> dict[str, Any] | None:
             continue
         try:
             data = json.loads(cand)
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             continue
         if isinstance(data, dict):
             return data

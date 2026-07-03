@@ -7,7 +7,7 @@ name = "robotsix-llmio"
 version = "0.1.0"
 description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. DeepSeek over OpenRouter)."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = { file = "LICENSE" }
 authors = [{ name = "Damien SIX", email = "damien.robotsix@gmail.com" }]
 classifiers = [
@@ -16,9 +16,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
@@ -76,7 +74,7 @@ line-length = 88
 select = [
     "E", "F",   # pycodestyle errors + Pyflakes (was the default; now explicit)
     "I",        # isort — import sorting (no separate isort tool today)
-    "UP",       # pyupgrade — modernize for the >=3.11 floor
+    "UP",       # pyupgrade — modernize for the >=3.14 floor
     "B",        # flake8-bugbear
     "SIM",      # flake8-simplify
     "C4",       # flake8-comprehensions
@@ -108,7 +106,7 @@ select = [
 "tests/**/*.py" = ["S101", "S106"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = false
 warn_unused_configs = true
