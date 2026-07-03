@@ -1,5 +1,6 @@
 ## 0.0.0 (unreleased)
 
+- Export `record_cost` and `flush_current_provider` from `core.cost` via `core.__init__` (TYPE_CHECKING, `__all__`, and `_SUBMODULE_ATTRS`), matching the pattern of every other `core` submodule.
 - Export `run_multi_table_migrations` from `core.__init__` (TYPE_CHECKING, `__all__`, `_SUBMODULE_ATTRS`) — it was the only public symbol in `core.sqlite_utils` missing from the package's public API.
 - Add `check-added-large-files`, `check-ast`, and `check-case-conflict` pre-commit hooks from `pre-commit-hooks`.
 - Add Dependabot auto-merge caller workflow (`.github/workflows/dependabot-auto-merge.yml`) so dependabot PRs auto-merge once required checks pass.

@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     )
 
     from .agent import AgentHandle, build_agent
+    from .cost import flush_current_provider, record_cost
     from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
     from .factory import (
         build_agent_for_level,
@@ -130,6 +131,7 @@ __all__ = [
     "create_model",
     "current_session",
     "default_tier_config",
+    "flush_current_provider",
     "flush_tracing",
     "get_provider_for_identifier",
     "get_provider_for_level",
@@ -146,6 +148,7 @@ __all__ = [
     "make_session_id",
     "parse_model_identifier",
     "reconcile",
+    "record_cost",
     "run_additive_migrations",
     "run_agent",
     "run_multi_table_migrations",
@@ -168,6 +171,9 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "CostRecord": (".cost_log", "CostRecord"),
     "CostWindow": (".cost_log", "CostWindow"),
     "LoggedCost": (".cost_log", "LoggedCost"),
+    # -- cost
+    "flush_current_provider": (".cost", "flush_current_provider"),
+    "record_cost": (".cost", "record_cost"),
     # -- factory
     "get_provider_for_identifier": (".factory", "get_provider_for_identifier"),
     "get_provider_for_level": (".factory", "get_provider_for_level"),
