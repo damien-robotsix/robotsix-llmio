@@ -88,9 +88,13 @@ jobs:
           upload: false
           output: results.sarif
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # if: always() — a failed analyze step must not silently skip the
+        # upload of whatever results exist (repo-baseline artifact-upload rule).
+        if: always()
         with:
           name: codeql-results
           path: results.sarif
+          if-no-files-found: error
 
   audit:
     runs-on: ubuntu-latest
@@ -114,6 +118,11 @@ jobs:
       - uses: ./.github/actions/setup-repo
       - run: uv export --frozen --format cyclonedx1.5 --preview-features sbom-export > sbom.cdx.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # if: always() — an earlier failing step must not skip a required
+        # artifact upload; if-no-files-found backstops the export itself
+        # (repo-baseline rule, born from an incident in this repo).
+        if: always()
         with:
           name: sbom
           path: sbom.cdx.json
+          if-no-files-found: error
