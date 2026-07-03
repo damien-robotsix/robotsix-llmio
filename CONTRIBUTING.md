@@ -19,7 +19,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Clone and set up
 git clone <repo>
 cd <repo>
-uv sync --frozen
+uv sync --extra dev --frozen
 
 # Activate the virtual environment
 source .venv/bin/activate

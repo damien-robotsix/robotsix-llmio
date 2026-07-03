@@ -19,7 +19,7 @@ service — and follows the
 ```bash
 git clone https://github.com/damien-robotsix/robotsix-llmio.git
 cd robotsix-llmio
-uv sync            # deps + dev group (pytest, ruff, mypy, ...)
+uv sync --extra dev  # dev tooling (pytest, ruff, mypy, ...)
 uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
 ```
 
