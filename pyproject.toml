@@ -72,6 +72,31 @@ default-groups = ["dev"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
 
+[tool.towncrier]
+directory = "changelog.d"
+filename = "CHANGELOG.md"
+name = "robotsix-llmio"
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Changed"
+showcontent = true
+
 [tool.deptry]
 # The package itself is installed in the CI env, so deptry misreads
 # `import robotsix_llmio` as a transitive dependency without this hint.
