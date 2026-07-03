@@ -1308,6 +1308,16 @@ dependencies = [
 claude-sdk = [
     { name = "claude-agent-sdk" },
 ]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "pyyaml" },
+    { name = "ruff" },
+    { name = "vulture" },
+]
 openrouter = [
     { name = "openai" },
     { name = "pydantic-ai-slim", extra = ["openrouter"] },
@@ -1319,16 +1329,6 @@ tracing = [
 ]
 
 [package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "pyyaml" },
-    { name = "ruff" },
-    { name = "vulture" },
-]
 docs = [
     { name = "mkdocs" },
     { name = "mkdocs-material" },
@@ -1339,6 +1339,7 @@ docs = [
 requires-dist = [
     { name = "claude-agent-sdk", marker = "extra == 'claude-sdk'", specifier = ">=0.2.97" },
     { name = "httpx" },
+    { name = "mypy", marker = "extra == 'dev'" },
     { name = "openai", marker = "extra == 'openrouter'" },
     { name = "opentelemetry-api", marker = "extra == 'tracing'" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'tracing'" },
@@ -1346,21 +1347,18 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-ai-slim", specifier = ">=1.0" },
     { name = "pydantic-ai-slim", extras = ["openrouter"], marker = "extra == 'openrouter'", specifier = ">=1.0" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "pytest-timeout", marker = "extra == 'dev'" },
+    { name = "pytest-xdist", marker = "extra == 'dev'" },
+    { name = "pyyaml", marker = "extra == 'dev'" },
+    { name = "ruff", marker = "extra == 'dev'" },
     { name = "starlette", specifier = ">=1.3.1" },
+    { name = "vulture", marker = "extra == 'dev'" },
 ]
-provides-extras = ["openrouter", "claude-sdk", "tracing"]
+provides-extras = ["openrouter", "claude-sdk", "tracing", "dev"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "pyyaml" },
-    { name = "ruff" },
-    { name = "vulture" },
-]
 docs = [
     { name = "mkdocs" },
     { name = "mkdocs-material" },

@@ -58,16 +58,13 @@ tracing = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
 ]
-
-# Dev/docs tooling is not part of the package: PEP 735 dependency groups,
-# not extras (robotsix-standards python.md). uv sync pulls `dev` in by
-# default via [tool.uv] default-groups.
-[dependency-groups]
+# Dev tooling is an extra (not a PEP 735 dependency group) so that both
+# `pip install .[dev]` and `uv sync --extra dev` work.
 dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml"]
-docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
-[tool.uv]
-default-groups = ["dev"]
+# Docs tooling remains a PEP 735 dependency group — only needed for doc builds.
+[dependency-groups]
+docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
@@ -105,8 +102,13 @@ known_first_party = ["robotsix_llmio"]
 [tool.deptry.per_rule_ignores]
 # DEP002 (declared but never imported): starlette is a version floor for a
 # transitive dependency (CVE-2026-54283/-54282 via claude-agent-sdk -> mcp),
-# deliberately declared without being imported.
-DEP002 = ["starlette"]
+# deliberately declared without being imported. The dev extra carries tooling
+# (pytest, ruff, mypy, etc.) that is never imported at runtime.
+DEP002 = [
+    "starlette",
+    "pytest", "pytest-cov", "pytest-xdist", "pytest-timeout",
+    "ruff", "mypy", "vulture", "pyyaml",
+]
 
 [tool.vulture]
 # Pydantic validators are invoked by the metaclass, never by direct name
