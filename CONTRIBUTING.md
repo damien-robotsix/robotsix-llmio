@@ -6,8 +6,9 @@ please open a GitHub PR against `main`.
 
 ## 1. Local development setup
 
-Python **≥ 3.11** is required (CI tests 3.11, 3.12, 3.13; prefer 3.11 for local
-work to catch the lowest-supported-version issues early).
+Python **≥ 3.14** is required — the stack runtime baseline (see the
+[robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards)).
+CI tests 3.14 only.
 
 This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
@@ -120,8 +121,8 @@ it reports formatting issues without modifying files.
 - Target **`main`**.
 - Branch naming: short, kebab-case, topic-prefixed — e.g. `feat/…`, `fix/…`,
   `docs/…`, `chore/…`. This is a convention, not a CI gate.
-- CI **must** pass — the full test matrix (3.11, 3.12, 3.13), ruff, mypy,
-  and uv audit. The `security` job runs on Python 3.13 only. CI also
+- CI **must** pass — the test suite on Python 3.14, ruff, mypy,
+  and uv audit. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
 - Pre-commit hooks must pass locally before pushing.
