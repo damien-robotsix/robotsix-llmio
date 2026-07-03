@@ -25,7 +25,6 @@ modules:
       - tests/__init__.py
       - tests/conftest.py
       - tests/core/**
-      - tests/test_exceptions.py
       - docs/core/**
       - docs/reference/core.md
       - docs/reference/logging.md
