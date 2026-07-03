@@ -1,37 +1,23 @@
 name: Lint workflows
 
-# Standalone workflow-security guard, kept SEPARATE from ci.yml on purpose.
-# Uses zizmor (permissions, template injection, unpinned actions, ...) and
-# actionlint (syntax + shellcheck) to catch issues that could cause a
-# 0-second startup_failure — so a check living inside ci.yml itself could
-# never run to report them. This file has no risky caller jobs, so it always
-# runs.
+# Standalone workflow-security guard, kept SEPARATE from ci.yml on purpose:
+# a broken ci.yml causes a 0-second startup_failure, so a check living
+# inside ci.yml could never run to report it. Now calls the shared
+# reusable instead of hand-rolling actionlint + zizmor.
 
 on:
   push:
     branches: [main]
   pull_request:
 
-permissions:
-  contents: read
-  security-events: write  # required by zizmor-action advanced-security SARIF upload
+permissions: {}
 
 jobs:
   lint-workflows:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa  # v0.5.7
-        with:
-          advanced-security: true
-      - name: Download actionlint
-        id: get_actionlint
-        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-        shell: bash
-      - name: Check workflow files
-        run: "$ACTIONLINT_EXEC -color"
-        shell: bash
-        env:
-          ACTIONLINT_EXEC: ${{ steps.get_actionlint.outputs.executable }}
+    permissions:
+      contents: read
+      security-events: write  # zizmor SARIF upload
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@05cc800b26156d42227cfc8a9288eda4e3f92ae7 # main
+    with:
+      run-actionlint: true
+      run-zizmor: true
