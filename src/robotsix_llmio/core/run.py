@@ -33,7 +33,7 @@ from .tracing import start_trace
 T = TypeVar("T")
 
 
-def run_agent(
+def run_agent[T](
     handle: AgentHandle,
     run: Callable[[], T],
     *,
@@ -78,7 +78,7 @@ def run_agent(
             handle.close()
 
 
-async def arun_agent(
+async def arun_agent[T](
     handle: AgentHandle,
     run: Callable[[], Awaitable[T]],
     *,
