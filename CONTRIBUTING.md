@@ -37,8 +37,8 @@ environment variables are documented in the README's "Configuration" section.
 
 ## 2. Pre-commit hooks
 
-The `pre-commit` tool is **not** included in the `dev` extras — install it
-separately:
+The `pre-commit` tool is **not** included in the `dev` dependency group —
+install it separately:
 
 ```bash
 uv tool install pre-commit
