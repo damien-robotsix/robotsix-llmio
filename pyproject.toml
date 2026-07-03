@@ -121,9 +121,10 @@ ignore_missing_imports = true
 source = ["src/robotsix_llmio"]
 
 [tool.coverage.report]
-# Ratchet floor: set at/just below the current measured coverage (~90.76%).
-# Raise this over time; never lower it to make a red build pass.
-fail_under = 90
+# One fleet-wide floor (robotsix-standards): 80, raised only fleet-wide.
+# This local value keeps `pytest --cov` honest; the CI gate is the shared
+# python-ci.yml workflow.
+fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
