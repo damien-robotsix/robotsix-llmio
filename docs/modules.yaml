@@ -105,4 +105,3 @@ modules:
       - tests/self_review/**
       - docs/self_review/**
       - docs/reference/self_review.md
-
