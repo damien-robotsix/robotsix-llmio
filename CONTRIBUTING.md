@@ -57,18 +57,25 @@ block on them; regenerate it via `detect-secrets scan` when needed.
 
 Hooks pinned in `.pre-commit-config.yaml`:
 
-| hook id              | description                                  |
-|----------------------|----------------------------------------------|
-| trailing-whitespace  | removes trailing whitespace                  |
-| end-of-file-fixer    | ensures files end with a single newline      |
-| check-yaml           | validates YAML syntax                        |
-| check-toml           | validates TOML syntax                        |
-| check-merge-conflict | rejects files with unresolved merge markers  |
-| debug-statements     | catches leftover `breakpoint()` / `pdb` etc. |
-| ruff                 | linter (auto-fix on commit)                  |
-| ruff-format          | formatter (auto-applied on commit)           |
-| mypy                 | type-checks `src/`                           |
-| detect-secrets       | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| hook id                 | description                                  |
+|-------------------------|----------------------------------------------|
+| trailing-whitespace     | removes trailing whitespace                  |
+| end-of-file-fixer       | ensures files end with a single newline      |
+| check-yaml              | validates YAML syntax                        |
+| check-toml              | validates TOML syntax                        |
+| check-json              | validates JSON syntax                        |
+| check-merge-conflict    | rejects files with unresolved merge markers  |
+| check-added-large-files | rejects files over 1 MB (lockfile/baseline exempt) |
+| check-ast               | rejects Python files that don't parse        |
+| check-case-conflict     | rejects names that collide case-insensitively |
+| debug-statements        | catches leftover `breakpoint()` / `pdb` etc. |
+| detect-private-key      | rejects committed private keys               |
+| ruff                    | linter (auto-fix on commit)                  |
+| ruff-format             | formatter (auto-applied on commit)           |
+| mypy                    | type-checks `src/`                           |
+| vulture                 | dead-code check over `src/`                  |
+| detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| actionlint              | lints GitHub Actions workflow files          |
 
 ## 3. Running tests
 
