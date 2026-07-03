@@ -57,8 +57,16 @@ tracing = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
 ]
-docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+
+# Dev/docs tooling is not part of the package: PEP 735 dependency groups,
+# not extras (robotsix-standards python.md). uv sync pulls `dev` in by
+# default via [tool.uv] default-groups.
+[dependency-groups]
 dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml"]
+docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
