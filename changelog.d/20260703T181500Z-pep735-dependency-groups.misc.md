@@ -1,0 +1,1 @@
+Move dev and docs tooling from `[project.optional-dependencies]` extras to PEP 735 `[dependency-groups]`, with `dev` pulled in by default via `[tool.uv] default-groups` — dev tooling is no longer advertised as installable package extras.

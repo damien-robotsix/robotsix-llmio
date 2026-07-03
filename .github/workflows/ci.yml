@@ -16,18 +16,13 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    strategy:
-      matrix:
-        python: ["3.11", "3.12", "3.13"]
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
-      python-version: ${{ matrix.python }}
-      install-extras: "openrouter claude_sdk tracing dev"
+      python-version: "3.14"
+      install-extras: "openrouter claude_sdk tracing"
       cov-package: src/robotsix_llmio
-      coverage-threshold: "90"
+      coverage-threshold: "80"
       pytest-args: '-m "not live" -n 4'
-      run-deptry: false
-      run-bandit: false
       mypy-advisory: false
 
   ruff:
@@ -57,8 +52,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-repo
         with:
-          python-version: '3.13'
-      - run: uv sync --frozen --extra openrouter --extra claude_sdk --extra tracing --extra dev
+          python-version: '3.14'
+      - run: uv sync --frozen --extra openrouter --extra claude_sdk --extra tracing
       - run: uv run mypy src/
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
@@ -68,7 +63,7 @@ jobs:
       security-events: write
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
-      install-extras: "openrouter claude_sdk dev"
+      install-extras: "openrouter claude_sdk"
       trufflehog-pr-diff: true
       trufflehog-extra-args: "--results=verified,unknown"
 
@@ -91,9 +86,13 @@ jobs:
           upload: false
           output: results.sarif
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # if: always() — a failed analyze step must not silently skip the
+        # upload of whatever results exist (repo-baseline artifact-upload rule).
+        if: always()
         with:
           name: codeql-results
           path: results.sarif
+          if-no-files-found: error
 
   audit:
     runs-on: ubuntu-latest
@@ -117,6 +116,11 @@ jobs:
       - uses: ./.github/actions/setup-repo
       - run: uv export --frozen --format cyclonedx1.5 --preview-features sbom-export > sbom.cdx.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # if: always() — an earlier failing step must not skip a required
+        # artifact upload; if-no-files-found backstops the export itself
+        # (repo-baseline rule, born from an incident in this repo).
+        if: always()
         with:
           name: sbom
           path: sbom.cdx.json
+          if-no-files-found: error

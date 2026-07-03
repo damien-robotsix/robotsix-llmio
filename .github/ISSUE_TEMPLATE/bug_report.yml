@@ -40,6 +40,6 @@ body:
       description: |
         Python version (`python --version`) and package version
         (`uv pip show robotsix-llmio`).
-      placeholder: e.g. Python 3.12, robotsix-llmio 0.1.0
+      placeholder: e.g. Python 3.14, robotsix-llmio 0.1.0
     validations:
       required: true

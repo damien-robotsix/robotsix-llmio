@@ -6,8 +6,9 @@ please open a GitHub PR against `main`.
 
 ## 1. Local development setup
 
-Python **≥ 3.11** is required (CI tests 3.11, 3.12, 3.13; prefer 3.11 for local
-work to catch the lowest-supported-version issues early).
+Python **≥ 3.14** is required — the stack runtime baseline (see the
+[robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards)).
+CI tests 3.14 only.
 
 This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
@@ -36,8 +37,8 @@ environment variables are documented in the README's "Configuration" section.
 
 ## 2. Pre-commit hooks
 
-The `pre-commit` tool is **not** included in the `dev` extras — install it
-separately:
+The `pre-commit` tool is **not** included in the `dev` dependency group —
+install it separately:
 
 ```bash
 uv tool install pre-commit
@@ -56,18 +57,25 @@ block on them; regenerate it via `detect-secrets scan` when needed.
 
 Hooks pinned in `.pre-commit-config.yaml`:
 
-| hook id              | description                                  |
-|----------------------|----------------------------------------------|
-| trailing-whitespace  | removes trailing whitespace                  |
-| end-of-file-fixer    | ensures files end with a single newline      |
-| check-yaml           | validates YAML syntax                        |
-| check-toml           | validates TOML syntax                        |
-| check-merge-conflict | rejects files with unresolved merge markers  |
-| debug-statements     | catches leftover `breakpoint()` / `pdb` etc. |
-| ruff                 | linter (auto-fix on commit)                  |
-| ruff-format          | formatter (auto-applied on commit)           |
-| mypy                 | type-checks `src/`                           |
-| detect-secrets       | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| hook id                 | description                                  |
+|-------------------------|----------------------------------------------|
+| trailing-whitespace     | removes trailing whitespace                  |
+| end-of-file-fixer       | ensures files end with a single newline      |
+| check-yaml              | validates YAML syntax                        |
+| check-toml              | validates TOML syntax                        |
+| check-json              | validates JSON syntax                        |
+| check-merge-conflict    | rejects files with unresolved merge markers  |
+| check-added-large-files | rejects files over 1 MB (lockfile/baseline exempt) |
+| check-ast               | rejects Python files that don't parse        |
+| check-case-conflict     | rejects names that collide case-insensitively |
+| debug-statements        | catches leftover `breakpoint()` / `pdb` etc. |
+| detect-private-key      | rejects committed private keys               |
+| ruff                    | linter (auto-fix on commit)                  |
+| ruff-format             | formatter (auto-applied on commit)           |
+| mypy                    | type-checks `src/`                           |
+| vulture                 | dead-code check over `src/`                  |
+| detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| actionlint              | lints GitHub Actions workflow files          |
 
 ## 3. Running tests
 
@@ -120,8 +128,8 @@ it reports formatting issues without modifying files.
 - Target **`main`**.
 - Branch naming: short, kebab-case, topic-prefixed — e.g. `feat/…`, `fix/…`,
   `docs/…`, `chore/…`. This is a convention, not a CI gate.
-- CI **must** pass — the full test matrix (3.11, 3.12, 3.13), ruff, mypy,
-  and uv audit. The `security` job runs on Python 3.13 only. CI also
+- CI **must** pass — the test suite on Python 3.14, ruff, mypy,
+  and uv audit. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
 - Pre-commit hooks must pass locally before pushing.
