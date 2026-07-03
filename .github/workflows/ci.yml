@@ -23,8 +23,6 @@ jobs:
       cov-package: src/robotsix_llmio
       coverage-threshold: "80"
       pytest-args: '-m "not live" -n 4'
-      run-deptry: false
-      run-bandit: false
       mypy-advisory: false
 
   ruff:
