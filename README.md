@@ -2,11 +2,26 @@
 
 [![CI](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml/badge.svg)](https://github.com/damien-robotsix/robotsix-llmio/actions/workflows/ci.yml)
 
-This repo follows the [robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards).
-
+LLM provider abstraction — capability levels, cost tracking, tracing.
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
 consumer only ever picks a **level** (1, 2, 3, or 4).
+
+This repo is a **library** — imported by other stack packages, no runnable
+service — and follows the
+[robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards)
+([repo-baseline tier](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/)).
+
+**Docs site:** <https://damien-robotsix.github.io/robotsix-llmio/>
+
+## Quickstart
+
+```bash
+git clone https://github.com/damien-robotsix/robotsix-llmio.git
+cd robotsix-llmio
+uv sync            # deps + dev group (pytest, ruff, mypy, ...)
+uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
+```
 
 ## Layers
 
