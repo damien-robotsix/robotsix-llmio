@@ -75,7 +75,7 @@ def _get_cost_from_response(response: Any) -> float | None:
         return None
     try:
         return float(raw_cost)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
