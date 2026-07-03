@@ -1,0 +1,1 @@
+Releases are now automated: a weekly (plus on-demand) caller of the shared towncrier-driven `auto-release.yml`, authenticating as the fleet GitHub App. When fragments exist in `changelog.d/`, it bumps the version, compiles `CHANGELOG.md`, and tags `v0.X.Y`.
