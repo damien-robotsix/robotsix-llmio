@@ -39,7 +39,7 @@ body:
       label: Version info
       description: |
         Python version (`python --version`) and package version
-        (`pip show robotsix-llmio`).
+        (`uv pip show robotsix-llmio`).
       placeholder: e.g. Python 3.14, robotsix-llmio 0.1.0
     validations:
       required: true
