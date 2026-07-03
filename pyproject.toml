@@ -84,13 +84,27 @@ select = [
     "S",        # flake8-bandit — security checks (replaces standalone bandit)
 ]
 
+# Every ignore carries a justification (robotsix-standards python.md).
 [tool.ruff.lint.per-file-ignores]
+# B018/F821: a vulture whitelist is, by design, a list of bare name
+# references to symbols defined elsewhere — useless expressions of
+# undefined names are the file's entire content.
 "vulture_whitelist.py" = ["B018", "F821"]
+# S110 (try-except-pass): best-effort cleanup of an already-failing SDK
+# stream — there is nothing useful to do or log on secondary failure.
 "src/robotsix_llmio/claude_sdk/_stream.py" = ["S110"]
+# S101: assert used for unreachable-branch documentation after an
+# exhaustive loop (not input validation).
 "src/robotsix_llmio/claude_sdk/_tool_agent.py" = ["S101"]
+# S110 (try-except-pass): swallowing errors from best-effort subprocess
+# teardown; the query result is already decided at that point.
 "src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
+# S101: asserts are mypy type-narrowing hints on invariants, not checks.
+# S311: random.uniform provides retry-backoff jitter — not cryptographic.
 "src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
 
+# S101: pytest tests assert by design. S106: hard-coded dummy credentials
+# are test fixtures, not secrets.
 "tests/**/*.py" = ["S101", "S106"]
 
 [tool.mypy]
