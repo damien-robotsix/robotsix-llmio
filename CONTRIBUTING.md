@@ -6,8 +6,9 @@ please open a GitHub PR against `main`.
 
 ## 1. Local development setup
 
-Python **≥ 3.11** is required (CI tests 3.11, 3.12, 3.13; prefer 3.11 for local
-work to catch the lowest-supported-version issues early).
+Python **≥ 3.14** is required — the stack runtime baseline (see the
+[robotsix stack standards](https://github.com/damien-robotsix/robotsix-standards)).
+CI tests 3.14 only.
 
 This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
@@ -40,7 +41,7 @@ The `pre-commit` tool is **not** included in the `dev` dependency group —
 install it separately:
 
 ```bash
-uv tool install pre-commit        # or: pipx install pre-commit
+uv tool install pre-commit
 pre-commit install
 ```
 
@@ -56,18 +57,25 @@ block on them; regenerate it via `detect-secrets scan` when needed.
 
 Hooks pinned in `.pre-commit-config.yaml`:
 
-| hook id              | description                                  |
-|----------------------|----------------------------------------------|
-| trailing-whitespace  | removes trailing whitespace                  |
-| end-of-file-fixer    | ensures files end with a single newline      |
-| check-yaml           | validates YAML syntax                        |
-| check-toml           | validates TOML syntax                        |
-| check-merge-conflict | rejects files with unresolved merge markers  |
-| debug-statements     | catches leftover `breakpoint()` / `pdb` etc. |
-| ruff                 | linter (auto-fix on commit)                  |
-| ruff-format          | formatter (auto-applied on commit)           |
-| mypy                 | type-checks `src/`                           |
-| detect-secrets       | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| hook id                 | description                                  |
+|-------------------------|----------------------------------------------|
+| trailing-whitespace     | removes trailing whitespace                  |
+| end-of-file-fixer       | ensures files end with a single newline      |
+| check-yaml              | validates YAML syntax                        |
+| check-toml              | validates TOML syntax                        |
+| check-json              | validates JSON syntax                        |
+| check-merge-conflict    | rejects files with unresolved merge markers  |
+| check-added-large-files | rejects files over 1 MB (lockfile/baseline exempt) |
+| check-ast               | rejects Python files that don't parse        |
+| check-case-conflict     | rejects names that collide case-insensitively |
+| debug-statements        | catches leftover `breakpoint()` / `pdb` etc. |
+| detect-private-key      | rejects committed private keys               |
+| ruff                    | linter (auto-fix on commit)                  |
+| ruff-format             | formatter (auto-applied on commit)           |
+| mypy                    | type-checks `src/`                           |
+| vulture                 | dead-code check over `src/`                  |
+| detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
+| actionlint              | lints GitHub Actions workflow files          |
 
 ## 3. Running tests
 
@@ -120,8 +128,8 @@ it reports formatting issues without modifying files.
 - Target **`main`**.
 - Branch naming: short, kebab-case, topic-prefixed — e.g. `feat/…`, `fix/…`,
   `docs/…`, `chore/…`. This is a convention, not a CI gate.
-- CI **must** pass — the full test matrix (3.11, 3.12, 3.13), ruff, mypy,
-  and uv audit. The `security` job runs on Python 3.13 only. CI also
+- CI **must** pass — the test suite on Python 3.14, ruff, mypy,
+  and uv audit. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
 - Pre-commit hooks must pass locally before pushing.
@@ -139,35 +147,24 @@ with:
 
 - a minimal reproducer,
 - your Python version (`python --version`),
-- the installed extras (`pip show robotsix-llmio`),
+- the installed extras (`uv pip show robotsix-llmio`),
 - and — for provider-specific bugs — which transport you're using (OpenRouter /
   Claude SDK).
 
 ## 8. Releasing
 
-Releases are published to [PyPI](https://pypi.org/p/robotsix-llmio)
-automatically by the `.github/workflows/release.yml` GitHub Actions workflow.
-The flow is:
+The stack publishes to **no package index** — consumers depend on this library
+directly from git, pinned to a commit SHA (see the
+[repo baseline](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/)).
+A release is a version bump, a `v0.X.Y` tag, and a compiled changelog — nothing
+is published anywhere:
 
 1. Bump `version` in `pyproject.toml`, then commit/merge the bump to `main`.
-2. Tag the release and push the tag — this is the **only** step needed to trigger the full pipeline:
+2. Tag the release and push the tag:
    ```bash
    git tag v0.2.0 && git push origin v0.2.0
    ```
-   The tag push triggers `release.yml`, which builds the sdist + wheel, creates a **GitHub Release** with the build artifacts attached, and publishes to PyPI via Trusted Publishing (OIDC).
-3. The workflow builds the sdist + wheel (`python -m build`) and publishes them
-   to PyPI via **Trusted Publishing (OIDC)** — no API token is stored or
-   required.
 
 Record user-facing changes under the `## [Unreleased]` section of `CHANGELOG.md`
 as part of your PR. When cutting a release, rename `[Unreleased]` to the new
 version with the release date.
-
-### One-time maintainer setup
-
-Trusted Publishing must be registered once by a project maintainer at
-<https://pypi.org/manage/project/robotsix-llmio/settings/publishing/>, pointing
-at this repository (`damien-robotsix/robotsix-llmio`), the workflow filename
-`release.yml`, and the `pypi` GitHub Environment. This is a manual action
-performed once on PyPI and cannot be done from the repository.
-

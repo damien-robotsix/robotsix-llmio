@@ -1,0 +1,1 @@
+CI: the CodeQL-results and SBOM artifact uploads now run with `if: always()` and `if-no-files-found: error`, so a failing earlier step can no longer silently skip a required artifact upload (repo-baseline rule, originally traced to an incident in this repo).

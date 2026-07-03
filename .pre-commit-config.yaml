@@ -17,6 +17,8 @@ repos:
           )
       - id: check-ast
       - id: check-case-conflict
+      - id: check-json
+      - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.20
     hooks:
@@ -26,7 +28,11 @@ repos:
     rev: v2.1.0
     hooks:
       - id: mypy
+        # Check src/ as one unit: passing changed filenames alongside the
+        # src/ arg makes mypy see modules twice ("Duplicate module") and
+        # breaks `pre-commit run --all-files`.
         args: ["src/"]
+        pass_filenames: false
         additional_dependencies: ["pydantic-ai>=2.2.0", "httpx"]
   - repo: local
     hooks:
