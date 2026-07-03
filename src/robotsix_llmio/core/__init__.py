@@ -66,7 +66,11 @@ if TYPE_CHECKING:
         is_transient,
     )
     from .run import arun_agent, run_agent
-    from .sqlite_utils import add_column_if_missing, run_additive_migrations
+    from .sqlite_utils import (
+        add_column_if_missing,
+        run_additive_migrations,
+        run_multi_table_migrations,
+    )
     from .text_utils import html_to_text
     from .tier_fallback import acall_with_tier_fallback, call_with_tier_fallback
     from .tracing import (
@@ -144,6 +148,7 @@ __all__ = [
     "reconcile",
     "run_additive_migrations",
     "run_agent",
+    "run_multi_table_migrations",
     "setup_langfuse_tracing",
     "start_span",
     "start_trace",
@@ -202,6 +207,7 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     # -- sqlite_utils
     "add_column_if_missing": (".sqlite_utils", "add_column_if_missing"),
     "run_additive_migrations": (".sqlite_utils", "run_additive_migrations"),
+    "run_multi_table_migrations": (".sqlite_utils", "run_multi_table_migrations"),
     # -- run
     "arun_agent": (".run", "arun_agent"),
     "run_agent": (".run", "run_agent"),
