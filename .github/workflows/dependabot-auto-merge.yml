@@ -5,8 +5,13 @@ on:
 
 permissions: {}  # deny by default; the job grants what it needs
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   auto-merge:
+    name: Auto-merge
     if: github.actor == 'dependabot[bot]'
     permissions:
       contents: write  # enable auto-merge on the dependabot PR

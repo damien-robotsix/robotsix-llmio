@@ -13,8 +13,9 @@ concurrency:
 
 jobs:
   ci:
+    name: CI
     permissions:
-      contents: read
+      contents: read  # check out the repo
       security-events: write  # upload SARIF from the scan
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
@@ -33,7 +34,7 @@ jobs:
     # until one of the two exists (tracked as a standards gap).
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read  # check out the repo
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -52,7 +53,7 @@ jobs:
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read  # check out the repo
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -66,8 +67,9 @@ jobs:
         run: uvx towncrier check --compare-with "origin/${GITHUB_BASE_REF}"
 
   security:
+    name: Security
     permissions:
-      contents: read
+      contents: read  # check out the repo
       security-events: write  # upload SARIF from the scan
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
@@ -85,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       security-events: write  # upload CodeQL results
-      contents: read
+      contents: read  # check out the repo
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

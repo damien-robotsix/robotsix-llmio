@@ -7,8 +7,13 @@ on:
 
 permissions: {}  # deny by default; the job grants what it needs
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
+    name: Deploy
     permissions:
       contents: write  # push the built site to the gh-pages branch
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-docs.yml@5cd8c1facb02299da618979e7a55f1953f9c075a # main

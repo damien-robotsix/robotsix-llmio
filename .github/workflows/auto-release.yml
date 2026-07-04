@@ -7,8 +7,13 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
+    name: Release
     permissions:
       contents: write  # push the release commit + tag
       pull-requests: write  # protected-branch PR fallback
