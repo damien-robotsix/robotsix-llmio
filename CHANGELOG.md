@@ -8,6 +8,8 @@ by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
 
 ## 0.0.0 (unreleased)
 
+- CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks `Lint workflows` on main.
+
 - Export `record_cost` and `flush_current_provider` from `core.cost` via `core.__init__` (TYPE_CHECKING, `__all__`, and `_SUBMODULE_ATTRS`), matching the pattern of every other `core` submodule.
 - Export `run_multi_table_migrations` from `core.__init__` (TYPE_CHECKING, `__all__`, `_SUBMODULE_ATTRS`) — it was the only public symbol in `core.sqlite_utils` missing from the package's public API.
 - Add `check-added-large-files`, `check-ast`, and `check-case-conflict` pre-commit hooks from `pre-commit-hooks`.
