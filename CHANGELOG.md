@@ -29,6 +29,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
   thin shim that passes sync or async `invoke`/`sleep` adapters into the shared
   core. `run.py` likewise extracts `_run_with_trace_and_close` to deduplicate
   the trace-span boilerplate between `run_agent` and `arun_agent`.
+- Extract shared retry-loop helpers ``_compute_backoff``, ``_handle_rate_limit``, and ``_handle_transient`` from duplicated sync/async variants in ``core/retry.py``.
 - Fix README environment-variable table: `LLMIO_LEVEL{1,2,3}_MODEL` and `LLMIO_LEVEL{1,2,3}_PROVIDER_KWARGS` updated to `{1,2,3,4}` to match the actual four-tier configuration system (Level 4 was already supported in code and `docs/config/index.md` but missing from the README table).
 - Re-export `AsyncRefdocsClient`, `RefdocsClientError`, and `build_refdocs_tools`
   from the top-level `robotsix_llmio` package (sibling-pattern gap with

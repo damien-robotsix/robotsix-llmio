@@ -111,6 +111,71 @@ def _record_rate_limit_span(
         span.set_attribute("llmio.rate_limit.fallback_activated", True)
 
 
+def _compute_backoff(attempt: int) -> float:
+    """Exponential backoff with jitter, capped."""
+    raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
+    raw += random.uniform(0, raw / 2)
+    return min(constants.TRANSIENT_BACKOFF_CAP, raw)
+
+
+def _handle_rate_limit(
+    using_fallback: bool,
+    fallback_fn: object | None,
+    cumulative_backoff: float,
+    what: str,
+) -> None:
+    """Handle a ``UsageLimitExceeded`` error.
+
+    If a *fallback_fn* is available and not yet in use, activate it:
+    log, record the span, and return so the caller resets the attempt
+    counter and continues with the fallback.  Otherwise flush and
+    re-raise immediately.
+    """
+    if not using_fallback and fallback_fn is not None:
+        log.warning(
+            "%s: rate-limit fallback activated on first UsageLimitExceeded",
+            what,
+        )
+        _record_rate_limit_span(
+            count=1,
+            cumulative_backoff=cumulative_backoff,
+            fallback_activated=True,
+        )
+        return
+    _safe_flush()
+    raise
+
+
+def _handle_transient(
+    e: Exception,
+    attempt: int,
+    attempts: int,
+    cumulative_backoff: float,
+    what: str,
+) -> tuple[float, float]:
+    """Handle a transient error: compute backoff, log, flush.
+
+    Returns ``(delay, new_cumulative_backoff)`` so the caller can sleep
+    (sync or async) and increment *attempt*.  Raises if retries are
+    exhausted.
+    """
+    if attempt >= attempts:
+        _safe_flush()
+        raise
+    delay = _compute_backoff(attempt)
+    cumulative_backoff += delay
+    log.warning(
+        "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
+        what,
+        type(e).__name__,
+        attempt + 1,
+        attempts,
+        delay,
+    )
+    _safe_flush()
+    return delay, cumulative_backoff
+
+
 async def _retry_loop(
     fn: Callable[[], Any],
     *,
@@ -123,7 +188,6 @@ async def _retry_loop(
     """Shared retry loop — ``invoke`` and ``sleep_fn`` adapt sync vs async."""
     attempts = max(0, constants.TRANSIENT_RETRIES)
     using_fallback = False
-    rate_limit_count = 0
     cumulative_backoff = 0.0
 
     attempt = 0
@@ -135,40 +199,15 @@ async def _retry_loop(
             return await invoke(fn)
         except Exception as e:
             if is_rate_limited(e):
-                rate_limit_count += 1
-                if not using_fallback and fallback_fn is not None:
-                    using_fallback = True
-                    log.warning(
-                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
-                        what,
-                    )
-                    _record_rate_limit_span(
-                        count=rate_limit_count,
-                        cumulative_backoff=cumulative_backoff,
-                        fallback_activated=True,
-                    )
-                    attempt = 0  # fresh retry budget for fallback
-                    continue
-                _safe_flush()
-                raise
+                _handle_rate_limit(using_fallback, fallback_fn, cumulative_backoff, what)
+                using_fallback = True
+                attempt = 0  # fresh retry budget for fallback
+                continue
 
             if is_transient_fn(e):
-                if attempt >= attempts:
-                    _safe_flush()
-                    raise
-                raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
-                raw += random.uniform(0, raw / 2)  # jitter before cap
-                delay = min(constants.TRANSIENT_BACKOFF_CAP, raw)
-                cumulative_backoff += delay
-                log.warning(
-                    "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
-                    what,
-                    type(e).__name__,
-                    attempt + 1,
-                    attempts,
-                    delay,
+                delay, cumulative_backoff = _handle_transient(
+                    e, attempt, attempts, cumulative_backoff, what
                 )
-                _safe_flush()
                 await sleep_fn(delay)
                 attempt += 1
                 continue
