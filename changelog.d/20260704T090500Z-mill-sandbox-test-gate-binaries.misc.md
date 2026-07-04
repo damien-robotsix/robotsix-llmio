@@ -1,0 +1,1 @@
+Declare pytest, pytest-xdist and pytest-timeout as mill sandbox packages so the test gate can collect under --strict-config (PEP 735 dependency-groups are excluded from the sandbox's pip install by design).
