@@ -31,6 +31,8 @@ jobs:
     # hook in the standard set, but CI does not run `pre-commit run
     # --all-files` yet and no shared workflow carries vulture — keep this job
     # until one of the two exists (tracked as a standards gap).
+  uv-audit:
+    name: uv audit
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,6 +44,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: uv sync --frozen
+      - run: uv audit
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   changelog:
