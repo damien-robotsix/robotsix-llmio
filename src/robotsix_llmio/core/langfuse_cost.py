@@ -195,7 +195,7 @@ class LangfuseCostLogSource:
     @staticmethod
     def _to_record(trace: dict[str, Any]) -> CostRecord:
         """Build a :class:`CostRecord` from one Langfuse trace dict."""
-        raw_ts = trace.get("timestamp") or trace.get("createdAt")
+        raw_ts = trace.get("timestamp")
         timestamp = _parse_timestamp(raw_ts)
         return CostRecord(
             id=str(trace.get("id", "")),
@@ -212,7 +212,7 @@ class LangfuseCostLogSource:
         ``id`` is the observation id (not a trace id); ``session_id`` falls back
         to the parent ``traceId`` since observations carry no session directly.
         """
-        raw_ts = obs.get("startTime") or obs.get("createdAt")
+        raw_ts = obs.get("startTime")
         timestamp = _parse_timestamp(raw_ts)
         return CostRecord(
             id=str(obs.get("id", "")),
