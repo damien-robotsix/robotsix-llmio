@@ -14,7 +14,7 @@ __getattr__
 setup_logging
 
 # ---------------------------------------------------------------------------
-# refdocs/_async_client.py
+# clients/_base.py
 # ---------------------------------------------------------------------------
 
 # client.timeout set on an httpx.AsyncClient — consumed internally by httpx
@@ -131,7 +131,7 @@ AsyncOpenRouterClient.fetch_credits
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-# self_review/_client.py
+# clients/self_review/_client.py
 # ---------------------------------------------------------------------------
 
 # Reserved for future use (cross-referencing activity against conversation

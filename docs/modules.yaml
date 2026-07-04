@@ -56,53 +56,23 @@ modules:
       - docs/claude_sdk/**
       - docs/reference/claude_sdk.md
 
-  - id: refdocs
+  - id: clients
     description: >-
-      Direct HTTP access for documentation search and retrieval —
-      replaces the agent-comm broker intermediary.
+      Direct-HTTP REST clients for refdocs, knowledge-store, and
+      self-review APIs. All three follow the same architectural pattern
+      (async HTTP client + pydantic-ai tool adapter), replacing the
+      agent-comm broker intermediary. The shared ``BaseHttpClient`` in
+      ``_base.py`` eliminates duplicated ``_get()`` logic across the
+      three sub-modules.
     paths:
-      - src/robotsix_llmio/refdocs/**
-      - tests/refdocs/**
-      - docs/refdocs/**
+      - src/robotsix_llmio/clients/**
+      - tests/clients/**
+      - docs/clients/**
       - docs/reference/refdocs.md
-
-  - id: config
-    description: >-
-      Consumer-facing configuration layer — TierConfig schema, loader,
-      and the create_model factory.
-    paths:
-      - src/robotsix_llmio/config/**
-      - tests/config/**
-      - docs/config/**
-      - docs/reference/config.md
-
-  - id: knowledge
-    description: >-
-      Direct-HTTP knowledge-store client replacing the agent-comm broker.
-      KnowledgeClient makes plain httpx calls to a knowledge-store REST API
-      (search + get-document), and build_knowledge_tools wraps it into
-      pydantic-ai-compatible async tool functions.
-    paths:
-      - src/robotsix_llmio/knowledge/**
-      - tests/knowledge/**
-      - docs/knowledge/**
       - docs/reference/knowledge.md
-
-  - id: self-review
-    description: >-
-      Direct-HTTP self-review / recent-activity client replacing the
-      agent-comm broker. SelfReviewClient makes plain httpx calls to a
-      self-review REST API (list-activity + get-activity), and
-      build_recent_activity_tools wraps it into pydantic-ai-compatible
-      async tool functions. Directory names use snake_case (self_review),
-      hence the explicit paths.
-    paths:
-      - src/robotsix_llmio/self_review/**
-      - tests/self_review/**
-      - docs/self_review/**
       - docs/reference/self_review.md
 
-  - id: dev-tooling
+  - id: config
     description: >-
       Developer tooling and repo configuration: pyproject, lockfile,
       pre-commit hooks, CI workflows, mill periodic jobs, editor and

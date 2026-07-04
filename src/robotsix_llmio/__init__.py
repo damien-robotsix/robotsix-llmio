@@ -20,14 +20,14 @@ if TYPE_CHECKING:
         get_provider_for_level,
     )
     from .core.langfuse_client import LangfuseClientError
-    from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
+    from .clients.knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
     from .openrouter import OpenRouterAPIError
-    from .refdocs import (
+    from .clients.refdocs import (
         AsyncRefdocsClient,
         RefdocsClientError,
         build_refdocs_tools,
     )
-    from .self_review import (
+    from .clients.self_review import (
         SelfReviewClient,
         SelfReviewClientError,
         build_recent_activity_tools,
@@ -66,7 +66,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
 
         return factory.default_tier_config
     if name in ("KnowledgeClient", "build_knowledge_tools", "KnowledgeClientError"):
-        from . import knowledge
+        from .clients import knowledge
 
         return getattr(knowledge, name)
     if name == "LangfuseClientError":
@@ -82,7 +82,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "build_refdocs_tools",
         "RefdocsClientError",
     ):
-        from . import refdocs
+        from .clients import refdocs
 
         return getattr(refdocs, name)
     if name in (
@@ -90,7 +90,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "build_recent_activity_tools",
         "SelfReviewClientError",
     ):
-        from . import self_review
+        from .clients import self_review
 
         return getattr(self_review, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

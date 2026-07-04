@@ -8,19 +8,35 @@ from __future__ import annotations
 
 from typing import Any
 
-from robotsix_llmio.refdocs import RefdocsClientError
+from robotsix_llmio.clients._base import BaseHttpClient
+from robotsix_llmio.clients.refdocs import RefdocsClientError
 
-from ..core._rest_client import _get_json
-from ._base import _DEFAULT_BASE_URL
+from ._settings import _DEFAULT_BASE_URL
 
 
-class AsyncRefdocsClient:
+class AsyncRefdocsClient(BaseHttpClient):
     """Async refdocs REST client for searching and retrieving documentation.
 
     Hits the refdocs REST API directly (no agent-comm broker). Creates a
     fresh, timeout-bounded ``httpx.AsyncClient`` per request (stateless
     per-call pattern).
     """
+
+    # ------------------------------------------------------------------ #
+    #  BaseHttpClient contract
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _error_type(self) -> type[Exception]:
+        return RefdocsClientError
+
+    @property
+    def _error_label(self) -> str:
+        return "Refdocs"
+
+    # ------------------------------------------------------------------ #
+    #  Constructor
+    # ------------------------------------------------------------------ #
 
     def __init__(
         self,
@@ -29,9 +45,11 @@ class AsyncRefdocsClient:
         api_key: str | None = None,
         request_timeout: float = 30.0,
     ) -> None:
-        self._base_url = (base_url or _DEFAULT_BASE_URL).rstrip("/")
-        self._api_key = api_key
-        self._request_timeout = request_timeout
+        super().__init__(
+            base_url=base_url or _DEFAULT_BASE_URL,
+            api_key=api_key,
+            request_timeout=request_timeout,
+        )
 
     # ------------------------------------------------------------------ #
     #  Public API
@@ -63,25 +81,3 @@ class AsyncRefdocsClient:
         """
         data = await self._get(f"/docs/{path}")
         return str(data.get("content") or "")
-
-    # ------------------------------------------------------------------ #
-    #  Internal
-    # ------------------------------------------------------------------ #
-
-    async def _get(
-        self, path: str, *, params: dict[str, str | int] | None = None
-    ) -> dict[str, Any]:
-        """Send a GET to *path* and return the JSON response body.
-
-        Raises ``RefdocsClientError`` on any non-2xx response or
-        network failure.
-        """
-        return await _get_json(
-            base_url=self._base_url,
-            path=path,
-            params=params,
-            api_key=self._api_key,
-            timeout_seconds=self._request_timeout,
-            error_cls=RefdocsClientError,
-            error_label="Refdocs",
-        )

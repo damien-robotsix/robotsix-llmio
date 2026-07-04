@@ -1,0 +1,1 @@
+Consolidate modules refdocs, knowledge, self-review: three near-identical direct-HTTP clients under a shared parent

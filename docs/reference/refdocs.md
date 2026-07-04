@@ -1,3 +1,3 @@
 # refdocs
 
-::: robotsix_llmio.refdocs
+::: robotsix_llmio.clients.refdocs

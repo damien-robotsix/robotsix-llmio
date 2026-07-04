@@ -17,7 +17,7 @@ transport. It exposes:
 ## Quick start
 
 ```python
-from robotsix_llmio.self_review import (
+from robotsix_llmio.clients.self_review import (
     SelfReviewClient,
     build_recent_activity_tools,
 )

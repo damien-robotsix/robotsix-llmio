@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from robotsix_llmio.core._rest_client import _DEFAULT_BASE_URL, _get_json
-from robotsix_llmio.knowledge import KnowledgeClientError
+from robotsix_llmio.clients._base import BaseHttpClient
+from robotsix_llmio.clients.knowledge import KnowledgeClientError
+from robotsix_llmio.core._rest_client import _DEFAULT_BASE_URL
 
 
-class KnowledgeClient:
+class KnowledgeClient(BaseHttpClient):
     """Async HTTP client for a knowledge-store REST API.
 
     Connects directly to the knowledge-store HTTP API — no agent-comm
@@ -29,14 +30,29 @@ class KnowledgeClient:
         Optional bearer token sent as ``Authorization: Bearer <api_key>``.
     """
 
+    # ------------------------------------------------------------------ #
+    #  BaseHttpClient contract
+    # ------------------------------------------------------------------ #
+
+    @property
+    def _error_type(self) -> type[Exception]:
+        return KnowledgeClientError
+
+    @property
+    def _error_label(self) -> str:
+        return "Knowledge store"
+
+    # ------------------------------------------------------------------ #
+    #  Constructor
+    # ------------------------------------------------------------------ #
+
     def __init__(
         self,
         *,
         base_url: str = _DEFAULT_BASE_URL,
         api_key: str | None = None,
     ) -> None:
-        self._base_url = base_url.rstrip("/")
-        self._api_key = api_key
+        super().__init__(base_url=base_url, api_key=api_key)
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -83,29 +99,6 @@ class KnowledgeClient:
             If the document is not found (HTTP 404) or the request fails.
         """
         return await self._get(f"/documents/{doc_id}")
-
-    # ------------------------------------------------------------------ #
-    # Internal helpers
-    # ------------------------------------------------------------------ #
-
-    async def _get(
-        self,
-        path: str,
-        params: dict[str, str | int] | None = None,
-    ) -> dict[str, Any]:
-        """Send a GET to *path* and return the JSON response body.
-
-        Raises ``KnowledgeClientError`` on any non-2xx response or
-        network failure.
-        """
-        return await _get_json(
-            base_url=self._base_url,
-            path=path,
-            params=params,
-            api_key=self._api_key,
-            error_cls=KnowledgeClientError,
-            error_label="Knowledge store",
-        )
 
 
 # ---------------------------------------------------------------------- #

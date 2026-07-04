@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from ._base import _DEFAULT_BASE_URL
+_DEFAULT_BASE_URL = "http://localhost:9090"
 
 #: Environment variable name for the refdocs API key.
 _ENV_REFDOCS_API_KEY = "REFDOCS_API_KEY"
