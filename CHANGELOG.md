@@ -10,6 +10,13 @@ by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
 
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
+- Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in
+  `core/tier_fallback.py`, eliminating ~250 lines of duplicated sync/async retry
+  and tier-escalation logic. Each public `call_with_retry` / `acall_with_retry`
+  and `call_with_tier_fallback` / `acall_with_tier_fallback` is now a ~5-line
+  thin shim that passes sync or async `invoke`/`sleep` adapters into the shared
+  core. `run.py` likewise extracts `_run_with_trace_and_close` to deduplicate
+  the trace-span boilerplate between `run_agent` and `arun_agent`.
 - Fix README environment-variable table: `LLMIO_LEVEL{1,2,3}_MODEL` and `LLMIO_LEVEL{1,2,3}_PROVIDER_KWARGS` updated to `{1,2,3,4}` to match the actual four-tier configuration system (Level 4 was already supported in code and `docs/config/index.md` but missing from the README table).
 - Re-export `AsyncRefdocsClient`, `RefdocsClientError`, and `build_refdocs_tools`
   from the top-level `robotsix_llmio` package (sibling-pattern gap with
