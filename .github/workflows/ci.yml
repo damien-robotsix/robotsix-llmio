@@ -15,7 +15,7 @@ jobs:
   ci:
     permissions:
       contents: read
-      security-events: write
+      security-events: write  # upload SARIF from the scan
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
       python-version: "3.14"
@@ -26,6 +26,7 @@ jobs:
       mypy-advisory: false
 
   vulture:
+    name: Vulture
     # Hand-rolled gate, justified: vulture (dead-code check) is a pre-commit
     # hook in the standard set, but CI does not run `pre-commit run
     # --all-files` yet and no shared workflow carries vulture — keep this job
@@ -44,6 +45,7 @@ jobs:
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
   changelog:
+    name: Changelog
     # Hand-rolled gate, justified: robotsix-github-workflows carries no shared
     # changelog-check workflow yet — replace this job with the shared caller
     # once one exists (tracked as a standards gap).
@@ -66,7 +68,7 @@ jobs:
   security:
     permissions:
       contents: read
-      security-events: write
+      security-events: write  # upload SARIF from the scan
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@eeced1217f95cc04e514102571282a2ff2d1e3f1 # main
     with:
       install-extras: "openrouter claude_sdk"
@@ -74,6 +76,7 @@ jobs:
       trufflehog-extra-args: "--results=verified,unknown"
 
   codeql:
+    name: CodeQL
     # Hand-rolled gate, justified: the shared codeql.yml reusable workflow
     # exists but takes no config-file input, and this repo needs
     # .github/codeql/codeql-config.yml (documented PEP-562 false-positive
@@ -81,7 +84,7 @@ jobs:
     # it grows config support (enhancement ticketed on the workflows board).
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      security-events: write  # upload CodeQL results
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
