@@ -22,6 +22,11 @@ if TYPE_CHECKING:
     from .core.langfuse_client import LangfuseClientError
     from .knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
     from .openrouter import OpenRouterAPIError
+    from .refdocs import (
+        AsyncRefdocsClient,
+        RefdocsClientError,
+        build_refdocs_tools,
+    )
     from .self_review import (
         SelfReviewClient,
         SelfReviewClientError,
@@ -29,16 +34,19 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "AsyncRefdocsClient",
     "KnowledgeClient",
     "KnowledgeClientError",
     "LangfuseClientError",
     "OpenRouterAPIError",
+    "RefdocsClientError",
     "RobotsixLLMIOError",
     "SelfReviewClient",
     "SelfReviewClientError",
     "build_agent_for_level",
     "build_knowledge_tools",
     "build_recent_activity_tools",
+    "build_refdocs_tools",
     "default_tier_config",
     "get_provider_for_level",
 ]
@@ -69,6 +77,14 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import openrouter
 
         return openrouter.OpenRouterAPIError
+    if name in (
+        "AsyncRefdocsClient",
+        "build_refdocs_tools",
+        "RefdocsClientError",
+    ):
+        from . import refdocs
+
+        return getattr(refdocs, name)
     if name in (
         "SelfReviewClient",
         "build_recent_activity_tools",
