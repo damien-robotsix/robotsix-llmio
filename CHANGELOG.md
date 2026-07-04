@@ -20,6 +20,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
   ``_DEFAULT_BASE_URL`` constant is also moved there.
 - Split `src/robotsix_llmio/claude_sdk/_tool_agent.py` (802 lines) into four focused private submodules: `_output.py` (structured JSON parsing), `_tool_converter.py` (pydantic-ai → SDK MCP tool conversion), `_confinement.py` (workspace path-traversal hooks), and `_chat_messages.py` (tracing chat-message rendering). The original module now holds only `_SdkToolResult` and `_SdkToolAgentHandle` (~470 lines).
 - `TierConfigLoadError` now inherits from `RobotsixLLMIOError` instead of `Exception`, so it's caught by a single `except RobotsixLLMIOError` clause as the library's exception contract documents.
+- Add Hypothesis property-based tests for the transient retry backoff formula (boundedness, non-negativity, jitter range, monotonicity).
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
 - Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in
