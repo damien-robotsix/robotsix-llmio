@@ -1,2 +1,12 @@
 test_command: pytest -q -n 4
 languages: [python]
+# The mill sandbox installs the package via `pip install .`, which BY DESIGN
+# excludes PEP 735 [dependency-groups] — declare the test-gate binaries
+# explicitly (same pattern as robotsix-mill's own config). pytest-timeout is
+# mandatory here: pyproject sets timeout/timeout_method under --strict-config,
+# so a missing plugin is a collection-time ERROR, which has been blocking
+# every mill ticket on this repo ("pre-existing test failures on main").
+extra_sandbox_packages:
+  - pip:pytest
+  - pip:pytest-xdist
+  - pip:pytest-timeout
