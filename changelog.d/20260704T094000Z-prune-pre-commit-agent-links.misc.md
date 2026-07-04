@@ -1,0 +1,1 @@
+Pre-commit: remove hooks already covered by ruff (`debug-statements`, `check-ast`, `check-case-conflict`) to deduplicate with the standard hook set. AGENT.md: replace inline Rationale paragraphs with standards links where the rules are now upstreamed, and add a CI/workflows section pointing at the repo-baseline `if: always()` rule.
