@@ -187,7 +187,7 @@ def call_with_tier_fallback[T](
     async def _invoke(f: Callable[[], Any]) -> Any:
         return f()
 
-    return asyncio.run(
+    return asyncio.run(  # type: ignore[no-any-return]
         _tier_fallback_loop(
             fn_factory,
             invoke=_invoke,
@@ -220,7 +220,7 @@ async def acall_with_tier_fallback[T](
     async def _invoke(f: Callable[[], Any]) -> Any:
         return await f()
 
-    return await _tier_fallback_loop(
+    return await _tier_fallback_loop(  # type: ignore[no-any-return]
         fn_factory,
         invoke=_invoke,
         tier_config=tier_config,

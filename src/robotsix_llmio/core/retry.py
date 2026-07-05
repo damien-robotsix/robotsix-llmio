@@ -209,7 +209,7 @@ def call_with_retry[T](
     async def _sleep(d: float) -> None:
         sleep(d)
 
-    return asyncio.run(
+    return asyncio.run(  # type: ignore[no-any-return]
         _retry_loop(
             fn,
             invoke=_invoke,
@@ -289,7 +289,7 @@ async def acall_with_retry[T](
     async def _invoke(f: Callable[[], Any]) -> Any:
         return await f()
 
-    return await _retry_loop(
+    return await _retry_loop(  # type: ignore[no-any-return]
         fn,
         invoke=_invoke,
         sleep_fn=sleep,
