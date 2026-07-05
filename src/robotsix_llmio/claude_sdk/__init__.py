@@ -10,15 +10,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from .transient import is_claude_sdk_transient, is_claude_sdk_turn_limit
+from .transient import (
+    is_claude_sdk_transient,
+    is_claude_sdk_turn_limit,
+    is_claude_sdk_usage_exhausted,
+)
 
 __all__ = [
     "ClaudeSDKModel",
     "ClaudeSDKProvider",
     "ClaudeSDKQueryTimeout",
     "ClaudeSDKTurnLimitError",
+    "ClaudeSDKUsageExhaustedError",
     "is_claude_sdk_transient",
     "is_claude_sdk_turn_limit",
+    "is_claude_sdk_usage_exhausted",
 ]
 
 
@@ -28,6 +34,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "ClaudeSDKModel",
         "ClaudeSDKTurnLimitError",
         "ClaudeSDKQueryTimeout",
+        "ClaudeSDKUsageExhaustedError",
     ):
         try:
             if name == "ClaudeSDKProvider":
@@ -42,6 +49,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
                 from .model import ClaudeSDKQueryTimeout
 
                 return ClaudeSDKQueryTimeout
+            if name == "ClaudeSDKUsageExhaustedError":
+                from .model import ClaudeSDKUsageExhaustedError
+
+                return ClaudeSDKUsageExhaustedError
             from .model import ClaudeSDKModel
 
             return ClaudeSDKModel

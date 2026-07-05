@@ -85,6 +85,22 @@ class ClaudeSDKQueryTimeout(RobotsixLLMIOError):
     :data:`~robotsix_llmio.claude_sdk.transient._SDK_TRANSIENT_NAMES`)."""
 
 
+class ClaudeSDKUsageExhaustedError(RobotsixLLMIOError):
+    """The Claude subscription has exhausted its usage credits for the
+    ``ClaudeAgentOptions.model`` tier this call used.
+
+    The SDK reports this as a normal-looking ``ResultMessage`` (``is_error=True``,
+    often ``subtype="success"``) carrying the assistant-visible text "You're out
+    of usage credits" rather than raising — so left unhandled, that text would be
+    returned as if it were a genuine reply. A re-run at the *same* tier cannot
+    help (the credits are exhausted until they reset), so this is never treated
+    as transient (see
+    :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`) —
+    callers should catch it and fall back to a different capability tier
+    instead (e.g. via
+    :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)."""
+
+
 def _content_to_text(content: Any) -> str:
     """Flatten a pydantic-ai user/tool content (str or a list of parts) to text."""
     if isinstance(content, str):

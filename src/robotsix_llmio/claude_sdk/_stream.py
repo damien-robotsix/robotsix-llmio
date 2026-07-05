@@ -99,6 +99,11 @@ async def _stream_query(
     Converts a wall-clock timeout into :class:`ClaudeSDKQueryTimeout` (always).
     If *extra_transient* is given and returns ``True`` for a non-timeout
     exception, that exception is wrapped in :class:`ClaudeSDKTurnLimitError`.
+
+    Raises :class:`ClaudeSDKUsageExhaustedError` when the completed result is
+    flagged ``is_error=True`` and its text reports exhausted usage credits —
+    that shape does not raise upstream, so left unhandled it would return the
+    error text as if it were a genuine reply.
     """
     from claude_agent_sdk import (
         AssistantMessage,
@@ -108,7 +113,12 @@ async def _stream_query(
     )
 
     from ..core import constants
-    from .model import ClaudeSDKQueryTimeout, ClaudeSDKTurnLimitError
+    from .model import (
+        ClaudeSDKQueryTimeout,
+        ClaudeSDKTurnLimitError,
+        ClaudeSDKUsageExhaustedError,
+    )
+    from .transient import is_usage_exhausted_text
 
     chunks: list[str] = []
     thoughts: list[str] = []
@@ -160,4 +170,18 @@ async def _stream_query(
     if not text and result is not None:
         text = (getattr(result, "result", None) or "").strip()
     reasoning = "\n\n".join(thoughts).strip()
+
+    # The SDK sometimes reports usage-exhaustion as a normal-looking
+    # completion (ResultMessage.is_error=True, no exception raised) rather
+    # than surfacing it as an error — left unhandled, the assistant-visible
+    # "You're out of usage credits" text would be returned as a genuine
+    # reply. Scoped narrowly to this one signature: any other is_error=True
+    # shape is left exactly as-is (out of scope for this fix).
+    if (
+        result is not None
+        and getattr(result, "is_error", False)
+        and is_usage_exhausted_text(text)
+    ):
+        raise ClaudeSDKUsageExhaustedError(text)
+
     return text, result, reasoning

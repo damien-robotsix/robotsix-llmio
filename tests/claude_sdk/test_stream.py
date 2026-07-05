@@ -251,6 +251,65 @@ def test_stream_query_blank_thinking_ignored(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# _stream_query — usage exhaustion
+# ---------------------------------------------------------------------------
+
+
+def test_stream_query_raises_on_usage_exhausted(monkeypatch):
+    """An is_error=True result reporting exhausted credits raises
+    ClaudeSDKUsageExhaustedError instead of returning the text as a reply."""
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("You're out of usage credits · resets Jul 9")
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKUsageExhaustedError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "out of usage credits" in str(exc_info.value).lower()
+
+
+def test_stream_query_is_error_without_usage_signature_unaffected(monkeypatch):
+    """An is_error=True result NOT matching the usage-exhaustion wording is
+    left exactly as before (out of scope for this fix) — no exception."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("some other error text")
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    text, result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "some other error text"
+    assert result.is_error is True
+
+
+def test_stream_query_usage_signature_without_is_error_unaffected(monkeypatch):
+    """Matching text with is_error=False (a real, non-error reply that
+    happens to mention the phrase) is returned normally — the is_error flag
+    gates the check, not the text alone."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("you asked about running out of usage credits")
+        yield fake.ResultMessage()  # is_error defaults to falsy/absent
+
+    fake.query = _fake_query
+
+    text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "you asked about running out of usage credits"
+
+
+# ---------------------------------------------------------------------------
 # _stream_query — timeout
 # ---------------------------------------------------------------------------
 
