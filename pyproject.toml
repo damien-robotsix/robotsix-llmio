@@ -63,7 +63,7 @@ tracing = [
 # not extras (robotsix-standards python.md). uv sync pulls `dev` in by
 # default via [tool.uv] default-groups.
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml", "robotsix-modules"]
+dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml", "robotsix-modules", "towncrier"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [tool.uv]
@@ -76,29 +76,39 @@ robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.
 packages = ["src/robotsix_llmio"]
 
 [tool.towncrier]
-directory = "changelog.d"
+package = "robotsix_llmio"
+package_dir = "src"
 filename = "CHANGELOG.md"
-name = "robotsix-llmio"
+directory = "changes"
+start_string = "<!-- towncrier release notes start -->\n"
+title_format = "## {version} ({project_date})"
+underlines = ["", "", ""]
+issue_format = "[#{issue}](https://github.com/damien-robotsix/robotsix-llmio/issues/{issue})"
 
 [[tool.towncrier.type]]
-directory = "breaking"
-name = "Breaking"
+directory = "feat"
+name = "Features"
 showcontent = true
 
 [[tool.towncrier.type]]
-directory = "feature"
-name = "Added"
+directory = "fix"
+name = "Bug Fixes"
 showcontent = true
 
 [[tool.towncrier.type]]
-directory = "bugfix"
-name = "Fixed"
+directory = "doc"
+name = "Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removal"
+name = "Removals"
 showcontent = true
 
 [[tool.towncrier.type]]
 directory = "misc"
-name = "Changed"
-showcontent = true
+name = "Miscellaneous"
+showcontent = false
 
 [tool.deptry]
 # The package itself is installed in the CI env, so deptry misreads
