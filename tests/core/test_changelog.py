@@ -141,9 +141,7 @@ def test_rst_no_unreleased_section():
     # Verify ordering: new section comes after existing content,
     # and the new entry is under the new section.
     lines = content.splitlines()
-    unreleased_hdr = next(
-        i for i, ln in enumerate(lines) if "0.0.0 (unreleased)" in ln
-    )
+    unreleased_hdr = next(i for i, ln in enumerate(lines) if "0.0.0 (unreleased)" in ln)
     new_entry = next(i for i, ln in enumerate(lines) if "new unreleased" in ln)
     old_item = next(i for i, ln in enumerate(lines) if ln.strip() == "- item")
     # New unreleased section should be after the old item

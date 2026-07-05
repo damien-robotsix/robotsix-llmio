@@ -113,16 +113,15 @@ def _insert_into_rst(path: str, entry_text: str) -> str:
         # Match an RST underlined heading: the text line contains
         # "unreleased" (case-insensitive) and the next line is a row
         # of punctuation at least as long as the heading text.
-        if _UNRELEASED_RST_PATTERN.match(stripped):
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].rstrip("\n")
-                if (
-                    next_line
-                    and all(c in "-=~^\"'`*+#" for c in next_line)
-                    and len(next_line) >= len(stripped)
-                ):
-                    unreleased_idx = i
-                    break
+        if _UNRELEASED_RST_PATTERN.match(stripped) and i + 1 < len(lines):
+            next_line = lines[i + 1].rstrip("\n")
+            if (
+                next_line
+                and all(c in "-=~^\"'`*+#" for c in next_line)
+                and len(next_line) >= len(stripped)
+            ):
+                unreleased_idx = i
+                break
 
     if unreleased_idx is None:
         # Append a blank separator, the heading, its underline, and a
