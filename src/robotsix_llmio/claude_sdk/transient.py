@@ -28,6 +28,22 @@ _TURN_LIMIT_SIGNATURE = "maximum number of turns"
 # "; ".join(errors) or str(subtype) -> "success". A re-run clears it.
 _DEGENERATE_SUCCESS_SIGNATURE = "returned an error result: success"
 
+# The Claude CLI's own wording when a tier's usage credits are exhausted. This
+# arrives as ordinary assistant TEXT inside an is_error=True ResultMessage, not
+# as a raised exception — best-effort string matching, same tradeoff as the
+# other signatures here, since the CLI's exact phrasing isn't a documented
+# contract. Unlike a degenerate success, a re-run at the SAME tier cannot
+# help — the credits stay exhausted until they reset — so this is excluded
+# from "transient" (see is_claude_sdk_transient) and must be handled by
+# falling back to a different tier instead.
+_USAGE_EXHAUSTED_SIGNATURE = "out of usage credits"
+
+
+def is_usage_exhausted_text(text: str) -> bool:
+    """True if *text* (assistant-visible turn text) reports exhausted usage
+    credits for the current tier, per the Claude CLI's own wording."""
+    return _USAGE_EXHAUSTED_SIGNATURE in text.lower()
+
 
 def is_claude_sdk_degenerate_success(exc: BaseException) -> bool:
     """True if *exc* (or anything in its cause/context chain) is the upstream
@@ -41,6 +57,22 @@ def is_claude_sdk_degenerate_success(exc: BaseException) -> bool:
     seen = 0
     while cur is not None and seen < 10:
         if _DEGENERATE_SUCCESS_SIGNATURE in str(cur).lower():
+            return True
+        cur = cur.__cause__ or cur.__context__
+        seen += 1
+    return False
+
+
+def is_claude_sdk_usage_exhausted(exc: BaseException) -> bool:
+    """True if *exc* (or anything in its cause/context chain) is the
+    dedicated ``ClaudeSDKUsageExhaustedError`` — a tier's usage credits are
+    exhausted. Matched by name so this stays free of an import cycle with
+    ``model.py``, walking the bounded cause/context chain like the other
+    helpers."""
+    cur: BaseException | None = exc
+    seen = 0
+    while cur is not None and seen < 10:
+        if type(cur).__name__ == "ClaudeSDKUsageExhaustedError":
             return True
         cur = cur.__cause__ or cur.__context__
         seen += 1
@@ -68,11 +100,14 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     """Core transient set OR a Claude Agent SDK subprocess/transport failure,
     walking the cause/context chain for the latter.
 
-    The turn-cap failure is explicitly excluded — and checked FIRST, so it wins
-    even when the CLI surfaces it as a (normally-transient) ``ProcessError``.
-    Retrying it would just loop to the cap again, so it must fail loudly rather
+    The turn-cap failure and usage-exhaustion are explicitly excluded — and
+    checked FIRST, so they win even when the CLI surfaces them as a
+    (normally-transient) ``ProcessError``. Retrying either at the same tier
+    would just repeat the identical failure, so both must fail loudly rather
     than burn retries and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
+        return False
+    if is_claude_sdk_usage_exhausted(exc):
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True

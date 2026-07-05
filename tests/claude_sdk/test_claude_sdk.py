@@ -424,6 +424,45 @@ def test_non_turn_limit_runtime_error_unaffected():
     assert is_claude_sdk_turn_limit(RuntimeError("something else")) is False
 
 
+# --- usage exhaustion: hard failure, never retried at the same tier --------
+
+
+def test_usage_exhausted_error_type_detected_and_not_transient():
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
+
+    e = ClaudeSDKUsageExhaustedError("You're out of usage credits")
+    assert is_claude_sdk_usage_exhausted(e) is True
+    # Must NOT be retried at the same tier — the credits stay exhausted.
+    assert is_claude_sdk_transient(e) is False
+
+
+def test_usage_exhausted_detected_through_chain():
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
+
+    cause = ClaudeSDKUsageExhaustedError("out of usage credits")
+    try:
+        raise Exception("wrapper") from cause
+    except Exception as e:
+        assert is_claude_sdk_usage_exhausted(e) is True
+        assert is_claude_sdk_transient(e) is False
+
+
+def test_non_usage_exhausted_runtime_error_unaffected():
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
+
+    assert is_claude_sdk_usage_exhausted(RuntimeError("something else")) is False
+
+
+def test_is_usage_exhausted_text_matches_case_insensitively():
+    from robotsix_llmio.claude_sdk.transient import is_usage_exhausted_text
+
+    assert is_usage_exhausted_text("You're OUT OF USAGE CREDITS · resets soon")
+    assert is_usage_exhausted_text("out of usage credits") is True
+    assert is_usage_exhausted_text("all good here") is False
+
+
 # --- per-call wall-clock timeout: stalled run fails fast + is retryable ------
 
 
