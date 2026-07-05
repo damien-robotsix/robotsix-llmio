@@ -72,7 +72,7 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         fn = t.function_schema.function
         is_async: bool = t.function_schema.is_async
 
-        @sdk_tool(name, description, schema)  # type: ignore[untyped-decorator]
+        @sdk_tool(name, description, schema)  # type: ignore[untyped-decorator, unused-ignore]
         async def _wrapper(
             args: dict[str, Any],
             _fn: Any = fn,
