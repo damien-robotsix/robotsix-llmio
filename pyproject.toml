@@ -150,6 +150,7 @@ select = [
 # S101: asserts are mypy type-narrowing hints on invariants, not checks.
 # S311: random.uniform provides retry-backoff jitter — not cryptographic.
 "src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
+"src/robotsix_llmio/core/run.py" = ["S101"]
 
 # S101: pytest tests assert by design. S106: hard-coded dummy credentials
 # are test fixtures, not secrets.

@@ -8,6 +8,7 @@ by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
 
 ## 0.0.0 (unreleased)
 
+- Extract shared `_retry_loop` / `_run_with_trace_and_close` cores in `retry.py`, `tier_fallback.py`, and `run.py` to eliminate sync/async duplication; `run_agent` now composes async retry primitives via `asyncio.run()` instead of nesting event loops.
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
 - Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in
