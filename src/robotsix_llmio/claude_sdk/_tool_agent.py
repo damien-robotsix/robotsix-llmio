@@ -8,38 +8,37 @@ the single public class :class:`ClaudeSDKProvider`.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
-
-from pydantic_ai.exceptions import UserError
+from typing import TYPE_CHECKING, Any
 
 from ..core.tracing import (
     GEN_AI_OPERATION_NAME,
     GEN_AI_PROVIDER_NAME,
     GEN_AI_REQUEST_MODEL,
     GEN_AI_SYSTEM,
-    GEN_AI_TOOL_NAME,
     GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
     LANGFUSE_OBSERVATION_INPUT,
     LANGFUSE_OBSERVATION_METADATA_REASONING,
     LANGFUSE_OBSERVATION_OUTPUT,
     OP_CHAT,
-    OP_EXECUTE_TOOL,
     OP_INVOKE_AGENT,
     get_tracer,
     start_span,
 )
+from ._chat_messages import _chat_messages_input
+from ._confinement import (
+    _EDIT_TOOLS,
+    _make_bash_confine_hook,
+    _make_confine_hook,
+)
+from ._output import _build_schema_json, _parse_output
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
     from claude_agent_sdk import (
         ClaudeAgentOptions,
-        HookCallback,
     )
 
 log = logging.getLogger("robotsix_llmio.claude_sdk")
@@ -53,240 +52,6 @@ _JSON_OUTPUT_INSTRUCTION = (
     "{schema}\n"
     "Don't include any text or Markdown fencing before or after."
 )
-
-
-def _output_validators(output_type: Any) -> list[Any]:
-    """Return the ordered list of pydantic model classes for *output_type*."""
-    from pydantic_ai import PromptedOutput
-
-    if isinstance(output_type, PromptedOutput):
-        outputs = output_type.outputs
-        if isinstance(outputs, (list, tuple)):
-            return list(outputs)
-        return [outputs]
-    return [output_type]
-
-
-def _build_schema_json(output_type: Any) -> str:
-    """Build the JSON schema string to embed in the system prompt.
-
-    Single model → its own schema.  Multiple models → ``{"anyOf": [...]}``,
-    matching the shape pydantic-ai uses for union output in prompted mode.
-    """
-    validators = _output_validators(output_type)
-    if len(validators) == 1:
-        return json.dumps(validators[0].model_json_schema())
-    return json.dumps({"anyOf": [v.model_json_schema() for v in validators]})
-
-
-def _fenced_blocks(text: str) -> list[str]:
-    """Return the inner contents of every ```-fenced code block in *text*.
-
-    Matches ``` optionally tagged with a language (```json) and captures the
-    body. Models frequently wrap a structured answer in a ```json fence after
-    a prose preamble, so the fence is the most reliable delimiter.
-    """
-    return re.findall(r"```(?:[a-zA-Z0-9_-]+)?\s*\n?(.*?)```", text, re.DOTALL)
-
-
-def _balanced_objects(text: str) -> list[str]:
-    """Return every top-level balanced ``{...}`` substring of *text*.
-
-    A hand-rolled brace matcher that tracks JSON string state (so braces and
-    quotes inside string literals don't throw off the depth count). Unbalanced
-    stray braces in prose (``the {x} kwarg``) yield a short candidate that
-    simply fails to JSON-parse later; the real object is captured whole,
-    including nested objects/arrays. This replaces a naive
-    ``re.search(r"\\{.*\\}")`` that anchored on the FIRST prose brace and so
-    swallowed prose + JSON into one unparseable blob.
-    """
-    out: list[str] = []
-    i, n = 0, len(text)
-    while i < n:
-        if text[i] != "{":
-            i += 1
-            continue
-        depth = 0
-        in_str = False
-        esc = False
-        j = i
-        while j < n:
-            c = text[j]
-            if in_str:
-                if esc:
-                    esc = False
-                elif c == "\\":
-                    esc = True
-                elif c == '"':
-                    in_str = False
-            elif c == '"':
-                in_str = True
-            elif c == "{":
-                depth += 1
-            elif c == "}":
-                depth -= 1
-                if depth == 0:
-                    out.append(text[i : j + 1])
-                    break
-            j += 1
-        i = j + 1
-    return out
-
-
-def _extract_json_object(text: str) -> dict[str, Any] | None:
-    """Best-effort extraction of a JSON object from model *text*.
-
-    Tries, in order: (1) the whole text as JSON; (2) each ```-fenced block,
-    last first (a prose preamble + trailing ```json fence is the common shape);
-    (3) each top-level balanced ``{...}`` substring, last first. Returns the
-    first candidate that parses to a ``dict``, else ``None``.
-    """
-    candidates: list[str] = [text]
-    candidates += list(reversed(_fenced_blocks(text)))
-    candidates += list(reversed(_balanced_objects(text)))
-    for cand in candidates:
-        cand = cand.strip()
-        if not cand:
-            continue
-        try:
-            data = json.loads(cand)
-        except json.JSONDecodeError, ValueError:
-            continue
-        if isinstance(data, dict):
-            return data
-    return None
-
-
-def _parse_output(text: str, output_type: Any) -> Any:
-    """Parse final assistant text against *output_type*.
-
-    ``str`` → text as-is.  Otherwise extract a JSON object (tolerating a prose
-    preamble and/or a ```json fence) and validate against each declared output
-    validator in order, returning the first one that validates successfully.
-    Raises ``ValueError`` when no JSON object can be found (instead of silently
-    returning raw text to a structured-type caller).
-    """
-    if output_type is str:
-        return text
-
-    validators = _output_validators(output_type)
-    data = _extract_json_object(text)
-    if not isinstance(data, dict):
-        raise ValueError(
-            f"_parse_output: no JSON object found in model response; "
-            f"expected a JSON object matching the declared output type. "
-            f"Response text: {text!r}"
-        )
-    last_exc: Exception | None = None
-    for v in validators:
-        try:
-            return v.model_validate(data)
-        except Exception as exc:
-            last_exc = exc
-    raise last_exc  # type: ignore[misc]
-
-
-def _chat_messages_input(system_prompt: str, user_text: str) -> str:
-    """JSON ``{role, content}`` message list (system + user) for a generation
-    span's Langfuse input.
-
-    The system prompt IS sent to the SDK (``ClaudeAgentOptions.system_prompt``),
-    but the span previously recorded only the user prompt — so traces showed the
-    input without the system. Rendering both as chat messages surfaces the
-    system prompt in Langfuse (which parses the JSON and shows the roles), the
-    same shape the OpenRouter/pydantic-ai path produces."""
-    return json.dumps(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_text},
-        ],
-        default=str,
-    )
-
-
-def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
-    """Convert pydantic-ai tools into SDK MCP tools.
-
-    Returns:
-        ``(allowed_tools, mcp_server)`` — the *allowed_tools* entries
-        (``"mcp__milltools__<name>"``) and the MCP server object to pass
-        to ``ClaudeAgentOptions.mcp_servers``.
-    """
-    import pydantic_ai
-
-    try:
-        from claude_agent_sdk import (
-            create_sdk_mcp_server,
-        )
-        from claude_agent_sdk import tool as sdk_tool
-    except ImportError as exc:
-        raise ImportError(
-            "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
-            "Install with: pip install 'robotsix-llmio[claude_sdk]' "
-            "(also needs Node.js and a logged-in `claude` CLI)."
-        ) from exc
-
-    wrapped: list[Any] = []
-    allowed: list[str] = []
-
-    for t in tools:
-        # Normalize: plain callables become pydantic_ai.Tool (idempotent).
-        if not isinstance(t, pydantic_ai.Tool):
-            t = pydantic_ai.Tool(t)
-
-        if t.takes_ctx:
-            raise UserError(
-                f"ClaudeSDKModel does not support tools that take a RunContext "
-                f"(tool {t.name!r} has takes_ctx=True): the Claude Agent SDK "
-                f"invokes tools with only their JSON arguments, so no run "
-                f"context can be supplied. Rewrite the tool to take plain "
-                f"arguments only."
-            )
-
-        name: str = t.name
-        # The SDK's @tool wants a str description; pydantic-ai's may be None.
-        description: str = t.description or ""
-        schema: dict[str, Any] = t.tool_def.parameters_json_schema
-        fn = t.function_schema.function
-        is_async: bool = t.function_schema.is_async
-
-        @sdk_tool(name, description, schema)
-        async def _wrapper(
-            args: dict[str, Any],
-            _fn: Any = fn,
-            _is_async: bool = is_async,
-            _name: str = name,
-        ) -> dict[str, Any]:
-            # Emit a TOOL span around the actual call, so the tool (and any
-            # subagent it runs) nests under the agent-run span in traces.
-            with start_span(
-                get_tracer(_TRACER_NAME),
-                _name,
-                {
-                    GEN_AI_OPERATION_NAME: OP_EXECUTE_TOOL,
-                    GEN_AI_TOOL_NAME: _name,
-                    LANGFUSE_OBSERVATION_INPUT: json.dumps(args, default=str),
-                },
-            ) as sp:
-                if _is_async:
-                    result = await _fn(**args)
-                else:
-                    result = _fn(**args)
-                if sp is not None:
-                    sp.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, str(result))
-                return {"content": [{"type": "text", "text": str(result)}]}
-
-        wrapped.append(_wrapper)
-        allowed.append(f"mcp__milltools__{name}")
-
-    server = create_sdk_mcp_server(name="milltools", tools=wrapped)
-    return allowed, server
-
-
-# Built-in tools whose input names a file the agent is about to write. The
-# hook confines these to the workspace; reads/exploration are left free.
-_EDIT_TOOLS = "Write|Edit|MultiEdit|NotebookEdit"
-_EDIT_PATH_KEYS = ("file_path", "notebook_path", "path")
 
 # How many times to (re-)drive the SDK query for one agent run, retrying only
 # transient failures (e.g. the degenerate-success frame). Small: a re-run
@@ -339,103 +104,6 @@ _BUILTIN_TOOL_DENYLIST = [
     "TaskStop",
     "TaskUpdate",
 ]
-
-
-def _is_within(root: str, target: str) -> bool:
-    """True if *target* (resolved, relative paths joined to *root*) is inside
-    *root*. ``realpath`` collapses ``..`` and symlinks so escapes are caught."""
-    p = target if os.path.isabs(target) else os.path.join(root, target)
-    rp = os.path.realpath(p)
-    return rp == root or rp.startswith(root + os.sep)
-
-
-def _make_confine_hook(workspace_root: str) -> HookCallback:
-    """Build a ``PreToolUse`` hook that denies built-in edits outside
-    *workspace_root*.
-
-    ``permission_mode="bypassPermissions"`` lets the SDK's built-in
-    Write/Edit/etc. write anywhere the process can reach, so a tool-bearing
-    agent working on a self-referential ticket can edit the host app's own
-    source instead of its checkout. A PreToolUse hook is the one gate the SDK
-    consults on *every* call regardless of permission mode (``can_use_tool``
-    is skipped under bypass), so it is where confinement must live."""
-    root = os.path.realpath(workspace_root)
-
-    async def _hook(
-        input: dict[str, Any], tool_use_id: str | None, context: Any
-    ) -> dict[str, Any]:
-        tool_input = input.get("tool_input") or {}
-        target = next(
-            (tool_input[k] for k in _EDIT_PATH_KEYS if tool_input.get(k)), None
-        )
-        if not target or _is_within(root, str(target)):
-            return {}  # no path, or inside the workspace → allow
-        log.warning(
-            "%s: denied out-of-workspace edit to %s (confined to %s)",
-            input.get("tool_name", "edit"),
-            target,
-            root,
-        )
-        return {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"Refused: edits are confined to the ticket workspace "
-                    f"{root}. {target!r} resolves outside it — edit the "
-                    f"corresponding file inside the workspace checkout instead."
-                ),
-            }
-        }
-
-    return cast("HookCallback", _hook)
-
-
-def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
-    """PreToolUse hook that denies Bash commands naming absolute paths outside
-    *workspace_root*.
-
-    Parsing is heuristic: tokens that start with ``/`` (absolute paths) are
-    extracted and resolved. Commands that construct paths at runtime via
-    subshells, ``eval``, or base64 encoding are NOT caught — this is
-    documented by design."""
-    root = os.path.realpath(workspace_root)
-
-    async def _hook(
-        input: dict[str, Any], tool_use_id: str | None, context: Any
-    ) -> dict[str, Any]:
-        tool_input = input.get("tool_input") or {}
-        command = str(tool_input.get("command") or "")
-        if not command:
-            return {}
-        # Extract absolute-path-like tokens: sequences of non-whitespace chars
-        # starting with / after a word boundary (whitespace, operator, or BOL).
-        for match in re.finditer(
-            r"(?:(?<=\s)|(?<=^)|(?<=[;|&><\x27\x22=({!,`]))"
-            r"(/[^\s\x27\x22\\;|&><`)}]+)",
-            command,
-        ):
-            candidate = match.group(1).rstrip("'\";)}")  # strip trailing punct
-            if candidate and not _is_within(root, candidate):
-                log.warning(
-                    "Bash: denied out-of-workspace path %s (confined to %s)",
-                    candidate,
-                    root,
-                )
-                return {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": (
-                            f"Refused: Bash command references {candidate!r}, "
-                            f"which resolves outside the confined workspace "
-                            f"{root}. Use paths inside the workspace checkout instead."
-                        ),
-                    }
-                }
-        return {}
-
-    return cast("HookCallback", _hook)
 
 
 @dataclass

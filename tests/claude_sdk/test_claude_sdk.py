@@ -31,14 +31,13 @@ from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import RunContext
 from pydantic_ai.tools import Tool as PydanticTool
 
+from robotsix_llmio.claude_sdk._chat_messages import _chat_messages_input
+from robotsix_llmio.claude_sdk._output import _extract_json_object, _parse_output
 from robotsix_llmio.claude_sdk._tool_agent import (
-    _chat_messages_input,
-    _convert_tools,
-    _extract_json_object,
-    _parse_output,
     _SdkToolAgentHandle,
     _SdkToolResult,
 )
+from robotsix_llmio.claude_sdk._tool_converter import _convert_tools
 from robotsix_llmio.claude_sdk._usage import map_usage_dict
 from robotsix_llmio.claude_sdk.model import (
     ClaudeSDKModel,

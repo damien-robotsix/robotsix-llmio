@@ -189,6 +189,7 @@ disable_error_code = ["typeddict-item", "override", "misc", "literal-required"]
 module = [
     "opentelemetry.sdk.*",
     "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+    "claude_agent_sdk",
 ]
 ignore_missing_imports = true
 

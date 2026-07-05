@@ -25,12 +25,16 @@ client.timeout
 Span
 
 # ---------------------------------------------------------------------------
-# claude_sdk/_tool_agent.py
+# claude_sdk/_confinement.py
 # ---------------------------------------------------------------------------
 
 # Hook callback signature required by the Claude Agent SDK.
 context
 tool_use_id
+
+# ---------------------------------------------------------------------------
+# claude_sdk/_tool_agent.py
+# ---------------------------------------------------------------------------
 
 # _SdkToolResult — dataclass fields + public methods consumed by callers.
 _SdkToolResult.output
