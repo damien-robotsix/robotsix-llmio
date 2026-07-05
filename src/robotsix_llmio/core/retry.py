@@ -23,7 +23,7 @@ import logging
 import random
 import time
 from collections.abc import Awaitable, Callable, Iterator
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic_ai import UsageLimitExceeded
 
@@ -111,29 +111,16 @@ def _record_rate_limit_span(
         span.set_attribute("llmio.rate_limit.fallback_activated", True)
 
 
-def call_with_retry[T](
-    fn: Callable[[], T],
+async def _retry_loop(
+    fn: Callable[[], Any],
     *,
+    invoke: Callable[[Callable[[], Any]], Awaitable[Any]],
+    sleep_fn: Callable[[float], Awaitable[None]],
     what: str = "model call",
-    sleep: Callable[[float], None] = time.sleep,
-    fallback_fn: Callable[[], T] | None = None,
+    fallback_fn: Callable[[], Any] | None = None,
     is_transient_fn: Callable[[BaseException], bool] = is_transient,
-) -> T:
-    """Run ``fn`` and retry it on transient failures only.
-
-    Transient failures use a short exponential backoff (baked base/cap).
-    ``UsageLimitExceeded`` is never retried: if a ``fallback_fn`` is provided
-    it is tried exactly once, else the exception re-raises immediately.
-    Non-transient errors re-raise immediately; the last error re-raises once
-    retries are exhausted.
-
-    Fallback activation does **not** consume a transient-retry slot — the
-    fallback gets the same full retry budget as the primary, regardless of how
-    many transient retries the primary consumed before hitting the rate limit.
-
-    *is_transient_fn* lets a provider layer widen the transient set (e.g. the
-    OpenRouter upstream-error or DeepSeek reasoning-400 signatures).
-    """
+) -> Any:
+    """Shared retry loop — ``invoke`` and ``sleep_fn`` adapt sync vs async."""
     attempts = max(0, constants.TRANSIENT_RETRIES)
     using_fallback = False
     rate_limit_count = 0
@@ -144,8 +131,8 @@ def call_with_retry[T](
         try:
             if using_fallback:
                 assert fallback_fn is not None  # type-narrowing
-                return fallback_fn()
-            return fn()
+                return await invoke(fallback_fn)
+            return await invoke(fn)
         except Exception as e:
             if is_rate_limited(e):
                 rate_limit_count += 1
@@ -182,17 +169,56 @@ def call_with_retry[T](
                     delay,
                 )
                 _safe_flush()
-                sleep(delay)
+                await sleep_fn(delay)
                 attempt += 1
                 continue
 
             # non-retryable
-            if attempt >= attempts:
-                _safe_flush()
-                raise
             _safe_flush()
             raise
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+def call_with_retry[T](
+    fn: Callable[[], T],
+    *,
+    what: str = "model call",
+    sleep: Callable[[float], None] = time.sleep,
+    fallback_fn: Callable[[], T] | None = None,
+    is_transient_fn: Callable[[BaseException], bool] = is_transient,
+) -> T:
+    """Run ``fn`` and retry it on transient failures only.
+
+    Transient failures use a short exponential backoff (baked base/cap).
+    ``UsageLimitExceeded`` is never retried: if a ``fallback_fn`` is provided
+    it is tried exactly once, else the exception re-raises immediately.
+    Non-transient errors re-raise immediately; the last error re-raises once
+    retries are exhausted.
+
+    Fallback activation does **not** consume a transient-retry slot — the
+    fallback gets the same full retry budget as the primary, regardless of how
+    many transient retries the primary consumed before hitting the rate limit.
+
+    *is_transient_fn* lets a provider layer widen the transient set (e.g. the
+    OpenRouter upstream-error or DeepSeek reasoning-400 signatures).
+    """
+
+    async def _invoke(f: Callable[[], Any]) -> Any:
+        return f()
+
+    async def _sleep(d: float) -> None:
+        sleep(d)
+
+    return asyncio.run(  # type: ignore[no-any-return]
+        _retry_loop(
+            fn,
+            invoke=_invoke,
+            sleep_fn=_sleep,
+            what=what,
+            fallback_fn=fallback_fn,
+            is_transient_fn=is_transient_fn,
+        )
+    )
 
 
 def call_with_retry_and_fallback[T](
@@ -259,65 +285,18 @@ async def acall_with_retry[T](
     ``fn``/``fallback_fn`` are awaited and ``sleep`` defaults to
     :func:`asyncio.sleep` (kept injectable so tests can pass a no-op).
     """
-    attempts = max(0, constants.TRANSIENT_RETRIES)
-    using_fallback = False
-    rate_limit_count = 0
-    cumulative_backoff = 0.0
 
-    attempt = 0
-    while attempt <= attempts:
-        try:
-            if using_fallback:
-                assert fallback_fn is not None  # type-narrowing
-                return await fallback_fn()
-            return await fn()
-        except Exception as e:
-            if is_rate_limited(e):
-                rate_limit_count += 1
-                if not using_fallback and fallback_fn is not None:
-                    using_fallback = True
-                    log.warning(
-                        "%s: rate-limit fallback activated on first UsageLimitExceeded",
-                        what,
-                    )
-                    _record_rate_limit_span(
-                        count=rate_limit_count,
-                        cumulative_backoff=cumulative_backoff,
-                        fallback_activated=True,
-                    )
-                    attempt = 0  # fresh retry budget for fallback
-                    continue
-                _safe_flush()
-                raise
+    async def _invoke(f: Callable[[], Any]) -> Any:
+        return await f()
 
-            if is_transient_fn(e):
-                if attempt >= attempts:
-                    _safe_flush()
-                    raise
-                raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
-                raw += random.uniform(0, raw / 2)  # jitter before cap
-                delay = min(constants.TRANSIENT_BACKOFF_CAP, raw)
-                cumulative_backoff += delay
-                log.warning(
-                    "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
-                    what,
-                    type(e).__name__,
-                    attempt + 1,
-                    attempts,
-                    delay,
-                )
-                _safe_flush()
-                await sleep(delay)
-                attempt += 1
-                continue
-
-            # non-retryable
-            if attempt >= attempts:
-                _safe_flush()
-                raise
-            _safe_flush()
-            raise
-    raise AssertionError("unreachable")  # pragma: no cover
+    return await _retry_loop(  # type: ignore[no-any-return]
+        fn,
+        invoke=_invoke,
+        sleep_fn=sleep,
+        what=what,
+        fallback_fn=fallback_fn,
+        is_transient_fn=is_transient_fn,
+    )
 
 
 async def acall_with_retry_and_fallback[T](

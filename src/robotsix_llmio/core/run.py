@@ -24,13 +24,39 @@ from .agent import AgentHandle
 from .retry import (
     acall_with_retry,
     acall_with_retry_and_fallback,
-    call_with_retry,
-    call_with_retry_and_fallback,
     is_transient,
 )
 from .tracing import start_trace
 
 T = TypeVar("T")
+
+
+async def _run_with_trace_and_close(
+    run_fn: Callable[[], Any],
+    close_fn: Callable[[], Any],
+    *,
+    invoke_run: Callable[[Callable[[], Any]], Awaitable[Any]],
+    invoke_close: Callable[[Callable[[], Any]], Awaitable[None]],
+    label: str,
+    session_id: str | None = None,
+    project: str | None = None,
+    trace_input: Any = None,
+) -> Any:
+    """Open a trace span, run *run_fn*, always close via *invoke_close*.
+
+    *invoke_run* and *invoke_close* adapt sync vs async — they are the
+    only injection points needed to share the trace+close control flow
+    between :func:`run_agent` and :func:`arun_agent`.
+    """
+    with start_trace(label, session_id=session_id, project=project) as span:
+        try:
+            if trace_input is not None:
+                span.set_input(trace_input)
+            result = await invoke_run(run_fn)
+            span.set_output(result)
+            return result
+        finally:
+            await invoke_close(close_fn)
 
 
 def run_agent[T](
@@ -50,32 +76,54 @@ def run_agent[T](
 
     Opens a root trace span named *label* (optionally grouped under *session_id*
     and routed to *project*). When *trace_input* is not ``None`` it is recorded
-    as the span input. *run* is executed under :func:`call_with_retry` (or
-    :func:`call_with_retry_and_fallback` when *fallback* is given); on success
+    as the span input. *run* is executed under :func:`acall_with_retry` (or
+    :func:`acall_with_retry_and_fallback` when *fallback* is given); on success
     the result is recorded as the span output and returned. ``handle.close()``
     runs in a ``finally`` — even when *run* raises after retries are exhausted.
     """
-    with start_trace(label, session_id=session_id, project=project) as span:
-        try:
-            if trace_input is not None:
-                span.set_input(trace_input)
-            if fallback is not None:
-                result = call_with_retry_and_fallback(
-                    run,
-                    fallback,
-                    what=what,
-                    sleep=sleep,
-                    is_transient_primary=is_transient_fn,
-                    is_transient_fallback=is_transient_fn,
-                )
-            else:
-                result = call_with_retry(
-                    run, what=what, sleep=sleep, is_transient_fn=is_transient_fn
-                )
-            span.set_output(result)
-            return result
-        finally:
-            handle.close()
+
+    async def _arun_wrapper() -> T:
+        return run()
+
+    async def _afallback_wrapper() -> T:
+        assert fallback is not None  # type-narrowing
+        return fallback()
+
+    async def _asleep(d: float) -> None:
+        sleep(d)
+
+    async def _run() -> T:
+        if fallback is not None:
+            return await acall_with_retry_and_fallback(
+                _arun_wrapper,
+                _afallback_wrapper,
+                what=what,
+                sleep=_asleep,
+                is_transient_primary=is_transient_fn,
+                is_transient_fallback=is_transient_fn,
+            )
+        return await acall_with_retry(
+            _arun_wrapper, what=what, sleep=_asleep, is_transient_fn=is_transient_fn
+        )
+
+    async def _invoke_run(f: Callable[[], Any]) -> Any:
+        return await f()
+
+    async def _invoke_close(f: Callable[[], Any]) -> None:
+        f()
+
+    return asyncio.run(  # type: ignore[no-any-return]
+        _run_with_trace_and_close(
+            _run,
+            handle.close,
+            invoke_run=_invoke_run,
+            invoke_close=_invoke_close,
+            label=label,
+            session_id=session_id,
+            project=project,
+            trace_input=trace_input,
+        )
+    )
 
 
 async def arun_agent[T](
@@ -99,24 +147,34 @@ async def arun_agent[T](
     awaited in the ``finally`` block to close the HTTP client in the caller's
     running event loop.
     """
-    with start_trace(label, session_id=session_id, project=project) as span:
-        try:
-            if trace_input is not None:
-                span.set_input(trace_input)
-            if fallback is not None:
-                result = await acall_with_retry_and_fallback(
-                    run,
-                    fallback,
-                    what=what,
-                    sleep=sleep,
-                    is_transient_primary=is_transient_fn,
-                    is_transient_fallback=is_transient_fn,
-                )
-            else:
-                result = await acall_with_retry(
-                    run, what=what, sleep=sleep, is_transient_fn=is_transient_fn
-                )
-            span.set_output(result)
-            return result
-        finally:
-            await handle.aclose()
+
+    async def _run() -> T:
+        if fallback is not None:
+            return await acall_with_retry_and_fallback(
+                run,
+                fallback,
+                what=what,
+                sleep=sleep,
+                is_transient_primary=is_transient_fn,
+                is_transient_fallback=is_transient_fn,
+            )
+        return await acall_with_retry(
+            run, what=what, sleep=sleep, is_transient_fn=is_transient_fn
+        )
+
+    async def _invoke_run(f: Callable[[], Any]) -> Any:
+        return await f()
+
+    async def _invoke_close(f: Callable[[], Any]) -> None:
+        await f()
+
+    return await _run_with_trace_and_close(  # type: ignore[no-any-return]
+        _run,
+        handle.aclose,
+        invoke_run=_invoke_run,
+        invoke_close=_invoke_close,
+        label=label,
+        session_id=session_id,
+        project=project,
+        trace_input=trace_input,
+    )

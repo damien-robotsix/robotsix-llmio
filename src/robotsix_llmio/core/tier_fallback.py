@@ -35,7 +35,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 
@@ -86,6 +86,65 @@ def _next_unvisited_tier(
     return None
 
 
+async def _tier_fallback_loop(
+    fn_factory: Callable[[TierLevelConfig], Callable[[], Any]],
+    *,
+    invoke: Callable[[Callable[[], Any]], Awaitable[Any]],
+    tier_config: TierConfig,
+    level: TierLevel = TierLevel.LEVEL1,
+    fallback_enabled: bool = False,
+    max_fallback_depth: int = 2,
+    what: str = "model call",
+) -> Any:
+    """Shared tier-escalation loop — ``invoke`` adapts sync vs async."""
+    if level not in _ALL_TIER_LEVELS:
+        raise ValueError(f"Unknown tier level: {level!r}")
+
+    visited: set[TierLevel] = {level}
+    promotions = 0
+    current_level = level
+
+    while True:
+        tlc: TierLevelConfig = getattr(tier_config, current_level.value)
+
+        log.info(
+            "%s: trying %s (provider=%s, model=%s)",
+            what,
+            current_level.value,
+            tlc.provider,
+            tlc.model_name,
+        )
+
+        try:
+            callable_fn = fn_factory(tlc)
+            result = await invoke(callable_fn)
+        except Exception as exc:
+            next_level = _next_unvisited_tier(current_level, frozenset(visited))
+
+            if next_level is None:
+                raise
+
+            exhausted = not fallback_enabled or promotions >= max_fallback_depth
+            if exhausted:
+                raise
+
+            log.warning(
+                "%s: %s failed with %s — falling back to %s",
+                what,
+                current_level.value,
+                type(exc).__name__,
+                next_level.value,
+            )
+
+            visited.add(next_level)
+            promotions += 1
+            current_level = next_level
+            continue
+
+        log.info("%s: %s succeeded", what, current_level.value)
+        return result
+
+
 def call_with_tier_fallback[T](
     fn_factory: Callable[[TierLevelConfig], Callable[[], T]],
     *,
@@ -124,54 +183,21 @@ def call_with_tier_fallback[T](
         Injectable sleep for tests (default :func:`time.sleep`; reserved
         for future backoff between tier promotions).
     """
-    # Validate the starting level is one we know about.
-    if level not in _ALL_TIER_LEVELS:
-        raise ValueError(f"Unknown tier level: {level!r}")
 
-    visited: set[TierLevel] = {level}
-    promotions = 0
-    current_level = level
+    async def _invoke(f: Callable[[], Any]) -> Any:
+        return f()
 
-    while True:
-        # Resolve TierLevelConfig for the current level
-        tlc: TierLevelConfig = getattr(tier_config, current_level.value)
-
-        log.info(
-            "%s: trying %s (provider=%s, model=%s)",
-            what,
-            current_level.value,
-            tlc.provider,
-            tlc.model_name,
+    return asyncio.run(  # type: ignore[no-any-return]
+        _tier_fallback_loop(
+            fn_factory,
+            invoke=_invoke,
+            tier_config=tier_config,
+            level=level,
+            fallback_enabled=fallback_enabled,
+            max_fallback_depth=max_fallback_depth,
+            what=what,
         )
-
-        try:
-            callable_fn = fn_factory(tlc)
-            result = callable_fn()
-        except Exception as exc:
-            next_level = _next_unvisited_tier(current_level, frozenset(visited))
-
-            if next_level is None:
-                raise
-
-            exhausted = not fallback_enabled or promotions >= max_fallback_depth
-            if exhausted:
-                raise
-
-            log.warning(
-                "%s: %s failed with %s — falling back to %s",
-                what,
-                current_level.value,
-                type(exc).__name__,
-                next_level.value,
-            )
-
-            visited.add(next_level)
-            promotions += 1
-            current_level = next_level
-            continue
-
-        log.info("%s: %s succeeded", what, current_level.value)
-        return result
+    )
 
 
 async def acall_with_tier_fallback[T](
@@ -190,49 +216,16 @@ async def acall_with_tier_fallback[T](
     callable, the callable is awaited, and *sleep* defaults to
     :func:`asyncio.sleep`.
     """
-    if level not in _ALL_TIER_LEVELS:
-        raise ValueError(f"Unknown tier level: {level!r}")
 
-    visited: set[TierLevel] = {level}
-    promotions = 0
-    current_level = level
+    async def _invoke(f: Callable[[], Any]) -> Any:
+        return await f()
 
-    while True:
-        tlc: TierLevelConfig = getattr(tier_config, current_level.value)
-
-        log.info(
-            "%s: trying %s (provider=%s, model=%s)",
-            what,
-            current_level.value,
-            tlc.provider,
-            tlc.model_name,
-        )
-
-        try:
-            callable_fn = fn_factory(tlc)
-            result = await callable_fn()
-        except Exception as exc:
-            next_level = _next_unvisited_tier(current_level, frozenset(visited))
-
-            if next_level is None:
-                raise
-
-            exhausted = not fallback_enabled or promotions >= max_fallback_depth
-            if exhausted:
-                raise
-
-            log.warning(
-                "%s: %s failed with %s — falling back to %s",
-                what,
-                current_level.value,
-                type(exc).__name__,
-                next_level.value,
-            )
-
-            visited.add(next_level)
-            promotions += 1
-            current_level = next_level
-            continue
-
-        log.info("%s: %s succeeded", what, current_level.value)
-        return result
+    return await _tier_fallback_loop(  # type: ignore[no-any-return]
+        fn_factory,
+        invoke=_invoke,
+        tier_config=tier_config,
+        level=level,
+        fallback_enabled=fallback_enabled,
+        max_fallback_depth=max_fallback_depth,
+        what=what,
+    )
