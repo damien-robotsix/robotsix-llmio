@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
-from robotsix_llmio.claude_sdk._tool_agent import (
+from robotsix_llmio.claude_sdk._confinement import (
     _is_within,
     _make_bash_confine_hook,
     _make_confine_hook,

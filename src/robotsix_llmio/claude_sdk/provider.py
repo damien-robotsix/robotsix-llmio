@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..core.provider import LLMProvider, _resolve_model_name
-from ._tool_agent import _convert_tools, _SdkToolAgentHandle
+from ._tool_agent import _SdkToolAgentHandle
+from ._tool_converter import _convert_tools
 from .transient import is_claude_sdk_transient
 
 if TYPE_CHECKING:

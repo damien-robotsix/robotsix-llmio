@@ -1,0 +1,1 @@
+Split claude_sdk/_tool_agent.py (802 lines) — extract parsing, tool-conversion, and confinement functions into separate modules
