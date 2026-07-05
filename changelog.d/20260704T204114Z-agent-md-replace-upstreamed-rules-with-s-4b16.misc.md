@@ -1,0 +1,1 @@
+AGENT.md: replace upstreamed rules with standards links; align pre-commit hooks to standard set

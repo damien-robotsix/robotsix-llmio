@@ -7,7 +7,6 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict
-      - id: debug-statements
       - id: check-added-large-files
         args: ["--maxkb=1024"]
         exclude: |
@@ -15,8 +14,6 @@ repos:
             uv\.lock|
             \.secrets\.baseline
           )
-      - id: check-ast
-      - id: check-case-conflict
       - id: check-json
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
