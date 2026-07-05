@@ -1,0 +1,5 @@
+# Per-repo periodic workflow: presence enables state_sync for this repo.
+# Cross-references TierLevel enum members against all reference sites
+# (string literals, YAML configs, prompts) and flags stale or missing
+# references. Name-only → inherits the built-in state_sync definition.
+name: state_sync
