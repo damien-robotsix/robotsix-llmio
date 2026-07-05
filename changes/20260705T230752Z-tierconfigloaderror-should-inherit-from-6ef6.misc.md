@@ -1,0 +1,1 @@
+TierConfigLoadError should inherit from RobotsixLLMIOError to preserve the single-catch exception contract
