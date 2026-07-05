@@ -131,6 +131,7 @@ modules:
       - CONTRIBUTING.md
       - CHANGELOG.md
       - changes/**
+      - changelog.d/**
       - LICENSE
       - SECURITY.md
       - AGENT.md
