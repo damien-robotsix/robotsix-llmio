@@ -1326,6 +1326,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "pyyaml" },
+    { name = "robotsix-modules" },
     { name = "ruff" },
     { name = "vulture" },
 ]
@@ -1358,6 +1359,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "pyyaml" },
+    { name = "robotsix-modules", git = "https://github.com/damien-robotsix/robotsix-modules.git" },
     { name = "ruff" },
     { name = "vulture" },
 ]
@@ -1365,6 +1367,15 @@ docs = [
     { name = "mkdocs" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extras = ["python"] },
+]
+
+[[package]]
+name = "robotsix-modules"
+version = "0.2.0"
+source = { git = "https://github.com/damien-robotsix/robotsix-modules.git#926419d834cdc34fdf27223726c6dfdd7bed76a6" }
+dependencies = [
+    { name = "jsonschema" },
+    { name = "pyyaml" },
 ]
 
 [[package]]

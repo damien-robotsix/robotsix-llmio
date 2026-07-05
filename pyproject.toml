@@ -63,11 +63,14 @@ tracing = [
 # not extras (robotsix-standards python.md). uv sync pulls `dev` in by
 # default via [tool.uv] default-groups.
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml"]
+dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml", "robotsix-modules"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.uv.sources]
+robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]

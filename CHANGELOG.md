@@ -8,8 +8,9 @@ by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
 
 ## 0.0.0 (unreleased)
 
-- Remove stale Keep a Changelog content from CHANGELOG.md — the file is now fully towncrier-managed (release-workflow-written only).
+- Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
+- Remove stale Keep a Changelog content from CHANGELOG.md — the file is now fully towncrier-managed (release-workflow-written only).
 - CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks `Lint workflows` on main.
 
 - Export `record_cost` and `flush_current_provider` from `core.cost` via `core.__init__` (TYPE_CHECKING, `__all__`, and `_SUBMODULE_ATTRS`), matching the pattern of every other `core` submodule.
