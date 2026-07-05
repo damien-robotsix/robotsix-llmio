@@ -1,0 +1,1 @@
+agent_limitation — The `insert_changelog_entry` tool created spurious `CHANGELOG.md` files twice (observation
