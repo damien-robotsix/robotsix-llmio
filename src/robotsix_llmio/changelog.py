@@ -110,11 +110,10 @@ def _insert_into_rst(path: str, entry_text: str) -> str:
     unreleased_idx: int | None = None
     for i, line in enumerate(lines):
         stripped = line.strip()
-        # Match an RST underlined heading: the next line is a row of
-        # dashes (or similar punctuation) at least as long as the text.
+        # Match an RST underlined heading: the text line contains
+        # "unreleased" (case-insensitive) and the next line is a row
+        # of punctuation at least as long as the heading text.
         if _UNRELEASED_RST_PATTERN.match(stripped):
-            # Verify it's an underlined heading (next line exists and is
-            # a punctuation ruler of at least the same length).
             if i + 1 < len(lines):
                 next_line = lines[i + 1].rstrip("\n")
                 if (
@@ -124,15 +123,15 @@ def _insert_into_rst(path: str, entry_text: str) -> str:
                 ):
                     unreleased_idx = i
                     break
-            # Also accept a plain section title without underline
-            # (some RST changelogs use this style).
-            if stripped and "unreleased" in stripped.lower():
-                unreleased_idx = i
-                break
 
     if unreleased_idx is None:
-        lines.append("\n0.0.0 (unreleased)\n------------------\n")
-        unreleased_idx = len(lines) - 3
+        # Append a blank separator, the heading, its underline, and a
+        # blank line (RST requires blank lines around section elements).
+        lines.append("\n")
+        lines.append("0.0.0 (unreleased)\n")
+        lines.append("------------------\n")
+        lines.append("\n")
+        unreleased_idx = len(lines) - 3  # the heading line
 
     # Walk forward from the heading: skip the underline (if any) and
     # any blank lines, then insert bullets before the first content.

@@ -130,13 +130,54 @@ def test_rst_multiline_entry():
 
 
 def test_rst_no_unreleased_section():
-    """When RST exists but lacks unreleased, one is appended."""
+    """When RST exists but lacks unreleased, one is appended and the
+    entry lands under the new section (not under an existing one)."""
     Path("CHANGELOG.rst").write_text("Changelog\n=========\n\n1.0.0\n-----\n\n- item\n")
     result = insert_changelog_entry("new unreleased")
     assert "CHANGELOG.rst" in result
     content = Path("CHANGELOG.rst").read_text()
     assert "0.0.0 (unreleased)" in content
     assert "- new unreleased" in content
+    # Verify ordering: new section comes after existing content,
+    # and the new entry is under the new section.
+    lines = content.splitlines()
+    unreleased_hdr = next(
+        i for i, ln in enumerate(lines) if "0.0.0 (unreleased)" in ln
+    )
+    new_entry = next(i for i, ln in enumerate(lines) if "new unreleased" in ln)
+    old_item = next(i for i, ln in enumerate(lines) if ln.strip() == "- item")
+    # New unreleased section should be after the old item
+    assert unreleased_hdr > old_item
+    # New entry should be after the unreleased heading
+    assert new_entry > unreleased_hdr
+
+
+def test_rst_bullet_mentioning_unreleased_not_misidentified():
+    """A bullet containing the word 'unreleased' must not be mistaken
+    for the unreleased section heading."""
+    Path("CHANGELOG.rst").write_text(
+        "Changelog\n"
+        "=========\n\n"
+        "0.0.0 (unreleased)\n"
+        "------------------\n\n"
+        "- fixed an unreleased edge case\n"
+        "- another item\n"
+    )
+    result = insert_changelog_entry("brand new feature")
+    assert "CHANGELOG.rst" in result
+    content = Path("CHANGELOG.rst").read_text()
+    # The new entry should appear first under the real unreleased heading
+    lines = content.splitlines()
+    unreleased_hdr = next(
+        i for i, ln in enumerate(lines) if ln.strip() == "0.0.0 (unreleased)"
+    )
+    new_entry = next(i for i, ln in enumerate(lines) if "brand new feature" in ln)
+    misleading = next(
+        i for i, ln in enumerate(lines) if "fixed an unreleased edge case" in ln
+    )
+    assert new_entry > unreleased_hdr
+    # The new entry appears before the misleading bullet (normal order)
+    assert new_entry < misleading
 
 
 # ------------------------------------------------------------------ Edge cases
