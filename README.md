@@ -121,8 +121,8 @@ shell or deployment platform as needed:
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable Langfuse trace/cost export when **both** are set | unset → tracing off |
 | `LANGFUSE_BASE_URL` | Langfuse endpoint | `https://cloud.langfuse.com` |
 | `LANGFUSE_PROJECT_ID` | Optional Langfuse project id | — |
-| `LLMIO_LEVEL{1,2,3}_MODEL` | Override the baked tier model (see [Three-tier configuration](#three-tier-configuration)) | baked defaults |
-| `LLMIO_LEVEL{1,2,3}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
+| `LLMIO_LEVEL{1,2,3,4}_MODEL` | Override the baked tier model (see [Four-tier configuration](#four-tier-configuration)) | baked defaults |
+| `LLMIO_LEVEL{1,2,3,4}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Logging format | `console` |
 

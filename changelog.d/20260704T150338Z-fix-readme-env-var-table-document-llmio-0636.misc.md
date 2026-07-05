@@ -1,0 +1,1 @@
+Fix README env-var table: document LLMIO_LEVEL4_MODEL / LLMIO_LEVEL4_PROVIDER_KWARGS (drift from 3-level to 4-level config)
