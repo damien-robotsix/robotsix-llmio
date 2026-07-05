@@ -1,0 +1,1 @@
+Sandbox cannot install pytest — proxy DNS resolution failure (sandbox-proxy unreachable)
