@@ -131,6 +131,7 @@ modules:
       - ARCHITECTURE.md
       - CONTRIBUTING.md
       - CHANGELOG.md
+      - changes/**
       - changelog.d/**
       - LICENSE
       - SECURITY.md
