@@ -130,7 +130,7 @@ modules:
       - ARCHITECTURE.md
       - CONTRIBUTING.md
       - CHANGELOG.md
-      - changelog.d/**
+      - changes/**
       - LICENSE
       - SECURITY.md
       - AGENT.md
