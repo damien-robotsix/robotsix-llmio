@@ -69,7 +69,7 @@ class AsyncRefdocsClient:
     # ------------------------------------------------------------------ #
 
     async def _get(
-        self, path: str, *, params: dict[str, str] | None = None
+        self, path: str, *, params: dict[str, str | int] | None = None
     ) -> dict[str, Any]:
         """Send a GET to *path* and return the JSON response body.
 
