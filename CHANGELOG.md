@@ -8,6 +8,11 @@ by hand; add a newsfragment in `changelog.d/` instead (see CONTRIBUTING.md).
 
 ## 0.0.0 (unreleased)
 
+- Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
+  project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
+  ``CHANGELOG``, in that order) before inserting a bullet entry under the
+  unreleased section. Falls back to ``CHANGELOG.md`` when no changelog file
+  exists, preventing orphan ``.md`` files on RST-based projects.
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
 - Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in

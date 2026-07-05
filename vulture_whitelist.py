@@ -114,6 +114,12 @@ OpenRouterKeyCostSource.fetch_key_usage
 # fetch_provider_cost is whitelisted once under core/provider_cost.py above.
 
 # ---------------------------------------------------------------------------
+# changelog.py — public API entry point
+# ---------------------------------------------------------------------------
+
+insert_changelog_entry
+
+# ---------------------------------------------------------------------------
 # openrouter/_async_client.py — public async client methods
 # ---------------------------------------------------------------------------
 
