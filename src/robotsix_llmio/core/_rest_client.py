@@ -71,23 +71,16 @@ async def _get_json(
                 client.timeout = httpx.Timeout(timeout_seconds)
             resp = await client.get(url, headers=headers, params=params)
     except Exception as exc:
-        raise error_cls(
-            f"{error_label} request to {path} failed: {exc}"
-        ) from exc
+        raise error_cls(f"{error_label} request to {path} failed: {exc}") from exc
 
     if not (200 <= resp.status_code < 300):
-        raise error_cls(
-            f"{error_label} {path} returned HTTP {resp.status_code}"
-        )
+        raise error_cls(f"{error_label} {path} returned HTTP {resp.status_code}")
     try:
         body = resp.json()
     except Exception as exc:
-        raise error_cls(
-            f"{error_label} {path} returned a non-JSON body"
-        ) from exc
+        raise error_cls(f"{error_label} {path} returned a non-JSON body") from exc
     if not isinstance(body, dict):
         raise error_cls(
-            f"{error_label} {path} returned unexpected JSON shape"
-            " (expected object)"
+            f"{error_label} {path} returned unexpected JSON shape (expected object)"
         )
     return body

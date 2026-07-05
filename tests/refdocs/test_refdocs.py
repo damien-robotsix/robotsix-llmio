@@ -37,9 +37,7 @@ def _install_transport(
     def _fake_timeout_client():
         return real_async_client(transport=transport)
 
-    monkeypatch.setattr(
-        rest_client_module, "timeout_http_client", _fake_timeout_client
-    )
+    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -299,4 +297,3 @@ def test_get_refdocs_tool_calls_get_doc(monkeypatch):
 
     result = asyncio.run(get_tool.function(path="some/doc"))
     assert result == "doc body"
-
