@@ -13,8 +13,8 @@ from collections.abc import Callable
 import httpx
 import pytest
 
+from robotsix_llmio.core import _rest_client as rest_client_module
 from robotsix_llmio.self_review import SelfReviewClientError
-from robotsix_llmio.self_review import _client as self_review_module
 from robotsix_llmio.self_review._client import (
     SelfReviewClient,
     build_recent_activity_tools,
@@ -36,7 +36,7 @@ def _install_transport(
     def _fake_timeout_client() -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=transport)
 
-    monkeypatch.setattr(self_review_module, "timeout_http_client", _fake_timeout_client)
+    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -116,7 +116,7 @@ def test_list_activity_network_error_raises_self_review_client_error(
     def _fake_timeout_client() -> httpx.AsyncClient:
         raise ConnectionError("connection refused")
 
-    monkeypatch.setattr(self_review_module, "timeout_http_client", _fake_timeout_client)
+    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="connection refused"):

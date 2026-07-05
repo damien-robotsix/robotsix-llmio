@@ -9,13 +9,17 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
-- `TierConfigLoadError` now inherits from `RobotsixLLMIOError` instead of `Exception`, so it's caught by a single `except RobotsixLLMIOError` clause as the library's exception contract documents.
-- Split `src/robotsix_llmio/claude_sdk/_tool_agent.py` (802 lines) into four focused private submodules: `_output.py` (structured JSON parsing), `_tool_converter.py` (pydantic-ai → SDK MCP tool conversion), `_confinement.py` (workspace path-traversal hooks), and `_chat_messages.py` (tracing chat-message rendering). The original module now holds only `_SdkToolResult` and `_SdkToolAgentHandle` (~470 lines).
 - Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
   project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
   ``CHANGELOG``, in that order) before inserting a bullet entry under the
   unreleased section. Falls back to ``CHANGELOG.md`` when no changelog file
   exists, preventing orphan ``.md`` files on RST-based projects.
+- Extract shared REST client ``_get_json`` helper into ``core/_rest_client.py``,
+  deduplicating the near-identical ``_get()`` methods from ``KnowledgeClient``,
+  ``SelfReviewClient``, and ``AsyncRefdocsClient``.  The shared
+  ``_DEFAULT_BASE_URL`` constant is also moved there.
+- Split `src/robotsix_llmio/claude_sdk/_tool_agent.py` (802 lines) into four focused private submodules: `_output.py` (structured JSON parsing), `_tool_converter.py` (pydantic-ai → SDK MCP tool conversion), `_confinement.py` (workspace path-traversal hooks), and `_chat_messages.py` (tracing chat-message rendering). The original module now holds only `_SdkToolResult` and `_SdkToolAgentHandle` (~470 lines).
+- `TierConfigLoadError` now inherits from `RobotsixLLMIOError` instead of `Exception`, so it's caught by a single `except RobotsixLLMIOError` clause as the library's exception contract documents.
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
 - Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in
