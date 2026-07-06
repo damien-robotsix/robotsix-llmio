@@ -33,12 +33,13 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
-- Removed stale `changelog.d/` directory and its orphaned newsfragments; updated `CONTRIBUTING.md` and `docs/modules.yaml` to reference `changes/` instead.
+- Consolidated refdocs, knowledge, and self_review modules under a shared ``clients/`` parent with common ``BaseHttpClient`` in ``_base.py`` (already completed by sibling ticket; no additional changes needed).
 - Extract shared ``_MARKERS`` tuple + ``isinstance`` pattern for pydantic-ai
   output-mode markers into a single ``core/_output_markers.py`` helper,
   removing the identical duplicated definition from ``core/provider.py``
   and ``claude_sdk/provider.py``.
 - Internal boilerplate: registered `doc_classifier: internal-only` pattern for non-user-facing changes that skip the doc agent
+- Removed stale `changelog.d/` directory and its orphaned newsfragments; updated `CONTRIBUTING.md` and `docs/modules.yaml` to reference `changes/` instead.
 - Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
   project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
   ``CHANGELOG``, in that order) before inserting a bullet entry under the
