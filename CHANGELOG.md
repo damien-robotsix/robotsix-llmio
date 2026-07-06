@@ -33,6 +33,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 - Re-export `AsyncRefdocsClient`, `RefdocsClientError`, and `build_refdocs_tools`
   from the top-level `robotsix_llmio` package (sibling-pattern gap with
   `knowledge` and `self_review` sub-packages).
+- Remove dead Langfuse v1 `createdAt` field fallbacks from `_to_record` and `_observation_to_record` in `langfuse_cost.py`
 - Remove stale Keep a Changelog content from CHANGELOG.md — the file is now fully towncrier-managed (release-workflow-written only).
 - CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks `Lint workflows` on main.
 
