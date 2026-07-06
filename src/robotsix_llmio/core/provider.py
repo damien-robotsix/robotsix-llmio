@@ -51,16 +51,11 @@ def _resolve_output_type(output_type: Any, level: int) -> Any:
     if output_type is str:
         return output_type
 
-    from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
+    from pydantic_ai import PromptedOutput
 
-    _MARKERS = (PromptedOutput, ToolOutput, NativeOutput)
+    from robotsix_llmio.core._output_markers import _is_output_type_marked
 
-    if isinstance(output_type, _MARKERS):
-        return output_type
-
-    if isinstance(output_type, (list, tuple)) and any(
-        isinstance(entry, _MARKERS) for entry in output_type
-    ):
+    if _is_output_type_marked(output_type):
         return output_type
 
     # Not str, not an explicit marker, not a container-of-markers, and
