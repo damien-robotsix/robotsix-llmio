@@ -309,6 +309,49 @@ def test_stream_query_usage_signature_without_is_error_unaffected(monkeypatch):
     assert text == "you asked about running out of usage credits"
 
 
+def test_stream_query_raises_on_usage_exhausted_via_collapsed_exception(monkeypatch):
+    """The SDK sometimes collapses usage-exhaustion into a raised generic
+    exception (discarding the real text) instead of a clean is_error=True
+    return — e.g. the same wording that also matches the degenerate-success
+    signature. The text already streamed into `chunks` before that exception
+    fired must still be checked, or this leaks to the user as a generic
+    "returned an error result: success" error after 3 wasted retries."""
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("You're out of usage credits · resets Jul 9")
+        raise Exception("Claude Code returned an error result: success")
+        yield  # pragma: no cover — makes this an async generator
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKUsageExhaustedError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "out of usage credits" in str(exc_info.value).lower()
+    assert isinstance(exc_info.value.__cause__, Exception)
+
+
+def test_stream_query_collapsed_exception_without_usage_signature_unaffected(
+    monkeypatch,
+):
+    """A collapsed exception whose already-streamed text does NOT mention
+    usage exhaustion is left exactly as before (e.g. still handled by the
+    existing degenerate-success transient classification upstream)."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("some unrelated partial text")
+        raise Exception("Claude Code returned an error result: success")
+        yield  # pragma: no cover — makes this an async generator
+
+    fake.query = _fake_query
+
+    with pytest.raises(Exception, match="returned an error result: success"):
+        asyncio.run(_stream_query("prompt", None, "test"))
+
+
 # ---------------------------------------------------------------------------
 # _stream_query — timeout
 # ---------------------------------------------------------------------------
