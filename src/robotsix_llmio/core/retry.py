@@ -113,7 +113,7 @@ def _record_rate_limit_span(
 
 def _compute_backoff(attempt: int) -> float:
     """Exponential backoff with jitter, capped."""
-    raw = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
+    raw: float = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
     raw += random.uniform(0, raw / 2)
     return min(constants.TRANSIENT_BACKOFF_CAP, raw)
 
