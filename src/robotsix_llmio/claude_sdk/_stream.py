@@ -100,10 +100,14 @@ async def _stream_query(
     If *extra_transient* is given and returns ``True`` for a non-timeout
     exception, that exception is wrapped in :class:`ClaudeSDKTurnLimitError`.
 
-    Raises :class:`ClaudeSDKUsageExhaustedError` when the completed result is
-    flagged ``is_error=True`` and its text reports exhausted usage credits —
-    that shape does not raise upstream, so left unhandled it would return the
-    error text as if it were a genuine reply.
+    Raises :class:`ClaudeSDKUsageExhaustedError` when usage-exhaustion wording
+    is detected, via either of two shapes the SDK can surface it as: (a) a
+    completed result flagged ``is_error=True`` whose text reports exhausted
+    credits — that shape does not raise upstream, so left unhandled it would
+    return the error text as if it were a genuine reply; or (b) the SDK
+    collapsing it into a raised exception (e.g. the degenerate-success
+    message) that discards the real text — checked against whatever text had
+    already streamed into ``chunks`` before that exception fired.
     """
     from claude_agent_sdk import (
         AssistantMessage,
@@ -156,6 +160,17 @@ async def _stream_query(
             f"Treated as transient so the bounded retry re-runs it."
         ) from exc
     except Exception as exc:
+        # claude_agent_sdk sometimes collapses a usage-exhausted frame into a
+        # generic raised exception (e.g. the degenerate-success message),
+        # discarding the real assistant-visible text ("You're out of usage
+        # credits") before we would otherwise see it. The text already
+        # streamed into `chunks` before that happened, so check it here too —
+        # not just on the clean-return path below — or this cause is
+        # misclassified as an ordinary transient error, retried 3x at the
+        # same exhausted tier, and finally leaked to the user verbatim.
+        partial_text = "".join(chunks).strip()
+        if partial_text and is_usage_exhausted_text(partial_text):
+            raise ClaudeSDKUsageExhaustedError(partial_text) from exc
         if extra_transient is not None and extra_transient(exc):
             raise ClaudeSDKTurnLimitError(
                 f"Claude Agent SDK hit the turn cap without "
