@@ -63,7 +63,7 @@ tracing = [
 # not extras (robotsix-standards python.md). uv sync pulls `dev` in by
 # default via [tool.uv] default-groups.
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-timeout", "ruff", "mypy", "vulture", "pyyaml", "robotsix-modules", "towncrier"]
+dev = ["hypothesis", "mypy", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "pyyaml", "robotsix-modules", "ruff", "towncrier", "vulture"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [tool.uv]
