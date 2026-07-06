@@ -1,0 +1,1 @@
+Extract shared REST-client base to eliminate _get() duplication across knowledge, self_review, and refdocs clients

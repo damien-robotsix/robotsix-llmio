@@ -6,11 +6,11 @@ pydantic-ai, no OTel. Direct HTTP access replaces the agent-comm broker.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from robotsix_llmio.refdocs import RefdocsClientError
 
-from ..core.http import timeout_http_client
+from ..core._rest_client import _get_json
 from ._base import _DEFAULT_BASE_URL
 
 
@@ -69,39 +69,19 @@ class AsyncRefdocsClient:
     # ------------------------------------------------------------------ #
 
     async def _get(
-        self, path: str, *, params: dict[str, str] | None = None
+        self, path: str, *, params: dict[str, str | int] | None = None
     ) -> dict[str, Any]:
         """Send a GET to *path* and return the JSON response body.
 
         Raises ``RefdocsClientError`` on any non-2xx response or
         network failure.
         """
-        import httpx
-
-        url = f"{self._base_url}{path}"
-        headers: dict[str, str] = {}
-        if self._api_key:
-            headers["Authorization"] = f"Bearer {self._api_key}"
-
-        try:
-            async with timeout_http_client() as client:
-                client.timeout = httpx.Timeout(self._request_timeout)
-                resp = await client.get(url, headers=headers, params=params)
-        except Exception as exc:
-            raise RefdocsClientError(
-                f"Refdocs request to {path} failed: {exc}"
-            ) from exc
-
-        if not (200 <= resp.status_code < 300):
-            raise RefdocsClientError(f"Refdocs {path} returned HTTP {resp.status_code}")
-        try:
-            body = resp.json()
-        except Exception as exc:
-            raise RefdocsClientError(
-                f"Refdocs {path} returned a non-JSON body"
-            ) from exc
-        if not isinstance(body, dict):
-            raise RefdocsClientError(
-                f"Refdocs {path} returned unexpected JSON shape (expected object)"
-            )
-        return cast(dict[str, Any], body)
+        return await _get_json(
+            base_url=self._base_url,
+            path=path,
+            params=params,
+            api_key=self._api_key,
+            timeout_seconds=self._request_timeout,
+            error_cls=RefdocsClientError,
+            error_label="Refdocs",
+        )

@@ -10,10 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from robotsix_llmio.core.http import timeout_http_client
+from robotsix_llmio.core._rest_client import _DEFAULT_BASE_URL, _get_json
 from robotsix_llmio.knowledge import KnowledgeClientError
-
-_DEFAULT_BASE_URL = "http://localhost:8000/api/v1"
 
 
 class KnowledgeClient:
@@ -100,35 +98,14 @@ class KnowledgeClient:
         Raises ``KnowledgeClientError`` on any non-2xx response or
         network failure.
         """
-        url = f"{self._base_url}{path}"
-        headers: dict[str, str] = {}
-        if self._api_key is not None:
-            headers["Authorization"] = f"Bearer {self._api_key}"
-
-        try:
-            async with timeout_http_client() as client:
-                resp = await client.get(url, headers=headers, params=params)
-        except Exception as exc:
-            raise KnowledgeClientError(
-                f"Knowledge store request to {path} failed: {exc}"
-            ) from exc
-
-        if not (200 <= resp.status_code < 300):
-            raise KnowledgeClientError(
-                f"Knowledge store {path} returned HTTP {resp.status_code}"
-            )
-        try:
-            body = resp.json()
-        except Exception as exc:
-            raise KnowledgeClientError(
-                f"Knowledge store {path} returned a non-JSON body"
-            ) from exc
-        if not isinstance(body, dict):
-            raise KnowledgeClientError(
-                f"Knowledge store {path} returned unexpected JSON shape"
-                " (expected object)"
-            )
-        return body
+        return await _get_json(
+            base_url=self._base_url,
+            path=path,
+            params=params,
+            api_key=self._api_key,
+            error_cls=KnowledgeClientError,
+            error_label="Knowledge store",
+        )
 
 
 # ---------------------------------------------------------------------- #
