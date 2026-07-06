@@ -33,6 +33,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Internal boilerplate: registered `doc_classifier: internal-only` pattern for non-user-facing changes that skip the doc agent
 - Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
   project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
   ``CHANGELOG``, in that order) before inserting a bullet entry under the
