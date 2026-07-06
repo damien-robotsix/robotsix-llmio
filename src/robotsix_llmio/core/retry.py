@@ -199,7 +199,9 @@ async def _retry_loop(
             return await invoke(fn)
         except Exception as e:
             if is_rate_limited(e):
-                _handle_rate_limit(using_fallback, fallback_fn, cumulative_backoff, what)
+                _handle_rate_limit(
+                    using_fallback, fallback_fn, cumulative_backoff, what
+                )
                 using_fallback = True
                 attempt = 0  # fresh retry budget for fallback
                 continue
