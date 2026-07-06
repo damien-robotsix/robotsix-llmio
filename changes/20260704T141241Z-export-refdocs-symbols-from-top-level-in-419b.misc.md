@@ -1,1 +1,0 @@
-Export refdocs symbols from top-level __init__.py (matching knowledge/self_review pattern)

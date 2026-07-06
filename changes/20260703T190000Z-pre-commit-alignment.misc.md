@@ -1,1 +1,0 @@
-Pre-commit: add the standard-set hooks that were missing (`check-json`, `detect-private-key`), fix the mypy hook so `pre-commit run --all-files` works (`pass_filenames: false` — filenames alongside the `src/` arg made mypy fail with "Duplicate module"), and true up CONTRIBUTING's hook table, which was missing five hooks that actually run.

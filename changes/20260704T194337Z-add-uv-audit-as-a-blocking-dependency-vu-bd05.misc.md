@@ -1,1 +1,0 @@
-Add `uv audit` as a blocking dependency-vulnerability scan to CI

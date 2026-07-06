@@ -1,1 +1,0 @@
-Standards alignment: requires-python >=3.14, towncrier, dependabot pip->uv
