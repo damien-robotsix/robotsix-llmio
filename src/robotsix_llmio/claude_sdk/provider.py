@@ -114,13 +114,11 @@ class ClaudeSDKProvider(LLMProvider):
             # rule and does not apply to ClaudeSDKModel, which requires PromptedOutput
             # at ALL levels for non-str structured output.
             if output_type is not str:
-                from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
+                from pydantic_ai import PromptedOutput
 
-                _MARKERS = (PromptedOutput, ToolOutput, NativeOutput)
-                if not isinstance(output_type, _MARKERS) and not (
-                    isinstance(output_type, (list, tuple))
-                    and any(isinstance(e, _MARKERS) for e in output_type)
-                ):
+                from robotsix_llmio.core._output_markers import _is_output_type_marked
+
+                if not _is_output_type_marked(output_type):
                     output_type = PromptedOutput(output_type)
             return super().build_agent(
                 level=level,
