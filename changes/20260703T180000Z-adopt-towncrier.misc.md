@@ -1,1 +1,0 @@
-Adopt the fleet changelog mechanism: towncrier newsfragments in `changelog.d/` (one per PR), a `towncrier check` CI gate with a `skip-changelog` label exemption, and `CHANGELOG.md` compiled at release time instead of edited by hand.

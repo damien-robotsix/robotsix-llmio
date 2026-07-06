@@ -1,1 +1,0 @@
-AGENT.md now follows the standard skeleton (standards link, what-the-repo-is + tier paragraph, Rule/Rationale entries) and drops the two rules that were upstreamed into robotsix-standards (conftest fixture extraction → python.md; the `if: always()` artifact-upload rule → repo-baseline), linking instead of restating.

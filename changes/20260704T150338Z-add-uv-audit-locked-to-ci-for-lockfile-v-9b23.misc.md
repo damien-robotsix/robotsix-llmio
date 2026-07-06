@@ -1,1 +1,0 @@
-Add uv audit --locked to CI for lockfile vulnerability scanning

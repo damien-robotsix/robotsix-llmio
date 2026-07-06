@@ -1,1 +1,0 @@
-README now carries the full standard skeleton: the fleet-page one-liner as its opening (they must agree), an explicit library-tier statement linking the repo baseline, a docs-site link, and a working uv quickstart.
