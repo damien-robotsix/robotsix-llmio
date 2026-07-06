@@ -14,14 +14,11 @@ from .exceptions import RobotsixLLMIOError
 # query flags every ``__all__`` name as "exported but not defined"). Keep this
 # block in sync with ``__all__`` and ``__getattr__``.
 if TYPE_CHECKING:
-    from .core.factory import (
-        build_agent_for_level,
-        default_tier_config,
-        get_provider_for_level,
+    from .clients.knowledge import (
+        KnowledgeClient,
+        KnowledgeClientError,
+        build_knowledge_tools,
     )
-    from .core.langfuse_client import LangfuseClientError
-    from .clients.knowledge import KnowledgeClient, KnowledgeClientError, build_knowledge_tools
-    from .openrouter import OpenRouterAPIError
     from .clients.refdocs import (
         AsyncRefdocsClient,
         RefdocsClientError,
@@ -32,6 +29,13 @@ if TYPE_CHECKING:
         SelfReviewClientError,
         build_recent_activity_tools,
     )
+    from .core.factory import (
+        build_agent_for_level,
+        default_tier_config,
+        get_provider_for_level,
+    )
+    from .core.langfuse_client import LangfuseClientError
+    from .openrouter import OpenRouterAPIError
 
 __all__ = [
     "AsyncRefdocsClient",

@@ -66,6 +66,9 @@ modules:
       three sub-modules.
     paths:
       - src/robotsix_llmio/clients/**
+      - src/robotsix_llmio/knowledge/**
+      - src/robotsix_llmio/refdocs/**
+      - src/robotsix_llmio/self_review/**
       - tests/clients/**
       - docs/clients/**
       - docs/reference/refdocs.md
@@ -90,6 +93,7 @@ modules:
       - vulture_whitelist.py
       - mkdocs.yml
       - docs/modules.yaml
+      - docs/reference/config.md
 
   - id: project-root
     description: >-

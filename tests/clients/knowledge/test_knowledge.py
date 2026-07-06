@@ -13,9 +13,12 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from robotsix_llmio.clients.knowledge import KnowledgeClientError
 from robotsix_llmio.clients import _base as _base_module
-from robotsix_llmio.clients.knowledge._client import KnowledgeClient, build_knowledge_tools
+from robotsix_llmio.clients.knowledge import KnowledgeClientError
+from robotsix_llmio.clients.knowledge._client import (
+    KnowledgeClient,
+    build_knowledge_tools,
+)
 
 # --------------------------------------------------------------------------- #
 # Test helpers

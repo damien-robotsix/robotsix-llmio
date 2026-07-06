@@ -13,8 +13,8 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from robotsix_llmio.clients.self_review import SelfReviewClientError
 from robotsix_llmio.clients import _base as _base_module
+from robotsix_llmio.clients.self_review import SelfReviewClientError
 from robotsix_llmio.clients.self_review._client import (
     SelfReviewClient,
     build_recent_activity_tools,

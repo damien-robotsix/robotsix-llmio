@@ -26,19 +26,16 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
-    # refdocs
     "AsyncRefdocsClient",
-    "RefdocsClientError",
-    "RefdocsSettings",
-    "build_refdocs_tools",
-    # knowledge
     "KnowledgeClient",
     "KnowledgeClientError",
-    "build_knowledge_tools",
-    # self_review
+    "RefdocsClientError",
+    "RefdocsSettings",
     "SelfReviewClient",
     "SelfReviewClientError",
+    "build_knowledge_tools",
     "build_recent_activity_tools",
+    "build_refdocs_tools",
 ]
 
 
@@ -46,16 +43,28 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
     if name in ("AsyncRefdocsClient", "RefdocsClientError"):
         from .refdocs import AsyncRefdocsClient, RefdocsClientError
 
-        return {"AsyncRefdocsClient": AsyncRefdocsClient, "RefdocsClientError": RefdocsClientError}[name]
+        _d: dict[str, Any] = {
+            "AsyncRefdocsClient": AsyncRefdocsClient,
+            "RefdocsClientError": RefdocsClientError,
+        }
+        return _d[name]
     if name in ("RefdocsSettings", "build_refdocs_tools"):
         from .refdocs import RefdocsSettings, build_refdocs_tools
 
-        return {"RefdocsSettings": RefdocsSettings, "build_refdocs_tools": build_refdocs_tools}[name]
+        _d = {
+            "RefdocsSettings": RefdocsSettings,
+            "build_refdocs_tools": build_refdocs_tools,
+        }
+        return _d[name]
     if name in ("KnowledgeClient", "KnowledgeClientError", "build_knowledge_tools"):
         from . import knowledge
 
         return getattr(knowledge, name)
-    if name in ("SelfReviewClient", "SelfReviewClientError", "build_recent_activity_tools"):
+    if name in (
+        "SelfReviewClient",
+        "SelfReviewClientError",
+        "build_recent_activity_tools",
+    ):
         from . import self_review
 
         return getattr(self_review, name)

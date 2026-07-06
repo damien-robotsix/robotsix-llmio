@@ -139,6 +139,14 @@ AsyncOpenRouterClient.fetch_credits
 conversation_store
 
 # ---------------------------------------------------------------------------
+# core/_rest_client.py
+# ---------------------------------------------------------------------------
+
+# _get_json was replaced by BaseHttpClient._get() in clients/_base.py;
+# kept as a standalone utility for non-class usage paths.
+_get_json
+
+# ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members
 # ---------------------------------------------------------------------------
 
