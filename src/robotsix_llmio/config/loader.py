@@ -31,7 +31,7 @@ from robotsix_llmio.exceptions import RobotsixLLMIOError
 # --------------------------------------------------------------------------- #
 
 
-class TierConfigLoadError(Exception):
+class TierConfigLoadError(RobotsixLLMIOError):
     """Raised when tier configuration cannot be loaded.
 
     This wraps underlying pydantic :class:`~pydantic.ValidationError`\\(s) as

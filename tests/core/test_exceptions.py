@@ -7,6 +7,7 @@ from robotsix_llmio.claude_sdk.model import (
     ClaudeSDKQueryTimeout,
     ClaudeSDKTurnLimitError,
 )
+from robotsix_llmio.config.loader import TierConfigLoadError
 
 
 def test_instantiation() -> None:
@@ -21,10 +22,11 @@ def test_inherits_from_exception() -> None:
 
 
 def test_subclasses_are_robotsix_errors() -> None:
-    """``ClaudeSDKTurnLimitError`` and ``ClaudeSDKQueryTimeout`` are
-    subclasses of ``RobotsixLLMIOError``."""
+    """``ClaudeSDKTurnLimitError``, ``ClaudeSDKQueryTimeout``, and
+    ``TierConfigLoadError`` are subclasses of ``RobotsixLLMIOError``."""
     assert issubclass(ClaudeSDKTurnLimitError, RobotsixLLMIOError)
     assert issubclass(ClaudeSDKQueryTimeout, RobotsixLLMIOError)
+    assert issubclass(TierConfigLoadError, RobotsixLLMIOError)
 
 
 def test_message_preservation() -> None:

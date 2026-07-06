@@ -9,6 +9,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- `TierConfigLoadError` now inherits from `RobotsixLLMIOError` instead of `Exception`, so it's caught by a single `except RobotsixLLMIOError` clause as the library's exception contract documents.
 - Split `src/robotsix_llmio/claude_sdk/_tool_agent.py` (802 lines) into four focused private submodules: `_output.py` (structured JSON parsing), `_tool_converter.py` (pydantic-ai → SDK MCP tool conversion), `_confinement.py` (workspace path-traversal hooks), and `_chat_messages.py` (tracing chat-message rendering). The original module now holds only `_SdkToolResult` and `_SdkToolAgentHandle` (~470 lines).
 - Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
   project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
