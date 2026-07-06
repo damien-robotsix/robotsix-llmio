@@ -1,3 +1,0 @@
-# Presence enables completeness_check for this repo. Partial-merges over the
-# built-in completeness_check definition in robotsix-mill.
-name: completeness_check
