@@ -13,7 +13,13 @@ from typing import Any
 
 import pytest
 
-from robotsix_llmio.claude_sdk._stream import _log_stream_message, _short, _stream_query
+from robotsix_llmio.claude_sdk._stream import (
+    ClaudeSDKActivityEvent,
+    _log_stream_message,
+    _short,
+    _stream_query,
+    activity_events,
+)
 
 # ---------------------------------------------------------------------------
 # _short
@@ -128,6 +134,85 @@ def test_log_stream_message_result(caplog):
 
 
 # ---------------------------------------------------------------------------
+# _log_stream_message — on_event callback
+# ---------------------------------------------------------------------------
+
+
+def test_log_stream_message_emits_tool_call_event():
+    events: list[ClaudeSDKActivityEvent] = []
+    turn = [0]
+    block = _make_block("ToolUseBlock", name="search", input={"q": "x"})
+    msg = _make_msg("AssistantMessage", content=[block])
+    _log_stream_message(msg, turn, "test-label", events.append)
+    assert len(events) == 1
+    assert events[0] == ClaudeSDKActivityEvent(
+        kind="tool_call", turn=1, tool_name="search", detail='{"q": "x"}'
+    )
+
+
+def test_log_stream_message_emits_tool_result_event():
+    events: list[ClaudeSDKActivityEvent] = []
+    turn = [1]
+    block = _make_block("ToolResultBlock", content="fail", is_error=True)
+    msg = _make_msg("ToolResultMessage", content=[block])
+    _log_stream_message(msg, turn, "test-label", events.append)
+    assert events == [
+        ClaudeSDKActivityEvent(kind="tool_result", turn=1, detail="fail", is_error=True)
+    ]
+
+
+def test_log_stream_message_emits_thinking_event():
+    events: list[ClaudeSDKActivityEvent] = []
+    turn = [0]
+    block = _make_block("ThinkingBlock", thinking="pondering...")
+    msg = _make_msg("AssistantMessage", content=[block])
+    _log_stream_message(msg, turn, "test-label", events.append)
+    assert events == [
+        ClaudeSDKActivityEvent(kind="thinking", turn=1, detail="12 chars")
+    ]
+
+
+def test_log_stream_message_emits_text_event():
+    events: list[ClaudeSDKActivityEvent] = []
+    turn = [0]
+    block = _make_block("TextBlock", text="hello world")
+    msg = _make_msg("AssistantMessage", content=[block])
+    _log_stream_message(msg, turn, "test-label", events.append)
+    assert events == [ClaudeSDKActivityEvent(kind="text", turn=1, detail="hello world")]
+
+
+def test_log_stream_message_no_event_for_result_message():
+    """ResultMessage has no corresponding activity-event kind (only logged)."""
+    events: list[ClaudeSDKActivityEvent] = []
+    turn = [1]
+    msg = _make_msg("ResultMessage", subtype="success", is_error=False, duration_ms=1)
+    _log_stream_message(msg, turn, "test-label", events.append)
+    assert events == []
+
+
+def test_log_stream_message_on_event_none_is_a_no_op():
+    """Passing on_event=None (the default) never raises."""
+    turn = [0]
+    block = _make_block("ToolUseBlock", name="search", input={})
+    msg = _make_msg("AssistantMessage", content=[block])
+    _log_stream_message(msg, turn, "test-label")  # no on_event given
+
+
+def test_log_stream_message_broken_callback_does_not_raise(caplog):
+    """A callback that raises only drops that event — logging still happens."""
+    caplog.set_level(logging.INFO, logger="robotsix_llmio.claude_sdk")
+    turn = [0]
+    block = _make_block("ToolUseBlock", name="search", input={})
+    msg = _make_msg("AssistantMessage", content=[block])
+
+    def _boom(_event: ClaudeSDKActivityEvent) -> None:
+        raise RuntimeError("callback exploded")
+
+    _log_stream_message(msg, turn, "test-label", _boom)  # must not raise
+    assert "tool_use search(" in caplog.text
+
+
+# ---------------------------------------------------------------------------
 # _stream_query helpers
 # ---------------------------------------------------------------------------
 
@@ -148,6 +233,13 @@ def _install_stream_fake_sdk(monkeypatch) -> SimpleNamespace:
     class _FakeResultMessage:
         def __init__(self, result: str | None = None) -> None:
             self.result = result
+
+    # _log_stream_message dispatches on type(message).__name__ (it must work
+    # without importing the real SDK classes), so the fakes need the real
+    # names, not their Python identifiers.
+    _FakeTextBlock.__name__ = "TextBlock"
+    _FakeAssistantMessage.__name__ = "AssistantMessage"
+    _FakeResultMessage.__name__ = "ResultMessage"
 
     fake.TextBlock = _FakeTextBlock
     fake.AssistantMessage = _FakeAssistantMessage
@@ -426,3 +518,98 @@ def test_stream_query_extra_transient_false(monkeypatch):
         asyncio.run(
             _stream_query("prompt", None, "test", extra_transient=_not_transient)
         )
+
+
+# ---------------------------------------------------------------------------
+# _stream_query — on_event / activity_events()
+# ---------------------------------------------------------------------------
+
+
+def _fake_query_with_tool_call(fake):
+    class _FakeToolUseBlock:
+        def __init__(self, name: str, input: dict) -> None:
+            self.name = name
+            self.input = input
+
+    _FakeToolUseBlock.__name__ = "ToolUseBlock"
+
+    async def _fake_query(*, prompt, options):
+        msg = fake.AssistantMessage("")
+        msg.content = [_FakeToolUseBlock("search", {"q": "x"})]
+        yield msg
+        yield fake.AssistantMessage("done")
+        yield fake.ResultMessage()
+
+    return _fake_query
+
+
+def test_stream_query_on_event_explicit_arg(monkeypatch):
+    """An explicit on_event= argument receives every streamed activity event."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+    fake.query = _fake_query_with_tool_call(fake)
+
+    events: list[ClaudeSDKActivityEvent] = []
+    text, _result, _reasoning = asyncio.run(
+        _stream_query("prompt", None, "test", on_event=events.append)
+    )
+    assert text == "done"
+    kinds = [e.kind for e in events]
+    assert kinds == ["tool_call", "text"]
+
+
+def test_stream_query_no_on_event_and_no_context_is_a_no_op(monkeypatch):
+    """With neither an explicit on_event nor an ambient activity_events()
+    context, _stream_query behaves exactly as before (no callback invoked,
+    no error)."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+    fake.query = _fake_query_with_tool_call(fake)
+
+    text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "done"
+
+
+def test_stream_query_uses_ambient_activity_events_context(monkeypatch):
+    """activity_events() supplies the callback when no explicit on_event is
+    passed — the mechanism that lets a caller (e.g. robotsix-chat) receive
+    live activity from either the no-tools or tool-loop claude_sdk path
+    without threading on_event through build_agent()/run()."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+    fake.query = _fake_query_with_tool_call(fake)
+
+    events: list[ClaudeSDKActivityEvent] = []
+    with activity_events(events.append):
+        text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "done"
+    assert [e.kind for e in events] == ["tool_call", "text"]
+
+
+def test_stream_query_explicit_on_event_overrides_ambient_context(monkeypatch):
+    """An explicit on_event= argument wins over an ambient activity_events()
+    context (e.g. a test double vs. the chat-wide default)."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+    fake.query = _fake_query_with_tool_call(fake)
+
+    ambient_events: list[ClaudeSDKActivityEvent] = []
+    explicit_events: list[ClaudeSDKActivityEvent] = []
+    with activity_events(ambient_events.append):
+        asyncio.run(
+            _stream_query("prompt", None, "test", on_event=explicit_events.append)
+        )
+    assert ambient_events == []
+    assert len(explicit_events) == 2
+
+
+def test_activity_events_context_resets_after_exit(monkeypatch):
+    """Once the activity_events() context exits, calls outside it get no
+    callback again (the contextvar is reset, not left dangling)."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+    fake.query = _fake_query_with_tool_call(fake)
+
+    events: list[ClaudeSDKActivityEvent] = []
+    with activity_events(events.append):
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert len(events) == 2
+
+    events.clear()
+    asyncio.run(_stream_query("prompt", None, "test"))  # outside the context
+    assert events == []
