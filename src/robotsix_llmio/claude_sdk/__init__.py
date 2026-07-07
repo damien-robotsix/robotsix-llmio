@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._stream import ClaudeSDKActivityEvent, activity_events
 from .transient import (
     is_claude_sdk_transient,
     is_claude_sdk_turn_limit,
@@ -17,11 +18,13 @@ from .transient import (
 )
 
 __all__ = [
+    "ClaudeSDKActivityEvent",
     "ClaudeSDKModel",
     "ClaudeSDKProvider",
     "ClaudeSDKQueryTimeout",
     "ClaudeSDKTurnLimitError",
     "ClaudeSDKUsageExhaustedError",
+    "activity_events",
     "is_claude_sdk_transient",
     "is_claude_sdk_turn_limit",
     "is_claude_sdk_usage_exhausted",
