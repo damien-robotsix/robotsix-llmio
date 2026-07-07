@@ -1,1 +1,0 @@
-copy-paste: intra-file clone in core/retry — extract shared retry-loop logic

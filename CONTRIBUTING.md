@@ -132,7 +132,7 @@ it reports formatting issues without modifying files.
   and uv audit. CI also
   runs a TruffleHog secret scan on pull requests to catch leaked credentials in
   the PR diff.
-- **Every PR adds a changelog newsfragment** in `changelog.d/` — a short
+- **Every PR adds a changelog newsfragment** in `changes/` — a short
   Markdown file named `<anything-unique>.<type>.md` with type one of
   `breaking`, `feature`, `bugfix`, `misc`. CI enforces this via `towncrier
   check`; apply the `skip-changelog` label for changes with nothing to record.
@@ -170,5 +170,5 @@ is published anywhere:
    ```
 
 `CHANGELOG.md` is never edited by hand — it is compiled from the
-`changelog.d/` newsfragments with `towncrier build` when a release is cut
+`changes/` newsfragments with `towncrier build` when a release is cut
 (see [changelog & releases](https://damien-robotsix.github.io/robotsix-standards/repo-baseline/#changelog-releases)).
