@@ -1,0 +1,1 @@
+Raise `SDK_QUERY_TIMEOUT` (the Claude Agent SDK per-call wall-clock cap) from 20 minutes to 1 hour. A genuine multi-turn tool loop tripped the old cap under host load, surfacing as a `ClaudeSDKQueryTimeout` and failing the turn even though the call was still making progress. Still well under the SDK's own ~2h backstop.

@@ -23,9 +23,10 @@ HTTP_CLIENT_TIMEOUT: float = 20.0
 # many runs spawn at once) otherwise blocks until the SDK's own ~2h backstop,
 # turning one stuck run into a multi-hour hang. Capping it here makes a stall
 # fail fast as a ``ClaudeSDKQueryTimeout`` that the bounded retry treats as
-# transient — so the work re-runs in minutes instead of hanging. Generous enough
-# that a genuine multi-turn tool loop (max_turns=100, ~minutes) doesn't trip it.
-SDK_QUERY_TIMEOUT: float = 1200.0  # 20 minutes
+# transient — so the work re-runs eventually instead of hanging. 1h (raised from
+# 20min after a genuine multi-turn tool loop tripped the old cap under host load)
+# still leaves headroom under the SDK's own ~2h backstop.
+SDK_QUERY_TIMEOUT: float = 3600.0  # 1 hour
 
 # Transient retry (429 / 5xx / timeout / malformed-JSON / upstream-error):
 # short exponential backoff with jitter.
