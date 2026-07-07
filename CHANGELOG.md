@@ -33,6 +33,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Removed stale `changelog.d/` directory and its orphaned newsfragments; updated `CONTRIBUTING.md` and `docs/modules.yaml` to reference `changes/` instead.
 - Extract shared ``_MARKERS`` tuple + ``isinstance`` pattern for pydantic-ai
   output-mode markers into a single ``core/_output_markers.py`` helper,
   removing the identical duplicated definition from ``core/provider.py``
