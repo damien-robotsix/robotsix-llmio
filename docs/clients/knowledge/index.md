@@ -15,7 +15,7 @@ API, replacing the previous agent-comm broker transport. It exposes:
 ## Quick start
 
 ```python
-from robotsix_llmio.knowledge import KnowledgeClient, build_knowledge_tools
+from robotsix_llmio.clients.knowledge import KnowledgeClient, build_knowledge_tools
 
 client = KnowledgeClient(
     base_url="http://knowledge-store:8000/api/v1",

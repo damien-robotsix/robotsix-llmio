@@ -14,7 +14,7 @@ __getattr__
 setup_logging
 
 # ---------------------------------------------------------------------------
-# refdocs/_async_client.py
+# clients/_base.py
 # ---------------------------------------------------------------------------
 
 # client.timeout set on an httpx.AsyncClient — consumed internally by httpx
@@ -131,12 +131,20 @@ AsyncOpenRouterClient.fetch_credits
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-# self_review/_client.py
+# clients/self_review/_client.py
 # ---------------------------------------------------------------------------
 
 # Reserved for future use (cross-referencing activity against conversation
 # history). Currently accepted but unused in the tool adapter.
 conversation_store
+
+# ---------------------------------------------------------------------------
+# core/_rest_client.py
+# ---------------------------------------------------------------------------
+
+# _get_json was replaced by BaseHttpClient._get() in clients/_base.py;
+# kept as a standalone utility for non-class usage paths.
+_get_json
 
 # ---------------------------------------------------------------------------
 # config/tier.py — Pydantic model fields and StrEnum members

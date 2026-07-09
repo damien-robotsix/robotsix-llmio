@@ -14,11 +14,11 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from robotsix_llmio.core import _rest_client as rest_client_module
-from robotsix_llmio.refdocs import RefdocsClientError
-from robotsix_llmio.refdocs._async_client import AsyncRefdocsClient
-from robotsix_llmio.refdocs._settings import RefdocsSettings
-from robotsix_llmio.refdocs.factory import build_refdocs_tools
+from robotsix_llmio.clients import _base as _base_module
+from robotsix_llmio.clients.refdocs import RefdocsClientError
+from robotsix_llmio.clients.refdocs._async_client import AsyncRefdocsClient
+from robotsix_llmio.clients.refdocs._settings import RefdocsSettings
+from robotsix_llmio.clients.refdocs.factory import build_refdocs_tools
 
 # --------------------------------------------------------------------------- #
 #  Transport helper
@@ -37,7 +37,7 @@ def _install_transport(
     def _fake_timeout_client():
         return real_async_client(transport=transport)
 
-    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
+    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #

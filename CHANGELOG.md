@@ -33,12 +33,13 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
-- Removed stale `changelog.d/` directory and its orphaned newsfragments; updated `CONTRIBUTING.md` and `docs/modules.yaml` to reference `changes/` instead.
+- Consolidated refdocs, knowledge, and self_review modules under a shared ``clients/`` parent with common ``BaseHttpClient`` in ``_base.py`` (already completed by sibling ticket; no additional changes needed).
 - Extract shared ``_MARKERS`` tuple + ``isinstance`` pattern for pydantic-ai
   output-mode markers into a single ``core/_output_markers.py`` helper,
   removing the identical duplicated definition from ``core/provider.py``
   and ``claude_sdk/provider.py``.
 - Internal boilerplate: registered `doc_classifier: internal-only` pattern for non-user-facing changes that skip the doc agent
+- Removed stale `changelog.d/` directory and its orphaned newsfragments; updated `CONTRIBUTING.md` and `docs/modules.yaml` to reference `changes/` instead.
 - Add ``robotsix_llmio.changelog.insert_changelog_entry`` — detects the
   project's existing changelog format (``CHANGELOG.rst``, ``CHANGELOG.md``,
   ``CHANGELOG``, in that order) before inserting a bullet entry under the
@@ -53,6 +54,8 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 - Add Hypothesis property-based tests for the transient retry backoff formula (boundedness, non-negativity, jitter range, monotonicity).
 - Added `robotsix-modules` as a dev dependency and a CI step (`robotsix-modules-validate docs/modules.yaml`) to enforce module taxonomy consistency.
 - AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove `debug-statements`, `check-ast`, `check-case-conflict`; `check-json` and `detect-private-key` already present).
+- CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks `Lint workflows` on main.
+- Consolidated `refdocs`, `knowledge`, and `self_review` modules under a shared `clients/` parent, extracting duplicated `_get()` logic into a common `BaseHttpClient` in `clients/_base.py`. Import paths are now `robotsix_llmio.clients.{refdocs,knowledge,self_review}`.
 - Extract shared `_retry_loop` in `core/retry.py` and `_tier_fallback_loop` in
   `core/tier_fallback.py`, eliminating ~250 lines of duplicated sync/async retry
   and tier-escalation logic. Each public `call_with_retry` / `acall_with_retry`
@@ -67,7 +70,6 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
   `knowledge` and `self_review` sub-packages).
 - Remove dead Langfuse v1 `createdAt` field fallbacks from `_to_record` and `_observation_to_record` in `langfuse_cost.py`
 - Remove stale Keep a Changelog content from CHANGELOG.md — the file is now fully towncrier-managed (release-workflow-written only).
-- CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks `Lint workflows` on main.
 
 - Export `record_cost` and `flush_current_provider` from `core.cost` via `core.__init__` (TYPE_CHECKING, `__all__`, and `_SUBMODULE_ATTRS`), matching the pattern of every other `core` submodule.
 - Export `run_multi_table_migrations` from `core.__init__` (TYPE_CHECKING, `__all__`, `_SUBMODULE_ATTRS`) — it was the only public symbol in `core.sqlite_utils` missing from the package's public API.

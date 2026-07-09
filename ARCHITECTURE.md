@@ -172,10 +172,10 @@ accessed. The same convention serves two purposes at once:
 - `src/robotsix_llmio/claude_sdk/__init__.py`
 - `src/robotsix_llmio/config/__init__.py`
 - `src/robotsix_llmio/core/__init__.py`
-- `src/robotsix_llmio/knowledge/__init__.py`
+- `src/robotsix_llmio/clients/knowledge/__init__.py`
 - `src/robotsix_llmio/openrouter/__init__.py`
-- `src/robotsix_llmio/refdocs/__init__.py`
-- `src/robotsix_llmio/self_review/__init__.py`
+- `src/robotsix_llmio/clients/refdocs/__init__.py`
+- `src/robotsix_llmio/clients/self_review/__init__.py`
 
 ## Design decisions worth knowing
 

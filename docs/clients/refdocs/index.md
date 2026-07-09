@@ -8,7 +8,7 @@ the refdocs API.
 ## Quick start
 
 ```python
-from robotsix_llmio.refdocs import RefdocsSettings, build_refdocs_tools
+from robotsix_llmio.clients.refdocs import RefdocsSettings, build_refdocs_tools
 
 settings = RefdocsSettings(base_url="http://refdocs:9090")
 tools = build_refdocs_tools(settings)

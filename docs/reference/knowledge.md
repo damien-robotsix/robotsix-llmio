@@ -1,3 +1,3 @@
 # knowledge
 
-::: robotsix_llmio.knowledge
+::: robotsix_llmio.clients.knowledge

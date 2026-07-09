@@ -32,9 +32,9 @@ nav:
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
   - Claude SDK: claude_sdk/index.md
-  - Knowledge: knowledge/index.md
-  - Refdocs: refdocs/index.md
-  - Self-Review: self_review/index.md
+  - Knowledge: clients/knowledge/index.md
+  - Refdocs: clients/refdocs/index.md
+  - Self-Review: clients/self_review/index.md
 
   - API Reference:
       - Core: reference/core.md

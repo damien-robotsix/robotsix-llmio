@@ -13,9 +13,12 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from robotsix_llmio.core import _rest_client as rest_client_module
-from robotsix_llmio.knowledge import KnowledgeClientError
-from robotsix_llmio.knowledge._client import KnowledgeClient, build_knowledge_tools
+from robotsix_llmio.clients import _base as _base_module
+from robotsix_llmio.clients.knowledge import KnowledgeClientError
+from robotsix_llmio.clients.knowledge._client import (
+    KnowledgeClient,
+    build_knowledge_tools,
+)
 
 # --------------------------------------------------------------------------- #
 # Test helpers
@@ -33,7 +36,7 @@ def _install_transport(
     def _fake_timeout_client() -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=transport)
 
-    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
+    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -115,7 +118,7 @@ def test_search_network_error_raises_knowledge_client_error(
     def _fake_timeout_client() -> httpx.AsyncClient:
         raise ConnectionError("connection refused")
 
-    monkeypatch.setattr(rest_client_module, "timeout_http_client", _fake_timeout_client)
+    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="connection refused"):
