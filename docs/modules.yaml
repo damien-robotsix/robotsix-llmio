@@ -77,6 +77,16 @@ modules:
 
   - id: config
     description: >-
+      Consumer-facing configuration layer — TierConfig schema, loader,
+      and the create_model factory.
+    paths:
+      - src/robotsix_llmio/config/**
+      - tests/config/**
+      - docs/config/**
+      - docs/reference/config.md
+
+  - id: dev-tooling
+    description: >-
       Developer tooling and repo configuration: pyproject, lockfile,
       pre-commit hooks, CI workflows, mill periodic jobs, editor and
       static-analysis config. Not part of the shipped package.
@@ -93,7 +103,6 @@ modules:
       - vulture_whitelist.py
       - mkdocs.yml
       - docs/modules.yaml
-      - docs/reference/config.md
 
   - id: project-root
     description: >-
