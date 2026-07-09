@@ -33,6 +33,9 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Fix `docs/modules.yaml`: restore `config` entry to its consumer-facing scope
+  (TierConfig schema, loader, create_model factory) and re-add the `dev-tooling`
+  module for repo tooling/config files that were incorrectly merged into `config`.
 - Consolidated refdocs, knowledge, and self_review modules under a shared ``clients/`` parent with common ``BaseHttpClient`` in ``_base.py`` (already completed by sibling ticket; no additional changes needed).
 - Extract shared ``_MARKERS`` tuple + ``isinstance`` pattern for pydantic-ai
   output-mode markers into a single ``core/_output_markers.py`` helper,
