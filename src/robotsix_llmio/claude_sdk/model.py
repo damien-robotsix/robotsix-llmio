@@ -211,15 +211,8 @@ def collect_latest_user_images(
                 content = part.content
                 if isinstance(content, str):
                     return []
-                if _is_image_part(content):
-                    return [(content.media_type, bytes(content.data))]
-                if isinstance(content, (list, tuple)):
-                    return [
-                        (item.media_type, bytes(item.data))
-                        for item in content
-                        if _is_image_part(item)
-                    ]
-                return []
+                _text, images = extract_prompt_parts(list(content))
+                return images
     return []
 
 
