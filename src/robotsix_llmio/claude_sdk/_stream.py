@@ -9,7 +9,7 @@ import asyncio
 import contextvars
 import json
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -193,8 +193,20 @@ def _emit(
         log.debug("on_event callback raised; activity event dropped", exc_info=True)
 
 
+async def _messages_aiter(
+    messages: list[dict[str, Any]],
+) -> AsyncIterator[dict[str, Any]]:
+    """Fresh async iterator over streaming-input *messages*.
+
+    Built per call (not shared) so a retry of the same prompt list never
+    replays an already-exhausted generator.
+    """
+    for message in messages:
+        yield message
+
+
 async def _stream_query(
-    prompt: str,
+    prompt: str | list[dict[str, Any]],
     options: Any,  # ClaudeAgentOptions (lazy import to avoid cycle with model)
     label: str,
     *,
@@ -202,6 +214,10 @@ async def _stream_query(
     on_event: Callable[[ClaudeSDKActivityEvent], None] | None = None,
 ) -> tuple[str, Any, str]:
     """Run the Claude Agent SDK streaming loop under the per-call wall-clock cap.
+
+    *prompt* is either the plain-text prompt or a list of streaming-input
+    message dicts (used to attach base64 image blocks); a list is wrapped in
+    a fresh async iterator here so retries can re-send it safely.
 
     Returns ``(text, result, reasoning)`` — joined assistant text (with the
     ``ResultMessage.result`` fallback), the captured ``ResultMessage``, and the
@@ -251,9 +267,13 @@ async def _stream_query(
     turn = [0]
     effective_on_event = on_event if on_event is not None else _current_on_event.get()
 
+    sdk_prompt: str | AsyncIterator[dict[str, Any]] = (
+        prompt if isinstance(prompt, str) else _messages_aiter(prompt)
+    )
+
     async def _consume() -> None:
         nonlocal result
-        async for message in query(prompt=prompt, options=options):
+        async for message in query(prompt=sdk_prompt, options=options):
             _log_stream_message(message, turn, label, effective_on_event)
             if isinstance(message, AssistantMessage):
                 for block in message.content:

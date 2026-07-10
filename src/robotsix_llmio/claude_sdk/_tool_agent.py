@@ -205,7 +205,7 @@ class _SdkToolAgentHandle:
 
     def run_sync(
         self,
-        user_prompt: str,
+        user_prompt: str | list[Any],
         *,
         model_settings: dict[str, Any] | None = None,
         message_history: list[Any] | None = None,
@@ -222,7 +222,7 @@ class _SdkToolAgentHandle:
 
     async def run(
         self,
-        user_prompt: str,
+        user_prompt: str | list[Any],
         *,
         model_settings: dict[str, Any] | None = None,
         message_history: list[Any] | None = None,
@@ -237,27 +237,36 @@ class _SdkToolAgentHandle:
         return await self._run(user_prompt, message_history=message_history)
 
     def _prepare_prompt(
-        self, user_prompt: str, message_history: list[Any] | None
-    ) -> tuple[str, str]:
+        self, user_prompt: Any, message_history: list[Any] | None
+    ) -> tuple[str, str, list[tuple[str, bytes]]]:
         """Fold *message_history* into the prompt and augment the system prompt
         with the JSON-schema directive when ``output_type`` is structured.
 
-        Returns ``(prompt, system_prompt)``; pure function of inputs + the
-        handle's ``_system_prompt`` and ``_output_type`` attributes.
+        *user_prompt* may be a plain string or a pydantic-ai multimodal
+        sequence (``list[str | BinaryContent]``) — image parts are split out
+        and returned for :func:`~.model.build_sdk_prompt`, NEVER stringified
+        (``str()`` on a ``BinaryContent`` reprs megabytes of raw bytes into
+        the prompt and stalls the CLI).
+
+        Returns ``(prompt_text, system_prompt, images)``; pure function of
+        inputs + the handle's ``_system_prompt`` and ``_output_type``
+        attributes.
         """
+        from .model import extract_prompt_parts
+
         system_prompt = self._system_prompt
+        prompt, images = extract_prompt_parts(user_prompt)
 
         # Honor message_history: the SDK query is stateless per call, so fold any
         # prior pydantic-ai conversation into the prompt as a labelled transcript
         # (same rendering the no-tools ClaudeSDKModel path uses) and append the
         # new turn. Without this the tool path silently lost a caller's context.
-        prompt = user_prompt
         if message_history:
             from .model import render_prompt
 
             history_text = render_prompt(message_history)
             if history_text:
-                prompt = f"{history_text}\n\nUser: {user_prompt}"
+                prompt = f"{history_text}\n\nUser: {prompt}"
 
         # Augment system prompt with JSON schema for structured output.
         if self._output_type is not str:
@@ -266,7 +275,7 @@ class _SdkToolAgentHandle:
                 schema=schema_json
             )
 
-        return prompt, system_prompt
+        return prompt, system_prompt, images
 
     def _build_options(self, system_prompt: str) -> ClaudeAgentOptions:
         """Build the ``ClaudeAgentOptions`` for the SDK call, wiring in the
@@ -335,7 +344,7 @@ class _SdkToolAgentHandle:
         )
 
     async def _invoke_query(
-        self, prompt: str, options: ClaudeAgentOptions
+        self, prompt: str | list[dict[str, Any]], options: ClaudeAgentOptions
     ) -> tuple[str, Any, str]:
         """Run the SDK streaming loop under the per-call wall-clock cap.
 
@@ -430,13 +439,21 @@ class _SdkToolAgentHandle:
             )
 
     async def _run(
-        self, user_prompt: str, message_history: list[Any] | None = None
+        self, user_prompt: str | list[Any], message_history: list[Any] | None = None
     ) -> _SdkToolResult:
         from ._usage import _best_usage_dict
         from .model import PROVIDER_NAME
 
-        prompt, system_prompt = self._prepare_prompt(user_prompt, message_history)
+        prompt, system_prompt, images = self._prepare_prompt(
+            user_prompt, message_history
+        )
         options = self._build_options(system_prompt)
+        if images:
+            log.info(
+                "%s: attaching %d image block(s) via streaming input",
+                self._name,
+                len(images),
+            )
         root_attrs = {
             GEN_AI_OPERATION_NAME: OP_INVOKE_AGENT,
             GEN_AI_PROVIDER_NAME: PROVIDER_NAME,
@@ -453,7 +470,11 @@ class _SdkToolAgentHandle:
                 self._sdk_model,
                 self._max_turns,
             )
-            text, result, reasoning = await self._invoke_query(prompt, options)
+            from .model import build_sdk_prompt
+
+            text, result, reasoning = await self._invoke_query(
+                build_sdk_prompt(prompt, images), options
+            )
             if root is not None:
                 root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
             self._record_generation_span(system_prompt, prompt, text, result, reasoning)

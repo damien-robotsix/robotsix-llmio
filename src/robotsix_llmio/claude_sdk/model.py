@@ -123,6 +123,106 @@ def _is_binary_part(item: Any) -> bool:
     return isinstance(getattr(item, "data", None), (bytes, bytearray))
 
 
+def _is_image_part(item: Any) -> bool:
+    """True for binary parts whose media type is an image the SDK can display."""
+    media_type = getattr(item, "media_type", "") or ""
+    return _is_binary_part(item) and media_type.startswith("image/")
+
+
+def extract_prompt_parts(user_prompt: Any) -> tuple[str, list[tuple[str, bytes]]]:
+    """Split a caller prompt into ``(text, images)``.
+
+    *user_prompt* may be a plain string, a bare content part, or a sequence of
+    parts (pydantic-ai style: ``list[str | BinaryContent]``).  Image parts are
+    returned as ``(media_type, raw_bytes)`` pairs for
+    :func:`build_sdk_prompt`; non-image binary parts degrade to the
+    :func:`_binary_placeholder` text.
+    """
+    if isinstance(user_prompt, str):
+        return user_prompt, []
+    if _is_image_part(user_prompt):
+        return "", [(user_prompt.media_type, bytes(user_prompt.data))]
+    if _is_binary_part(user_prompt):
+        return _binary_placeholder(user_prompt), []
+    if not isinstance(user_prompt, (list, tuple)):
+        return str(user_prompt), []
+    texts: list[str] = []
+    images: list[tuple[str, bytes]] = []
+    for item in user_prompt:
+        if isinstance(item, str):
+            texts.append(item)
+        elif _is_image_part(item):
+            images.append((item.media_type, bytes(item.data)))
+        elif _is_binary_part(item):
+            texts.append(_binary_placeholder(item))
+        else:
+            text = getattr(item, "text", None)
+            texts.append(text if isinstance(text, str) else str(item))
+    return "\n".join(texts), images
+
+
+def build_sdk_prompt(
+    text: str, images: list[tuple[str, bytes]]
+) -> str | list[dict[str, Any]]:
+    """Build the ``query()`` prompt: plain text, or streaming-input messages.
+
+    With no images the text passes through unchanged (the SDK's simple string
+    mode).  With images, returns a list of streaming-input message dicts — one
+    user message whose content carries the text plus one base64 ``image``
+    block per attachment, which the CLI accepts exactly like a pasted image.
+    A **list** (not an async generator) so retries can safely re-send it;
+    the stream layer wraps it in a fresh async iterator per attempt.
+    """
+    if not images:
+        return text
+    import base64
+
+    content: list[dict[str, Any]] = []
+    if text:
+        content.append({"type": "text", "text": text})
+    for media_type, data in images:
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": base64.b64encode(data).decode("ascii"),
+                },
+            }
+        )
+    return [{"type": "user", "message": {"role": "user", "content": content}}]
+
+
+def collect_latest_user_images(
+    messages: list[ModelMessage],
+) -> list[tuple[str, bytes]]:
+    """Image parts of the newest user turn, as ``(media_type, bytes)`` pairs.
+
+    Only the latest ``UserPromptPart`` matters: earlier turns are replayed as
+    text transcript (their images already degraded to placeholders when they
+    were current).
+    """
+    for message in reversed(messages):
+        if not isinstance(message, ModelRequest):
+            continue
+        for part in reversed(message.parts):
+            if isinstance(part, UserPromptPart):
+                content = part.content
+                if isinstance(content, str):
+                    return []
+                if _is_image_part(content):
+                    return [(content.media_type, bytes(content.data))]
+                if isinstance(content, (list, tuple)):
+                    return [
+                        (item.media_type, bytes(item.data))
+                        for item in content
+                        if _is_image_part(item)
+                    ]
+                return []
+    return []
+
+
 def _content_to_text(content: Any) -> str:
     """Flatten a pydantic-ai user/tool content (str or a list of parts) to text.
 
@@ -282,7 +382,7 @@ class ClaudeSDKModel(Model):
         return combined or None
 
     async def _invoke(
-        self, prompt: str, system_text: str | None
+        self, prompt: str | list[dict[str, Any]], system_text: str | None
     ) -> tuple[str, Any, str]:
         from claude_agent_sdk import (
             ClaudeAgentOptions,
@@ -329,7 +429,10 @@ class ClaudeSDKModel(Model):
         """
         self._reject_unsupported(model_request_parameters)
         system_text = self._system_text(messages, model_request_parameters)
-        prompt = render_prompt(messages)
+        # Images from the newest user turn ride along as native SDK image
+        # blocks (streaming-input mode); the transcript stays text.
+        images = collect_latest_user_images(messages)
+        prompt = build_sdk_prompt(render_prompt(messages), images)
         text, result, reasoning = await self._invoke(prompt, system_text)
         # Stamp the SDK's (estimated) cost onto the active span so the claude_sdk
         # provider logs cost in traces like the OpenRouter providers do.
