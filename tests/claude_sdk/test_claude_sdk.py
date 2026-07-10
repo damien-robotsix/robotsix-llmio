@@ -1640,7 +1640,7 @@ def test_prepare_prompt_multi_output_anyof_schema():
     from pydantic_ai import PromptedOutput
 
     handle = _make_minimal_handle(output_type=PromptedOutput([_Verdict, _AltVerdict]))
-    _, system_prompt = handle._prepare_prompt("hello", None)
+    _, system_prompt, _ = handle._prepare_prompt("hello", None)
     assert "anyOf" in system_prompt
 
 
@@ -1649,7 +1649,7 @@ def test_prepare_prompt_single_prompted_output_no_anyof():
     from pydantic_ai import PromptedOutput
 
     handle = _make_minimal_handle(output_type=PromptedOutput(_Verdict))
-    _, system_prompt = handle._prepare_prompt("hello", None)
+    _, system_prompt, _ = handle._prepare_prompt("hello", None)
     assert "anyOf" not in system_prompt
     assert "verdict" in system_prompt
 
@@ -1762,3 +1762,89 @@ def test_build_agent_tool_path_output_type_unaffected(monkeypatch):
     # The tool path stores output_type directly — no PromptedOutput wrap.
     assert handle._output_type is _Verdict  # type: ignore[attr-defined]
     handle.close()
+
+
+# --- native image support ---------------------------------------------------
+
+
+def test_extract_prompt_parts_splits_text_and_images():
+    from pydantic_ai.messages import BinaryContent
+
+    from robotsix_llmio.claude_sdk.model import extract_prompt_parts
+
+    image = BinaryContent(data=b"\x89PNG12345", media_type="image/png")
+    audio = BinaryContent(data=b"RIFF1234", media_type="audio/wav")
+    text, images = extract_prompt_parts(["describe this", image, audio])
+
+    assert "describe this" in text
+    # Non-image binary degrades to the placeholder, image is extracted.
+    assert "[binary attachment: audio/wav," in text
+    assert images == [("image/png", b"\x89PNG12345")]
+
+
+def test_extract_prompt_parts_plain_string_passthrough():
+    from robotsix_llmio.claude_sdk.model import extract_prompt_parts
+
+    assert extract_prompt_parts("just text") == ("just text", [])
+
+
+def test_build_sdk_prompt_without_images_is_text():
+    from robotsix_llmio.claude_sdk.model import build_sdk_prompt
+
+    assert build_sdk_prompt("hello", []) == "hello"
+
+
+def test_build_sdk_prompt_with_images_builds_streaming_input():
+    import base64
+
+    from robotsix_llmio.claude_sdk.model import build_sdk_prompt
+
+    raw = b"\x89PNGfake"
+    messages = build_sdk_prompt("look", [("image/png", raw)])
+
+    assert isinstance(messages, list) and len(messages) == 1
+    content = messages[0]["message"]["content"]
+    assert content[0] == {"type": "text", "text": "look"}
+    assert content[1]["type"] == "image"
+    assert content[1]["source"]["media_type"] == "image/png"
+    assert base64.b64decode(content[1]["source"]["data"]) == raw
+
+
+def test_tool_agent_prepare_prompt_extracts_images_no_byte_dump():
+    """Regression: the tool path stringified list prompts via an f-string,
+    ballooning an attached image into a multi-megabyte escaped-byte prompt."""
+    from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
+
+    image = BinaryContent(data=bytes(100_000), media_type="image/png")
+    handle = _SdkToolAgentHandle(
+        sdk_model="sonnet", system_prompt="sys", server=None, allowed_tools=[]
+    )
+    history = [ModelRequest(parts=[UserPromptPart(content="earlier turn")])]
+
+    prompt, _system, images = handle._prepare_prompt(["see image", image], history)
+
+    assert "earlier turn" in prompt
+    assert "see image" in prompt
+    assert len(prompt) < 1000  # no escaped-byte blow-up
+    assert images == [("image/png", bytes(100_000))]
+
+
+def test_collect_latest_user_images_only_newest_turn():
+    from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
+
+    from robotsix_llmio.claude_sdk.model import collect_latest_user_images
+
+    old_image = BinaryContent(data=b"old", media_type="image/png")
+    new_image = BinaryContent(data=b"new", media_type="image/jpeg")
+    msgs = [
+        ModelRequest(parts=[UserPromptPart(content=["first", old_image])]),
+        ModelRequest(parts=[UserPromptPart(content=["second", new_image])]),
+    ]
+
+    assert collect_latest_user_images(msgs) == [("image/jpeg", b"new")]
+    assert (
+        collect_latest_user_images(
+            [ModelRequest(parts=[UserPromptPart(content="text only")])]
+        )
+        == []
+    )
