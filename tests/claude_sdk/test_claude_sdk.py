@@ -108,6 +108,42 @@ def test_tool_return_part_rendered_as_user_text():
     assert "Tool result (lookup): 42" in render_prompt(msgs)
 
 
+def test_binary_content_rendered_as_placeholder_not_bytes():
+    """A BinaryContent part (e.g. an attached image) must flatten to a compact
+    placeholder — ``str()`` on it reprs the raw bytes, ballooning a megabyte
+    image into a multi-megabyte prompt that stalls the CLI subprocess."""
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(
+        data=b"\x89PNG" + bytes(range(256)) * 64, media_type="image/png"
+    )
+    msgs = [
+        ModelRequest(parts=[UserPromptPart(content=["look at this picture", image])])
+    ]
+
+    out = render_prompt(msgs)
+    assert "look at this picture" in out
+    assert "[binary attachment: image/png," in out
+    assert "not visible" in out
+    # The rendered prompt must stay small — no escaped-byte blow-up.
+    assert len(out) < 500
+    assert "\\x89" not in out
+
+
+def test_bare_binary_content_rendered_as_placeholder():
+    """A lone BinaryContent (not wrapped in a list) is also placeholdered."""
+    from pydantic_ai.messages import BinaryContent
+
+    image = BinaryContent(data=bytes(1024), media_type="image/jpeg")
+    msgs = [ModelRequest(parts=[UserPromptPart(content=[image])])]
+
+    out = render_prompt(msgs)
+    assert out == (
+        "[binary attachment: image/jpeg, 1024 bytes — "
+        "not visible to this text-only model]"
+    )
+
+
 # --- system prompt assembly ------------------------------------------------
 
 
