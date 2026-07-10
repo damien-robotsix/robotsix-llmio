@@ -101,15 +101,48 @@ class ClaudeSDKUsageExhaustedError(RobotsixLLMIOError):
     :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)."""
 
 
+def _binary_placeholder(item: Any) -> str:
+    """Compact stand-in for a binary content part (image/audio/document).
+
+    The SDK path is text-only, so binary payloads cannot reach the model —
+    but they must NEVER be stringified either: ``str()`` on a pydantic-ai
+    ``BinaryContent`` reprs the raw bytes (a 2 MB image becomes a ~6 MB
+    escaped-byte string), which stalls the CLI subprocess for the full
+    per-call wall-clock cap and hangs the caller.
+    """
+    media_type = getattr(item, "media_type", None) or "unknown type"
+    size = len(getattr(item, "data", b"") or b"")
+    return (
+        f"[binary attachment: {media_type}, {size} bytes — "
+        f"not visible to this text-only model]"
+    )
+
+
+def _is_binary_part(item: Any) -> bool:
+    """True for content parts carrying a raw-bytes payload (``BinaryContent``)."""
+    return isinstance(getattr(item, "data", None), (bytes, bytearray))
+
+
 def _content_to_text(content: Any) -> str:
-    """Flatten a pydantic-ai user/tool content (str or a list of parts) to text."""
+    """Flatten a pydantic-ai user/tool content (str or a list of parts) to text.
+
+    Binary parts are replaced with a short placeholder — see
+    :func:`_binary_placeholder` for why they must not be stringified.
+    """
     if isinstance(content, str):
         return content
+    if _is_binary_part(content):
+        return _binary_placeholder(content)
     if isinstance(content, (list, tuple)):
         out: list[str] = []
         for item in content:  # heterogeneous content parts
             text = getattr(item, "text", None)
-            out.append(text if isinstance(text, str) else str(item))
+            if isinstance(text, str):
+                out.append(text)
+            elif _is_binary_part(item):
+                out.append(_binary_placeholder(item))
+            else:
+                out.append(str(item))
         return "\n".join(out)
     return str(content)
 
