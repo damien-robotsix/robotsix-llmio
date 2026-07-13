@@ -1,1 +1,0 @@
-Fix docs/modules.yaml: restore config description and re-add dev-tooling entry

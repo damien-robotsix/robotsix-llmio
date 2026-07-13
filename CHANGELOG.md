@@ -7,6 +7,23 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 <!-- towncrier release notes start -->
 
+## 0.1.2 (2026-07-13)
+
+### Features
+
+- Native image support on the claude_sdk path: prompts carrying pydantic-ai `BinaryContent` image parts are now sent to the CLI via streaming-input mode as base64 `image` content blocks (both the no-tools model and the tool-agent path), so vision-capable Claude models actually see attachments. Also fixes the tool-agent path stringifying multimodal list prompts through an f-string (the image-hang bug persisted there). Non-image binaries still degrade to the compact placeholder. ([#claude-sdk-native-image-support](https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-native-image-support))
+- `claude_sdk._stream_query` now surfaces live tool-call, tool-result, thinking, and intermediate-text activity as `ClaudeSDKActivityEvent` objects — previously only logged at INFO level and otherwise discarded. Callers opt in with the new `activity_events(on_event)` context manager (exported from `robotsix_llmio.claude_sdk`), which applies to both the no-tools `ClaudeSDKModel` path and the SDK-tools `_SdkToolAgentHandle` path without any change to `build_agent()`/`run()` call sites. ([#20260707T084111Z-claude-sdk-activity-events](https://github.com/damien-robotsix/robotsix-llmio/issues/20260707T084111Z-claude-sdk-activity-events))
+
+### Bug Fixes
+
+- Fix Claude Agent SDK prompt flattening stringifying binary content parts: a pydantic-ai `BinaryContent` (e.g. an attached image) was rendered via `str()`, ballooning a 2 MB image into a ~6 MB escaped-byte prompt that stalled the CLI subprocess for the full per-call wall-clock cap (and was then retried). Binary parts now flatten to a compact `[binary attachment: <media type>, <n> bytes — not visible to this text-only model]` placeholder. ([#claude-sdk-binary-content-placeholder](https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-binary-content-placeholder))
+- Raise `SDK_QUERY_TIMEOUT` (the Claude Agent SDK per-call wall-clock cap) from 20 minutes to 1 hour. A genuine multi-turn tool loop tripped the old cap under host load, surfacing as a `ClaudeSDKQueryTimeout` and failing the turn even though the call was still making progress. Still well under the SDK's own ~2h backstop. ([#20260707T125132Z-raise-sdk-query-timeout-to-1h](https://github.com/damien-robotsix/robotsix-llmio/issues/20260707T125132Z-raise-sdk-query-timeout-to-1h))
+
+### Miscellaneous
+
+- [#20260709T003851Z-fix-docs-modules-yaml-restore-config-des-2fc4](https://github.com/damien-robotsix/robotsix-llmio/issues/20260709T003851Z-fix-docs-modules-yaml-restore-config-des-2fc4), [#20260706T093924Z-deactivate-all-periodic-mill-workflows-k-cb45](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T093924Z-deactivate-all-periodic-mill-workflows-k-cb45), [#20260706T093945Z-deactivate-all-periodic-mill-workflows-k-be5b](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T093945Z-deactivate-all-periodic-mill-workflows-k-be5b), [#20260706T112203Z-ci-failure-ci-on-main-df39](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T112203Z-ci-failure-ci-on-main-df39), [#20260706T143435Z-robotsix-llmio-enable-core-periodic-work-c3e5](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T143435Z-robotsix-llmio-enable-core-periodic-work-c3e5), [#20260706T154921Z-boilerplate-doc-classifier-internal-only-4eb1](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-doc-classifier-internal-only-4eb1), [#20260706T154921Z-boilerplate-triage-skip-for-mechanical-i-b4a0](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-triage-skip-for-mechanical-i-b4a0), [#20260706T154921Z-boilerplate-triage-skip-mechanical-draft-b4a0](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-triage-skip-mechanical-draft-b4a0), [#20260706T160801Z-extract-shared-markers-tuple-to-eliminat-c908](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T160801Z-extract-shared-markers-tuple-to-eliminat-c908), [#20260704T204244Z-consolidate-modules-refdocs-knowledge-se-7742](https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204244Z-consolidate-modules-refdocs-knowledge-se-7742), [#20260706T232513Z-clean-up-orphaned-changelog-d-newsfragme-5225](https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T232513Z-clean-up-orphaned-changelog-d-newsfragme-5225)
+
+
 ## 0.1.1 (2026-07-06)
 
 ### Bug Fixes
