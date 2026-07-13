@@ -22,7 +22,7 @@ repos:
       - id: ruff
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
+    rev: v2.3.0
     hooks:
       - id: mypy
         # Check src/ as one unit: passing changed filenames alongside the
