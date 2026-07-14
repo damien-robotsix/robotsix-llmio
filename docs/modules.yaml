@@ -66,9 +66,7 @@ modules:
       three sub-modules.
     paths:
       - src/robotsix_llmio/clients/**
-      - src/robotsix_llmio/knowledge/**
       - src/robotsix_llmio/refdocs/**
-      - src/robotsix_llmio/self_review/**
       - tests/clients/**
       - docs/clients/**
       - docs/reference/refdocs.md
