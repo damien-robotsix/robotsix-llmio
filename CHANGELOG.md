@@ -50,6 +50,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Enable `bc_check` and `test_gap` periodic agents via minimal presence files under `.robotsix-mill/periodic/`.
 - Fix `docs/modules.yaml`: restore `config` entry to its consumer-facing scope
   (TierConfig schema, loader, create_model factory) and re-add the `dev-tooling`
   module for repo tooling/config files that were incorrectly merged into `config`.
