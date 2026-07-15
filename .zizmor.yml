@@ -13,4 +13,3 @@ rules:
     ignore:
       - ci.yml
       - lint-workflows.yml
-      - release.yml
