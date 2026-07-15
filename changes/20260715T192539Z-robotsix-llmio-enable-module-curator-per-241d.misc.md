@@ -1,0 +1,1 @@
+robotsix-llmio: Enable module_curator periodic workflow
