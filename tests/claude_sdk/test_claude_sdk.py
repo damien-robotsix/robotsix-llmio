@@ -831,9 +831,9 @@ def test_tool_definition_mapping_from_plain_callable(monkeypatch):
     assert reg["schema"]["properties"]["name"]["type"] == "string"
 
 
-def test_takes_ctx_tool_raises_user_error_at_build_time(monkeypatch):
-    """A tool with ``takes_ctx=True`` raises ``UserError`` at conversion time,
-    not at invocation time — matching ``_reject_unsupported`` fail-fast."""
+def test_required_ctx_tool_raises_user_error_at_build_time(monkeypatch):
+    """A tool whose ctx parameter has NO default raises ``UserError`` at
+    conversion time — the Claude SDK cannot supply a RunContext."""
     _install_fake_sdk(monkeypatch)
 
     def _ctx_tool(ctx: RunContext, x: int) -> str:
@@ -841,8 +841,48 @@ def test_takes_ctx_tool_raises_user_error_at_build_time(monkeypatch):
 
     ctx_tool = PydanticTool(_ctx_tool, takes_ctx=True)
 
-    with pytest.raises(UserError, match=r"takes_ctx|RunContext"):
+    with pytest.raises(UserError, match=r"required.*RunContext|no default"):
         _convert_tools([ctx_tool])
+
+
+def test_optional_ctx_tool_converts_successfully(monkeypatch):
+    """A tool whose ctx parameter has a default (e.g. None) converts without
+    raising — the function is called without ctx, letting the default apply."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    def _opt_ctx_tool(
+        ctx: RunContext[None] = None, *, path: str, offset: int = 1
+    ) -> str:
+        """Read a file at *path* starting from *offset*."""
+        return f"{path}:{offset}"
+
+    ctx_tool = PydanticTool(_opt_ctx_tool, takes_ctx=True)
+
+    _convert_tools([ctx_tool])
+
+    assert len(fake._tool_regs) == 1
+    reg = fake._tool_regs[0]
+    assert reg["name"] == "_opt_ctx_tool"
+    assert "Read a file" in (reg["description"] or "")
+    assert reg["schema"]["type"] == "object"
+    # The ctx parameter must not appear in the tool schema.
+    assert "ctx" not in reg["schema"]["properties"]
+    assert "path" in reg["schema"]["properties"]
+    assert "offset" in reg["schema"]["properties"]
+
+
+def test_required_ctx_no_default_still_raises(monkeypatch):
+    """A tool with ctx parameter lacking a default still raises the descriptive
+    UserError — only optional-ctx tools are accepted."""
+    _install_fake_sdk(monkeypatch)
+
+    def _required_ctx(ctx: RunContext[int], x: int) -> str:
+        return str(ctx.deps + x)
+
+    tool = PydanticTool(_required_ctx, takes_ctx=True)
+
+    with pytest.raises(UserError, match=r"required.*RunContext|no default"):
+        _convert_tools([tool])
 
 
 # ---------------------------------------------------------------------------
