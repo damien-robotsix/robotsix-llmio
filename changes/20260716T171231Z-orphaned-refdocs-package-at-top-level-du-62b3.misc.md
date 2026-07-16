@@ -1,0 +1,1 @@
+Orphaned `refdocs/` package at top-level — duplicate of `clients/refdocs/` that is never wired into the public API

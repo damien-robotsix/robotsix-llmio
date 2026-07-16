@@ -50,6 +50,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Removed the orphaned `src/robotsix_llmio/refdocs/` package (5 files), which was superseded by `src/robotsix_llmio/clients/refdocs/` and had no remaining callers or tests. Also removed the now-unreferenced `_get_json` helper from `core/_rest_client.py`.
 - Claude SDK provider now accepts tools whose ctx parameter has a default
   value (e.g. `ctx: RunContext[None] = None`): the function is invoked without
   ctx, letting the default apply. Only tools with a *required* ctx (no
