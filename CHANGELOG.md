@@ -50,6 +50,10 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Claude SDK provider now accepts tools whose ctx parameter has a default
+  value (e.g. `ctx: RunContext[None] = None`): the function is invoked without
+  ctx, letting the default apply. Only tools with a *required* ctx (no
+  default) still raise `UserError` at build time.
 - Add `module_curator` periodic agent to keep `docs/modules.yaml` synchronized with the live directory tree.
 - Remove orphaned `robotsix_llmio.knowledge` and `robotsix_llmio.self_review` backward-compatibility packages (dead code — all consumers use `robotsix_llmio.clients.knowledge` and `robotsix_llmio.clients.self_review`).
 - Enable `bc_check` and `test_gap` periodic agents via minimal presence files under `.robotsix-mill/periodic/`.

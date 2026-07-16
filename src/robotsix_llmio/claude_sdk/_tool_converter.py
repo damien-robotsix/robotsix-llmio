@@ -5,6 +5,7 @@ Pure transformation with no references to agent state.
 
 from __future__ import annotations
 
+import inspect
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -57,13 +58,24 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
             t = pydantic_ai.Tool(t)
 
         if t.takes_ctx:
-            raise UserError(
-                f"ClaudeSDKModel does not support tools that take a RunContext "
-                f"(tool {t.name!r} has takes_ctx=True): the Claude Agent SDK "
-                f"invokes tools with only their JSON arguments, so no run "
-                f"context can be supplied. Rewrite the tool to take plain "
-                f"arguments only."
-            )
+            sig = inspect.signature(t.function_schema.function)
+            ctx_param = sig.parameters.get("ctx")
+            if (
+                ctx_param is not None
+                and ctx_param.default is not inspect.Parameter.empty
+            ):
+                # Optional ctx — the function will be called without ctx,
+                # letting the default value apply (e.g. ctx=None).
+                pass
+            else:
+                raise UserError(
+                    f"ClaudeSDKModel does not support tools that take a required "
+                    f"RunContext (tool {t.name!r} has takes_ctx=True with no default "
+                    f"for ctx): the Claude Agent SDK invokes tools with only their "
+                    f"JSON arguments, so no run context can be supplied. Rewrite the "
+                    f"tool to accept an optional ctx parameter (e.g. "
+                    f"ctx: RunContext[None] = None) or to take plain arguments only."
+                )
 
         name: str = t.name
         # The SDK's @tool wants a str description; pydantic-ai's may be None.
