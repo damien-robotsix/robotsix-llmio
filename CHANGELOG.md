@@ -50,6 +50,9 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Ignore CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in `uv audit` — the vulnerable
+  `mcp==1.27.2` is a transitive dependency via `claude-agent-sdk` with no
+  upstream fix yet available.
 - Removed the orphaned `src/robotsix_llmio/refdocs/` package (5 files), which was superseded by `src/robotsix_llmio/clients/refdocs/` and had no remaining callers or tests. Also removed the now-unreferenced `_get_json` helper from `core/_rest_client.py`.
 - Claude SDK provider now accepts tools whose ctx parameter has a default
   value (e.g. `ctx: RunContext[None] = None`): the function is invoked without

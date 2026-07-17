@@ -72,6 +72,13 @@ default-groups = ["dev"]
 [tool.uv.sources]
 robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
 
+[tool.uv.audit]
+# CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in mcp 1.27.2, transitively pulled
+# via claude-agent-sdk.  No fix is available in the claude-agent-sdk
+# dependency tree yet — ignore the advisory until the upstream chain
+# updates.
+ignore = ["GHSA-vj7q-gjh5-988w"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
 
