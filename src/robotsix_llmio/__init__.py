@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         get_provider_for_level,
     )
     from .core.langfuse_client import LangfuseClientError
+    from .logging import setup_logging
     from .openrouter import OpenRouterAPIError
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "build_refdocs_tools",
     "default_tier_config",
     "get_provider_for_level",
+    "setup_logging",
 ]
 
 
@@ -97,4 +99,8 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from .clients import self_review
 
         return getattr(self_review, name)
+    if name == "setup_logging":
+        from .logging import setup_logging
+
+        return setup_logging
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
