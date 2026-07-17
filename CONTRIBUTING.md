@@ -108,6 +108,13 @@ uv audit                      # dependency vulnerability audit
 `ruff format --check .` mirrors what the `ruff-format` pre-commit hook enforces;
 it reports formatting issues without modifying files.
 
+CI also runs `pip-audit` (via the shared `security` job in
+`.github/workflows/ci.yml`) in addition to `uv audit`. When a dependency
+vulnerability needs to be ignored, you must update **both** ignore
+mechanisms — `[tool.uv.audit].ignore` in `pyproject.toml` and
+`pip-audit-ignore-vulns` in `.github/workflows/ci.yml` — so that the
+two scans stay in sync.
+
 ## 5. Code style
 
 - **Line length**: 88 characters — `ruff format` enforces this (matches

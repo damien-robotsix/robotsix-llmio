@@ -50,6 +50,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Document the dual CVE-ignore mechanism in AGENT.md and CONTRIBUTING.md — when adding a vulnerability ignore, both `[tool.uv.audit].ignore` in `pyproject.toml` and `pip-audit-ignore-vulns` in `ci.yml` must be updated.
 - Ignore CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in `uv audit` — the vulnerable
   `mcp==1.27.2` is a transitive dependency via `claude-agent-sdk` with no
   upstream fix yet available.
