@@ -1,0 +1,1 @@
+Remove security_posture from periodic agent opt-ins
