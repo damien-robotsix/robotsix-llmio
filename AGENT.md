@@ -24,4 +24,8 @@ See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/
 
 ## CI / workflows
 
+**Rule:** When adding a CVE ignore entry for a dependency vulnerability, update **both** ignore mechanisms: `[tool.uv.audit].ignore` in `pyproject.toml` (for the local `audit` job) **and** `pip-audit-ignore-vulns` in `.github/workflows/ci.yml`'s `security` job (for the shared `pip-audit` scan). CONTRIBUTING.md §4 documents this — keep it in sync.
+
+**Rationale:** Two CI-fix tickets exhibited single-tool-only fixes because CONTRIBUTING.md documented only `uv audit` while CI runs both `uv audit` and `pip-audit` with separate ignore configs.
+
 See [repo-baseline.md — CI gates](https://github.com/damien-robotsix/robotsix-standards/blob/main/repo-baseline.md) for the required-artifact `if: always()` rule.
