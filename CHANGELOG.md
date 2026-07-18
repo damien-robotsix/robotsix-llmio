@@ -50,6 +50,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Enable `health` periodic agent for broad codebase health scanning across all eight dimensions.
 - Enable periodic `audit` agent for broad-spectrum codebase health assessment.
 - Remove `security_posture` periodic agent opt-in (policy enforcement now lives in robotsix-standards audit)
 - Document the dual CVE-ignore mechanism in AGENT.md and CONTRIBUTING.md — when adding a vulnerability ignore, both `[tool.uv.audit].ignore` in `pyproject.toml` and `pip-audit-ignore-vulns` in `ci.yml` must be updated.
