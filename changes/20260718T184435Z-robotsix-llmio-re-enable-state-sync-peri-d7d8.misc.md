@@ -1,0 +1,1 @@
+robotsix-llmio: Re-enable state_sync periodic workflow (regression — file still missing after closed ticket)
