@@ -104,6 +104,7 @@ class LLMProvider(ABC):
             Capability level (1, 2, 3, or 4) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``
             call" — providers should apply a safe default.
+
         """
         raise NotImplementedError
 
@@ -179,12 +180,18 @@ class LLMProvider(ABC):
         retries:
             Maximum retry attempts for the underlying pydantic-ai agent
             (default ``2``).
+        builtin_tools:
+            When ``True`` (default), allows the provider to expose its
+            built-in toolset (only honored by the claude-sdk provider).
+            Set ``False`` to restrict the agent to only the explicitly
+            provided *tools*.
 
         Returns
         -------
         AgentHandle
             A ready-to-run agent handle wrapping a pydantic-ai ``Agent``
             and its ``httpx`` client.  Call ``.close()`` when done.
+
         """
         resolved_output_type = _resolve_output_type(output_type, level)
 

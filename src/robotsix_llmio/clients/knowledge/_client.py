@@ -28,6 +28,7 @@ class KnowledgeClient(BaseHttpClient):
         Root URL of the knowledge-store API (e.g. ``http://knowledge:8000/api/v1``).
     api_key:
         Optional bearer token sent as ``Authorization: Bearer <api_key>``.
+
     """
 
     # ------------------------------------------------------------------ #
@@ -73,6 +74,7 @@ class KnowledgeClient(BaseHttpClient):
         list[dict]
             A list of result dicts, each with keys ``id``, ``title``,
             ``snippet``, and ``score``. An empty list means no matches.
+
         """
         params: dict[str, str | int] = {"q": query, "top_k": top_k}
         data = await self._get("/search", params=params)
@@ -97,6 +99,7 @@ class KnowledgeClient(BaseHttpClient):
         ------
         KnowledgeClientError
             If the document is not found (HTTP 404) or the request fails.
+
         """
         return await self._get(f"/documents/{doc_id}")
 

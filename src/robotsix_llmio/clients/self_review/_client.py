@@ -28,6 +28,7 @@ class SelfReviewClient(BaseHttpClient):
         Root URL of the self-review API (e.g. ``http://self-review:8000/api/v1``).
     api_key:
         Optional bearer token sent as ``Authorization: Bearer <api_key>``.
+
     """
 
     # ------------------------------------------------------------------ #
@@ -72,6 +73,7 @@ class SelfReviewClient(BaseHttpClient):
             A list of activity dicts, each with keys ``id``, ``agent``,
             ``action``, ``summary``, and ``timestamp``. An empty list
             means no recent activity.
+
         """
         params: dict[str, str | int] = {"limit": limit}
         data = await self._get("/activity", params=params)
@@ -96,6 +98,7 @@ class SelfReviewClient(BaseHttpClient):
         ------
         SelfReviewClientError
             If the activity is not found (HTTP 404) or the request fails.
+
         """
         return await self._get(f"/activity/{activity_id}")
 
@@ -129,6 +132,7 @@ def build_recent_activity_tools(
     conversation_store:
         Reserved for future use (e.g. cross-referencing activity against
         conversation history). Currently accepted but unused.
+
     """
 
     async def list_recent_activity(limit: int = 10) -> str:

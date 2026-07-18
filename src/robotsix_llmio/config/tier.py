@@ -175,6 +175,7 @@ class TierConfig(BaseModel):
 
         Raises:
             ValueError: If *level* is not 1, 2, 3, or 4.
+
         """
         if level == 1:
             return self.level1

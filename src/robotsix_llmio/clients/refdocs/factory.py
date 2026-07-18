@@ -25,6 +25,7 @@ def build_refdocs_tools(settings: RefdocsSettings) -> list[Any]:
     -------
     list of pydantic_ai.Tool
         Tools ready to pass to a pydantic-ai ``Agent`` via ``tools=``.
+
     """
     import pydantic_ai
 

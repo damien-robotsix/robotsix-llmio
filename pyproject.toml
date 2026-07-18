@@ -183,7 +183,7 @@ select = [
 
 # S101: pytest tests assert by design. S106: hard-coded dummy credentials
 # are test fixtures, not secrets.
-"tests/**/*.py" = ["S101", "S106"]
+"tests/**/*.py" = ["S101", "S106", "D103"]
 
 [tool.mypy]
 python_version = "3.14"
