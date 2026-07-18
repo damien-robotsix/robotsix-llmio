@@ -76,27 +76,24 @@ def load_tier_config(
     3. **Explicit dict** (*config_dict*) — highest precedence; merged per-tier
        so the caller can override individual fields.
 
-    Parameters
-    ----------
-    config_dict:
-        Optional dictionary whose keys are tier names (``"level1"``,
-        ``"level2"``, ``"level3"``, ``"level4"``) and values are dicts of
-        ``TierLevelConfig`` fields.  When ``None``, only environment
-        variables and baked defaults are used.
-    env_prefix:
-        Prefix for environment variable names.  Defaults to ``"LLMIO_"``.
+    Args:
+        config_dict: Optional dictionary whose keys are tier names
+            (``"level1"``, ``"level2"``, ``"level3"``, ``"level4"``) and
+            values are dicts of ``TierLevelConfig`` fields.  When
+            ``None``, only environment variables and baked defaults are
+            used.
+        env_prefix: Prefix for environment variable names.  Defaults to
+            ``"LLMIO_"``.
 
-    Returns
-    -------
-    TierConfig
-        A fully-validated four-tier configuration.
+    Returns:
+        TierConfig: A fully-validated four-tier configuration.
 
-    Raises
-    ------
-    TierConfigLoadError
-        If a ``*_PROVIDER_KWARGS`` environment variable contains invalid
-        JSON, or if the merged configuration fails pydantic validation
-        (e.g. an unknown provider prefix in a supplied ``model``).
+    Raises:
+        TierConfigLoadError: If a ``*_PROVIDER_KWARGS`` environment
+            variable contains invalid JSON, or if the merged
+            configuration fails pydantic validation (e.g. an unknown
+            provider prefix in a supplied ``model``).
+
     """
     # ---- 1.  Read environment variables -----------------------------------
     env_nested = _read_env_vars(env_prefix)

@@ -39,6 +39,7 @@ def html_to_text(html_text: str) -> str:
 
     Returns:
         The whitespace-collapsed plaintext rendering of ``html_text``.
+
     """
     text = _DROP_BLOCKS.sub(" ", html_text)
     text = _TAG.sub(" ", text)

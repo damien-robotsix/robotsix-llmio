@@ -1,0 +1,1 @@
+Standardize docstrings to Google-style for mkdocstrings compatibility

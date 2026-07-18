@@ -58,6 +58,7 @@ class OTelTraceFilter(logging.Filter):
 
         Returns:
             Always ``True`` so the record is never dropped.
+
         """
         span = get_recording_span()
         if span is not None:
@@ -79,6 +80,7 @@ class _JsonFormatter(logging.Formatter):
 
         Returns:
             A JSON string parseable by :func:`json.loads`.
+
         """
         payload: dict[str, object] = {
             "timestamp": self.formatTime(record),
@@ -103,6 +105,7 @@ def _resolve_level(level: int | str | None) -> int:
 
     Returns:
         The resolved numeric logging level.
+
     """
     resolved: int | str = (
         level if level is not None else os.environ.get(_ENV_LOG_LEVEL, "INFO")
@@ -124,6 +127,7 @@ def _resolve_formatter(fmt: str | None) -> logging.Formatter:
 
     Returns:
         The resolved :class:`logging.Formatter`.
+
     """
     name = fmt if fmt is not None else os.environ.get(_ENV_LOG_FORMAT, "console")
     if name.lower() == "json":
@@ -156,6 +160,7 @@ def setup_logging(
 
     Returns:
         ``None``.
+
     """
     resolved_level = _resolve_level(level)
     formatter = _resolve_formatter(fmt)

@@ -27,6 +27,7 @@ class RefdocsSettings:
         ``Authorization`` header.
     request_timeout:
         Per-request timeout in seconds. Defaults to ``30.0``.
+
     """
 
     base_url: str = field(default=_DEFAULT_BASE_URL)

@@ -64,28 +64,21 @@ def get_provider_for_identifier(identifier: str, **kwargs: Any) -> LLMProvider:
     backend is lazy-imported.  ``**kwargs`` are forwarded to the provider
     constructor.
 
-    Parameters
-    ----------
-    identifier:
-        Combined provider-model identifier — e.g.
-        ``"claudeSDK-opus"`` or
-        ``"openrouter-deepseek/deepseek-v4-flash"``.
-    **kwargs:
-        Forwarded to the resolved provider class constructor.
+    Args:
+        identifier: Combined provider-model identifier — e.g.
+            ``"claudeSDK-opus"`` or
+            ``"openrouter-deepseek/deepseek-v4-flash"``.
+        **kwargs: Forwarded to the resolved provider class constructor.
 
-    Returns
-    -------
-    LLMProvider
-        A fully-instantiated provider.
+    Returns:
+        LLMProvider: A fully-instantiated provider.
 
-    Raises
-    ------
-    MalformedIdentifierError
-        If *identifier* cannot be parsed.
-    ValueError
-        If the parsed provider prefix is not in :data:`_PROVIDER_PREFIX_MAP`.
-    ImportError
-        If the provider's optional extra is not installed.
+    Raises:
+        MalformedIdentifierError: If *identifier* cannot be parsed.
+        ValueError: If the parsed provider prefix is not in
+            :data:`_PROVIDER_PREFIX_MAP`.
+        ImportError: If the provider's optional extra is not installed.
+
     """
     from .identifier import parse_model_identifier
 
@@ -132,10 +125,10 @@ def default_tier_config() -> TierConfig:
     default singletons, so each call returns a fresh config whose slots
     do not alias the singletons or each other.
 
-    Returns
-    -------
-    TierConfig
-        A config whose four slots hold fresh copies of the baked defaults.
+    Returns:
+        TierConfig: A config whose four slots hold fresh copies of the
+            baked defaults.
+
     """
     from robotsix_llmio.config.tier import TierConfig
 
@@ -157,34 +150,30 @@ def get_provider_for_level(
     ``provider_kwargs`` are merged with ``**kwargs`` (caller ``**kwargs``
     win on conflict) and forwarded to the provider constructor.
 
-    Parameters
-    ----------
-    level:
-        Capability level — ``1`` (cheap), ``2`` (intermediate), ``3``
-        (high-level planning), or ``4`` (frontier).
-    tier_config:
-        Per-level *(provider, model)* binding to resolve against.  When
-        ``None``, the baked defaults from :func:`default_tier_config` are
-        used.
-    **kwargs:
-        Forwarded to the resolved provider class constructor, merged over
-        the tier level's ``provider_kwargs`` (caller values win).
+    Args:
+        level: Capability level — ``1`` (cheap), ``2`` (intermediate),
+            ``3`` (high-level planning), or ``4`` (frontier).
+        tier_config: Per-level *(provider, model)* binding to resolve
+            against.  When ``None``, the baked defaults from
+            :func:`default_tier_config` are used.
+        **kwargs: Forwarded to the resolved provider class constructor,
+            merged over the tier level's ``provider_kwargs`` (caller
+            values win).
 
-    Returns
-    -------
-    LLMProvider
-        A fully-instantiated provider for the level's bound backend.
+    Returns:
+        LLMProvider: A fully-instantiated provider for the level's bound
+            backend.
 
-    Raises
-    ------
-    ValueError
-        If *level* is not 1, 2, 3, or 4 (via :meth:`TierConfig.for_level`),
-        or if the level's identifier names an unknown provider prefix.
-    MalformedIdentifierError
-        If the level's identifier cannot be parsed.
-    ImportError
-        If the resolved provider's optional extra is not installed
-        (e.g. ``claude_sdk`` for ``level=3`` or ``level=4``).
+    Raises:
+        ValueError: If *level* is not 1, 2, 3, or 4 (via
+            :meth:`TierConfig.for_level`), or if the level's identifier
+            names an unknown provider prefix.
+        MalformedIdentifierError: If the level's identifier cannot be
+            parsed.
+        ImportError: If the resolved provider's optional extra is not
+            installed (e.g. ``claude_sdk`` for ``level=3`` or
+            ``level=4``).
+
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
     return get_provider_for_identifier(tlc.model, **{**tlc.provider_kwargs, **kwargs})
@@ -219,43 +208,38 @@ def build_agent_for_level(
     ``build_agent_for_level(4, system_prompt=..., name=...)`` for a
     Claude-Fable-5 frontier agent.
 
-    Parameters
-    ----------
-    level:
-        Capability level — ``1`` (cheap), ``2`` (intermediate), ``3``
-        (high-level planning), or ``4`` (frontier).
-    tier_config:
-        Per-level *(provider, model)* binding to resolve against.  When
-        ``None``, the baked defaults from :func:`default_tier_config` are
-        used (i.e. omitting everything uses the baked defaults).
-    model:
-        Optional **bare** model-name override.  It overrides *only* the
-        model name; the provider stays the one bound to *level*.  When
-        ``None`` (default), the level's baked model name is used.
-    provider_kwargs:
-        Keyword arguments for the provider constructor.  When ``None``,
-        the level's ``provider_kwargs`` are used.
-    **build_kwargs:
-        Forwarded verbatim to ``provider.build_agent`` (e.g.
-        ``system_prompt``, ``tools``, ``output_type``, ``name``,
-        ``retries``, ``builtin_tools``).
+    Args:
+        level: Capability level — ``1`` (cheap), ``2`` (intermediate),
+            ``3`` (high-level planning), or ``4`` (frontier).
+        tier_config: Per-level *(provider, model)* binding to resolve
+            against.  When ``None``, the baked defaults from
+            :func:`default_tier_config` are used (i.e. omitting
+            everything uses the baked defaults).
+        model: Optional **bare** model-name override.  It overrides
+            *only* the model name; the provider stays the one bound to
+            *level*.  When ``None`` (default), the level's baked model
+            name is used.
+        provider_kwargs: Keyword arguments for the provider constructor.
+            When ``None``, the level's ``provider_kwargs`` are used.
+        **build_kwargs: Forwarded verbatim to ``provider.build_agent``
+            (e.g. ``system_prompt``, ``tools``, ``output_type``,
+            ``name``, ``retries``, ``builtin_tools``).
 
-    Returns
-    -------
-    AgentHandle
-        A ready-to-run agent handle.  Call ``.close()`` when done.
+    Returns:
+        AgentHandle: A ready-to-run agent handle.  Call ``.close()``
+            when done.
 
-    Raises
-    ------
-    ValueError
-        If *level* is not 1, 2, 3, or 4 (via :meth:`TierConfig.for_level`),
-        or if the level's identifier names an unknown provider prefix.
-    MalformedIdentifierError
-        If the level's identifier cannot be parsed.
-    ImportError
-        If the resolved provider's optional extra is not installed
-        (``build_agent_for_level(3)`` and ``build_agent_for_level(4)``
-        require the ``claude_sdk`` extra).
+    Raises:
+        ValueError: If *level* is not 1, 2, 3, or 4 (via
+            :meth:`TierConfig.for_level`), or if the level's identifier
+            names an unknown provider prefix.
+        MalformedIdentifierError: If the level's identifier cannot be
+            parsed.
+        ImportError: If the resolved provider's optional extra is not
+            installed (``build_agent_for_level(3)`` and
+            ``build_agent_for_level(4)`` require the ``claude_sdk``
+            extra).
+
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
     kwargs = provider_kwargs if provider_kwargs is not None else tlc.provider_kwargs

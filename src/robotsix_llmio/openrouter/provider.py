@@ -45,6 +45,7 @@ class OpenRouterProvider(LLMProvider):
             base_url: OpenRouter-compatible REST endpoint. Defaults to the
                 public OpenRouter API; pass a custom value to route requests
                 through a proxy or mirror.
+
         """
         self._api_key = api_key or os.environ.get(_ENV_OPENROUTER_API_KEY, "")
         if not self._api_key:
@@ -78,17 +79,16 @@ class OpenRouterProvider(LLMProvider):
     ) -> tuple[Any, Any]:
         """Build a model, returning ``(model, http_client)``.
 
-        Parameters
-        ----------
-        model:
-            The concrete model name (e.g. ``"deepseek/deepseek-v4-flash"``).
-        level:
-            Capability level (1, 2, 3) forwarded to
-            :meth:`_post_build_model` for per-level policy hooks.  ``0``
-            means unknown / direct ``new_model()`` call.
+        Args:
+            model: The concrete model name (e.g.
+                ``"deepseek/deepseek-v4-flash"``).
+            level: Capability level (1, 2, 3) forwarded to
+                :meth:`_post_build_model` for per-level policy hooks.
+                ``0`` means unknown / direct ``new_model()`` call.
 
         The returned ``http_client`` is the timeout-configured client backing
         the model; the caller owns closing it.
+
         """
         from pydantic_ai.providers.openrouter import (
             OpenRouterProvider as _PydOpenRouterProvider,

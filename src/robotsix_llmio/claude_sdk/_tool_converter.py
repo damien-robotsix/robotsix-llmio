@@ -34,6 +34,7 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         ``(allowed_tools, mcp_server)`` — the *allowed_tools* entries
         (``"mcp__milltools__<name>"``) and the MCP server object to pass
         to ``ClaudeAgentOptions.mcp_servers``.
+
     """
     import pydantic_ai
 

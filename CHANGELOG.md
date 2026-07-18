@@ -50,6 +50,8 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Convert all NumPy-style docstrings (``Parameters``/``Returns``/``Raises`` sections) to Google-style (``Args:``/``Returns:``/``Raises:``) for correct rendering by mkdocstrings' default parser
+  Add ruff pydocstyle rules (D100, D101, D103, D400, D412, D413, D414, D417) to enforce consistent docstring formatting
 - Enable `health` periodic agent for broad codebase health scanning across all eight dimensions.
 - Enable `survey` periodic workflow — creates `.robotsix-mill/periodic/survey.yaml` name-only stub so robotsix-mill's built-in survey agent discovers this repo.
 - Enable periodic `audit` agent for broad-spectrum codebase health assessment.
