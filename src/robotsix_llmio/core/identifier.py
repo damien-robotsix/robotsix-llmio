@@ -23,15 +23,13 @@ class MalformedIdentifierError(RobotsixLLMIOError):
 class ParsedIdentifier(NamedTuple):
     """Result of :func:`parse_model_identifier`.
 
-    Attributes
-    ----------
-    provider:
-        The provider prefix before the first hyphen (e.g. ``"claudeSDK"``
-        or ``"openrouter"``).
-    model_name:
-        Everything after the first hyphen — the concrete model name fed to
-        the backend.  May contain hyphens and slashes (e.g.
-        ``"deepseek/deepseek-v4-flash"``).
+    Attributes:
+        provider: The provider prefix before the first hyphen (e.g.
+            ``"claudeSDK"`` or ``"openrouter"``).
+        model_name: Everything after the first hyphen — the concrete model
+            name fed to the backend.  May contain hyphens and slashes
+            (e.g. ``"deepseek/deepseek-v4-flash"``).
+
     """
 
     provider: str
@@ -49,22 +47,19 @@ def parse_model_identifier(identifier: str) -> ParsedIdentifier:
     ``<model-name>`` is everything after it (the model name may itself
     contain hyphens and slashes).
 
-    Parameters
-    ----------
-    identifier:
-        The combined identifier string — e.g. ``"claudeSDK-opus"`` or
-        ``"openrouter-deepseek/deepseek-v4-flash"``.
+    Args:
+        identifier: The combined identifier string — e.g.
+            ``"claudeSDK-opus"`` or
+            ``"openrouter-deepseek/deepseek-v4-flash"``.
 
-    Returns
-    -------
-    ParsedIdentifier
-        Parsed components.
+    Returns:
+        ParsedIdentifier: Parsed components.
 
-    Raises
-    ------
-    MalformedIdentifierError
-        If the identifier has no hyphen-delimited model part, or an empty
-        provider or model name.
+    Raises:
+        MalformedIdentifierError: If the identifier has no
+            hyphen-delimited model part, or an empty provider or model
+            name.
+
     """
     provider, sep, model_name = identifier.partition("-")
     if not sep:

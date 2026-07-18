@@ -32,37 +32,31 @@ def create_model(
     on the tier config — the identifier's prefix drives lazy backend import
     via :func:`~robotsix_llmio.core.factory.get_provider_for_identifier`.
 
-    Parameters
-    ----------
-    level:
-        Capability level (1, 2, 3, or 4).  Level 1 selects the cheap/fast
-        model; levels 2-4 select progressively more capable defaults (level
-        4 is the frontier tier, ``claudeSDK-claude-fable-5`` by default).
-    tier_config:
-        Optional :class:`~.tier.TierConfig` to resolve the provider + model.
-        When ``None``, a default ``TierConfig()`` is built; its ``default_factory``
-        lambdas produce independent deep copies of the baked defaults.
-    **provider_kwargs:
-        Forwarded to the provider constructor (e.g. ``api_key=...`` for the
-        OpenRouter provider).  These override any ``provider_kwargs`` from
-        the tier config.
+    Args:
+        level: Capability level (1, 2, 3, or 4).  Level 1 selects the
+            cheap/fast model; levels 2-4 select progressively more
+            capable defaults (level 4 is the frontier tier,
+            ``claudeSDK-claude-fable-5`` by default).
+        tier_config: Optional :class:`~.tier.TierConfig` to resolve the
+            provider + model.  When ``None``, a default ``TierConfig()``
+            is built; its ``default_factory`` lambdas produce independent
+            deep copies of the baked defaults.
+        **provider_kwargs: Forwarded to the provider constructor (e.g.
+            ``api_key=...`` for the OpenRouter provider).  These override
+            any ``provider_kwargs`` from the tier config.
 
-    Returns
-    -------
-    LLMProvider
-        A fully-instantiated provider ready for :meth:`~LLMProvider.build_agent`
-        or :meth:`~LLMProvider.new_model` calls.
+    Returns:
+        LLMProvider: A fully-instantiated provider ready for
+            :meth:`~LLMProvider.build_agent` or
+            :meth:`~LLMProvider.new_model` calls.
 
-    Raises
-    ------
-    ValueError
-        If *level* is not 1, 2, 3, or 4.
-    ImportError
-        If the provider's optional extra is not installed.
+    Raises:
+        ValueError: If *level* is not 1, 2, 3, or 4.
+        ImportError: If the provider's optional extra is not installed.
 
-    Example
-    -------
-    .. code-block:: python
+    Example:
+
+        .. code-block:: python
 
         from robotsix_llmio.config import create_model
 
@@ -72,6 +66,7 @@ def create_model(
             level=3,
             system_prompt="You are a helpful assistant.",
         )
+
     """
     if tier_config is None:
         from .tier import TierConfig

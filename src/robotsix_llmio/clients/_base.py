@@ -20,15 +20,15 @@ class BaseHttpClient:
     need to supply the error type and error-message label via the
     ``_error_type`` and ``_error_label`` properties.
 
-    Parameters
-    ----------
-    base_url:
-        Root URL of the REST API, e.g. ``http://service:8000/api/v1``.
-    api_key:
-        Optional bearer token sent as ``Authorization: Bearer <api_key>``.
-    request_timeout:
-        Optional per-request timeout in seconds. When ``None``, the
-        default timeout of the underlying ``httpx.AsyncClient`` is used.
+    Args:
+        base_url: Root URL of the REST API, e.g.
+            ``http://service:8000/api/v1``.
+        api_key: Optional bearer token sent as
+            ``Authorization: Bearer <api_key>``.
+        request_timeout: Optional per-request timeout in seconds. When
+            ``None``, the default timeout of the underlying
+            ``httpx.AsyncClient`` is used.
+
     """
 
     def __init__(

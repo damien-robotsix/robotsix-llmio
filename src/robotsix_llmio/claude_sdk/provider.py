@@ -44,14 +44,12 @@ class ClaudeSDKProvider(LLMProvider):
         The ``http_client`` is always ``None`` here: the ``claude`` CLI
         subprocess is the transport and there is no HTTP client to manage.
 
-        Parameters
-        ----------
-        model:
-            The concrete model name (e.g. ``"haiku"``, ``"opus"``).
-        level:
-            Capability level (unused for Claude SDK — no per-level policy
-            is applied here).  Accepted for signature compatibility with
-            the base class.
+        Args:
+            model: The concrete model name (e.g. ``"haiku"``, ``"opus"``).
+            level: Capability level (unused for Claude SDK — no per-level
+                policy is applied here).  Accepted for signature
+                compatibility with the base class.
+
         """
         from .model import ClaudeSDKModel
 
@@ -90,25 +88,28 @@ class ClaudeSDKProvider(LLMProvider):
         objects are not surfaced.  When *tools* is empty/``None``, delegates
         to the standard pydantic-ai ``Agent`` path (unchanged).
 
-        Parameters
-        ----------
-        model:
-            Optional explicit model name override (e.g. ``"haiku"``).  When
-            provided, this becomes the ``sdk_model`` directly, bypassing
-            *tier_config*.  When ``None``, the model is resolved from
-            *tier_config* as usual.
+        Args:
+            model: Optional explicit model name override (e.g.
+                ``"haiku"``).  When provided, this becomes the
+                ``sdk_model`` directly, bypassing *tier_config*.  When
+                ``None``, the model is resolved from *tier_config* as
+                usual.
 
-        *workspace_root* confines the agent's built-in file-mutating tools
-        to that directory: the SDK runs with ``cwd=workspace_root`` and a
-        ``PreToolUse`` hook denies any write whose target resolves outside
-        it. Without it a tool-bearing agent can edit files anywhere the
-        process reaches (e.g. the host app's own source) because
-        ``permission_mode`` is ``bypassPermissions``. All built-in tools stay
-        available — only out-of-scope file mutations are refused, from both
-        the built-in edit tools (``Write``/``Edit``/``MultiEdit``/
-        ``NotebookEdit``) and ``Bash`` commands whose arguments reference
-        absolute paths outside the workspace. Ignored on the no-tools path
-        (no tools → nothing to confine)."""
+            *workspace_root* confines the agent's built-in file-mutating
+                tools to that directory: the SDK runs with
+                ``cwd=workspace_root`` and a ``PreToolUse`` hook denies
+                any write whose target resolves outside it. Without it a
+                tool-bearing agent can edit files anywhere the process
+                reaches (e.g. the host app's own source) because
+                ``permission_mode`` is ``bypassPermissions``. All
+                built-in tools stay available — only out-of-scope file
+                mutations are refused, from both the built-in edit tools
+                (``Write``/``Edit``/``MultiEdit``/``NotebookEdit``) and
+                ``Bash`` commands whose arguments reference absolute
+                paths outside the workspace. Ignored on the no-tools
+                path (no tools → nothing to confine).
+
+        """
         if not tools:
             # _resolve_output_type's level < 2 early-return is a DeepSeek-specific
             # rule and does not apply to ClaudeSDKModel, which requires PromptedOutput

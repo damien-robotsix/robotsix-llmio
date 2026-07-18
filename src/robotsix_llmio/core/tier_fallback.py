@@ -157,31 +157,29 @@ def call_with_tier_fallback[T](
 ) -> T:
     """Run *fn_factory*-produced callables with tier escalation.
 
-    Parameters
-    ----------
-    fn_factory:
-        Called with the :class:`TierLevelConfig` for the current tier level;
-        must return a zero-argument callable that performs the actual work
-        (typically a model call with provider-specific retry). Called
-        **fresh** for each tier level visited.
-    tier_config:
-        A validated :class:`TierConfig` providing ``level1``, ``level2``,
-        ``level3``, ``level4`` :class:`TierLevelConfig` attributes.
-    level:
-        The starting :class:`TierLevel` (default ``LEVEL1``).
-    fallback_enabled:
-        When ``False`` (default), only the starting level is tried; any
-        failure re-raises immediately. When ``True``, escalation proceeds
-        according to *max_fallback_depth*.
-    max_fallback_depth:
-        Maximum number of tier promotions (tier switches) allowed. Default
-        ``2`` means at most two promotions, so up to three tiers can be
-        tried. ``0`` means no escalation.
-    what:
-        Human-readable label for log messages (default ``"model call"``).
-    sleep:
-        Injectable sleep for tests (default :func:`time.sleep`; reserved
-        for future backoff between tier promotions).
+    Args:
+        fn_factory: Called with the :class:`TierLevelConfig` for the
+            current tier level; must return a zero-argument callable
+            that performs the actual work (typically a model call with
+            provider-specific retry). Called **fresh** for each tier
+            level visited.
+        tier_config: A validated :class:`TierConfig` providing
+            ``level1``, ``level2``, ``level3``, ``level4``
+            :class:`TierLevelConfig` attributes.
+        level: The starting :class:`TierLevel` (default ``LEVEL1``).
+        fallback_enabled: When ``False`` (default), only the starting
+            level is tried; any failure re-raises immediately. When
+            ``True``, escalation proceeds according to
+            *max_fallback_depth*.
+        max_fallback_depth: Maximum number of tier promotions (tier
+            switches) allowed. Default ``2`` means at most two
+            promotions, so up to three tiers can be tried. ``0`` means
+            no escalation.
+        what: Human-readable label for log messages (default ``"model
+            call"``).
+        sleep: Injectable sleep for tests (default :func:`time.sleep`;
+            reserved for future backoff between tier promotions).
+
     """
 
     async def _invoke(f: Callable[[], Any]) -> Any:

@@ -147,6 +147,14 @@ select = [
     "C4",       # flake8-comprehensions
     "RUF",      # Ruff-specific rules
     "S",        # flake8-bandit — security checks (replaces standalone bandit)
+    "D100",     # public module docstring required
+    "D101",     # public class docstring required
+    "D103",     # public function docstring required
+    "D400",     # first docstring line ends with period
+    "D412",     # no blank line between section header and content
+    "D413",     # blank line after last section
+    "D414",     # non-empty returns section
+    "D417",     # documented args match signature
 ]
 
 # Every ignore carries a justification (robotsix-standards python.md).
@@ -164,6 +172,10 @@ select = [
 # S110 (try-except-pass): swallowing errors from best-effort subprocess
 # teardown; the query result is already decided at that point.
 "src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
+# D417: ``build_agent`` only documents its own additional parameters
+# (``model``, ``workspace_root``); the base-class parameters are
+# documented in the parent ``LLMProvider.build_agent`` docstring.
+"src/robotsix_llmio/claude_sdk/provider.py" = ["D417"]
 # S101: asserts are mypy type-narrowing hints on invariants, not checks.
 # S311: random.uniform provides retry-backoff jitter — not cryptographic.
 "src/robotsix_llmio/core/retry.py" = ["S101", "S311"]
