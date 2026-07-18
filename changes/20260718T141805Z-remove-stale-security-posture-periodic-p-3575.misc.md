@@ -1,0 +1,1 @@
+Remove stale security_posture periodic-pass presence file
