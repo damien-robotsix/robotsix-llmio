@@ -1,0 +1,1 @@
+Extract shared `_deny_permission()` helper from duplicated deny blocks in _confinement.py
