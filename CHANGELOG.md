@@ -51,6 +51,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 ## 0.0.0 (unreleased)
 
 - Enable `changelog_autofill` periodic task for automated changelog entry commits.
+- Extract shared `_deny_hook_output()` helper in `_confinement.py` to deduplicate the deny-block structure between `_make_confine_hook()` and `_make_bash_confine_hook()`
 - Extract shared ``_insert_into_format()`` helper from the near-duplicate
   ``_insert_into_md()`` and ``_insert_into_rst()`` functions in ``changelog.py``;
   format-specific differences are now injected via callbacks, removing ~70%

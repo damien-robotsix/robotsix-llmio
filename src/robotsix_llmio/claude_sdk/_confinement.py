@@ -35,6 +35,17 @@ def _is_within(root: str, target: str) -> bool:
     return rp == root or rp.startswith(root + os.sep)
 
 
+def _deny_hook_output(reason: str) -> dict[str, Any]:
+    """Return a PreToolUse deny decision dict for the given *reason* string."""
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
 def _make_confine_hook(workspace_root: str) -> HookCallback:
     """Build a ``PreToolUse`` hook that denies built-in edits outside
     *workspace_root*.
@@ -62,17 +73,11 @@ def _make_confine_hook(workspace_root: str) -> HookCallback:
             target,
             root,
         )
-        return {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"Refused: edits are confined to the ticket workspace "
-                    f"{root}. {target!r} resolves outside it — edit the "
-                    f"corresponding file inside the workspace checkout instead."
-                ),
-            }
-        }
+        return _deny_hook_output(
+            f"Refused: edits are confined to the ticket workspace "
+            f"{root}. {target!r} resolves outside it — edit the "
+            f"corresponding file inside the workspace checkout instead."
+        )
 
     return cast("HookCallback", _hook)
 
@@ -108,17 +113,11 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
                     candidate,
                     root,
                 )
-                return {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": (
-                            f"Refused: Bash command references {candidate!r}, "
-                            f"which resolves outside the confined workspace "
-                            f"{root}. Use paths inside the workspace checkout instead."
-                        ),
-                    }
-                }
+                return _deny_hook_output(
+                    f"Refused: Bash command references {candidate!r}, "
+                    f"which resolves outside the confined workspace "
+                    f"{root}. Use paths inside the workspace checkout instead."
+                )
         return {}
 
     return cast("HookCallback", _hook)
