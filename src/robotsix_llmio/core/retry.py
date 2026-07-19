@@ -22,8 +22,8 @@ import asyncio
 import logging
 import random
 import time
-from collections.abc import Awaitable, Callable, Iterator
-from typing import Any, TypeVar
+from collections.abc import Awaitable, Callable, Coroutine, Iterator
+from typing import Any, TypeVar, cast
 
 from pydantic_ai import UsageLimitExceeded
 
@@ -34,6 +34,35 @@ from .cost import flush_current_provider
 log = logging.getLogger("robotsix_llmio.retry")
 
 T = TypeVar("T")
+
+
+def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
+    """Drive *coro* to completion synchronously, without an event loop.
+
+    The sync wrappers (:func:`call_with_retry`,
+    :func:`~robotsix_llmio.core.tier_fallback.call_with_tier_fallback`,
+    :func:`~robotsix_llmio.core.run.run_agent`) reuse the shared async loops
+    with adapters that never suspend — a sync ``invoke`` and a blocking
+    ``sleep`` — so the coroutine finishes on the first ``send``.
+
+    Running it loop-free is load-bearing, not an optimisation: the wrapped
+    ``fn`` is often ``run_sync``-style (``asyncio.run()`` or
+    ``get_event_loop().run_until_complete()`` inside, e.g. pydantic-ai
+    ``Agent.run_sync`` or the claude_sdk tool agent), which raises
+    ``RuntimeError`` when invoked from a running event loop.  Wrapping the
+    shared loop in ``asyncio.run()`` therefore broke every run_sync-style
+    callable.
+    """
+    try:
+        coro.send(None)
+    except StopIteration as stop:
+        return cast(R, stop.value)
+    finally:
+        coro.close()
+    raise RuntimeError(
+        "sync retry driver: coroutine unexpectedly suspended — a sync "
+        "wrapper adapter awaited something asynchronous"
+    )
 
 
 def _walk_cause_chain(
@@ -250,7 +279,7 @@ def call_with_retry[T](
     async def _sleep(d: float) -> None:
         sleep(d)
 
-    return asyncio.run(  # type: ignore[no-any-return]
+    return _drive_sync(  # type: ignore[no-any-return]
         _retry_loop(
             fn,
             invoke=_invoke,

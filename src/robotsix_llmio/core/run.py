@@ -22,6 +22,7 @@ from typing import Any, TypeVar
 
 from .agent import AgentHandle
 from .retry import (
+    _drive_sync,
     acall_with_retry,
     acall_with_retry_and_fallback,
     is_transient,
@@ -112,7 +113,7 @@ def run_agent[T](
     async def _invoke_close(f: Callable[[], Any]) -> None:
         f()
 
-    return asyncio.run(  # type: ignore[no-any-return]
+    return _drive_sync(  # type: ignore[no-any-return]
         _run_with_trace_and_close(
             _run,
             handle.close,

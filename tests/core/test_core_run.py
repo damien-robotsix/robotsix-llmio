@@ -198,3 +198,18 @@ def test_arun_agent_offline_trace_input_output_noop():
     )
     assert out == "done"
     assert handle.aclose_count == 1
+
+
+def test_run_agent_supports_run_sync_style_run():
+    """The sync wrapper must execute *run* loop-free so run_sync-style
+    callables (asyncio.run / run_until_complete inside) work."""
+    handle = _FakeHandle()
+
+    async def payload():
+        return "ok"
+
+    def run():
+        return asyncio.run(payload())
+
+    assert run_agent(handle, run, label="t", sleep=_noop_sleep) == "ok"
+    assert handle.closed == 1
