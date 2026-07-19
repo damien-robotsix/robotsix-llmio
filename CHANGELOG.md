@@ -50,6 +50,10 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Extract shared ``_insert_into_format()`` helper from the near-duplicate
+  ``_insert_into_md()`` and ``_insert_into_rst()`` functions in ``changelog.py``;
+  format-specific differences are now injected via callbacks, removing ~70%
+  duplication.
 - Remove stale `_get_json` entry from vulture whitelist; the function was already deleted when `core/_rest_client.py` was simplified to only the `_DEFAULT_BASE_URL` constant.
 - Convert all NumPy-style docstrings (``Parameters``/``Returns``/``Raises`` sections) to Google-style (``Args:``/``Returns:``/``Raises:``) for correct rendering by mkdocstrings' default parser
   Add ruff pydocstyle rules (D100, D101, D103, D400, D412, D413, D414, D417) to enforce consistent docstring formatting
