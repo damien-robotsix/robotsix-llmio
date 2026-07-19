@@ -39,6 +39,8 @@ from typing import Any, TypeVar
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 
+from .retry import _drive_sync
+
 log = logging.getLogger("robotsix_llmio.tier_fallback")
 
 T = TypeVar("T")
@@ -185,7 +187,7 @@ def call_with_tier_fallback[T](
     async def _invoke(f: Callable[[], Any]) -> Any:
         return f()
 
-    return asyncio.run(  # type: ignore[no-any-return]
+    return _drive_sync(  # type: ignore[no-any-return]
         _tier_fallback_loop(
             fn_factory,
             invoke=_invoke,

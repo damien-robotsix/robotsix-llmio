@@ -886,3 +886,19 @@ def test_tier_config_default_instances_are_independent():
         assert cfg_slot is not singleton, (
             f"default_tier_config().{attr} is LEVEL*_DEFAULT singleton"
         )
+
+
+def test_call_with_tier_fallback_supports_run_sync_style_fn():
+    """The sync wrapper must execute the tier callable loop-free so
+    run_sync-style callables (asyncio.run inside) work."""
+
+    async def payload():
+        return "ok"
+
+    def factory(_cfg: TierLevelConfig):
+        return lambda: asyncio.run(payload())
+
+    out = call_with_tier_fallback(
+        factory, tier_config=_STD_TIER_CONFIG, sleep=_noop_sleep
+    )
+    assert out == "ok"
