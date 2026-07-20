@@ -1,1 +1,0 @@
-Remove stale state_sync periodic-pass presence file

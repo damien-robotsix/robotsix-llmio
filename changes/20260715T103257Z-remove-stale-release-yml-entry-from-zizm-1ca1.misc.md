@@ -1,1 +1,0 @@
-Remove stale `release.yml` entry from `.zizmor.yml` artipacked ignore list

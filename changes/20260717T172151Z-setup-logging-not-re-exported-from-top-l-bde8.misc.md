@@ -1,1 +1,0 @@
-setup_logging not re-exported from top-level __init__ — public API added but never wired into package exports

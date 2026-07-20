@@ -1,1 +1,0 @@
-Add tests for untested private core modules _output_markers.py and _rest_client.py

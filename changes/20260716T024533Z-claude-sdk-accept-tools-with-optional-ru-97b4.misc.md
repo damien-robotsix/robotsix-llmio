@@ -1,1 +1,0 @@
-claude_sdk: accept tools with optional RunContext (default None) instead of raising UserError
