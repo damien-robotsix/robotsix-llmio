@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Add `trace_review` periodic to `.robotsix-mill/periodic/` for automated trace quality inspection via Langfuse.
 - Enable `changelog_autofill` periodic task for automated changelog entry commits.
 - Extract shared `_deny_hook_output()` helper in `_confinement.py` to deduplicate the deny-block structure between `_make_confine_hook()` and `_make_bash_confine_hook()`
 - Extract shared ``_insert_into_format()`` helper from the near-duplicate
