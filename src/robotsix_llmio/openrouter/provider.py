@@ -36,6 +36,7 @@ class OpenRouterProvider(LLMProvider):
         *,
         api_key: str | None = None,
         base_url: str = _DEFAULT_BASE_URL,
+        max_tokens: int | None = None,
     ) -> None:
         """Configure auth and the OpenRouter REST endpoint.
 
@@ -45,6 +46,8 @@ class OpenRouterProvider(LLMProvider):
             base_url: OpenRouter-compatible REST endpoint. Defaults to the
                 public OpenRouter API; pass a custom value to route requests
                 through a proxy or mirror.
+            max_tokens: Optional output token cap (unused by the OpenRouter
+                transport; accepted for tier-config compatibility).
 
         """
         self._api_key = api_key or os.environ.get(_ENV_OPENROUTER_API_KEY, "")
@@ -54,6 +57,7 @@ class OpenRouterProvider(LLMProvider):
                 f" {_ENV_OPENROUTER_API_KEY}."
             )
         self._base_url = base_url
+        self._max_tokens = max_tokens
 
     # --- hooks for derived layers -------------------------------------------
 

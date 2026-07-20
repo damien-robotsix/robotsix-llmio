@@ -176,7 +176,10 @@ def get_provider_for_level(
 
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
-    return get_provider_for_identifier(tlc.model, **{**tlc.provider_kwargs, **kwargs})
+    merged = {**tlc.provider_kwargs, **kwargs}
+    if tlc.max_tokens is not None:
+        merged.setdefault("max_tokens", tlc.max_tokens)
+    return get_provider_for_identifier(tlc.model, **merged)
 
 
 def build_agent_for_level(
@@ -243,7 +246,10 @@ def build_agent_for_level(
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
     kwargs = provider_kwargs if provider_kwargs is not None else tlc.provider_kwargs
-    provider = get_provider_for_identifier(tlc.model, **kwargs)
+    merged = dict(kwargs) if kwargs else {}
+    if tlc.max_tokens is not None:
+        merged.setdefault("max_tokens", tlc.max_tokens)
+    provider = get_provider_for_identifier(tlc.model, **merged)
     return provider.build_agent(
         level=level, model=model or tlc.model_name, **build_kwargs
     )

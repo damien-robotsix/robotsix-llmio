@@ -310,10 +310,12 @@ class ClaudeSDKModel(Model):
         *,
         model_name: str | None = None,
         settings: ModelSettings | None = None,
+        max_tokens: int | None = None,
     ) -> None:
         super().__init__(settings=settings)
         self._sdk_model = sdk_model
         self._model_name = model_name or sdk_model
+        self._max_tokens = max_tokens
 
     @property
     def model_name(self) -> str:
@@ -398,6 +400,9 @@ class ClaudeSDKModel(Model):
             disallowed_tools=["*"],
             permission_mode="bypassPermissions",
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
+            task_budget={"total": self._max_tokens}
+            if self._max_tokens is not None
+            else None,
         )
 
         return await _stream_query(

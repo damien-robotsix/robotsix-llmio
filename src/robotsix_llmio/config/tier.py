@@ -68,6 +68,14 @@ class TierLevelConfig(BaseModel):
             "(e.g. ``base_url`` for the OpenRouter provider). Defaults to ``{}``."
         ),
     )
+    max_tokens: int | None = Field(
+        default=None,
+        description=(
+            "Optional output token cap forwarded to the provider as a "
+            "``task_budget`` (Claude SDK) or ``max_tokens`` model setting "
+            "(OpenRouter).  ``None`` means no cap (unbounded output)."
+        ),
+    )
 
     # -- parsed accessors ---------------------------------------------------
 
@@ -110,18 +118,22 @@ class TierLevelConfig(BaseModel):
 
 LEVEL1_DEFAULT = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-flash",
+    max_tokens=4096,
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-pro",
+    max_tokens=8192,
 )
 
 LEVEL3_DEFAULT = TierLevelConfig(
     model="claudeSDK-opus",
+    max_tokens=8192,
 )
 
 LEVEL4_DEFAULT = TierLevelConfig(
     model="claudeSDK-claude-fable-5",
+    max_tokens=16384,
 )
 
 

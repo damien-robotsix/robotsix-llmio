@@ -151,6 +151,7 @@ class _SdkToolAgentHandle:
         max_turns: int | None = None,
         workspace_root: str | Path | None = None,
         builtin_tools: bool = True,
+        max_tokens: int | None = None,
     ) -> None:
         self._sdk_model = sdk_model
         self._system_prompt = system_prompt
@@ -173,6 +174,7 @@ class _SdkToolAgentHandle:
         # built-in tool access (coding agents), with edits confined to
         # *workspace_root* if given.
         self._builtin_tools = builtin_tools
+        self._max_tokens = max_tokens
         if max_turns is None:
             # Single source of truth for the runaway cap (see model._MAX_TURNS).
             # Generous, because an injected-MCP-tool loop legitimately needs many
@@ -340,6 +342,9 @@ class _SdkToolAgentHandle:
             max_turns=self._max_turns,
             mcp_servers={"milltools": self._server},
             setting_sources=[],
+            task_budget=(
+                {"total": self._max_tokens} if self._max_tokens is not None else None
+            ),
             **extra,
         )
 
