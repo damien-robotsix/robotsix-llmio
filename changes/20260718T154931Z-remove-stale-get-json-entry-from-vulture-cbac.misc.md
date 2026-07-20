@@ -1,1 +1,0 @@
-Remove stale `_get_json` entry from vulture whitelist

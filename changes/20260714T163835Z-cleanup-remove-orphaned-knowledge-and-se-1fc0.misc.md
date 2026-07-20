@@ -1,1 +1,0 @@
-cleanup: remove orphaned knowledge/ and self_review/ backward-compat packages

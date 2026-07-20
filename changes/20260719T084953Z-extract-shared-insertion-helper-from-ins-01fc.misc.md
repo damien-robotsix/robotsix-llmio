@@ -1,1 +1,0 @@
-Extract shared insertion helper from `_insert_into_md` / `_insert_into_rst` in changelog.py
