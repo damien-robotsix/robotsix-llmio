@@ -28,10 +28,10 @@ class ClaudeSDKProvider(LLMProvider):
     """Builds :class:`~robotsix_llmio.claude_sdk.model.ClaudeSDKModel` instances,
     one per model name, authenticated by your ``claude login`` subscription."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, max_tokens: int | None = None) -> None:
         # No constructor kwargs needed — model names are passed at
         # ``new_model()`` time via `model=`.
-        pass
+        self._max_tokens = max_tokens
 
     def new_model(
         self,
@@ -58,7 +58,7 @@ class ClaudeSDKProvider(LLMProvider):
 
         # No http_client to manage — the CLI subprocess is the transport, and
         # the SDK tears it down per call. AgentHandle.close() tolerates None.
-        return ClaudeSDKModel(model), None
+        return ClaudeSDKModel(model, max_tokens=self._max_tokens), None
 
     def _is_transient(self, exc: BaseException) -> bool:
         return is_claude_sdk_transient(exc)
@@ -153,4 +153,5 @@ class ClaudeSDKProvider(LLMProvider):
             name=name,
             workspace_root=workspace_root,
             builtin_tools=builtin_tools,
+            max_tokens=self._max_tokens,
         )

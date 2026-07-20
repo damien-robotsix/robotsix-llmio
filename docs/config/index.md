@@ -60,11 +60,15 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 
 ### Schema & loader (tier configuration)
 
-- `TierConfig` — pydantic model for three-tier provider+model configuration
-- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3` tier-selector values
-- `TierLevelConfig` — pydantic model binding a single tier to a provider-model identifier
-- `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT` — default `TierLevelConfig`
-  instances per level
+- `TierConfig` — pydantic model for four-tier provider+model configuration
+- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3`, `LEVEL4` tier-selector values
+- `TierLevelConfig` — pydantic model binding a single tier to a provider-model identifier.
+  Each config carries:
+  - **`model`** — the combined `provider-model` identifier.
+  - **`provider_kwargs`** — extra constructor arguments forwarded to the provider.
+  - **`max_tokens`** — optional output token cap (baked per-level; see table below).
+- `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT`, `LEVEL4_DEFAULT` — default
+  `TierLevelConfig` instances per level
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
 - `load_tier_config` — loads and validates a `TierConfig` from environment overrides and defaults
 
@@ -127,12 +131,12 @@ The loader merges three sources in order of increasing precedence:
 The library ships with the following baked defaults so **level 1** works
 out of the box and levels 2–4 have sensible fallbacks:
 
-| Constant | Identifier |
-|----------|------------|
-| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` |
-| `LEVEL2_DEFAULT` | `openrouter-deepseek/deepseek-v4-pro` |
-| `LEVEL3_DEFAULT` | `claudeSDK-opus` |
-| `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` |
+| Constant | Identifier | `max_tokens` |
+|----------|------------|--------------|
+| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` | 4 096 |
+| `LEVEL2_DEFAULT` | `openrouter-deepseek/deepseek-v4-pro` | 8 192 |
+| `LEVEL3_DEFAULT` | `claudeSDK-opus` | 8 192 |
+| `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` | 16 384 |
 
 Level 1 is the default when no level is specified — cheap and fast is the
 safe default.

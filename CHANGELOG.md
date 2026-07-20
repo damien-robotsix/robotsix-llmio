@@ -61,6 +61,9 @@ do not edit it by hand — add a newsfragment under `changes/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Add `max_tokens` field to `TierLevelConfig` with per-level baked defaults
+  (level 1: 4096, level 2: 8192, level 3: 8192, level 4: 16384), plumbed
+  through the Claude SDK transport as `task_budget` to cap output cost.
 - Add `trace_review` periodic to `.robotsix-mill/periodic/` for automated trace quality inspection via Langfuse.
 - Enable `changelog_autofill` periodic task for automated changelog entry commits.
 - Extract shared `_deny_hook_output()` helper in `_confinement.py` to deduplicate the deny-block structure between `_make_confine_hook()` and `_make_bash_confine_hook()`
