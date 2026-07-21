@@ -56,7 +56,7 @@ def _balanced_objects(text: str) -> list[str]:
     simply fails to JSON-parse later; the real object is captured whole,
     including nested objects/arrays. This replaces a naive
     ``re.search(r"\\{.*\\}")`` that anchored on the FIRST prose brace and so
-    swallowed prose + JSON into one unparseable blob.
+    swallowed prose + JSON into one unparsable blob.
     """
     out: list[str] = []
     i, n = 0, len(text)
