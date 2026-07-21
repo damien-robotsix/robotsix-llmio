@@ -1,0 +1,1364 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-agnostic LLM I/O for pydantic-ai agents">
+      
+      
+      
+        <link rel="canonical" href="https://damien-robotsix.github.io/robotsix-llmio/changelog/">
+      
+      
+        <link rel="prev" href="../reference/self_review/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Changelog - robotsix-llmio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="robotsix-llmio" class="md-header__button md-logo" aria-label="robotsix-llmio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            robotsix-llmio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/damien-robotsix/robotsix-llmio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="robotsix-llmio" class="md-nav__button md-logo" aria-label="robotsix-llmio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    robotsix-llmio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/damien-robotsix/robotsix-llmio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openrouter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenRouter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../claude_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Claude SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clients/knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clients/refdocs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refdocs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clients/self_review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/openrouter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenRouter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/claude_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Claude SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/refdocs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refdocs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/self_review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#013-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.3 (2026-07-20)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.3 (2026-07-20)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#012-2026-07-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.2 (2026-07-13)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.2 (2026-07-13)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011-2026-07-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.1 (2026-07-06)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.1 (2026-07-06)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#000-unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.0 (unreleased)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#013-2026-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.3 (2026-07-20)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.3 (2026-07-20)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#012-2026-07-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.2 (2026-07-13)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.2 (2026-07-13)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011-2026-07-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.1 (2026-07-06)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.1 (2026-07-06)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bug-fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bug Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#miscellaneous_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Miscellaneous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#000-unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.0.0 (unreleased)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog</h1>
+<p>All notable changes to this project will be documented in this file.
+From v0.1.0 onward this file is generated by
+<a href="https://towncrier.readthedocs.io/">towncrier</a> via <code>towncrier build</code>;
+do not edit it by hand — add a newsfragment under <code>changelog.d/</code> instead.</p>
+<!-- towncrier release notes start -->
+
+<h2 id="013-2026-07-20">0.1.3 (2026-07-20)</h2>
+<h3 id="bug-fixes">Bug Fixes</h3>
+<ul>
+<li>Sync wrappers (<code>call_with_retry</code>, <code>call_with_retry_and_fallback</code>, <code>call_with_tier_fallback</code>, <code>run_agent</code>) now drive the shared async loops without an event loop. The #382/#392 dedup refactor wrapped them in <code>asyncio.run(...)</code>, which invoked the caller's sync <code>fn</code> inside a running loop — crashing every run_sync-style callable (pydantic-ai <code>Agent.run_sync</code>, claude_sdk tool agent) with <code>RuntimeError: asyncio.run() cannot be called from a running event loop</code> / <code>This event loop is already running</code>. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260719T000000Z-sync-wrappers-run-loop-free-fix-run-sync-crash">#20260719T000000Z-sync-wrappers-run-loop-free-fix-run-sync-crash</a>)</li>
+</ul>
+<h3 id="miscellaneous">Miscellaneous</h3>
+<ul>
+<li><a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T002044Z-robotsix-llmio-re-enable-security-postur-7c5b">#20260718T002044Z-robotsix-llmio-re-enable-security-postur-7c5b</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260716T024533Z-claude-sdk-accept-tools-with-optional-ru-97b4">#20260716T024533Z-claude-sdk-accept-tools-with-optional-ru-97b4</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T081729Z-robotsix-llmio-enable-audit-periodic-wor-64e4">#20260718T081729Z-robotsix-llmio-enable-audit-periodic-wor-64e4</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T081730Z-robotsix-llmio-enable-repo-description-s-97e5">#20260718T081730Z-robotsix-llmio-enable-repo-description-s-97e5</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T081730Z-robotsix-llmio-enable-state-sync-periodi-8420">#20260718T081730Z-robotsix-llmio-enable-state-sync-periodi-8420</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260719T084953Z-extract-shared-deny-permission-helper-fr-6402">#20260719T084953Z-extract-shared-deny-permission-helper-fr-6402</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260719T084953Z-extract-shared-insertion-helper-from-ins-01fc">#20260719T084953Z-extract-shared-insertion-helper-from-ins-01fc</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260720T090023Z-add-uv-malware-check-1-to-changelog-ci-j-c3d3">#20260720T090023Z-add-uv-malware-check-1-to-changelog-ci-j-c3d3</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T090224Z-add-uv-malware-check-1-to-ci-uv-sync-inv-217e">#20260718T090224Z-add-uv-malware-check-1-to-ci-uv-sync-inv-217e</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260715T093757Z-robotsix-llmio-enable-security-posture-p-f4a7">#20260715T093757Z-robotsix-llmio-enable-security-posture-p-f4a7</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260713T101313Z-ci-failure-ci-on-main-5db2">#20260713T101313Z-ci-failure-ci-on-main-5db2</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260715T103257Z-remove-stale-release-yml-entry-from-zizm-1ca1">#20260715T103257Z-remove-stale-release-yml-entry-from-zizm-1ca1</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T131354Z-robotsix-llmio-enable-docstring-coverage-a30d">#20260718T131354Z-robotsix-llmio-enable-docstring-coverage-a30d</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T131355Z-robotsix-llmio-enable-health-periodic-wo-3093">#20260718T131355Z-robotsix-llmio-enable-health-periodic-wo-3093</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T131355Z-robotsix-llmio-enable-survey-periodic-wo-e5dc">#20260718T131355Z-robotsix-llmio-enable-survey-periodic-wo-e5dc</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T141805Z-remove-stale-security-posture-periodic-p-3575">#20260718T141805Z-remove-stale-security-posture-periodic-p-3575</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T142018Z-remove-stale-state-sync-periodic-pass-pr-208e">#20260718T142018Z-remove-stale-state-sync-periodic-pass-pr-208e</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T142635Z-standardize-docstrings-to-google-style-f-2538">#20260718T142635Z-standardize-docstrings-to-google-style-f-2538</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260719T153036Z-add-tests-for-untested-private-core-modu-1344">#20260719T153036Z-add-tests-for-untested-private-core-modu-1344</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260714T153350Z-robotsix-llmio-enable-bc-check-and-test-a491">#20260714T153350Z-robotsix-llmio-enable-bc-check-and-test-a491</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260719T154210Z-robotsix-llmio-enable-changelog-autofill-5f5a">#20260719T154210Z-robotsix-llmio-enable-changelog-autofill-5f5a</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T154931Z-remove-stale-get-json-entry-from-vulture-cbac">#20260718T154931Z-remove-stale-get-json-entry-from-vulture-cbac</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260716T163127Z-robotsix-llmio-enable-completeness-check-f559">#20260716T163127Z-robotsix-llmio-enable-completeness-check-f559</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260716T163127Z-robotsix-llmio-enable-copy-paste-periodi-a83f">#20260716T163127Z-robotsix-llmio-enable-copy-paste-periodi-a83f</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260714T163835Z-cleanup-remove-orphaned-knowledge-and-se-1fc0">#20260714T163835Z-cleanup-remove-orphaned-knowledge-and-se-1fc0</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260716T171231Z-orphaned-refdocs-package-at-top-level-du-62b3">#20260716T171231Z-orphaned-refdocs-package-at-top-level-du-62b3</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260716T172051Z-copy-paste-4-file-clone-in-refdocs-remov-85c1">#20260716T172051Z-copy-paste-4-file-clone-in-refdocs-remov-85c1</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260717T172151Z-setup-logging-not-re-exported-from-top-l-bde8">#20260717T172151Z-setup-logging-not-re-exported-from-top-l-bde8</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260717T173541Z-ci-fix-out-of-scope-ci-failure-cve-2026-60aa">#20260717T173541Z-ci-fix-out-of-scope-ci-failure-cve-2026-60aa</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260717T175659Z-agent-md-ci-workflows-when-adding-a-cve-8c54">#20260717T175659Z-agent-md-ci-workflows-when-adding-a-cve-8c54</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T184435Z-robotsix-llmio-re-enable-state-sync-peri-d7d8">#20260718T184435Z-robotsix-llmio-re-enable-state-sync-peri-d7d8</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260718T184436Z-robotsix-llmio-re-enable-security-postur-8067">#20260718T184436Z-robotsix-llmio-re-enable-security-postur-8067</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260715T192539Z-robotsix-llmio-enable-module-curator-per-241d">#20260715T192539Z-robotsix-llmio-enable-module-curator-per-241d</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260717T233024Z-remove-security-posture-from-periodic-ag-9b1e">#20260717T233024Z-remove-security-posture-from-periodic-ag-9b1e</a></li>
+</ul>
+<h2 id="012-2026-07-13">0.1.2 (2026-07-13)</h2>
+<h3 id="features">Features</h3>
+<ul>
+<li>Native image support on the claude_sdk path: prompts carrying pydantic-ai <code>BinaryContent</code> image parts are now sent to the CLI via streaming-input mode as base64 <code>image</code> content blocks (both the no-tools model and the tool-agent path), so vision-capable Claude models actually see attachments. Also fixes the tool-agent path stringifying multimodal list prompts through an f-string (the image-hang bug persisted there). Non-image binaries still degrade to the compact placeholder. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-native-image-support">#claude-sdk-native-image-support</a>)</li>
+<li><code>claude_sdk._stream_query</code> now surfaces live tool-call, tool-result, thinking, and intermediate-text activity as <code>ClaudeSDKActivityEvent</code> objects — previously only logged at INFO level and otherwise discarded. Callers opt in with the new <code>activity_events(on_event)</code> context manager (exported from <code>robotsix_llmio.claude_sdk</code>), which applies to both the no-tools <code>ClaudeSDKModel</code> path and the SDK-tools <code>_SdkToolAgentHandle</code> path without any change to <code>build_agent()</code>/<code>run()</code> call sites. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260707T084111Z-claude-sdk-activity-events">#20260707T084111Z-claude-sdk-activity-events</a>)</li>
+</ul>
+<h3 id="bug-fixes_1">Bug Fixes</h3>
+<ul>
+<li>Fix Claude Agent SDK prompt flattening stringifying binary content parts: a pydantic-ai <code>BinaryContent</code> (e.g. an attached image) was rendered via <code>str()</code>, ballooning a 2 MB image into a ~6 MB escaped-byte prompt that stalled the CLI subprocess for the full per-call wall-clock cap (and was then retried). Binary parts now flatten to a compact <code>[binary attachment: &lt;media type&gt;, &lt;n&gt; bytes — not visible to this text-only model]</code> placeholder. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-binary-content-placeholder">#claude-sdk-binary-content-placeholder</a>)</li>
+<li>Raise <code>SDK_QUERY_TIMEOUT</code> (the Claude Agent SDK per-call wall-clock cap) from 20 minutes to 1 hour. A genuine multi-turn tool loop tripped the old cap under host load, surfacing as a <code>ClaudeSDKQueryTimeout</code> and failing the turn even though the call was still making progress. Still well under the SDK's own ~2h backstop. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260707T125132Z-raise-sdk-query-timeout-to-1h">#20260707T125132Z-raise-sdk-query-timeout-to-1h</a>)</li>
+</ul>
+<h3 id="miscellaneous_1">Miscellaneous</h3>
+<ul>
+<li><a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260709T003851Z-fix-docs-modules-yaml-restore-config-des-2fc4">#20260709T003851Z-fix-docs-modules-yaml-restore-config-des-2fc4</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T093924Z-deactivate-all-periodic-mill-workflows-k-cb45">#20260706T093924Z-deactivate-all-periodic-mill-workflows-k-cb45</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T093945Z-deactivate-all-periodic-mill-workflows-k-be5b">#20260706T093945Z-deactivate-all-periodic-mill-workflows-k-be5b</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T112203Z-ci-failure-ci-on-main-df39">#20260706T112203Z-ci-failure-ci-on-main-df39</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T143435Z-robotsix-llmio-enable-core-periodic-work-c3e5">#20260706T143435Z-robotsix-llmio-enable-core-periodic-work-c3e5</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-doc-classifier-internal-only-4eb1">#20260706T154921Z-boilerplate-doc-classifier-internal-only-4eb1</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-triage-skip-for-mechanical-i-b4a0">#20260706T154921Z-boilerplate-triage-skip-for-mechanical-i-b4a0</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T154921Z-boilerplate-triage-skip-mechanical-draft-b4a0">#20260706T154921Z-boilerplate-triage-skip-mechanical-draft-b4a0</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T160801Z-extract-shared-markers-tuple-to-eliminat-c908">#20260706T160801Z-extract-shared-markers-tuple-to-eliminat-c908</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204244Z-consolidate-modules-refdocs-knowledge-se-7742">#20260704T204244Z-consolidate-modules-refdocs-knowledge-se-7742</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T232513Z-clean-up-orphaned-changelog-d-newsfragme-5225">#20260706T232513Z-clean-up-orphaned-changelog-d-newsfragme-5225</a></li>
+</ul>
+<h2 id="011-2026-07-06">0.1.1 (2026-07-06)</h2>
+<h3 id="bug-fixes_2">Bug Fixes</h3>
+<ul>
+<li>Extend usage-credit-exhaustion detection to the case where <code>claude_agent_sdk</code> collapses the
+  condition into a raised generic exception (e.g. the degenerate-success message) instead of a clean
+  <code>is_error=True</code> return, discarding the real "You're out of usage credits" text before it would
+  otherwise be checked. <code>_stream_query</code> now also checks the assistant text already streamed into
+  <code>chunks</code> before such an exception fires, so this case raises <code>ClaudeSDKUsageExhaustedError</code> too
+  instead of being misclassified as an ordinary transient error, retried 3x at the same exhausted
+  tier, and finally leaked to the caller verbatim. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-usage-exhausted-collapsed-exception">#claude-sdk-usage-exhausted-collapsed-exception</a>)</li>
+<li>Detect Claude subscription usage-credit exhaustion as a distinct failure. The SDK reports this as
+  a normal-looking <code>is_error=True</code> result carrying the text "You're out of usage credits" rather than
+  raising, so it was previously returned as if it were a genuine reply, or (when the SDK did raise)
+  retried 3x at the same exhausted tier as a misclassified "degenerate success". <code>_stream_query</code> now
+  raises the new <code>ClaudeSDKUsageExhaustedError</code> for this specific signature, and
+  <code>is_claude_sdk_transient</code> excludes it (like the existing turn-limit case) so it fails immediately
+  instead of burning retries at a tier that cannot recover until its credits reset. (<a href="https://github.com/damien-robotsix/robotsix-llmio/issues/claude-sdk-usage-exhausted-detection">#claude-sdk-usage-exhausted-detection</a>)</li>
+</ul>
+<h3 id="miscellaneous_2">Miscellaneous</h3>
+<ul>
+<li><a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T001000Z-baseline-check-caller">#20260704T001000Z-baseline-check-caller</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T002000Z-shared-lint-workflows">#20260704T002000Z-shared-lint-workflows</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T003000Z-auto-release-caller">#20260704T003000Z-auto-release-caller</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T090500Z-mill-sandbox-test-gate-binaries">#20260704T090500Z-mill-sandbox-test-gate-binaries</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260706T093635Z-deactivate-all-periodic-mill-workflows-k-357b">#20260706T093635Z-deactivate-all-periodic-mill-workflows-k-357b</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T141241Z-export-refdocs-symbols-from-top-level-in-419b">#20260704T141241Z-export-refdocs-symbols-from-top-level-in-419b</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T150338Z-add-uv-audit-locked-to-ci-for-lockfile-v-9b23">#20260704T150338Z-add-uv-audit-locked-to-ci-for-lockfile-v-9b23</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T150338Z-extract-shared-retry-loop-core-to-elimin-2edd">#20260704T150338Z-extract-shared-retry-loop-core-to-elimin-2edd</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T150338Z-fix-readme-env-var-table-document-llmio-0636">#20260704T150338Z-fix-readme-env-var-table-document-llmio-0636</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260705T152545Z-split-claude-sdk-tool-agent-py-802-lines-7060">#20260705T152545Z-split-claude-sdk-tool-agent-py-802-lines-7060</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T180000Z-adopt-towncrier">#20260703T180000Z-adopt-towncrier</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T181500Z-pep735-dependency-groups">#20260703T181500Z-pep735-dependency-groups</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T182500Z-enable-deptry-bandit">#20260703T182500Z-enable-deptry-bandit</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T183000Z-artifact-upload-if-always">#20260703T183000Z-artifact-upload-if-always</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T183500Z-dedupe-ci-gates">#20260703T183500Z-dedupe-ci-gates</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T184000Z-ruff-ignore-comments">#20260703T184000Z-ruff-ignore-comments</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T185000Z-modules-yaml-conformance">#20260703T185000Z-modules-yaml-conformance</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T185500Z-test-layout">#20260703T185500Z-test-layout</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T190000Z-pre-commit-alignment">#20260703T190000Z-pre-commit-alignment</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T190500Z-readme-skeleton">#20260703T190500Z-readme-skeleton</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260703T191000Z-agent-md-skeleton">#20260703T191000Z-agent-md-skeleton</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T194337Z-add-uv-audit-as-a-blocking-dependency-vu-bd05">#20260704T194337Z-add-uv-audit-as-a-blocking-dependency-vu-bd05</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204046Z-add-hypothesis-property-based-tests-for-fee2">#20260704T204046Z-add-hypothesis-property-based-tests-for-fee2</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204113Z-adopt-towncrier-newsfragment-workflow-4798">#20260704T204113Z-adopt-towncrier-newsfragment-workflow-4798</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204113Z-standards-alignment-requires-python-3-14-c597">#20260704T204113Z-standards-alignment-requires-python-3-14-c597</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T204114Z-agent-md-replace-upstreamed-rules-with-s-4b16">#20260704T204114Z-agent-md-replace-upstreamed-rules-with-s-4b16</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260704T205235Z-robotsix-llmio-adopt-robotsix-modules-fo-9ac0">#20260704T205235Z-robotsix-llmio-adopt-robotsix-modules-fo-9ac0</a>, <a href="https://github.com/damien-robotsix/robotsix-llmio/issues/20260705T230752Z-tierconfigloaderror-should-inherit-from-6ef6">#20260705T230752Z-tierconfigloaderror-should-inherit-from-6ef6</a></li>
+</ul>
+<h2 id="000-unreleased">0.0.0 (unreleased)</h2>
+<ul>
+<li>Add codespell to pre-commit hooks to catch common misspellings in docstrings and comments.</li>
+<li>Add <code>max_tokens</code> field to <code>TierLevelConfig</code> with per-level baked defaults
+  (level 1: 4096, level 2: 8192, level 3: 8192, level 4: 16384), plumbed
+  through the Claude SDK transport as <code>task_budget</code> to cap output cost.</li>
+<li>Add <code>trace_review</code> periodic to <code>.robotsix-mill/periodic/</code> for automated trace quality inspection via Langfuse.</li>
+<li>Enable <code>changelog_autofill</code> periodic task for automated changelog entry commits.</li>
+<li>Extract shared <code>_deny_hook_output()</code> helper in <code>_confinement.py</code> to deduplicate the deny-block structure between <code>_make_confine_hook()</code> and <code>_make_bash_confine_hook()</code></li>
+<li>Extract shared <code>_insert_into_format()</code> helper from the near-duplicate
+  <code>_insert_into_md()</code> and <code>_insert_into_rst()</code> functions in <code>changelog.py</code>;
+  format-specific differences are now injected via callbacks, removing ~70%
+  duplication.</li>
+<li>Remove stale <code>_get_json</code> entry from vulture whitelist; the function was already deleted when <code>core/_rest_client.py</code> was simplified to only the <code>_DEFAULT_BASE_URL</code> constant.</li>
+<li>Convert all NumPy-style docstrings (<code>Parameters</code>/<code>Returns</code>/<code>Raises</code> sections) to Google-style (<code>Args:</code>/<code>Returns:</code>/<code>Raises:</code>) for correct rendering by mkdocstrings' default parser
+  Add ruff pydocstyle rules (D100, D101, D103, D400, D412, D413, D414, D417) to enforce consistent docstring formatting</li>
+<li>Enable <code>health</code> periodic agent for broad codebase health scanning across all eight dimensions.</li>
+<li>Enable <code>survey</code> periodic workflow — creates <code>.robotsix-mill/periodic/survey.yaml</code> name-only stub so robotsix-mill's built-in survey agent discovers this repo.</li>
+<li>Enable periodic <code>audit</code> agent for broad-spectrum codebase health assessment.</li>
+<li>Remove <code>security_posture</code> periodic agent opt-in (policy enforcement now lives in robotsix-standards audit)</li>
+<li>Document the dual CVE-ignore mechanism in AGENT.md and CONTRIBUTING.md — when adding a vulnerability ignore, both <code>[tool.uv.audit].ignore</code> in <code>pyproject.toml</code> and <code>pip-audit-ignore-vulns</code> in <code>ci.yml</code> must be updated.</li>
+<li>Ignore CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in <code>uv audit</code> — the vulnerable
+  <code>mcp==1.27.2</code> is a transitive dependency via <code>claude-agent-sdk</code> with no
+  upstream fix yet available.</li>
+<li><code>setup_logging</code> is now re-exported from the top-level <code>robotsix_llmio</code> package, matching the pattern of other public APIs. Import it as <code>from robotsix_llmio import setup_logging</code>.</li>
+<li>Removed the orphaned <code>src/robotsix_llmio/refdocs/</code> package (5 files), which was superseded by <code>src/robotsix_llmio/clients/refdocs/</code> and had no remaining callers or tests. Also removed the now-unreferenced <code>_get_json</code> helper from <code>core/_rest_client.py</code>.</li>
+<li>Claude SDK provider now accepts tools whose ctx parameter has a default
+  value (e.g. <code>ctx: RunContext[None] = None</code>): the function is invoked without
+  ctx, letting the default apply. Only tools with a <em>required</em> ctx (no
+  default) still raise <code>UserError</code> at build time.</li>
+<li>Add <code>module_curator</code> periodic agent to keep <code>docs/modules.yaml</code> synchronized with the live directory tree.</li>
+<li>Remove orphaned <code>robotsix_llmio.knowledge</code> and <code>robotsix_llmio.self_review</code> backward-compatibility packages (dead code — all consumers use <code>robotsix_llmio.clients.knowledge</code> and <code>robotsix_llmio.clients.self_review</code>).</li>
+<li>Enable <code>bc_check</code> and <code>test_gap</code> periodic agents via minimal presence files under <code>.robotsix-mill/periodic/</code>.</li>
+<li>Fix <code>docs/modules.yaml</code>: restore <code>config</code> entry to its consumer-facing scope
+  (TierConfig schema, loader, create_model factory) and re-add the <code>dev-tooling</code>
+  module for repo tooling/config files that were incorrectly merged into <code>config</code>.</li>
+<li>Consolidated refdocs, knowledge, and self_review modules under a shared <code>clients/</code> parent with common <code>BaseHttpClient</code> in <code>_base.py</code> (already completed by sibling ticket; no additional changes needed).</li>
+<li>Extract shared <code>_MARKERS</code> tuple + <code>isinstance</code> pattern for pydantic-ai
+  output-mode markers into a single <code>core/_output_markers.py</code> helper,
+  removing the identical duplicated definition from <code>core/provider.py</code>
+  and <code>claude_sdk/provider.py</code>.</li>
+<li>Internal boilerplate: registered <code>doc_classifier: internal-only</code> pattern for non-user-facing changes that skip the doc agent</li>
+<li>Removed stale <code>changelog.d/</code> directory and its orphaned newsfragments; updated <code>CONTRIBUTING.md</code> and <code>docs/modules.yaml</code> to reference <code>changes/</code> instead.</li>
+<li>Add <code>robotsix_llmio.changelog.insert_changelog_entry</code> — detects the
+  project's existing changelog format (<code>CHANGELOG.rst</code>, <code>CHANGELOG.md</code>,
+  <code>CHANGELOG</code>, in that order) before inserting a bullet entry under the
+  unreleased section. Falls back to <code>CHANGELOG.md</code> when no changelog file
+  exists, preventing orphan <code>.md</code> files on RST-based projects.</li>
+<li>Extract shared REST client <code>_get_json</code> helper into <code>core/_rest_client.py</code>,
+  deduplicating the near-identical <code>_get()</code> methods from <code>KnowledgeClient</code>,
+  <code>SelfReviewClient</code>, and <code>AsyncRefdocsClient</code>.  The shared
+  <code>_DEFAULT_BASE_URL</code> constant is also moved there.</li>
+<li>Split <code>src/robotsix_llmio/claude_sdk/_tool_agent.py</code> (802 lines) into four focused private submodules: <code>_output.py</code> (structured JSON parsing), <code>_tool_converter.py</code> (pydantic-ai → SDK MCP tool conversion), <code>_confinement.py</code> (workspace path-traversal hooks), and <code>_chat_messages.py</code> (tracing chat-message rendering). The original module now holds only <code>_SdkToolResult</code> and <code>_SdkToolAgentHandle</code> (~470 lines).</li>
+<li><code>TierConfigLoadError</code> now inherits from <code>RobotsixLLMIOError</code> instead of <code>Exception</code>, so it's caught by a single <code>except RobotsixLLMIOError</code> clause as the library's exception contract documents.</li>
+<li>Add Hypothesis property-based tests for the transient retry backoff formula (boundedness, non-negativity, jitter range, monotonicity).</li>
+<li>Added <code>robotsix-modules</code> as a dev dependency and a CI step (<code>robotsix-modules-validate docs/modules.yaml</code>) to enforce module taxonomy consistency.</li>
+<li>AGENT.md: replace two upstreamed rules with cross-references to the robotsix standards repo; align .pre-commit-config.yaml to the standard hook set (remove <code>debug-statements</code>, <code>check-ast</code>, <code>check-case-conflict</code>; <code>check-json</code> and <code>detect-private-key</code> already present).</li>
+<li>CI: resolve all zizmor (pedantic) workflow-lint findings — add explanatory comments to write permissions, name the anonymous jobs, deny-by-default top-level permissions on dependabot-auto-merge/docs, and a concurrency group on dependency-review. Unblocks <code>Lint workflows</code> on main.</li>
+<li>Consolidated <code>refdocs</code>, <code>knowledge</code>, and <code>self_review</code> modules under a shared <code>clients/</code> parent, extracting duplicated <code>_get()</code> logic into a common <code>BaseHttpClient</code> in <code>clients/_base.py</code>. Import paths are now <code>robotsix_llmio.clients.{refdocs,knowledge,self_review}</code>.</li>
+<li>Extract shared <code>_retry_loop</code> in <code>core/retry.py</code> and <code>_tier_fallback_loop</code> in
+  <code>core/tier_fallback.py</code>, eliminating ~250 lines of duplicated sync/async retry
+  and tier-escalation logic. Each public <code>call_with_retry</code> / <code>acall_with_retry</code>
+  and <code>call_with_tier_fallback</code> / <code>acall_with_tier_fallback</code> is now a ~5-line
+  thin shim that passes sync or async <code>invoke</code>/<code>sleep</code> adapters into the shared
+  core. <code>run.py</code> likewise extracts <code>_run_with_trace_and_close</code> to deduplicate
+  the trace-span boilerplate between <code>run_agent</code> and <code>arun_agent</code>.</li>
+<li>Extract shared retry-loop helpers <code>_compute_backoff</code>, <code>_handle_rate_limit</code>, and <code>_handle_transient</code> from duplicated sync/async variants in <code>core/retry.py</code>.</li>
+<li>Fix README environment-variable table: <code>LLMIO_LEVEL{1,2,3}_MODEL</code> and <code>LLMIO_LEVEL{1,2,3}_PROVIDER_KWARGS</code> updated to <code>{1,2,3,4}</code> to match the actual four-tier configuration system (Level 4 was already supported in code and <code>docs/config/index.md</code> but missing from the README table).</li>
+<li>Re-export <code>AsyncRefdocsClient</code>, <code>RefdocsClientError</code>, and <code>build_refdocs_tools</code>
+  from the top-level <code>robotsix_llmio</code> package (sibling-pattern gap with
+  <code>knowledge</code> and <code>self_review</code> sub-packages).</li>
+<li>Remove dead Langfuse v1 <code>createdAt</code> field fallbacks from <code>_to_record</code> and <code>_observation_to_record</code> in <code>langfuse_cost.py</code></li>
+<li>
+<p>Remove stale Keep a Changelog content from CHANGELOG.md — the file is now fully towncrier-managed (release-workflow-written only).</p>
+</li>
+<li>
+<p>Export <code>record_cost</code> and <code>flush_current_provider</code> from <code>core.cost</code> via <code>core.__init__</code> (TYPE_CHECKING, <code>__all__</code>, and <code>_SUBMODULE_ATTRS</code>), matching the pattern of every other <code>core</code> submodule.</p>
+</li>
+<li>Export <code>run_multi_table_migrations</code> from <code>core.__init__</code> (TYPE_CHECKING, <code>__all__</code>, <code>_SUBMODULE_ATTRS</code>) — it was the only public symbol in <code>core.sqlite_utils</code> missing from the package's public API.</li>
+<li>Add <code>check-added-large-files</code>, <code>check-ast</code>, and <code>check-case-conflict</code> pre-commit hooks from <code>pre-commit-hooks</code>.</li>
+<li>Add Dependabot auto-merge caller workflow (<code>.github/workflows/dependabot-auto-merge.yml</code>) so dependabot PRs auto-merge once required checks pass.</li>
+<li>Remove <code>.github/workflows/release.yml</code>: per robotsix-standards, first-party libraries are consumed from git via uv <code>[tool.uv.sources]</code>, not from PyPI. No packages are published to PyPI.</li>
+<li>Add robotsix-standards reference link to README.md and AGENT.md.</li>
+<li>Centralise four environment-variable name strings into module-level constants (<code>_ENV_LOG_LEVEL</code>, <code>_ENV_LOG_FORMAT</code>, <code>_ENV_OPENROUTER_API_KEY</code>, <code>_ENV_REFDOCS_API_KEY</code>) in <code>logging.py</code>, <code>openrouter/provider.py</code>, and <code>refdocs/_settings.py</code>, following the <code>ENV_LANGFUSE_*</code> pattern in <code>core/_otel.py</code>.</li>
+<li>Add <code>site_url</code> to <code>mkdocs.yml</code> to fix MkDocs 1.6+ sitemap generation, social card images, canonical links, and 404 page asset paths.</li>
+<li>Introduced <code>LangfuseClientError(RobotsixLLMIOError)</code> in <code>core.langfuse_client</code>, replacing bare <code>RuntimeError</code> at all Langfuse HTTP/auth/iteration-limit sites, and re-exported it from both <code>robotsix_llmio.core</code> and the top-level <code>robotsix_llmio</code> package so consumers can catch Langfuse-specific errors by type.</li>
+<li>Fix <code>[project.urls]</code> in <code>pyproject.toml</code>: rename <code>Source</code> to <code>Repository</code>, point <code>Documentation</code> to the deployed MkDocs site, and add a <code>Changelog</code> URL.</li>
+<li>Fix README CI badge URL (was pointing at robotsix-mill instead of robotsix-llmio) and clarify env var scoping of <code>LLMIO_LEVEL&lt;N&gt;_*</code> variables in <code>get_provider_for_level</code> docs. Remove stale "follow-up concern" sentence from <code>tier.py</code> module docstring.</li>
+<li>Fix stale references in CONTRIBUTING.md: remove bandit (replaced by ruff S rules), fix mypy override module name (<code>openrouter_deepseek</code> → <code>openrouter</code>), update layer diagram, correct GitHub org (<code>robotsix-dev</code> → <code>damien-robotsix</code>).</li>
+<li>Corrected stale documentation claims across six doc files: removed YAML references from <code>load_tier_config</code> entries, fixed <code>new_model</code> signature in core docs, removed mention of removed bracket-qualifier feature from <code>ParsedIdentifier</code>, updated <code>ClaudeSDKTurnLimitError</code> to reflect <code>_MAX_TURNS</code> agent-loop cap, corrected <code>OpenRouterProvider</code> description (mapping is in <code>TierConfig</code>), removed false claim that <code>openrouter</code> extra is the default, and removed obsolete "transport aliases" references.</li>
+<li>Fix check-then-act race in <code>_StampProcessor.on_start</code> trace naming: consolidate two separate lock acquisitions into a single critical section covering the check, name computation, attribute set, and set insertion, so concurrent spans of the same trace cannot both observe the guard as unset.</li>
+<li>Update ARCHITECTURE.md: fix stale references to the deleted <code>openrouter_deepseek</code> package, correct <code>OpenRouterProvider</code> from abstract to concrete, update PEP 562 lazy-import coverage list, fix test paths, and align extras list with <code>pyproject.toml</code>.</li>
+<li>Remove vestigial <code>from __future__ import annotations</code> from <code>core/constants.py</code>, <code>refdocs/_base.py</code>, and <code>exceptions.py</code> where no PEP 604 unions or forward references exist.</li>
+<li>ClaudeSDK provider: fix <code>build_agent(level=1, output_type=MyModel)</code> raising
+  <code>UserError</code> because the DeepSeek-specific level-gate in <code>_resolve_output_type</code>
+  left the raw model unwrapped. The no-tools path now wraps non-str structured
+  types in <code>PromptedOutput</code> at all levels before delegating to super().</li>
+<li>Fix <code>OpenRouterProvider.new_model</code> resource leak: close <code>httpx.AsyncClient</code> when any constructor (pydantic-ai provider, <code>AsyncOpenAI</code>, model class, or <code>_post_build_model</code>) raises, instead of leaking the client to GC.</li>
+<li>Fix backoff jitter applied after the cap in transient retry logic, which allowed sleep times to reach 1.5× the documented <code>TRANSIENT_BACKOFF_CAP</code>. Jitter is now applied to the raw exponential value before capping, so the final delay never exceeds the cap.</li>
+<li>Fix <code>call_with_retry</code> / <code>acall_with_retry</code>: rate-limit (<code>UsageLimitExceeded</code>) on the last retry attempt now correctly triggers the one-shot <code>fallback_fn</code> instead of re-raising immediately. Fallback activation no longer consumes a transient-retry slot — the fallback always gets the same full retry budget as the primary.</li>
+<li>Fix <code>extra_body.provider</code> override suppressing the per-tier reasoning policy in <code>OpenRouterDeepseekModel._inject_pin</code>. Custom provider routing now coexists with reasoning injection (reasoning is injected independently of the provider pin).</li>
+<li>Add Bash command workspace confinement for claude_sdk tool agents: a
+  new <code>PreToolUse</code> hook denies <code>Bash</code> commands referencing absolute
+  paths outside <code>workspace_root</code>, closing a bypass that allowed
+  host-file mutation via shell redirects and hardlinks even when the
+  edit-tool confinement hook was in place.</li>
+<li>build(deps): bump actionlint from v1.7.7 to v1.7.12</li>
+<li>build(deps): bump ruff-pre-commit from v0.15.18 to v0.15.20</li>
+<li>Add <code>.github/workflows/dependency-review.yml</code> to gate PRs against known-vulnerable dependencies using <code>actions/dependency-review-action@v5.0.0</code> with <code>fail-on-severity: moderate</code> and an allow-list of common open-source licenses.</li>
+<li>Define <code>RefdocsClientError(RobotsixLLMIOError)</code> in <code>refdocs/__init__.py</code> and use it in <code>_async_client._get()</code> instead of bare <code>RuntimeError</code>, consistent with the typed-exception pattern in <code>knowledge/</code> and <code>self_review/</code>.</li>
+<li>Define <code>OpenRouterAPIError</code> (subclass of <code>RobotsixLLMIOError</code>) and raise it
+  instead of bare <code>RuntimeError</code> in the OpenRouter transport, provider, and
+  cost-source modules. Re-export from the top-level package.</li>
+<li>Add <code>security_posture</code> periodic workflow to <code>.robotsix-mill/periodic/</code> for automated security posture review.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
