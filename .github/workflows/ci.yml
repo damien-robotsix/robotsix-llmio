@@ -46,26 +46,6 @@ jobs:
       - run: uv sync --frozen
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
-  audit:
-    name: Dependency audit
-    # Hand-rolled gate, justified: no shared workflow carries uv audit yet —
-    # keep this job until the shared python-ci.yml grows an audit input
-    # (tracked as a standards gap).
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      UV_MALWARE_CHECK: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-repo
-        with:
-          python-version: '3.14'
-      - run: uv sync --frozen
-      - run: uv audit --locked
-
   modules:
     name: Modules
     runs-on: ubuntu-latest

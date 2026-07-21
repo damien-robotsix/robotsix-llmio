@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Remove redundant hand-rolled `audit` job from CI workflow; the shared `python-ci.yml` already runs `uv audit` via its default `run-audit: true` input.
 - Add codespell to pre-commit hooks to catch common misspellings in docstrings and comments.
 - Add `max_tokens` field to `TierLevelConfig` with per-level baked defaults
   (level 1: 4096, level 2: 8192, level 3: 8192, level 4: 16384), plumbed
