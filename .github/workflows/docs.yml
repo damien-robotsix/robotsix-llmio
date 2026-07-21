@@ -10,7 +10,9 @@ permissions: {}  # deny by default; the job grants what it needs
 jobs:
   deploy:
     permissions:
-      contents: write  # push the built site to the gh-pages branch
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-docs.yml@5cd8c1facb02299da618979e7a55f1953f9c075a # main
+      contents: read
+      pages: write
+      id-token: write
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-docs.yml@43309967ea8011400212a8995d33ca900ee2afed # main
     with:
       docs-install-args: "--group docs"
