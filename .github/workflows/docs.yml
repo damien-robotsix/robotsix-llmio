@@ -11,8 +11,8 @@ jobs:
   deploy:
     permissions:
       contents: read
-      pages: write
-      id-token: write
+      pages: write      # deploy to GitHub Pages
+      id-token: write   # OIDC token for Pages deployment auth
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-docs.yml@43309967ea8011400212a8995d33ca900ee2afed # main
     with:
       docs-install-args: "--group docs"
