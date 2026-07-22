@@ -126,7 +126,13 @@ known_first_party = ["robotsix_llmio"]
 # DEP002 (declared but never imported): starlette is a version floor for a
 # transitive dependency (CVE-2026-54283/-54282 via claude-agent-sdk -> mcp),
 # deliberately declared without being imported.
-DEP002 = ["starlette"]
+#
+# opentelemetry-sdk & opentelemetry-exporter-otlp-proto-http are optional
+# tracing extras that share the `opentelemetry` namespace with
+# opentelemetry-api (a transitive dependency of pydantic-ai-slim).  deptry
+# attributes all `opentelemetry.*` imports to opentelemetry-api and cannot
+# detect usage of the sub-namespace packages when they are not installed.
+DEP002 = ["starlette", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http"]
 
 [tool.vulture]
 # Pydantic validators are invoked by the metaclass, never by direct name
