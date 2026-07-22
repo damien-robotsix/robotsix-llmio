@@ -8,7 +8,6 @@ Drives the async OpenRouter REST client via ``httpx.MockTransport``
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 
 import httpx
 import pytest
@@ -17,24 +16,7 @@ from robotsix_llmio.openrouter import OpenRouterAPIError
 from robotsix_llmio.openrouter import _async_client as _async_client_module
 from robotsix_llmio.openrouter._async_client import AsyncOpenRouterClient
 from robotsix_llmio.openrouter.provider_cost import KeyUsage
-
-
-def _install_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    handler: Callable[[httpx.Request], httpx.Response],
-) -> None:
-    """Replace ``timeout_http_client`` so the client under test uses a
-    ``MockTransport`` running *handler*."""
-    transport = httpx.MockTransport(handler)
-    real_async_client = httpx.AsyncClient
-
-    def _fake_timeout_client():
-        return real_async_client(transport=transport)
-
-    monkeypatch.setattr(
-        _async_client_module, "timeout_http_client", _fake_timeout_client
-    )
-
+from tests.core.conftest import install_timeout_transport
 
 # --------------------------------------------------------------------------- #
 # fetch_key_usage
@@ -50,7 +32,7 @@ def test_fetch_key_usage_parses_usage_limit_label(monkeypatch):
             json={"data": {"usage": 12.5, "limit": 100.0, "label": "mykey"}},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_key_usage())
@@ -68,7 +50,7 @@ def test_fetch_key_usage_limit_none_is_unlimited(monkeypatch):
             json={"data": {"usage": 5.0, "limit": None, "label": "nolimit"}},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_key_usage())
@@ -82,7 +64,7 @@ def test_fetch_key_usage_non_2xx_raises_runtime_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": "unauthorized"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     with pytest.raises(OpenRouterAPIError, match="HTTP 401"):
@@ -93,7 +75,7 @@ def test_fetch_key_usage_defaults_missing_fields(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {}})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_key_usage())
@@ -107,7 +89,7 @@ def test_fetch_key_usage_missing_data_key_defaults(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_key_usage())
@@ -136,7 +118,7 @@ def test_fetch_credits_returns_rounded_values(monkeypatch):
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_credits())
@@ -152,7 +134,7 @@ def test_fetch_credits_defaults_missing_fields(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {"total_credits": 10.0}})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_credits())
@@ -166,7 +148,7 @@ def test_fetch_credits_missing_data_defaults(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     result = asyncio.run(client.fetch_credits())
@@ -189,7 +171,7 @@ def test_fetch_key_usage_html_body_raises_openrouter_error(monkeypatch):
             headers={"content-type": "text/html"},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
     client = AsyncOpenRouterClient(api_key="k")
     with pytest.raises(OpenRouterAPIError, match="non-JSON"):
         asyncio.run(client.fetch_key_usage())
@@ -199,7 +181,7 @@ def test_fetch_key_usage_json_array_body_raises_openrouter_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=["unexpected", "array"])
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
     client = AsyncOpenRouterClient(api_key="k")
     with pytest.raises(OpenRouterAPIError, match="unexpected JSON shape"):
         asyncio.run(client.fetch_key_usage())
@@ -209,7 +191,7 @@ def test_fetch_credits_non_2xx_raises_runtime_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"error": "forbidden"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _async_client_module)
 
     client = AsyncOpenRouterClient(api_key="k")
     with pytest.raises(OpenRouterAPIError, match="HTTP 403"):

@@ -37,6 +37,17 @@ def install_transport(
     return captured
 
 
+def install_timeout_transport(monkeypatch, handler, module) -> None:
+    """Patch ``module.timeout_http_client`` so the client under test uses a
+    ``MockTransport`` running *handler*."""
+    transport = httpx.MockTransport(handler)
+
+    def _fake_timeout_client() -> httpx.AsyncClient:
+        return httpx.AsyncClient(transport=transport)
+
+    monkeypatch.setattr(module, "timeout_http_client", _fake_timeout_client)
+
+
 def install_async_transport(monkeypatch, handler, module) -> list[httpx.Request]:
     """Patch ``httpx.AsyncClient`` so the adapter uses a ``MockTransport``
     running *handler*. Returns a list that captures every request the
