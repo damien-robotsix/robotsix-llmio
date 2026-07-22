@@ -46,6 +46,27 @@ jobs:
       - run: uv sync --frozen
       - run: uv run --with vulture vulture src/ vulture_whitelist.py
 
+  deptry:
+    name: Deptry
+    # Hand-rolled gate, justified: deptry (dependency hygiene check) is a
+    # pre-commit hook in the standard set, but CI does not run `pre-commit
+    # run --all-files` yet and no shared workflow carries deptry — keep this
+    # job until one of the two exists (tracked as a standards gap).
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      UV_MALWARE_CHECK: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-repo
+        with:
+          python-version: '3.14'
+      - run: uv sync --frozen
+      - run: uv run deptry src
+
   modules:
     name: Modules
     runs-on: ubuntu-latest
