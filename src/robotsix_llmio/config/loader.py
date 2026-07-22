@@ -142,24 +142,19 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     """Convert a tier-value to a plain dict for merging.
 
     Handles :class:`TierLevelConfig` instances and anything with a
-    ``model_dump()`` or ``dict()`` method.
+    ``model_dump()`` method.
     """
     if isinstance(obj, dict):
         return obj
     try:
         result: Any = obj.model_dump()
     except AttributeError:
-        pass
-    else:
-        if isinstance(result, dict):
-            return result
-    try:
-        result = obj.dict()
-    except AttributeError:
-        pass
-    else:
-        if isinstance(result, dict):
-            return result
+        raise TierConfigLoadError(
+            f"Cannot merge tier value of type {type(obj).__name__!r}; "
+            f"expected a dict or pydantic model."
+        ) from None
+    if isinstance(result, dict):
+        return result
     raise TierConfigLoadError(
         f"Cannot merge tier value of type {type(obj).__name__!r}; "
         f"expected a dict or pydantic model."
