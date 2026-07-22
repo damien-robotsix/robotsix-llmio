@@ -9,13 +9,13 @@ no ``pytest-asyncio`` needed.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 
 import httpx
 import pytest
 
 from robotsix_llmio.clients import _base as _base_module
 from robotsix_llmio.clients._base import BaseHttpClient
+from tests.core.conftest import install_timeout_transport
 
 # --------------------------------------------------------------------------- #
 # Test-only concrete subclass
@@ -36,25 +36,6 @@ class _TestClient(BaseHttpClient):
     @property
     def _error_label(self) -> str:
         return "Test client"
-
-
-# --------------------------------------------------------------------------- #
-# Transport helper
-# --------------------------------------------------------------------------- #
-
-
-def _install_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    handler: Callable[[httpx.Request], httpx.Response],
-) -> None:
-    """Patch ``timeout_http_client`` so the client under test uses a
-    ``MockTransport`` running *handler*."""
-    transport = httpx.MockTransport(handler)
-
-    def _fake_timeout_client() -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=transport)
-
-    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
 
 
 # --------------------------------------------------------------------------- #
@@ -101,7 +82,7 @@ def test_get_returns_parsed_json_dict(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"key": "value"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     result = asyncio.run(client._get("/v1/test"))
     assert result == {"key": "value"}
@@ -112,7 +93,7 @@ def test_get_constructs_url_correctly(monkeypatch: pytest.MonkeyPatch) -> None:
         assert str(request.url) == "http://example.com/api/v1/test"
         return httpx.Response(200, json={"ok": True})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     asyncio.run(client._get("/v1/test"))
 
@@ -123,7 +104,7 @@ def test_get_passes_query_params(monkeypatch: pytest.MonkeyPatch) -> None:
         assert request.url.params["b"] == "2"
         return httpx.Response(200, json={"ok": True})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     asyncio.run(client._get("/v1/test", params={"a": "1", "b": "2"}))
 
@@ -140,7 +121,7 @@ def test_get_sets_authorization_header_when_api_key_provided(
         assert request.headers["Authorization"] == "Bearer my-key"
         return httpx.Response(200, json={"ok": True})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api", api_key="my-key")
     asyncio.run(client._get("/v1/test"))
 
@@ -152,7 +133,7 @@ def test_get_omits_authorization_header_when_api_key_is_none(
         assert "Authorization" not in request.headers
         return httpx.Response(200, json={"ok": True})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api", api_key=None)
     asyncio.run(client._get("/v1/test"))
 
@@ -169,7 +150,7 @@ def test_get_raises_on_non_2xx_status(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(status)
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match=f"HTTP {status}"):
         asyncio.run(client._get("/v1/test"))
@@ -184,7 +165,7 @@ def test_get_raises_on_non_json_body(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=b"plain text, not json")
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match="non-JSON body"):
         asyncio.run(client._get("/v1/test"))
@@ -194,7 +175,7 @@ def test_get_raises_on_json_array_body(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=["a", "b"])
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match="unexpected JSON shape"):
         asyncio.run(client._get("/v1/test"))
@@ -204,7 +185,7 @@ def test_get_raises_on_json_string_body(monkeypatch: pytest.MonkeyPatch) -> None
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json="a string")
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match="unexpected JSON shape"):
         asyncio.run(client._get("/v1/test"))
@@ -214,7 +195,7 @@ def test_get_raises_on_json_number_body(monkeypatch: pytest.MonkeyPatch) -> None
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=42)
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match="unexpected JSON shape"):
         asyncio.run(client._get("/v1/test"))
@@ -229,7 +210,7 @@ def test_get_raises_on_network_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection refused")
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = _TestClient(base_url="http://example.com/api")
     with pytest.raises(_TestClientError, match="connection refused"):
         asyncio.run(client._get("/v1/test"))

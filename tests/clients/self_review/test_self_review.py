@@ -8,7 +8,6 @@ no ``pytest-asyncio`` needed.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 
 import httpx
 import pytest
@@ -19,25 +18,7 @@ from robotsix_llmio.clients.self_review._client import (
     SelfReviewClient,
     build_recent_activity_tools,
 )
-
-# --------------------------------------------------------------------------- #
-# Test helpers
-# --------------------------------------------------------------------------- #
-
-
-def _install_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    handler: Callable[[httpx.Request], httpx.Response],
-) -> None:
-    """Patch ``timeout_http_client`` so the client under test uses a
-    ``MockTransport`` running *handler*."""
-    transport = httpx.MockTransport(handler)
-
-    def _fake_timeout_client() -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=transport)
-
-    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
-
+from tests.core.conftest import install_timeout_transport
 
 # --------------------------------------------------------------------------- #
 # SelfReviewClient.list_activity
@@ -50,7 +31,7 @@ def test_list_activity_sends_limit(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "limit" in str(request.url.query)
         return httpx.Response(200, json={"activities": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     activities = asyncio.run(client.list_activity(limit=5))
@@ -81,7 +62,7 @@ def test_list_activity_parses_results(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     activities = asyncio.run(client.list_activity())
@@ -101,7 +82,7 @@ def test_list_activity_non_2xx_raises_self_review_client_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"error": "internal"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="HTTP 500"):
@@ -128,7 +109,7 @@ def test_list_activity_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None
         assert request.headers["Authorization"] == "Bearer secret-key"
         return httpx.Response(200, json={"activities": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1", api_key="secret-key")
     asyncio.run(client.list_activity())
@@ -141,7 +122,7 @@ def test_list_activity_no_api_key_omits_auth_header(
         assert "Authorization" not in request.headers
         return httpx.Response(200, json={"activities": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     asyncio.run(client.list_activity())
@@ -153,7 +134,7 @@ def test_list_activity_missing_activities_key_defaults_to_empty(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     activities = asyncio.run(client.list_activity())
@@ -180,7 +161,7 @@ def test_get_activity_returns_full_activity(monkeypatch: pytest.MonkeyPatch) -> 
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     activity = asyncio.run(client.get_activity("act-42"))
@@ -199,7 +180,7 @@ def test_get_activity_404_raises_self_review_client_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="HTTP 404"):
@@ -220,7 +201,7 @@ def test_get_activity_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1", api_key="tok")
     asyncio.run(client.get_activity("x"))
@@ -241,7 +222,7 @@ def test_list_activity_html_body_raises_self_review_error(
             headers={"content-type": "text/html"},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="non-JSON"):
         asyncio.run(client.list_activity())
@@ -253,7 +234,7 @@ def test_list_activity_json_array_body_raises_self_review_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=["unexpected", "array"])
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     with pytest.raises(SelfReviewClientError, match="unexpected JSON shape"):
         asyncio.run(client.list_activity())
@@ -290,7 +271,7 @@ def test_list_recent_activity_tool_returns_formatted_results(
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)
@@ -309,7 +290,7 @@ def test_list_recent_activity_tool_no_results(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"activities": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)
@@ -325,7 +306,7 @@ def test_list_recent_activity_tool_handles_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={"error": "unavailable"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)
@@ -352,7 +333,7 @@ def test_get_recent_activity_detail_tool_returns_formatted_activity(
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)
@@ -381,7 +362,7 @@ def test_get_recent_activity_detail_tool_no_detail_field(
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)
@@ -399,7 +380,7 @@ def test_get_recent_activity_detail_tool_handles_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = SelfReviewClient(base_url="http://sr:8000/api/v1")
     tools = build_recent_activity_tools(client)

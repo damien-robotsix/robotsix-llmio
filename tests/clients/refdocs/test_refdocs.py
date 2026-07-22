@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Callable
 
 import httpx
 import pytest
@@ -19,26 +18,7 @@ from robotsix_llmio.clients.refdocs import RefdocsClientError
 from robotsix_llmio.clients.refdocs._async_client import AsyncRefdocsClient
 from robotsix_llmio.clients.refdocs._settings import RefdocsSettings
 from robotsix_llmio.clients.refdocs.factory import build_refdocs_tools
-
-# --------------------------------------------------------------------------- #
-#  Transport helper
-# --------------------------------------------------------------------------- #
-
-
-def _install_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    handler: Callable[[httpx.Request], httpx.Response],
-) -> None:
-    """Replace ``timeout_http_client`` so the client under test uses a
-    ``MockTransport`` running *handler*."""
-    transport = httpx.MockTransport(handler)
-    real_async_client = httpx.AsyncClient
-
-    def _fake_timeout_client():
-        return real_async_client(transport=transport)
-
-    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
-
+from tests.core.conftest import install_timeout_transport
 
 # --------------------------------------------------------------------------- #
 #  AsyncRefdocsClient — search
@@ -59,7 +39,7 @@ def test_search_returns_results(monkeypatch):
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient(base_url="http://refdocs:9090")
     results = asyncio.run(client.search("how to configure"))
@@ -74,7 +54,7 @@ def test_search_non_list_results_defaults_to_empty(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"results": None})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     results = asyncio.run(client.search("query"))
@@ -85,7 +65,7 @@ def test_search_missing_results_key_defaults_to_empty(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     results = asyncio.run(client.search("query"))
@@ -96,7 +76,7 @@ def test_search_non_2xx_raises_refdocs_client_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"error": "internal"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     with pytest.raises(RefdocsClientError, match="HTTP 500"):
@@ -116,7 +96,7 @@ def test_get_doc_returns_content(monkeypatch):
             json={"content": "# Agent module\n\nThis is the agent documentation."},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient(base_url="http://refdocs:9090")
     content = asyncio.run(client.get_doc("core/agent"))
@@ -128,7 +108,7 @@ def test_get_doc_missing_content_defaults_to_empty(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     content = asyncio.run(client.get_doc("nonexistent"))
@@ -139,7 +119,7 @@ def test_get_doc_non_2xx_raises_refdocs_client_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     with pytest.raises(RefdocsClientError, match="HTTP 404"):
@@ -156,7 +136,7 @@ def test_api_key_adds_bearer_header(monkeypatch):
         assert request.headers["Authorization"] == "Bearer secret-key"
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient(api_key="secret-key")
     asyncio.run(client.search("q"))
@@ -167,7 +147,7 @@ def test_no_api_key_no_auth_header(monkeypatch):
         assert "Authorization" not in request.headers
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = AsyncRefdocsClient()
     asyncio.run(client.search("q"))
@@ -186,7 +166,7 @@ def test_search_html_body_raises_refdocs_error(monkeypatch):
             headers={"content-type": "text/html"},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = AsyncRefdocsClient(base_url="http://rd")
     with pytest.raises(RefdocsClientError, match="non-JSON"):
         asyncio.run(client.search("q"))
@@ -196,7 +176,7 @@ def test_search_json_array_body_raises_refdocs_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=["unexpected", "array"])
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = AsyncRefdocsClient(base_url="http://rd")
     with pytest.raises(RefdocsClientError, match="unexpected JSON shape"):
         asyncio.run(client.search("q"))
@@ -246,7 +226,7 @@ def test_build_refdocs_tools_returns_two_tools(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     from pydantic_ai.tools import Tool
 
@@ -270,7 +250,7 @@ def test_search_refdocs_tool_calls_search(monkeypatch):
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     settings = RefdocsSettings(base_url="http://refdocs:9090")
     tools = build_refdocs_tools(settings)
@@ -289,7 +269,7 @@ def test_get_refdocs_tool_calls_get_doc(monkeypatch):
             json={"content": "doc body"},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     settings = RefdocsSettings(base_url="http://refdocs:9090")
     tools = build_refdocs_tools(settings)

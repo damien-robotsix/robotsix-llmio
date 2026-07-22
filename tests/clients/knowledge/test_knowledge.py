@@ -8,7 +8,6 @@ no ``pytest-asyncio`` needed.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 
 import httpx
 import pytest
@@ -19,25 +18,7 @@ from robotsix_llmio.clients.knowledge._client import (
     KnowledgeClient,
     build_knowledge_tools,
 )
-
-# --------------------------------------------------------------------------- #
-# Test helpers
-# --------------------------------------------------------------------------- #
-
-
-def _install_transport(
-    monkeypatch: pytest.MonkeyPatch,
-    handler: Callable[[httpx.Request], httpx.Response],
-) -> None:
-    """Patch ``timeout_http_client`` so the client under test uses a
-    ``MockTransport`` running *handler*."""
-    transport = httpx.MockTransport(handler)
-
-    def _fake_timeout_client() -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=transport)
-
-    monkeypatch.setattr(_base_module, "timeout_http_client", _fake_timeout_client)
-
+from tests.core.conftest import install_timeout_transport
 
 # --------------------------------------------------------------------------- #
 # KnowledgeClient.search
@@ -52,7 +33,7 @@ def test_search_sends_query_and_top_k(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "top_k" in str(request.url.query)
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     results = asyncio.run(client.search("test query", top_k=5))
@@ -81,7 +62,7 @@ def test_search_parses_results(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     results = asyncio.run(client.search("anything"))
@@ -100,7 +81,7 @@ def test_search_non_2xx_raises_knowledge_client_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"error": "internal"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="HTTP 500"):
@@ -130,7 +111,7 @@ def test_search_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
         assert request.headers["Authorization"] == "Bearer secret-key"
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1", api_key="secret-key")
     asyncio.run(client.search("query"))
@@ -141,7 +122,7 @@ def test_search_no_api_key_omits_auth_header(monkeypatch: pytest.MonkeyPatch) ->
         assert "Authorization" not in request.headers
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     asyncio.run(client.search("query"))
@@ -153,7 +134,7 @@ def test_search_missing_results_key_defaults_to_empty(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     results = asyncio.run(client.search("query"))
@@ -178,7 +159,7 @@ def test_get_document_returns_full_doc(monkeypatch: pytest.MonkeyPatch) -> None:
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     doc = asyncio.run(client.get_document("doc-42"))
@@ -195,7 +176,7 @@ def test_get_document_404_raises_knowledge_client_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="HTTP 404"):
@@ -207,7 +188,7 @@ def test_get_document_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
         assert request.headers["Authorization"] == "Bearer tok"
         return httpx.Response(200, json={"id": "x", "title": "T", "content": "C"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1", api_key="tok")
     asyncio.run(client.get_document("x"))
@@ -243,7 +224,7 @@ def test_search_knowledge_tool_returns_formatted_results(
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -260,7 +241,7 @@ def test_search_knowledge_tool_no_results(monkeypatch: pytest.MonkeyPatch) -> No
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"results": []})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -274,7 +255,7 @@ def test_search_knowledge_tool_handles_error(monkeypatch: pytest.MonkeyPatch) ->
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={"error": "unavailable"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -298,7 +279,7 @@ def test_get_knowledge_document_tool_returns_formatted_doc(
             },
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -318,7 +299,7 @@ def test_get_knowledge_document_tool_empty_content(
             json={"id": "empty", "title": "Nothing", "content": ""},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -334,7 +315,7 @@ def test_get_knowledge_document_tool_handles_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": "not found"})
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
 
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     tools = build_knowledge_tools(client)
@@ -360,7 +341,7 @@ def test_search_html_body_raises_knowledge_error(
             headers={"content-type": "text/html"},
         )
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="non-JSON"):
         asyncio.run(client.search("q"))
@@ -372,7 +353,7 @@ def test_search_json_array_body_raises_knowledge_error(
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=["unexpected", "array"])
 
-    _install_transport(monkeypatch, handler)
+    install_timeout_transport(monkeypatch, handler, _base_module)
     client = KnowledgeClient(base_url="http://ks:8000/api/v1")
     with pytest.raises(KnowledgeClientError, match="unexpected JSON shape"):
         asyncio.run(client.search("q"))
