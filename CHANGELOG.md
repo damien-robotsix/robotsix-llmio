@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Consolidated repetitive test functions in `tests/core/test_langfuse_cost.py` from 22 to 10 using `@pytest.mark.parametrize` across six groups (`_parse_timestamp`, `_observation_provider`, `_observation_cost`, `fetch_logged_cost`, `fetch_by_provider`, `prune_before`).
 - Remove dead Pydantic v1 `.dict()` fallback in `_to_dict()` (`src/robotsix_llmio/config/loader.py`). The project requires pydantic>=2, so the backward-compat try/except for `.dict()` was unreachable.
 - Add `deptry` to dev dependencies, pre-commit hooks, and CI to catch misplaced/unused dependencies automatically.
 - Remove redundant hand-rolled `audit` job from CI workflow; the shared `python-ci.yml` already runs `uv audit` via its default `run-audit: true` input.
