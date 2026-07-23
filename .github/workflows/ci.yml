@@ -25,12 +25,13 @@ jobs:
       pytest-args: '-m "not live" -n 4'
       mypy-advisory: false
 
-  vulture:
-    name: Vulture
-    # Hand-rolled gate, justified: vulture (dead-code check) is a pre-commit
-    # hook in the standard set, but CI does not run `pre-commit run
-    # --all-files` yet and no shared workflow carries vulture — keep this job
-    # until one of the two exists (tracked as a standards gap).
+  checks:
+    name: Checks (vulture + deptry + modules)
+    # Hand-rolled gate, justified: vulture, deptry, and modules-registration
+    # are pre-commit hooks in the standard set, but CI does not run
+    # `pre-commit run --all-files` yet and no shared workflow carries these
+    # checks — keep this job until one of the two exists (tracked as a
+    # standards gap).
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,45 +45,12 @@ jobs:
         with:
           python-version: '3.14'
       - run: uv sync --frozen
-      - run: uv run --with vulture vulture src/ vulture_whitelist.py
-
-  deptry:
-    name: Deptry
-    # Hand-rolled gate, justified: deptry (dependency hygiene check) is a
-    # pre-commit hook in the standard set, but CI does not run `pre-commit
-    # run --all-files` yet and no shared workflow carries deptry — keep this
-    # job until one of the two exists (tracked as a standards gap).
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      UV_MALWARE_CHECK: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-repo
-        with:
-          python-version: '3.14'
-      - run: uv sync --frozen
-      - run: uv run deptry src
-
-  modules:
-    name: Modules
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      UV_MALWARE_CHECK: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-repo
-        with:
-          python-version: '3.14'
-      - run: uv sync --frozen
-      - run: uv run --with robotsix-modules robotsix-modules-validate docs/modules.yaml
+      - name: vulture (dead code)
+        run: uv run vulture --ignore-decorators "@field_validator,@model_validator" src/ vulture_whitelist.py
+      - name: deptry (dependency hygiene)
+        run: uv run deptry src
+      - name: modules (registration check)
+        run: uv run robotsix-modules check-registration docs/modules.yaml --root .
 
   changelog:
     name: Changelog
