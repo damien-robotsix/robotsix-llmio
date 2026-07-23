@@ -321,6 +321,8 @@ def test_backoff_delay_never_exceeds_cap_sync(monkeypatch):
     from robotsix_llmio.core.constants import TRANSIENT_BACKOFF_CAP, TRANSIENT_RETRIES
 
     # Force uniform(a, b) to always return b (max jitter).
+    # _compute_backoff lives in core.retry; the random module reference
+    # lives there.
     monkeypatch.setattr(
         "robotsix_llmio.core.retry.random.uniform",
         lambda a, b: b,
