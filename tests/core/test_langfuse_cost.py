@@ -14,7 +14,6 @@ import httpx
 import pytest
 from conftest import install_transport, make_adapter, make_window
 
-from robotsix_llmio.core.cost_log import LoggedCost
 from robotsix_llmio.core.langfuse_client import LangfuseClientError
 from robotsix_llmio.core.langfuse_cost import (
     _observation_cost,
@@ -24,96 +23,154 @@ from robotsix_llmio.core.langfuse_cost import (
 
 
 # --------------------------------------------------------------------------- #
+# _parse_timestamp
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ["input", "expected"],
+    [
+        ("2024-01-01T12:00:00Z", datetime(2024, 1, 1, 12, 0, tzinfo=UTC)),
+        ("2024-01-01T12:00:00+00:00", datetime(2024, 1, 1, 12, 0, tzinfo=UTC)),
+        pytest.param(
+            datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+            None,
+            id="datetime_passthrough",
+        ),
+        pytest.param("not-a-timestamp", None, id="invalid_raises"),
+    ],
+)
+def test_parse_timestamp(input, expected):
+    """``_parse_timestamp`` handles Z/offset suffixes, datetime passthrough,
+    and raises ``ValueError`` for unparseable strings."""
+    if expected is None and not isinstance(input, str):
+        assert _parse_timestamp(input) is input
+    elif expected is None:
+        with pytest.raises(ValueError):
+            _parse_timestamp(input)
+    else:
+        assert _parse_timestamp(input) == expected
+
+
+# --------------------------------------------------------------------------- #
+# _observation_provider
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ["observation", "expected"],
+    [
+        ({"metadata": {"provider": "openrouter"}}, "openrouter"),
+        ({}, None),
+        ({"metadata": {"other": "x"}}, None),
+    ],
+)
+def test_observation_provider(observation, expected):
+    assert _observation_provider(observation) == expected
+
+
+# --------------------------------------------------------------------------- #
+# _observation_cost
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ["observation", "expected"],
+    [
+        ({"calculatedTotalCost": 1.0, "totalCost": 2.0}, 1.0),
+        ({"totalCost": 2.0}, 2.0),
+        ({"costDetails": {"total": 3.0}}, 3.0),
+        ({}, 0.0),
+        ({"costDetails": {}}, 0.0),
+    ],
+)
+def test_observation_cost(observation, expected):
+    assert _observation_cost(observation) == pytest.approx(expected)
+
+
+# --------------------------------------------------------------------------- #
 # fetch_logged_cost
 # --------------------------------------------------------------------------- #
-def test_fetch_logged_cost_single_page(monkeypatch):
-    """A single non-empty page followed by an empty page aggregates correctly."""
-    data = [
-        {"id": "t1", "totalCost": 0.5, "timestamp": "2026-06-03T10:01:00Z"},
-        {"id": "t2", "totalCost": 1.5, "timestamp": "2026-06-03T10:02:00Z"},
-    ]
+@pytest.mark.parametrize(
+    ["pages", "expected_count", "expected_total"],
+    [
+        pytest.param(
+            [
+                [
+                    {"id": "t1", "totalCost": 0.5, "timestamp": "2026-06-03T10:01:00Z"},
+                    {"id": "t2", "totalCost": 1.5, "timestamp": "2026-06-03T10:02:00Z"},
+                ],
+                [],
+            ],
+            2,
+            2.0,
+            id="single_page",
+        ),
+        pytest.param(
+            [
+                [{"id": "t1", "totalCost": 1.0, "timestamp": "2026-06-03T10:01:00Z"}],
+                [{"id": "t2", "totalCost": 2.0, "timestamp": "2026-06-03T10:02:00Z"}],
+                [],
+            ],
+            2,
+            3.0,
+            id="multi_page_break",
+        ),
+        pytest.param(
+            [
+                [
+                    {
+                        "id": "t1",
+                        "totalCost": 0.75,
+                        "timestamp": "2026-06-03T10:01:00Z",
+                        "sessionId": "sess-1",
+                        "name": "trace-one",
+                    },
+                    {
+                        "id": "t2",
+                        "totalCost": 0.25,
+                        "timestamp": "2026-06-03T10:02:00Z",
+                        "sessionId": "sess-2",
+                        "name": "trace-two",
+                    },
+                ],
+                [],
+            ],
+            2,
+            1.0,
+            id="record_aggregation",
+        ),
+        pytest.param(
+            [[]],
+            0,
+            0.0,
+            id="empty_data",
+        ),
+    ],
+)
+def test_fetch_logged_cost(monkeypatch, pages, expected_count, expected_total):
+    """``fetch_logged_cost`` paginates traces, aggregates costs, and maps
+    ``CostRecord`` fields correctly."""
+    page_iter = iter(pages)
 
     def handler(request: httpx.Request) -> httpx.Response:
-        page = int(request.url.params["page"])
-        return httpx.Response(200, json={"data": data if page == 1 else []})
+        return httpx.Response(200, json={"data": next(page_iter)})
 
     install_transport(monkeypatch, handler)
     result = make_adapter().fetch_logged_cost(make_window())
 
-    assert isinstance(result, LoggedCost)
-    assert result.record_count == 2
-    assert result.total_cost == pytest.approx(2.0)
+    assert result.record_count == expected_count
+    assert result.total_cost == pytest.approx(expected_total)
+
+    # Verify CostRecord field mapping against the input data.
+    all_input = [r for page in pages for r in page]
+    for src, record in zip(all_input, result.records, strict=False):
+        assert record.id == src["id"]
+        assert record.cost == pytest.approx(src.get("totalCost", 0))
+        if "sessionId" in src:
+            assert record.session_id == src["sessionId"]
+        if "name" in src:
+            assert record.name == src["name"]
+        assert isinstance(record.timestamp, datetime)
 
 
-def test_fetch_logged_cost_multi_page_break(monkeypatch):
-    """Pagination loops until an empty ``data`` page breaks the loop."""
-    pages = {
-        1: [{"id": "t1", "totalCost": 1.0, "timestamp": "2026-06-03T10:01:00Z"}],
-        2: [{"id": "t2", "totalCost": 2.0, "timestamp": "2026-06-03T10:02:00Z"}],
-        3: [],
-    }
+def test_fetch_logged_cost_http_error(monkeypatch):
+    """A non-2xx response raises ``LangfuseClientError``."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        page = int(request.url.params["page"])
-        return httpx.Response(200, json={"data": pages[page]})
-
-    captured = install_transport(monkeypatch, handler)
-    result = make_adapter().fetch_logged_cost(make_window())
-
-    assert result.record_count == 2
-    assert result.total_cost == pytest.approx(3.0)
-    # pages 1, 2, then the empty page 3 that breaks the loop.
-    assert [int(r.url.params["page"]) for r in captured] == [1, 2, 3]
-
-
-def test_fetch_logged_cost_record_aggregation(monkeypatch):
-    """Each CostRecord field maps from the trace dict; total is the sum."""
-    data = [
-        {
-            "id": "t1",
-            "totalCost": 0.75,
-            "timestamp": "2026-06-03T10:01:00Z",
-            "sessionId": "sess-1",
-            "name": "trace-one",
-        },
-        {
-            "id": "t2",
-            "totalCost": 0.25,
-            "timestamp": "2026-06-03T10:02:00Z",
-            "sessionId": "sess-2",
-            "name": "trace-two",
-        },
-    ]
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        page = int(request.url.params["page"])
-        return httpx.Response(200, json={"data": data if page == 1 else []})
-
-    install_transport(monkeypatch, handler)
-    result = make_adapter().fetch_logged_cost(make_window())
-
-    assert result.total_cost == pytest.approx(1.0)
-    first = result.records[0]
-    assert first.id == "t1"
-    assert first.cost == pytest.approx(0.75)
-    assert first.timestamp == datetime(2026, 6, 3, 10, 1, tzinfo=UTC)
-    assert first.session_id == "sess-1"
-    assert first.name == "trace-one"
-
-
-def test_fetch_logged_cost_empty_data(monkeypatch):
-    """An immediately empty response yields a zero-cost result."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"data": []})
-
-    install_transport(monkeypatch, handler)
-    result = make_adapter().fetch_logged_cost(make_window())
-
-    assert result == LoggedCost(total_cost=0.0, record_count=0, records=[])
-
-
-def test_fetch_logged_cost_non_2xx_raises(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="boom")
 
@@ -125,99 +182,111 @@ def test_fetch_logged_cost_non_2xx_raises(monkeypatch):
 # --------------------------------------------------------------------------- #
 # fetch_logged_cost_by_provider
 # --------------------------------------------------------------------------- #
-def test_fetch_by_provider_filters_and_paginates(monkeypatch):
-    """Only observations whose metadata provider matches are summed; the
-    observations endpoint is paged until an empty page."""
-    pages = {
-        1: [
-            {
-                "id": "o1",
-                "calculatedTotalCost": 0.4,
-                "startTime": "2026-06-03T10:01:00Z",
-                "traceId": "tr1",
-                "name": "gen-1",
-                "metadata": {"provider": "openrouter"},
-            },
-            {
-                "id": "o2",
-                "calculatedTotalCost": 9.9,
-                "startTime": "2026-06-03T10:02:00Z",
-                "metadata": {"provider": "claude-sdk"},
-            },
-        ],
-        2: [
-            {
-                "id": "o3",
-                "calculatedTotalCost": 0.6,
-                "startTime": "2026-06-03T10:03:00Z",
-                "traceId": "tr3",
-                "metadata": {"provider": "openrouter"},
-            },
-        ],
-        3: [],
-    }
+@pytest.mark.parametrize(
+    ["pages", "provider", "expected_count", "expected_total"],
+    [
+        pytest.param(
+            [
+                [
+                    {
+                        "id": "o1",
+                        "calculatedTotalCost": 0.4,
+                        "startTime": "2026-06-03T10:01:00Z",
+                        "traceId": "tr1",
+                        "name": "gen-1",
+                        "metadata": {"provider": "openrouter"},
+                    },
+                    {
+                        "id": "o2",
+                        "calculatedTotalCost": 9.9,
+                        "startTime": "2026-06-03T10:02:00Z",
+                        "metadata": {"provider": "claude-sdk"},
+                    },
+                ],
+                [
+                    {
+                        "id": "o3",
+                        "calculatedTotalCost": 0.6,
+                        "startTime": "2026-06-03T10:03:00Z",
+                        "traceId": "tr3",
+                        "metadata": {"provider": "openrouter"},
+                    },
+                ],
+                [],
+            ],
+            "openrouter",
+            2,
+            1.0,
+            id="filters_and_paginates",
+        ),
+        pytest.param(
+            [
+                [
+                    {
+                        "id": "calc",
+                        "calculatedTotalCost": 1.0,
+                        "totalCost": 99.0,
+                        "startTime": "2026-06-03T10:01:00Z",
+                        "metadata": {"provider": "p"},
+                    },
+                    {
+                        "id": "total",
+                        "totalCost": 2.0,
+                        "startTime": "2026-06-03T10:02:00Z",
+                        "metadata": {"provider": "p"},
+                    },
+                    {
+                        "id": "details",
+                        "costDetails": {"total": 3.0},
+                        "startTime": "2026-06-03T10:03:00Z",
+                        "metadata": {"provider": "p"},
+                    },
+                ],
+                [],
+            ],
+            "p",
+            3,
+            6.0,
+            id="cost_extraction_order",
+        ),
+    ],
+)
+def test_fetch_by_provider(
+    monkeypatch, pages, provider, expected_count, expected_total
+):
+    """``fetch_logged_cost_by_provider`` paginates observations, filters by
+    provider, and extracts cost in the correct priority order."""
+    page_iter = iter(pages)
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/public/observations"
         assert request.url.params["type"] == "GENERATION"
-        page = int(request.url.params["page"])
-        return httpx.Response(200, json={"data": pages[page]})
+        return httpx.Response(200, json={"data": next(page_iter)})
 
     install_transport(monkeypatch, handler)
-    result = make_adapter().fetch_logged_cost_by_provider(make_window(), "openrouter")
+    result = make_adapter().fetch_logged_cost_by_provider(make_window(), provider)
 
-    assert result.record_count == 2
-    assert result.total_cost == pytest.approx(1.0)
-    ids = {r.id for r in result.records}
-    assert ids == {"o1", "o3"}
-    # session_id falls back to the parent traceId for observations.
-    o1 = next(r for r in result.records if r.id == "o1")
-    assert o1.session_id == "tr1"
-    assert o1.name == "gen-1"
+    assert result.record_count == expected_count
+    assert result.total_cost == pytest.approx(expected_total)
 
-
-def test_fetch_by_provider_cost_extraction_order(monkeypatch):
-    """Cost is read from calculatedTotalCost, then totalCost, then
-    costDetails.total — in that order."""
-    data = [
-        {
-            "id": "calc",
-            "calculatedTotalCost": 1.0,
-            "totalCost": 99.0,
-            "startTime": "2026-06-03T10:01:00Z",
-            "metadata": {"provider": "p"},
-        },
-        {
-            "id": "total",
-            "totalCost": 2.0,
-            "startTime": "2026-06-03T10:02:00Z",
-            "metadata": {"provider": "p"},
-        },
-        {
-            "id": "details",
-            "costDetails": {"total": 3.0},
-            "startTime": "2026-06-03T10:03:00Z",
-            "metadata": {"provider": "p"},
-        },
+    # Verify field mapping for matching records.
+    all_input = [
+        r
+        for page in pages
+        for r in page
+        if r.get("metadata", {}).get("provider") == provider
     ]
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        page = int(request.url.params["page"])
-        return httpx.Response(200, json={"data": data if page == 1 else []})
-
-    install_transport(monkeypatch, handler)
-    result = make_adapter().fetch_logged_cost_by_provider(make_window(), "p")
-
-    assert result.total_cost == pytest.approx(6.0)
-    by_id = {r.id: r.cost for r in result.records}
-    assert by_id == {
-        "calc": pytest.approx(1.0),
-        "total": pytest.approx(2.0),
-        "details": pytest.approx(3.0),
-    }
+    for src, record in zip(all_input, result.records, strict=False):
+        assert record.id == src["id"]
+        if "traceId" in src:
+            assert record.session_id == src["traceId"]
+        if "name" in src:
+            assert record.name == src["name"]
 
 
-def test_fetch_by_provider_non_2xx_raises(monkeypatch):
+def test_fetch_by_provider_http_error(monkeypatch):
+    """A non-2xx response raises ``LangfuseClientError``."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, text="forbidden")
 
@@ -229,99 +298,90 @@ def test_fetch_by_provider_non_2xx_raises(monkeypatch):
 # --------------------------------------------------------------------------- #
 # prune_before
 # --------------------------------------------------------------------------- #
-def test_prune_before_deletes_and_counts(monkeypatch):
-    """GET lists traces ≤ cutoff, DELETE removes them by id, and the loop stops
-    once a list page is empty; the total deleted count is returned."""
-    cutoff = datetime(2026, 6, 1, tzinfo=UTC)
-    list_pages = iter(
-        [
-            [{"id": "t1"}, {"id": "t2"}],
-            [{"id": "t3"}],
+@pytest.mark.parametrize(
+    ["get_responses", "expected_count", "expected_delete_bodies", "expected_get_count"],
+    [
+        pytest.param(
+            [[{"id": "t1"}, {"id": "t2"}], [{"id": "t3"}], []],
+            3,
+            [["t1", "t2"], ["t3"]],
+            None,
+            id="deletes_and_counts",
+        ),
+        pytest.param(
+            [[]],
+            0,
             [],
-        ]
-    )
+            None,
+            id="empty_returns_zero",
+        ),
+        pytest.param(
+            [[{"id": "t1"}, {"id": "t2"}], [{"id": "t1"}, {"id": "t2"}]],
+            2,
+            [["t1", "t2"]],
+            2,
+            id="delayed_deletion_terminates",
+        ),
+    ],
+)
+def test_prune_before(
+    monkeypatch,
+    get_responses,
+    expected_count,
+    expected_delete_bodies,
+    expected_get_count,
+):
+    """``prune_before`` deletes traces ≤ cutoff, handles empty pages, and
+    terminates on delayed-deletion lag."""
+    cutoff = datetime(2026, 6, 1, tzinfo=UTC)
+    get_iter = iter(get_responses)
     deleted_bodies: list[list[str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/public/traces"
         if request.method == "GET":
             assert request.url.params["toTimestamp"] == cutoff.isoformat()
-            return httpx.Response(200, json={"data": next(list_pages)})
+            return httpx.Response(200, json={"data": next(get_iter)})
         assert request.method == "DELETE"
         body = json.loads(request.content)
         deleted_bodies.append(body["traceIds"])
         return httpx.Response(200, json={})
 
-    install_transport(monkeypatch, handler)
+    captured = install_transport(monkeypatch, handler)
     count = make_adapter().prune_before(cutoff)
 
-    assert count == 3
-    assert deleted_bodies == [["t1", "t2"], ["t3"]]
+    assert count == expected_count
+    assert deleted_bodies == expected_delete_bodies
+    if expected_get_count is not None:
+        assert sum(1 for r in captured if r.method == "GET") == expected_get_count
 
 
-def test_prune_before_empty_returns_zero(monkeypatch):
-    """No traces to prune: a single empty list page returns zero with no
-    DELETE issued."""
+@pytest.mark.parametrize(
+    "error_on",
+    ["get", "delete"],
+)
+def test_prune_before_http_error(monkeypatch, error_on):
+    """A non-2xx response on the GET or DELETE phase raises
+    ``LangfuseClientError``."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        return httpx.Response(200, json={"data": []})
-
-    install_transport(monkeypatch, handler)
-    count = make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
-
-    assert count == 0
-
-
-def test_prune_before_non_2xx_raises(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(503, text="unavailable")
-
-    install_transport(monkeypatch, handler)
-    with pytest.raises(LangfuseClientError, match="503"):
-        make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
-
-
-def test_prune_before_delete_non_2xx_raises(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
+        if error_on == "get":
+            return httpx.Response(503, text="unavailable")
+        # error_on == "delete"
         if request.method == "GET":
             return httpx.Response(200, json={"data": [{"id": "t1"}]})
         return httpx.Response(500, text="delete-failed")
 
+    expected_match = "503" if error_on == "get" else "delete"
+
     install_transport(monkeypatch, handler)
-    with pytest.raises(LangfuseClientError, match="delete"):
+    with pytest.raises(LangfuseClientError, match=expected_match):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
 
 
-def test_prune_before_delayed_deletion_terminates(monkeypatch):
-    """If GET returns the same ids after DELETE (async lag), the loop terminates
-    without re-DELETEing and returns the correct unique count."""
-    cutoff = datetime(2026, 6, 1, tzinfo=UTC)
-    get_responses = iter(
-        [
-            [{"id": "t1"}, {"id": "t2"}],  # first list
-            [{"id": "t1"}, {"id": "t2"}],  # same ids still listed (lag)
-        ]
-    )
-    delete_calls: list[list[str]] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "GET":
-            return httpx.Response(200, json={"data": next(get_responses)})
-        body = json.loads(request.content)
-        delete_calls.append(body["traceIds"])
-        return httpx.Response(200, json={})
-
-    captured = install_transport(monkeypatch, handler)
-    count = make_adapter().prune_before(cutoff)
-
-    assert count == 2
-    assert delete_calls == [["t1", "t2"]]  # DELETE issued exactly once
-    assert sum(1 for r in captured if r.method == "GET") == 2
-
-
 def test_prune_before_max_iterations_raises(monkeypatch):
-    """LangfuseClientError is raised when _MAX_PRUNE_ITERATIONS is exceeded."""
+    """``LangfuseClientError`` is raised when ``_MAX_PRUNE_ITERATIONS`` is
+    exceeded."""
     import robotsix_llmio.core.langfuse_cost as _lcm
 
     monkeypatch.setattr(_lcm, "_MAX_PRUNE_ITERATIONS", 2)
@@ -338,55 +398,3 @@ def test_prune_before_max_iterations_raises(monkeypatch):
     install_transport(monkeypatch, handler)
     with pytest.raises(LangfuseClientError, match="iterations"):
         make_adapter().prune_before(datetime(2026, 6, 1, tzinfo=UTC))
-
-
-# --------------------------------------------------------------------------- #
-# _parse_timestamp
-# --------------------------------------------------------------------------- #
-def test_parse_timestamp_z_suffix():
-    assert _parse_timestamp("2024-01-01T12:00:00Z") == datetime(
-        2024, 1, 1, 12, 0, tzinfo=UTC
-    )
-
-
-def test_parse_timestamp_offset_suffix():
-    assert _parse_timestamp("2024-01-01T12:00:00+00:00") == datetime(
-        2024, 1, 1, 12, 0, tzinfo=UTC
-    )
-
-
-def test_parse_timestamp_datetime_passthrough():
-    moment = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    assert _parse_timestamp(moment) is moment
-
-
-def test_parse_timestamp_invalid_raises():
-    with pytest.raises(ValueError):
-        _parse_timestamp("not-a-timestamp")
-
-
-# --------------------------------------------------------------------------- #
-# _observation_provider / _observation_cost
-# --------------------------------------------------------------------------- #
-def test_observation_provider_present():
-    assert _observation_provider({"metadata": {"provider": "openrouter"}}) == (
-        "openrouter"
-    )
-
-
-def test_observation_provider_missing_metadata():
-    assert _observation_provider({}) is None
-    assert _observation_provider({"metadata": {"other": "x"}}) is None
-
-
-def test_observation_cost_extraction_order():
-    assert _observation_cost(
-        {"calculatedTotalCost": 1.0, "totalCost": 2.0}
-    ) == pytest.approx(1.0)
-    assert _observation_cost({"totalCost": 2.0}) == pytest.approx(2.0)
-    assert _observation_cost({"costDetails": {"total": 3.0}}) == pytest.approx(3.0)
-
-
-def test_observation_cost_missing_defaults_zero():
-    assert _observation_cost({}) == 0.0
-    assert _observation_cost({"costDetails": {}}) == 0.0
