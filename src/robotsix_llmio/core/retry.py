@@ -85,7 +85,7 @@ except ImportError:  # pragma: no cover — fallback path only
             if current is None:
                 break
             yield current
-            current = current.__cause__
+            current = current.__cause__ or current.__context__
 
     def is_transient(exc: BaseException) -> bool:
         """Return ``True`` for exceptions that warrant a retry (fallback stub)."""
@@ -104,7 +104,14 @@ except ImportError:  # pragma: no cover — fallback path only
         for cause in _walk_cause_chain(exc):
             if cause is exc:
                 continue
-            if isinstance(cause, (httpx.TimeoutException, httpx.TransportError)):
+            if isinstance(
+                cause,
+                (
+                    httpx.TimeoutException,
+                    httpx.TransportError,
+                    json.JSONDecodeError,
+                ),
+            ):
                 return True
             s = _status(cause)
             if s is not None and (s == 429 or 500 <= s < 600):

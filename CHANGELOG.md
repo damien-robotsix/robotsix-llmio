@@ -93,11 +93,6 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
   and ``is_transient`` symbols are now imported from ``robotsix_http.retry``
   instead of inlined.  The loop-free ``_drive_sync`` and all LLM-domain
   logic (rate-limit handling, fallback, OTel span recording) stay local.
-- Inline robotsix-http retry primitives directly into ``core/retry.py``
-  (RetryConfig, _compute_backoff, _walk_cause_chain, _status, is_transient)
-  so the library is importable without the git dependency. Remove
-  robotsix-http from pyproject.toml dependencies and tool.uv.sources.
-- Replace duplicated HTTP retry primitives (_walk_cause_chain, _status, is_transient, _compute_backoff, RetryConfig) with robotsix-http; wire transient-retry OTel span recording through RetryConfig(on_retry=…).
 - Add `deptry` to dev dependencies, pre-commit hooks, and CI to catch misplaced/unused dependencies automatically.
 - Remove redundant hand-rolled `audit` job from CI workflow; the shared `python-ci.yml` already runs `uv audit` via its default `run-audit: true` input.
 - Add codespell to pre-commit hooks to catch common misspellings in docstrings and comments.
