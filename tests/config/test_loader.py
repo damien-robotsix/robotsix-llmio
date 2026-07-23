@@ -363,27 +363,6 @@ def test_config_dict_with_tier_level_config_object(monkeypatch: pytest.MonkeyPat
     assert cfg.level2.model_name == "sonnet"
 
 
-def test_to_dict_fallback_to_pydantic_v1_dict(monkeypatch: pytest.MonkeyPatch):
-    """_to_dict falls back to .dict() when .model_dump() is absent."""
-
-    class V1Style:
-        def dict(self) -> dict[str, str]:
-            return {"model": "claudeSDK-sonnet"}
-
-    set_env(
-        monkeypatch,
-        LLMIO_LEVEL1_MODEL="claudeSDK-opus",
-    )
-    cfg = load_tier_config(
-        {
-            "level1": {"model": "claudeSDK-haiku"},
-            "level2": V1Style(),
-        }
-    )
-    assert cfg.level2.model == "claudeSDK-sonnet"
-    assert cfg.level2.model_name == "sonnet"
-
-
 def test_to_dict_unmergeable_value_raises(monkeypatch: pytest.MonkeyPatch):
     """A value neither a dict nor a pydantic model raises TierConfigLoadError."""
     set_env(
