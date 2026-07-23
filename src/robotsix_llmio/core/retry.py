@@ -24,87 +24,97 @@ import json
 import logging
 import random
 import time
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Iterator
 from typing import Any, TypeVar, cast
 
 import httpx
 from pydantic_ai import UsageLimitExceeded
 
+# ---------------------------------------------------------------------------
+# robotsix_http.retry — shared generic primitives, prefer their implementations
+# when the package is installed (CI, proper dev env).  Fall back to local stubs
+# when robotsix-http is unavailable (e.g. bare ``pytest`` without ``uv sync``).
+# ---------------------------------------------------------------------------
+try:
+    from robotsix_http.retry import (
+        RetryConfig,
+        _compute_backoff,
+        _status,
+        _walk_cause_chain,
+        is_transient,
+    )
+except ImportError:  # pragma: no cover — fallback path only
+    # ------------------------------------------------------------------
+    # Local fallback stubs — functionally equivalent to robotsix_http.retry
+    # ------------------------------------------------------------------
+
+    @dataclasses.dataclass(frozen=True)
+    class RetryConfig:
+        """Immutable retry configuration (fallback stub)."""
+
+        max_retries: int = 4
+        backoff_base: float = 2.0
+        backoff_cap: float = 30.0
+        jitter_factor: float = 0.5
+        on_retry: Callable[[Exception, int, RetryConfig], None] | None = None
+
+    def _compute_backoff(attempt: int, config: RetryConfig) -> float:
+        delay: float = min(config.backoff_base**attempt, config.backoff_cap)
+        jitter: float = delay * config.jitter_factor * random.random()
+        return delay - jitter
+
+    def _status(exc: BaseException) -> int | None:
+        status: Any = getattr(exc, "status_code", None)
+        if isinstance(status, int):
+            return status
+        response: Any = getattr(exc, "response", None)
+        if response is not None:
+            status = getattr(response, "status_code", None)
+            if isinstance(status, int):
+                return status
+            status = getattr(response, "status", None)
+            if isinstance(status, int):
+                return status
+        return None
+
+    def _walk_cause_chain(
+        exc: BaseException, max_depth: int = 10
+    ) -> Iterator[BaseException]:
+        current: BaseException | None = exc
+        for _ in range(max_depth):
+            if current is None:
+                break
+            yield current
+            current = current.__cause__
+
+    def is_transient(exc: BaseException) -> bool:
+        """Return ``True`` for exceptions that warrant a retry (fallback stub)."""
+        if isinstance(
+            exc,
+            (
+                httpx.TimeoutException,
+                httpx.TransportError,
+                json.JSONDecodeError,
+            ),
+        ):
+            return True
+        status = _status(exc)
+        if status is not None and (status == 429 or 500 <= status < 600):
+            return True
+        for cause in _walk_cause_chain(exc):
+            if cause is exc:
+                continue
+            if isinstance(cause, (httpx.TimeoutException, httpx.TransportError)):
+                return True
+            s = _status(cause)
+            if s is not None and (s == 429 or 500 <= s < 600):
+                return True
+        return False
+
+
 from . import constants
 from ._otel import get_recording_span
 from .cost import flush_current_provider
-
-# ---------------------------------------------------------------------------
-# Inlined from robotsix_http.retry — copied here so that the library is
-# importable even when the robotsix-http git dependency is not installed.
-# Keep in sync with robotsix_http.retry.
-# ---------------------------------------------------------------------------
-
-@dataclasses.dataclass(frozen=True)
-class RetryConfig:
-    """Immutable configuration for the retry loop."""
-    max_retries: int = 4
-    backoff_base: float = 2.0
-    backoff_cap: float = 30.0
-    jitter_factor: float = 0.5
-    on_retry: Callable[[int, Exception, float], None] | None = None
-
-
-def _compute_backoff(attempt: int, config: RetryConfig) -> float:
-    """Compute exponential-backoff delay for *attempt* (0-indexed)."""
-    delay: float = min(config.backoff_base ** attempt, config.backoff_cap)
-    jitter: float = delay * config.jitter_factor * random.random()
-    return delay - jitter
-
-
-def _walk_cause_chain(exc: BaseException, max_depth: int = 10) -> Any:
-    """Iterate an exception's cause chain up to *max_depth* steps."""
-    current: BaseException | None = exc
-    for _ in range(max_depth):
-        if current is None:
-            break
-        yield current
-        current = current.__cause__
-
-
-def _status(exc: BaseException) -> int | None:
-    """Extract status_code from any httpx-shaped HTTP error."""
-    status: Any = getattr(exc, "status_code", None)
-    if isinstance(status, int):
-        return status
-    response: Any = getattr(exc, "response", None)
-    if response is not None:
-        status = getattr(response, "status_code", None)
-        if isinstance(status, int):
-            return status
-        status = getattr(response, "status", None)
-        if isinstance(status, int):
-            return status
-    return None
-
-
-def is_transient(exc: BaseException) -> bool:
-    """Return True for exceptions that warrant a retry."""
-    if isinstance(
-        exc,
-        (httpx.TimeoutException, httpx.TransportError, json.JSONDecodeError),
-    ):
-        return True
-    status = _status(exc)
-    if status is not None and (status == 429 or 500 <= status < 600):
-        return True
-    for cause in _walk_cause_chain(exc):
-        if cause is exc:
-            continue
-        if isinstance(cause, (httpx.TimeoutException, httpx.TransportError)):
-            return True
-        s = _status(cause)
-        if s is not None and (s == 429 or 500 <= s < 600):
-            return True
-    return False
-
-
-
 
 log = logging.getLogger("robotsix_llmio.retry")
 
@@ -112,6 +122,8 @@ T = TypeVar("T")
 
 __all__ = [
     "RetryConfig",
+    "_compute_backoff",
+    "_status",
     "_walk_cause_chain",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
@@ -164,16 +176,24 @@ def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
 
 
 # ---------------------------------------------------------------------------
-# OTel span recording for transient retries, wired through RetryConfig.on_retry
+# OTel span recording for transient retries, wired through
+# ``robotsix_http.retry.RetryConfig.on_retry``
 # ---------------------------------------------------------------------------
 
 
-def _record_transient_retry_span(attempt: int, exc: Exception, delay: float) -> None:
-    """Record transient-retry metrics on the current OTel span; no-op without OTel."""
+def _record_transient_retry_span(
+    exc: Exception, attempt: int, config: RetryConfig
+) -> None:
+    """Record transient-retry metrics on the current OTel span; no-op without OTel.
+
+    Signature matches ``robotsix_http.retry.RetryConfig.on_retry``:
+    ``(exc, attempt, config)`` where *attempt* is 0-indexed.
+    """
     span = get_recording_span()
     if span is None:
         return
-    span.set_attribute("llmio.retry.count", attempt)
+    delay = _compute_backoff(attempt, config)
+    span.set_attribute("llmio.retry.count", attempt + 1)
     span.set_attribute("llmio.retry.backoff_seconds", delay)
     span.set_attribute("llmio.retry.error", type(exc).__name__)
 
@@ -315,7 +335,7 @@ async def _retry_loop(
                     e, attempt, config, cumulative_backoff, what
                 )
                 if config.on_retry is not None:
-                    config.on_retry(attempt + 1, e, delay)
+                    config.on_retry(e, attempt, config)
                 await sleep_fn(delay)
                 attempt += 1
                 continue
