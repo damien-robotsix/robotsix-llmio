@@ -13,7 +13,7 @@ from robotsix_llmio.openrouter import OpenRouterAPIError
 
 from ..core.http import timeout_http_client
 from ._base import _DEFAULT_BASE_URL
-from .provider_cost import KeyUsage
+from .provider_cost import KeyUsage, _parse_key_usage
 
 
 class AsyncOpenRouterClient:
@@ -36,12 +36,7 @@ class AsyncOpenRouterClient:
         Raises ``OpenRouterAPIError`` on transport or HTTP errors.
         """
         data = await self._get("/auth/key")
-        limit = data.get("limit")
-        return KeyUsage(
-            usage=float(data.get("usage", 0) or 0),
-            limit=None if limit is None else float(limit),
-            label=data.get("label"),
-        )
+        return _parse_key_usage(data)
 
     async def fetch_credits(self) -> dict[str, float]:
         """Account-level credit balance.

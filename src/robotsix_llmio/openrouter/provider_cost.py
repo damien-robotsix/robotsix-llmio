@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 
@@ -39,6 +40,15 @@ class KeyUsage:
     usage: float
     limit: float | None = None
     label: str | None = None
+
+
+def _parse_key_usage(data: dict[str, Any]) -> KeyUsage:
+    limit = data.get("limit")
+    return KeyUsage(
+        usage=float(data.get("usage", 0) or 0),
+        limit=None if limit is None else float(limit),
+        label=data.get("label"),
+    )
 
 
 class OpenRouterKeyCostSource:
@@ -75,12 +85,7 @@ class OpenRouterKeyCostSource:
                 f"HTTP {resp.status_code}: {resp.text[:200]}"
             )
         data = resp.json().get("data") or {}
-        limit = data.get("limit")
-        return KeyUsage(
-            usage=float(data.get("usage", 0) or 0),
-            limit=None if limit is None else float(limit),
-            label=data.get("label"),
-        )
+        return _parse_key_usage(data)
 
 
 class OpenRouterProviderCostSource:
