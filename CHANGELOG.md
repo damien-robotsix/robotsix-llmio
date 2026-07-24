@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Refactor `claude_sdk/transient.py` exception-chain walks to use the shared `_walk_cause_chain` generator from `core.retry`, removing ~20 lines of duplicated bounded-loop boilerplate.
 - Consolidated repetitive test functions in `tests/core/test_langfuse_cost.py` from 22 to 10 using `@pytest.mark.parametrize` across six groups (`_parse_timestamp`, `_observation_provider`, `_observation_cost`, `fetch_logged_cost`, `fetch_by_provider`, `prune_before`).
 - Extract shared `_parse_key_usage` helper in `provider_cost.py`, replacing duplicate inline `KeyUsage` construction in sync and async OpenRouter clients.
 - Remove dead Pydantic v1 `.dict()` fallback in `_to_dict()` (`src/robotsix_llmio/config/loader.py`). The project requires pydantic>=2, so the backward-compat try/except for `.dict()` was unreachable.
