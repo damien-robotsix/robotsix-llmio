@@ -7,6 +7,7 @@ infrastructure hiccup that a re-run usually clears — treat those as transient.
 
 from __future__ import annotations
 
+from ..core.retry import _walk_cause_chain
 from ..core.retry import is_transient as _core_is_transient
 
 # Subprocess/transport failures raised by claude_agent_sdk. Matched by type
@@ -53,14 +54,10 @@ def is_claude_sdk_degenerate_success(exc: BaseException) -> bool:
     A re-run clears it, so it should be treated as transient. Matched
     case-insensitively, walking the bounded cause/context chain like the other
     helpers."""
-    cur: BaseException | None = exc
-    seen = 0
-    while cur is not None and seen < 10:
-        if _DEGENERATE_SUCCESS_SIGNATURE in str(cur).lower():
-            return True
-        cur = cur.__cause__ or cur.__context__
-        seen += 1
-    return False
+    return any(
+        _DEGENERATE_SUCCESS_SIGNATURE in str(cur).lower()
+        for cur in _walk_cause_chain(exc)
+    )
 
 
 def is_claude_sdk_usage_exhausted(exc: BaseException) -> bool:
@@ -69,14 +66,10 @@ def is_claude_sdk_usage_exhausted(exc: BaseException) -> bool:
     exhausted. Matched by name so this stays free of an import cycle with
     ``model.py``, walking the bounded cause/context chain like the other
     helpers."""
-    cur: BaseException | None = exc
-    seen = 0
-    while cur is not None and seen < 10:
-        if type(cur).__name__ == "ClaudeSDKUsageExhaustedError":
-            return True
-        cur = cur.__cause__ or cur.__context__
-        seen += 1
-    return False
+    return any(
+        type(cur).__name__ == "ClaudeSDKUsageExhaustedError"
+        for cur in _walk_cause_chain(exc)
+    )
 
 
 def is_claude_sdk_turn_limit(exc: BaseException) -> bool:
@@ -84,16 +77,11 @@ def is_claude_sdk_turn_limit(exc: BaseException) -> bool:
     SDK turn-cap failure — either the dedicated ``ClaudeSDKTurnLimitError`` or the
     raw SDK message. Matched by name/string so this stays free of the SDK and the
     model module (no import cycle)."""
-    cur: BaseException | None = exc
-    seen = 0
-    while cur is not None and seen < 10:
-        if type(cur).__name__ == "ClaudeSDKTurnLimitError":
-            return True
-        if _TURN_LIMIT_SIGNATURE in str(cur).lower():
-            return True
-        cur = cur.__cause__ or cur.__context__
-        seen += 1
-    return False
+    return any(
+        type(cur).__name__ == "ClaudeSDKTurnLimitError"
+        or _TURN_LIMIT_SIGNATURE in str(cur).lower()
+        for cur in _walk_cause_chain(exc)
+    )
 
 
 def is_claude_sdk_transient(exc: BaseException) -> bool:
@@ -113,11 +101,6 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
         return True
     if _core_is_transient(exc):
         return True
-    cur: BaseException | None = exc
-    seen = 0
-    while cur is not None and seen < 10:
-        if type(cur).__name__ in _SDK_TRANSIENT_NAMES:
-            return True
-        cur = cur.__cause__ or cur.__context__
-        seen += 1
-    return False
+    return any(
+        type(cur).__name__ in _SDK_TRANSIENT_NAMES for cur in _walk_cause_chain(exc)
+    )
