@@ -1,4 +1,4 @@
-"""Tier-fallback escalation loop — pure-function injection tests.
+"""Tier-fallback escalation loop — sync + async public API tests.
 
 Follows the existing ``test_core_retry.py`` conventions: no mocks,
 pure-function injection, ``_noop_sleep``, ``asyncio.run()`` for async,
@@ -11,11 +11,14 @@ import asyncio
 import logging
 
 import pytest
+from conftest import (
+    STD_TIER_CONFIG,
+    tf_exhausted_failing_factory,
+    tf_factory_that_succeeds,
+)
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 from robotsix_llmio.core.tier_fallback import (
-    _ALL_TIER_LEVELS,
-    _next_unvisited_tier,
     acall_with_tier_fallback,
     call_with_tier_fallback,
 )
@@ -30,212 +33,14 @@ async def _anoop_sleep(_d: float) -> None:
 
 
 # --------------------------------------------------------------------------- #
-#  Helpers for constructing test configs                                      #
-# --------------------------------------------------------------------------- #
-
-_L1_CFG = TierLevelConfig(model="claudeSDK-opus")
-_L2_CFG = TierLevelConfig(model="claudeSDK-haiku")
-_L3_CFG = TierLevelConfig(model="claudeSDK-sonnet")
-_L4_CFG = TierLevelConfig(model="claudeSDK-claude-fable-5")
-
-_STD_TIER_CONFIG = TierConfig(
-    level1=_L1_CFG, level2=_L2_CFG, level3=_L3_CFG, level4=_L4_CFG
-)
-
-
-def _factory_that_succeeds(
-    result: str = "ok",
-    *,
-    tracking: dict | None = None,
-    expected_tier: str | None = None,
-):
-    """Return a factory that returns a callable that succeeds."""
-
-    def factory(tlc: TierLevelConfig):
-        if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model_name)
-        if expected_tier is not None:
-            assert tlc.model_name == expected_tier, (
-                f"expected {expected_tier}, got {tlc.model_name}"
-            )
-
-        def fn():
-            return result
-
-        return fn
-
-    return factory
-
-
-def _failing_factory(
-    exception: type[Exception] | Exception,
-    *,
-    fail_count: int = 1,
-    tracking: dict | None = None,
-):
-    """Return a factory whose callable raises *exception* the first *fail_count*
-    times it is invoked (global counter across all factory calls)."""
-    counter = {"remaining": fail_count}
-
-    def factory(tlc: TierLevelConfig):
-        if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model_name)
-
-        def fn():
-            if counter["remaining"] > 0:
-                counter["remaining"] -= 1
-                if isinstance(exception, type):
-                    raise exception("boom")
-                raise exception
-            return "finally-ok"
-
-        return fn
-
-    return factory
-
-
-def _exhausted_failing_factory(
-    exception: type[Exception] | Exception = RuntimeError,
-    *,
-    tracking: dict | None = None,
-):
-    """Return a factory whose callable always raises."""
-
-    def factory(tlc: TierLevelConfig):
-        if tracking is not None:
-            tracking.setdefault("factory_calls", []).append(tlc.model_name)
-
-        def fn():
-            if isinstance(exception, type):
-                raise exception("boom")
-            raise exception
-
-        return fn
-
-    return factory
-
-
-# --------------------------------------------------------------------------- #
-#  _next_unvisited_tier                                                       #
-# --------------------------------------------------------------------------- #
-
-
-def test_next_unvisited_from_level1_no_visited():
-    assert _next_unvisited_tier(TierLevel.LEVEL1, frozenset()) == TierLevel.LEVEL2
-
-
-def test_next_unvisited_from_level1_level2_visited():
-    assert (
-        _next_unvisited_tier(TierLevel.LEVEL1, frozenset({TierLevel.LEVEL2}))
-        == TierLevel.LEVEL3
-    )
-
-
-def test_next_unvisited_from_level1_all_higher_visited_returns_lower_none():
-    # No lower tiers for LEVEL1, and all higher are visited → None
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL1,
-            frozenset({TierLevel.LEVEL2, TierLevel.LEVEL3, TierLevel.LEVEL4}),
-        )
-        is None
-    )
-
-
-def test_next_unvisited_from_level2_prefers_higher():
-    # LEVEL2 → LEVEL3 first (nearest higher), then LEVEL4, then LEVEL1 (lower)
-    assert _next_unvisited_tier(TierLevel.LEVEL2, frozenset()) == TierLevel.LEVEL3
-
-
-def test_next_unvisited_from_level2_level3_visited_returns_level4():
-    assert (
-        _next_unvisited_tier(TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3}))
-        == TierLevel.LEVEL4
-    )
-
-
-def test_next_unvisited_from_level2_higher_visited_returns_lower():
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3, TierLevel.LEVEL4})
-        )
-        == TierLevel.LEVEL1
-    )
-
-
-def test_next_unvisited_from_level2_all_others_visited_returns_none():
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL2,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL3, TierLevel.LEVEL4}),
-        )
-        is None
-    )
-
-
-def test_next_unvisited_from_level3_prefers_higher_level4():
-    # LEVEL3 → LEVEL4 first (higher), then LEVEL2, then LEVEL1
-    assert _next_unvisited_tier(TierLevel.LEVEL3, frozenset()) == TierLevel.LEVEL4
-
-
-def test_next_unvisited_from_level3_level4_visited_returns_level2():
-    assert (
-        _next_unvisited_tier(TierLevel.LEVEL3, frozenset({TierLevel.LEVEL4}))
-        == TierLevel.LEVEL2
-    )
-
-
-def test_next_unvisited_from_level3_higher_and_level2_visited_returns_level1():
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL3, frozenset({TierLevel.LEVEL2, TierLevel.LEVEL4})
-        )
-        == TierLevel.LEVEL1
-    )
-
-
-def test_next_unvisited_from_level3_all_visited_returns_none():
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL3,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL4}),
-        )
-        is None
-    )
-
-
-def test_next_unvisited_from_level4_only_lower():
-    # LEVEL4 → LEVEL3 (nearest lower), then LEVEL2, then LEVEL1
-    assert _next_unvisited_tier(TierLevel.LEVEL4, frozenset()) == TierLevel.LEVEL3
-
-
-def test_next_unvisited_from_level4_all_visited_returns_none():
-    assert (
-        _next_unvisited_tier(
-            TierLevel.LEVEL4,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL3}),
-        )
-        is None
-    )
-
-
-def test_next_unvisited_unknown_level_returns_none():
-    # Defensive: if somehow a level not in _ALL_TIER_LEVELS is passed
-    class UnknownLevel:
-        value = "unknown"
-
-    assert _next_unvisited_tier(UnknownLevel(), frozenset()) is None
-
-
-# --------------------------------------------------------------------------- #
 #  call_with_tier_fallback                                                    #
 # --------------------------------------------------------------------------- #
 
 
 def test_successful_call_returns_result():
     out = call_with_tier_fallback(
-        _factory_that_succeeds("hello"),
-        tier_config=_STD_TIER_CONFIG,
+        tf_factory_that_succeeds("hello"),
+        tier_config=STD_TIER_CONFIG,
         sleep=_noop_sleep,
     )
     assert out == "hello"
@@ -244,8 +49,8 @@ def test_successful_call_returns_result():
 def test_fallback_disabled_raises_immediately():
     with pytest.raises(RuntimeError, match="boom"):
         call_with_tier_fallback(
-            _exhausted_failing_factory(RuntimeError),
-            tier_config=_STD_TIER_CONFIG,
+            tf_exhausted_failing_factory(RuntimeError),
+            tier_config=STD_TIER_CONFIG,
             fallback_enabled=False,
             sleep=_noop_sleep,
         )
@@ -270,7 +75,7 @@ def test_fallback_level1_to_level2_on_failure():
 
     out = call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         fallback_enabled=True,
         max_fallback_depth=2,
         sleep=_noop_sleep,
@@ -297,7 +102,7 @@ def test_fallback_level1_to_level2_to_level3():
 
     out = call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         fallback_enabled=True,
         max_fallback_depth=2,
         sleep=_noop_sleep,
@@ -325,7 +130,7 @@ def test_fallback_level2_to_level3_to_level4():
 
     out = call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         level=TierLevel.LEVEL2,
         fallback_enabled=True,
         max_fallback_depth=2,
@@ -354,7 +159,7 @@ def test_fallback_level3_to_level4_to_level2():
 
     out = call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         level=TierLevel.LEVEL3,
         fallback_enabled=True,
         max_fallback_depth=2,
@@ -383,7 +188,7 @@ def test_fallback_level4_to_level3_to_level2():
 
     out = call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         level=TierLevel.LEVEL4,
         fallback_enabled=True,
         max_fallback_depth=2,
@@ -397,8 +202,8 @@ def test_exhausted_all_levels_reraises_last_error():
     """All three levels fail → last exception re-raised."""
     with pytest.raises(RuntimeError, match="boom"):
         call_with_tier_fallback(
-            _exhausted_failing_factory(RuntimeError),
-            tier_config=_STD_TIER_CONFIG,
+            tf_exhausted_failing_factory(RuntimeError),
+            tier_config=STD_TIER_CONFIG,
             level=TierLevel.LEVEL1,
             fallback_enabled=True,
             max_fallback_depth=2,
@@ -426,7 +231,7 @@ def test_factory_called_fresh_per_level():
 
     call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         fallback_enabled=True,
         max_fallback_depth=2,
         sleep=_noop_sleep,
@@ -454,7 +259,7 @@ def test_max_fallback_depth_zero_equals_disabled():
     with pytest.raises(RuntimeError, match="fail"):
         call_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             fallback_enabled=True,
             max_fallback_depth=0,
             sleep=_noop_sleep,
@@ -478,7 +283,7 @@ def test_max_fallback_depth_limits_promotions():
     with pytest.raises(RuntimeError, match="fail-haiku"):
         call_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             level=TierLevel.LEVEL1,
             fallback_enabled=True,
             max_fallback_depth=1,
@@ -509,7 +314,7 @@ def test_no_duplicate_tier_visits():
 
     call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         level=TierLevel.LEVEL2,
         fallback_enabled=True,
         sleep=_noop_sleep,
@@ -533,7 +338,7 @@ def test_no_duplicate_tier_visits():
     with pytest.raises(RuntimeError):
         call_with_tier_fallback(
             failing_factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             fallback_enabled=True,
             max_fallback_depth=2,
             sleep=_noop_sleep,
@@ -562,7 +367,7 @@ def test_logging_output(caplog):
 
     call_with_tier_fallback(
         factory,
-        tier_config=_STD_TIER_CONFIG,
+        tier_config=STD_TIER_CONFIG,
         fallback_enabled=True,
         max_fallback_depth=2,
         what="test-op",
@@ -594,8 +399,8 @@ def test_logging_on_success_no_warning(caplog):
     caplog.set_level(logging.INFO, logger="robotsix_llmio.tier_fallback")
 
     call_with_tier_fallback(
-        _factory_that_succeeds("ok"),
-        tier_config=_STD_TIER_CONFIG,
+        tf_factory_that_succeeds("ok"),
+        tier_config=STD_TIER_CONFIG,
         what="happy-path",
         sleep=_noop_sleep,
     )
@@ -619,7 +424,7 @@ def test_acall_successful_call_returns_result():
     out = asyncio.run(
         acall_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             sleep=_anoop_sleep,
         )
     )
@@ -637,7 +442,7 @@ def test_acall_fallback_disabled_raises_immediately():
         asyncio.run(
             acall_with_tier_fallback(
                 factory,
-                tier_config=_STD_TIER_CONFIG,
+                tier_config=STD_TIER_CONFIG,
                 fallback_enabled=False,
                 sleep=_anoop_sleep,
             )
@@ -663,7 +468,7 @@ def test_acall_fallback_level1_to_level2_to_level3():
     out = asyncio.run(
         acall_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             fallback_enabled=True,
             max_fallback_depth=2,
             sleep=_anoop_sleep,
@@ -692,7 +497,7 @@ def test_acall_fallback_level2_to_level3_to_level4():
     out = asyncio.run(
         acall_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             level=TierLevel.LEVEL2,
             fallback_enabled=True,
             max_fallback_depth=2,
@@ -714,7 +519,7 @@ def test_acall_exhausted_all_levels_reraises_last_error():
         asyncio.run(
             acall_with_tier_fallback(
                 factory,
-                tier_config=_STD_TIER_CONFIG,
+                tier_config=STD_TIER_CONFIG,
                 fallback_enabled=True,
                 max_fallback_depth=2,
                 sleep=_anoop_sleep,
@@ -738,7 +543,7 @@ def test_acall_max_fallback_depth_limits_promotions():
         asyncio.run(
             acall_with_tier_fallback(
                 factory,
-                tier_config=_STD_TIER_CONFIG,
+                tier_config=STD_TIER_CONFIG,
                 fallback_enabled=True,
                 max_fallback_depth=1,
                 sleep=_anoop_sleep,
@@ -765,7 +570,7 @@ def test_acall_logging_output(caplog):
     asyncio.run(
         acall_with_tier_fallback(
             factory,
-            tier_config=_STD_TIER_CONFIG,
+            tier_config=STD_TIER_CONFIG,
             fallback_enabled=True,
             max_fallback_depth=2,
             what="async-op",
@@ -789,23 +594,6 @@ def test_acall_logging_output(caplog):
         "async-op: level1 failed with RuntimeError — falling back to level2" in msg
         for msg in warn_messages
     )
-
-
-# --------------------------------------------------------------------------- #
-#  _ALL_TIER_LEVELS sync guard                                                #
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.parametrize("member", tuple(TierLevel))
-def test_all_tier_levels_enum_members_in_tuple(member: TierLevel) -> None:
-    """Every TierLevel enum member is present in _ALL_TIER_LEVELS."""
-    assert member in _ALL_TIER_LEVELS
-
-
-@pytest.mark.parametrize("entry", _ALL_TIER_LEVELS)
-def test_no_stale_entries_in_all_tier_levels_tuple(entry: TierLevel) -> None:
-    """Every entry in _ALL_TIER_LEVELS is a valid TierLevel member."""
-    assert entry in tuple(TierLevel)
 
 
 # --------------------------------------------------------------------------- #
@@ -899,6 +687,6 @@ def test_call_with_tier_fallback_supports_run_sync_style_fn():
         return lambda: asyncio.run(payload())
 
     out = call_with_tier_fallback(
-        factory, tier_config=_STD_TIER_CONFIG, sleep=_noop_sleep
+        factory, tier_config=STD_TIER_CONFIG, sleep=_noop_sleep
     )
     assert out == "ok"
