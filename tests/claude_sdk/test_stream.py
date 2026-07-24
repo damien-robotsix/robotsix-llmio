@@ -499,7 +499,10 @@ def test_stream_query_extra_transient_true(monkeypatch):
 
 
 def test_stream_query_extra_transient_false(monkeypatch):
-    """When extra_transient returns False, the original exception propagates."""
+    """When extra_transient returns False, the original exception is wrapped
+    in ClaudeSDKAPIError with __cause__ preserving the original."""
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKAPIError
+
     fake = _install_stream_fake_sdk(monkeypatch)
 
     class _Boom(Exception):
@@ -514,10 +517,11 @@ def test_stream_query_extra_transient_false(monkeypatch):
     def _not_transient(exc: Exception) -> bool:
         return False
 
-    with pytest.raises(_Boom):
+    with pytest.raises(ClaudeSDKAPIError) as exc_info:
         asyncio.run(
             _stream_query("prompt", None, "test", extra_transient=_not_transient)
         )
+    assert isinstance(exc_info.value.__cause__, _Boom)
 
 
 def test_stream_query_default_wraps_sdk_error(monkeypatch):

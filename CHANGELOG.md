@@ -61,6 +61,10 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Fix: when `extra_transient` returns `False` in `_stream_query`, wrap the
+  exception in `ClaudeSDKAPIError` instead of propagating it raw, so all
+  non-`RobotsixLLMIOError` exceptions from the Claude SDK are consistently
+  wrapped for a uniform cross-provider error surface.
 - Add ``ClaudeSDKAPIError`` (subclass of ``RobotsixLLMIOError``) to wrap
   terminal ``claude_agent_sdk`` transport/process failures at the provider
   boundary, so callers catching ``RobotsixLLMIOError`` consistently cover
