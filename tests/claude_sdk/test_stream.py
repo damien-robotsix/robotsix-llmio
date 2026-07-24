@@ -520,6 +520,28 @@ def test_stream_query_extra_transient_false(monkeypatch):
         )
 
 
+def test_stream_query_default_wraps_sdk_error(monkeypatch):
+    """When extra_transient is not passed (default None), a raw SDK exception
+    is wrapped in ClaudeSDKAPIError, preserving the original as __cause__."""
+    from robotsix_llmio.claude_sdk.model import ClaudeSDKAPIError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    class _RawSDKError(Exception):
+        pass
+
+    async def _failing_query(*, prompt, options):
+        raise _RawSDKError("transport broken")
+        yield  # pragma: no cover — makes this an async generator
+
+    fake.query = _failing_query
+
+    with pytest.raises(ClaudeSDKAPIError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert isinstance(exc_info.value.__cause__, _RawSDKError)
+    assert "transport broken" in str(exc_info.value.__cause__)
+
+
 # ---------------------------------------------------------------------------
 # _stream_query — on_event / activity_events()
 # ---------------------------------------------------------------------------
