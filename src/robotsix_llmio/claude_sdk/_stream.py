@@ -254,7 +254,9 @@ async def _stream_query(
     )
 
     from ..core import constants
+    from ..exceptions import RobotsixLLMIOError
     from .model import (
+        ClaudeSDKAPIError,
         ClaudeSDKQueryTimeout,
         ClaudeSDKTurnLimitError,
         ClaudeSDKUsageExhaustedError,
@@ -313,15 +315,24 @@ async def _stream_query(
         partial_text = "".join(chunks).strip()
         if partial_text and is_usage_exhausted_text(partial_text):
             raise ClaudeSDKUsageExhaustedError(partial_text) from exc
-        if extra_transient is not None and extra_transient(exc):
-            raise ClaudeSDKTurnLimitError(
-                f"Claude Agent SDK hit the turn cap without "
-                f"producing a final answer ({label}). The "
-                f"agent loop did not converge — it kept taking turns instead "
-                f"of terminating. This is a hard failure; retrying the "
-                f"identical request would hit the cap again. SDK error: {exc}"
-            ) from exc
-        raise
+        if extra_transient is not None:
+            if extra_transient(exc):
+                raise ClaudeSDKTurnLimitError(
+                    f"Claude Agent SDK hit the turn cap without "
+                    f"producing a final answer ({label}). The "
+                    f"agent loop did not converge — it kept taking turns instead "
+                    f"of terminating. This is a hard failure; retrying the "
+                    f"identical request would hit the cap again. SDK error: {exc}"
+                ) from exc
+            raise  # extra_transient returned False → not transient; propagate
+        # Already-wrapped library errors (RobotsixLLMIOError subclasses)
+        # pass through unchanged; raw claude_agent_sdk transport/process
+        # failures are wrapped so callers can catch a single base class.
+        if isinstance(exc, RobotsixLLMIOError):
+            raise
+        raise ClaudeSDKAPIError(
+            f"Claude Agent SDK transport/process failure ({label}): {exc}"
+        ) from exc
 
     text = "".join(chunks).strip()
     if not text and result is not None:

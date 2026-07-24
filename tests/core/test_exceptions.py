@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from robotsix_llmio import RobotsixLLMIOError
 from robotsix_llmio.claude_sdk.model import (
+    ClaudeSDKAPIError,
     ClaudeSDKQueryTimeout,
     ClaudeSDKTurnLimitError,
 )
@@ -22,10 +23,12 @@ def test_inherits_from_exception() -> None:
 
 
 def test_subclasses_are_robotsix_errors() -> None:
-    """``ClaudeSDKTurnLimitError``, ``ClaudeSDKQueryTimeout``, and
-    ``TierConfigLoadError`` are subclasses of ``RobotsixLLMIOError``."""
+    """``ClaudeSDKTurnLimitError``, ``ClaudeSDKQueryTimeout``,
+    ``ClaudeSDKAPIError``, and ``TierConfigLoadError`` are subclasses of
+    ``RobotsixLLMIOError``."""
     assert issubclass(ClaudeSDKTurnLimitError, RobotsixLLMIOError)
     assert issubclass(ClaudeSDKQueryTimeout, RobotsixLLMIOError)
+    assert issubclass(ClaudeSDKAPIError, RobotsixLLMIOError)
     assert issubclass(TierConfigLoadError, RobotsixLLMIOError)
 
 
@@ -35,16 +38,27 @@ def test_message_preservation() -> None:
 
 
 def test_single_catch_clause() -> None:
-    """A single ``except RobotsixLLMIOError`` block catches all three
+    """A single ``except RobotsixLLMIOError`` block catches all four
     exception types."""
     caught: list[str] = []
     for exc in (
         RobotsixLLMIOError("base"),
         ClaudeSDKTurnLimitError("turn limit"),
         ClaudeSDKQueryTimeout("timeout"),
+        ClaudeSDKAPIError("api error"),
     ):
         try:
             raise exc
         except RobotsixLLMIOError:
             caught.append(str(exc))
-    assert caught == ["base", "turn limit", "timeout"]
+    assert caught == ["base", "turn limit", "timeout", "api error"]
+
+
+def test_claude_sdk_api_error_preserves_cause() -> None:
+    """``ClaudeSDKAPIError`` preserves the original exception as
+    ``__cause__`` so the transient classifier can inspect it."""
+    original = RuntimeError("simulated SDK failure")
+    wrapped = ClaudeSDKAPIError("terminal SDK error")
+    wrapped.__cause__ = original
+    assert wrapped.__cause__ is original
+    assert isinstance(wrapped, RobotsixLLMIOError)

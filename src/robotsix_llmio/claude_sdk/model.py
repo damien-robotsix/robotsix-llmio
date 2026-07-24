@@ -101,6 +101,18 @@ class ClaudeSDKUsageExhaustedError(RobotsixLLMIOError):
     :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)."""
 
 
+class ClaudeSDKAPIError(RobotsixLLMIOError):
+    """A terminal Claude Agent SDK transport or process failure that survived
+    the transient classification and retry loop.
+
+    Wraps a raw ``claude_agent_sdk`` exception (e.g. ``CLIConnectionError``,
+    ``ProcessError``) whose transient retries were exhausted — the original
+    is preserved as ``__cause__`` so the transient classifier can inspect it.
+    All library consumers can catch this (or its base
+    :class:`RobotsixLLMIOError`) without importing ``claude_agent_sdk``
+    internals."""
+
+
 def _binary_placeholder(item: Any) -> str:
     """Compact stand-in for a binary content part (image/audio/document).
 

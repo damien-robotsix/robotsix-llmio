@@ -18,6 +18,7 @@ from .transient import (
 )
 
 __all__ = [
+    "ClaudeSDKAPIError",
     "ClaudeSDKActivityEvent",
     "ClaudeSDKModel",
     "ClaudeSDKProvider",
@@ -35,6 +36,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
     if name in (
         "ClaudeSDKProvider",
         "ClaudeSDKModel",
+        "ClaudeSDKAPIError",
         "ClaudeSDKTurnLimitError",
         "ClaudeSDKQueryTimeout",
         "ClaudeSDKUsageExhaustedError",
@@ -56,6 +58,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
                 from .model import ClaudeSDKUsageExhaustedError
 
                 return ClaudeSDKUsageExhaustedError
+            if name == "ClaudeSDKAPIError":
+                from .model import ClaudeSDKAPIError
+
+                return ClaudeSDKAPIError
             from .model import ClaudeSDKModel
 
             return ClaudeSDKModel
