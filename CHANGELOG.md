@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Split ``claude_sdk.model`` into three cohesive modules: ``_errors`` (exception classes), ``_prompt`` (prompt/image helpers), and ``_model`` (``ClaudeSDKModel`` + constants). ``model.py`` remains a backward-compatible re-export shim. Internal consumers updated to import from the specific sub-modules.
 - Split `tests/core/test_tracing.py` (820 lines) into `test_tracing_setup.py` (setup + surface API) and `test_tracing_routing.py` (trace routing + span processors), matching the existing topic-split pattern.
 - Remove dead periodic workflow configs `state_sync.yaml` and `security_posture.yaml` — both are either internal-only or absent from the available workflow catalog.
 - Fix: when `extra_transient` returns `False` in `_stream_query`, wrap the

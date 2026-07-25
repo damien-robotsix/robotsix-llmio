@@ -47,22 +47,22 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
 
                 return ClaudeSDKProvider
             if name == "ClaudeSDKTurnLimitError":
-                from .model import ClaudeSDKTurnLimitError
+                from ._errors import ClaudeSDKTurnLimitError
 
                 return ClaudeSDKTurnLimitError
             if name == "ClaudeSDKQueryTimeout":
-                from .model import ClaudeSDKQueryTimeout
+                from ._errors import ClaudeSDKQueryTimeout
 
                 return ClaudeSDKQueryTimeout
             if name == "ClaudeSDKUsageExhaustedError":
-                from .model import ClaudeSDKUsageExhaustedError
+                from ._errors import ClaudeSDKUsageExhaustedError
 
                 return ClaudeSDKUsageExhaustedError
             if name == "ClaudeSDKAPIError":
-                from .model import ClaudeSDKAPIError
+                from ._errors import ClaudeSDKAPIError
 
                 return ClaudeSDKAPIError
-            from .model import ClaudeSDKModel
+            from ._model import ClaudeSDKModel
 
             return ClaudeSDKModel
         except ImportError as exc:  # pragma: no cover

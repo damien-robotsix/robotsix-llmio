@@ -51,7 +51,7 @@ class ClaudeSDKProvider(LLMProvider):
                 compatibility with the base class.
 
         """
-        from .model import ClaudeSDKModel
+        from ._model import ClaudeSDKModel
 
         if model is None:
             raise ValueError("`model` must be provided to `new_model()`.")

@@ -255,7 +255,7 @@ async def _stream_query(
 
     from ..core import constants
     from ..exceptions import RobotsixLLMIOError
-    from .model import (
+    from ._errors import (
         ClaudeSDKAPIError,
         ClaudeSDKQueryTimeout,
         ClaudeSDKTurnLimitError,

@@ -179,7 +179,7 @@ class _SdkToolAgentHandle:
             # Single source of truth for the runaway cap (see model._MAX_TURNS).
             # Generous, because an injected-MCP-tool loop legitimately needs many
             # turns; reaching it is a hard ClaudeSDKTurnLimitError, never retried.
-            from .model import _MAX_TURNS
+            from ._model import _MAX_TURNS
 
             max_turns = _MAX_TURNS
         self._max_turns = max_turns
@@ -254,7 +254,7 @@ class _SdkToolAgentHandle:
         inputs + the handle's ``_system_prompt`` and ``_output_type``
         attributes.
         """
-        from .model import extract_prompt_parts
+        from ._prompt import extract_prompt_parts
 
         system_prompt = self._system_prompt
         prompt, images = extract_prompt_parts(user_prompt)
@@ -264,7 +264,7 @@ class _SdkToolAgentHandle:
         # (same rendering the no-tools ClaudeSDKModel path uses) and append the
         # new turn. Without this the tool path silently lost a caller's context.
         if message_history:
-            from .model import render_prompt
+            from ._prompt import render_prompt
 
             history_text = render_prompt(message_history)
             if history_text:
@@ -403,8 +403,8 @@ class _SdkToolAgentHandle:
         tool calls.
         """
         from ..core.cost import record_cost
+        from ._model import PROVIDER_NAME
         from ._usage import _best_usage_dict
-        from .model import PROVIDER_NAME
 
         # Child generation span: the model exchange. Carries input/output +
         # token usage + the SDK cost estimate. Cost must sit on a child
@@ -446,8 +446,8 @@ class _SdkToolAgentHandle:
     async def _run(
         self, user_prompt: str | list[Any], message_history: list[Any] | None = None
     ) -> _SdkToolResult:
+        from ._model import PROVIDER_NAME
         from ._usage import _best_usage_dict
-        from .model import PROVIDER_NAME
 
         prompt, system_prompt, images = self._prepare_prompt(
             user_prompt, message_history
@@ -475,7 +475,7 @@ class _SdkToolAgentHandle:
                 self._sdk_model,
                 self._max_turns,
             )
-            from .model import build_sdk_prompt
+            from ._prompt import build_sdk_prompt
 
             text, result, reasoning = await self._invoke_query(
                 build_sdk_prompt(prompt, images), options
