@@ -101,8 +101,9 @@ def test_run_agent_uses_fallback_after_primary_exhausted():
 
 
 def test_run_agent_offline_trace_input_output_noop():
-    """Offline start_trace → non-recording span; recording trace_input/output
-    must not raise (mirror test_tracing_setup::test_start_trace_safe_without_provider)."""
+    """Offline start_trace → non-recording span; recording
+    trace_input/output must not raise (mirror
+    test_tracing_setup::test_start_trace_safe_without_provider)."""
     handle = _FakeHandle()
     out = run_agent(
         handle,
