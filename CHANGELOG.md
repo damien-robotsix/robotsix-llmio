@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Remove dead periodic workflow configs `state_sync.yaml` and `security_posture.yaml` — both are either internal-only or absent from the available workflow catalog.
 - Fix: when `extra_transient` returns `False` in `_stream_query`, wrap the
   exception in `ClaudeSDKAPIError` instead of propagating it raw, so all
   non-`RobotsixLLMIOError` exceptions from the Claude SDK are consistently
