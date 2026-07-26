@@ -8,7 +8,7 @@ extra surfaces a clear install hint when the model/provider is actually used.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ._stream import ClaudeSDKActivityEvent, activity_events
 from .transient import (
@@ -16,6 +16,16 @@ from .transient import (
     is_claude_sdk_turn_limit,
     is_claude_sdk_usage_exhausted,
 )
+
+if TYPE_CHECKING:
+    from ._errors import (
+        ClaudeSDKAPIError,
+        ClaudeSDKQueryTimeout,
+        ClaudeSDKTurnLimitError,
+        ClaudeSDKUsageExhaustedError,
+    )
+    from ._model import ClaudeSDKModel
+    from .provider import ClaudeSDKProvider
 
 __all__ = [
     "ClaudeSDKAPIError",
