@@ -61,6 +61,9 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Fix mkdocs `--strict` build failure: add missing colon after
+  `workspace_root` parameter name in `claude_sdk/provider.py`
+  docstring so griffe can parse the `name: description` pair.
 - Add `TYPE_CHECKING` block to `claude_sdk/__init__.py` so that mypy, pyright, and IDEs can resolve the six lazily-exported names (`ClaudeSDKAPIError`, `ClaudeSDKModel`, `ClaudeSDKProvider`, `ClaudeSDKQueryTimeout`, `ClaudeSDKTurnLimitError`, `ClaudeSDKUsageExhaustedError`) as valid module attributes — matching the pattern used by every other `__init__.py` in the project.
 - Re-export `RefdocsSettings` at the top-level `robotsix_llmio` package so callers of `build_refdocs_tools` can construct its parameter type without reaching into the internal `clients.refdocs` subpackage.
 - Updated `ARCHITECTURE.md` test listing: replaced stale `test_claude_sdk.py` entry with the 10 topic-specific files under `tests/claude_sdk/`, and added `test_core_tier_fallback.py` / `test_core_tier_fallback_next_tier.py` to the `tests/core/` section.

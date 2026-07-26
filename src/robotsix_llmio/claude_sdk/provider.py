@@ -95,7 +95,7 @@ class ClaudeSDKProvider(LLMProvider):
                 ``None``, the model is resolved from *tier_config* as
                 usual.
 
-            *workspace_root* confines the agent's built-in file-mutating
+            workspace_root: confines the agent's built-in file-mutating
                 tools to that directory: the SDK runs with
                 ``cwd=workspace_root`` and a ``PreToolUse`` hook denies
                 any write whose target resolves outside it. Without it a
