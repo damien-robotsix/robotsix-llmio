@@ -298,6 +298,8 @@ sub-directory for modules that have their own test suite:
 - `tests/core/` — unit tests for the base layer:
   - `test_core_retry.py` — transient / rate-limit classification,
     backoff progression, fallback handling.
+  - `test_core_tier_fallback.py` — tier-fallback unit tests.
+  - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
   - `test_core_provider.py` — the `LLMProvider` contract.
   - `test_tracing_setup.py` — tracing setup + surface API unit tests.
   - `test_tracing_routing.py` — trace routing + span processor unit tests.
@@ -308,9 +310,17 @@ sub-directory for modules that have their own test suite:
   - `test_openrouter_deepseek_live.py` — live tests; reproduces the DeepSeek
     thinking-mode 400 that the `reasoning_content` round-trip fixes.
 - `tests/claude_sdk/`:
-  - `test_claude_sdk.py` — unit tests.
   - `test_confine_hook.py` — exercises the workspace-confinement
     `PreToolUse` hook used by the injected-MCP-tools path.
+  - `test_live.py` — live Claude SDK tests (opt-in).
+  - `test_output.py` — output parsing unit tests.
+  - `test_prompt_rendering.py` — prompt rendering unit tests.
+  - `test_run_kwargs.py` — run-kwargs propagation unit tests.
+  - `test_stream.py` — streaming response unit tests.
+  - `test_tool_bridge.py` — tool-bridge unit tests.
+  - `test_tracing.py` — Claude SDK tracing unit tests.
+  - `test_transient.py` — transient-error classification unit tests.
+  - `test_usage.py` — usage/cost tracking unit tests.
 
 **Live-test gating.** Live tests are opt-in via the `live` pytest
 marker. `pyproject.toml` deselects them by default
