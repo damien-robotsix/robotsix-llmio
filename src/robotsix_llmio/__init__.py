@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from .clients.refdocs import (
         AsyncRefdocsClient,
         RefdocsClientError,
+        RefdocsSettings,
         build_refdocs_tools,
     )
     from .clients.self_review import (
@@ -45,6 +46,7 @@ __all__ = [
     "LangfuseClientError",
     "OpenRouterAPIError",
     "RefdocsClientError",
+    "RefdocsSettings",
     "RobotsixLLMIOError",
     "SelfReviewClient",
     "SelfReviewClientError",
@@ -87,6 +89,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "AsyncRefdocsClient",
         "build_refdocs_tools",
         "RefdocsClientError",
+        "RefdocsSettings",
     ):
         from .clients import refdocs
 
