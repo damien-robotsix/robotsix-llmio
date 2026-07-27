@@ -295,17 +295,49 @@ just span attributes that the tracing exporter ships.
 The `tests/` tree mirrors the source layout, with one per-module
 sub-directory for modules that have their own test suite:
 
-- `tests/core/` — unit tests for the base layer:
+- `tests/core/` — unit tests for the base layer (selected highlights;
+  see directory for full listing):
+  - `test_changelog.py` — changelog utilities.
+  - `test_constants.py` — module-level constants.
+  - `test_core_agent.py` — core agent unit tests.
+  - `test_core_cost.py` — cost model unit tests.
+  - `test_core_cost_log.py` — cost log unit tests.
+  - `test_core_http.py` — HTTP client unit tests.
+  - `test_core_private.py` — internal/private API unit tests.
+  - `test_core_provider.py` — the `LLMProvider` contract.
+  - `test_core_provider_cost.py` — provider cost tracking.
   - `test_core_retry_sync.py` — sync wrappers, retry-then-fallback.
   - `test_core_retry_async.py` — async parity, retries-exhausted,
     rate-limit, backoff jitter.
   - `test_core_retry_properties.py` — property tests.
+  - `test_core_run.py` — top-level run loop unit tests.
   - `test_core_tier_fallback.py` — tier-fallback unit tests.
   - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
-  - `test_core_provider.py` — the `LLMProvider` contract.
+  - `test_exceptions.py` — custom exception classes.
+  - `test_factory.py` — agent factory unit tests.
+  - `test_factory_levels.py` — capability-level factory tests.
+  - `test_identifier.py` — agent identifier unit tests.
+  - `test_langfuse_async_client.py` — async Langfuse client.
+  - `test_langfuse_client.py` — sync Langfuse client.
+  - `test_langfuse_cost.py` — Langfuse cost tracking.
+  - `test_logging.py` — logging configuration unit tests.
+  - `test_otel.py` — OpenTelemetry setup unit tests.
+  - `test_sqlite_utils.py` — SQLite utility unit tests.
+  - `test_text_utils.py` — text utility unit tests.
   - `test_tracing_setup.py` — tracing setup + surface API unit tests.
   - `test_tracing_routing.py` — trace routing + span processor unit tests.
   - `test_tracing_live.py` — live tracing (opt-in).
+- `tests/clients/` — unit tests for the client layer:
+  - `_base/test_base.py` — base client unit tests.
+  - `knowledge/test_knowledge.py` — knowledge client unit tests.
+  - `refdocs/test_refdocs.py` — refdocs client unit tests.
+  - `self_review/test_self_review.py` — self-review client unit tests.
+- `tests/config/` — unit tests for the config layer:
+  - `test_config_factory.py` — config factory unit tests.
+  - `test_config_integration.py` — config integration tests.
+  - `test_lazy_imports.py` — lazy imports tests.
+  - `test_loader.py` — config loader unit tests.
+  - `test_tier.py` — tier config unit tests.
 - `tests/openrouter/`:
   - `test_openrouter.py` — OpenRouter transport unit tests.
   - `test_openrouter_deepseek.py` — unit tests for the DeepSeek derived layer.
