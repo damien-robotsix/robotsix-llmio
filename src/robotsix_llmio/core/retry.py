@@ -20,12 +20,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
 import time
-from collections.abc import Awaitable, Callable, Coroutine, Iterator
+from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any, TypeVar, cast
 
 from pydantic_ai import UsageLimitExceeded
+from robotsix_http.retry import (
+    RetryConfig,
+    _compute_backoff,
+    _status,
+    _walk_cause_chain,
+    is_transient,
+)
 
 from . import constants
 from ._otel import get_recording_span
@@ -34,6 +40,31 @@ from .cost import flush_current_provider
 log = logging.getLogger("robotsix_llmio.retry")
 
 T = TypeVar("T")
+
+__all__ = [
+    "RetryConfig",
+    "_compute_backoff",
+    "_status",
+    "_walk_cause_chain",
+    "acall_with_retry",
+    "acall_with_retry_and_fallback",
+    "call_with_retry",
+    "call_with_retry_and_fallback",
+    "is_rate_limited",
+    "is_transient",
+]
+
+# ---------------------------------------------------------------------------
+# Loop-free sync coroutine driver (LLM-domain — load-bearing for run_sync
+# callables).
+#
+# robotsix_http._drive_sync uses asyncio.run(), which creates a running event
+# loop.  That breaks run_sync-style callables (pydantic-ai Agent.run_sync,
+# claude_sdk tool agent) that themselves call asyncio.run() or
+# loop.run_until_complete().  We keep a loop-free driver that advances the
+# coroutine via send(None) — no event loop is ever running, so the wrapped
+# callable is free to create its own.
+# ---------------------------------------------------------------------------
 
 
 def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
@@ -65,58 +96,40 @@ def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
     )
 
 
-def _walk_cause_chain(
-    exc: BaseException, max_depth: int = 10
-) -> Iterator[BaseException]:
-    """Yield each exception in the cause/context chain, bounded to *max_depth*."""
-    cur: BaseException | None = exc
-    seen = 0
-    while cur is not None and seen < max_depth:
-        yield cur
-        cur = cur.__cause__ or cur.__context__
-        seen += 1
+# ---------------------------------------------------------------------------
+# OTel span recording for transient retries, wired through
+# ``robotsix_http.retry.RetryConfig.on_retry``
+# ---------------------------------------------------------------------------
 
 
-def _status(exc: BaseException) -> int | None:
-    # pydantic-ai ModelHTTPError(status_code, ...) and httpx
-    # HTTPStatusError(response.status_code) both expose a status.
-    code = getattr(exc, "status_code", None)
-    if isinstance(code, int):
-        return code
-    resp = getattr(exc, "response", None)
-    rc = getattr(resp, "status_code", None)
-    return rc if isinstance(rc, int) else None
+def _record_transient_retry_span(
+    exc: Exception, attempt: int, config: RetryConfig
+) -> None:
+    """Record transient-retry metrics on the current OTel span; no-op without OTel.
+
+    Signature matches ``robotsix_http.retry.RetryConfig.on_retry``:
+    ``(exc, attempt, config)`` where *attempt* is 0-indexed.
+    """
+    span = get_recording_span()
+    if span is None:
+        return
+    delay = _compute_backoff(attempt, config)
+    span.set_attribute("llmio.retry.count", attempt + 1)
+    span.set_attribute("llmio.retry.backoff_seconds", delay)
+    span.set_attribute("llmio.retry.error", type(exc).__name__)
 
 
-# JSONDecodeError: the model occasionally emits malformed JSON for a tool call
-# / structured output; a re-run almost always yields valid JSON, so treat it
-# as transient instead of hard-failing.
-_TRANSIENT_NAMES = {
-    "APITimeoutError",
-    "APIConnectionError",
-    "JSONDecodeError",
-}
+_RETRY_CONFIG = RetryConfig(
+    max_retries=constants.TRANSIENT_RETRIES,
+    backoff_base=constants.TRANSIENT_BACKOFF_BASE,
+    backoff_cap=constants.TRANSIENT_BACKOFF_CAP,
+    on_retry=_record_transient_retry_span,
+)
 
 
-def is_transient(exc: BaseException) -> bool:
-    """True only for *generic* retryable infrastructure failures. Walks the
-    cause/context chain so a timeout wrapped by openai/pydantic-ai
-    (e.g. ModelHTTPError <- APITimeoutError <- httpx.ReadTimeout) is still
-    recognised. Provider layers extend this with their own signatures."""
-    import httpx
-
-    for cur in _walk_cause_chain(exc):
-        name = type(cur).__name__
-        if isinstance(cur, UsageLimitExceeded):
-            return False  # budget cap — never transient
-        if isinstance(cur, (httpx.TimeoutException, httpx.TransportError)):
-            return True
-        if name in _TRANSIENT_NAMES:
-            return True
-        code = _status(cur)
-        if code is not None and (code == 429 or 500 <= code < 600):
-            return True
-    return False
+# ---------------------------------------------------------------------------
+# LLM-domain: rate-limit / UsageLimitExceeded helpers
+# ---------------------------------------------------------------------------
 
 
 def is_rate_limited(exc: BaseException) -> bool:
@@ -138,13 +151,6 @@ def _record_rate_limit_span(
     span.set_attribute("llmio.rate_limit.backoff_seconds", cumulative_backoff)
     if fallback_activated:
         span.set_attribute("llmio.rate_limit.fallback_activated", True)
-
-
-def _compute_backoff(attempt: int) -> float:
-    """Exponential backoff with jitter, capped."""
-    raw: float = constants.TRANSIENT_BACKOFF_BASE * (2**attempt)
-    raw += random.uniform(0, raw / 2)
-    return min(constants.TRANSIENT_BACKOFF_CAP, raw)
 
 
 def _handle_rate_limit(
@@ -178,7 +184,7 @@ def _handle_rate_limit(
 def _handle_transient(
     e: Exception,
     attempt: int,
-    attempts: int,
+    config: RetryConfig,
     cumulative_backoff: float,
     what: str,
 ) -> tuple[float, float]:
@@ -188,21 +194,26 @@ def _handle_transient(
     (sync or async) and increment *attempt*.  Raises if retries are
     exhausted.
     """
-    if attempt >= attempts:
+    if attempt >= config.max_retries:
         _safe_flush()
         raise
-    delay = _compute_backoff(attempt)
+    delay = _compute_backoff(attempt, config)
     cumulative_backoff += delay
     log.warning(
         "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
         what,
         type(e).__name__,
         attempt + 1,
-        attempts,
+        config.max_retries,
         delay,
     )
     _safe_flush()
     return delay, cumulative_backoff
+
+
+# ---------------------------------------------------------------------------
+# Core retry loop (async) — LLM-domain with rate-limit / fallback logic
+# ---------------------------------------------------------------------------
 
 
 async def _retry_loop(
@@ -210,17 +221,22 @@ async def _retry_loop(
     *,
     invoke: Callable[[Callable[[], Any]], Awaitable[Any]],
     sleep_fn: Callable[[float], Awaitable[None]],
+    config: RetryConfig = _RETRY_CONFIG,
     what: str = "model call",
     fallback_fn: Callable[[], Any] | None = None,
     is_transient_fn: Callable[[BaseException], bool] = is_transient,
 ) -> Any:
-    """Shared retry loop — ``invoke`` and ``sleep_fn`` adapt sync vs async."""
-    attempts = max(0, constants.TRANSIENT_RETRIES)
+    """Shared retry loop — ``invoke`` and ``sleep_fn`` adapt sync vs async.
+
+    Transient retries use exponential backoff from *config*; span recording
+    is wired through ``config.on_retry``.  ``UsageLimitExceeded`` triggers
+    a one-shot fallback (if provided) rather than a retry.
+    """
     using_fallback = False
     cumulative_backoff = 0.0
 
     attempt = 0
-    while attempt <= attempts:
+    while attempt <= config.max_retries:
         try:
             if using_fallback:
                 assert fallback_fn is not None  # type-narrowing
@@ -237,8 +253,10 @@ async def _retry_loop(
 
             if is_transient_fn(e):
                 delay, cumulative_backoff = _handle_transient(
-                    e, attempt, attempts, cumulative_backoff, what
+                    e, attempt, config, cumulative_backoff, what
                 )
+                if config.on_retry is not None:
+                    config.on_retry(e, attempt, config)
                 await sleep_fn(delay)
                 attempt += 1
                 continue
@@ -247,6 +265,11 @@ async def _retry_loop(
             _safe_flush()
             raise
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+# ---------------------------------------------------------------------------
+# Public API (sync + async)
+# ---------------------------------------------------------------------------
 
 
 def call_with_retry[T](

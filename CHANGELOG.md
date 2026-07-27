@@ -84,6 +84,15 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 - Consolidated repetitive test functions in `tests/core/test_langfuse_cost.py` from 22 to 10 using `@pytest.mark.parametrize` across six groups (`_parse_timestamp`, `_observation_provider`, `_observation_cost`, `fetch_logged_cost`, `fetch_by_provider`, `prune_before`).
 - Extract shared `_parse_key_usage` helper in `provider_cost.py`, replacing duplicate inline `KeyUsage` construction in sync and async OpenRouter clients.
 - Remove dead Pydantic v1 `.dict()` fallback in `_to_dict()` (`src/robotsix_llmio/config/loader.py`). The project requires pydantic>=2, so the backward-compat try/except for `.dict()` was unreachable.
+- Inline robotsix-http retry primitives directly into ``core/retry.py``
+  (RetryConfig, _compute_backoff, _walk_cause_chain, _status, is_transient)
+  so the library is importable without the git dependency. Remove
+  robotsix-http from pyproject.toml dependencies and tool.uv.sources.
+- Replace duplicated HTTP retry primitives with robotsix-http. The generic
+  ``RetryConfig``, ``_compute_backoff``, ``_walk_cause_chain``, ``_status``,
+  and ``is_transient`` symbols are now imported from ``robotsix_http.retry``
+  instead of inlined.  The loop-free ``_drive_sync`` and all LLM-domain
+  logic (rate-limit handling, fallback, OTel span recording) stay local.
 - Add `deptry` to dev dependencies, pre-commit hooks, and CI to catch misplaced/unused dependencies automatically.
 - Remove redundant hand-rolled `audit` job from CI workflow; the shared `python-ci.yml` already runs `uv audit` via its default `run-audit: true` input.
 - Add codespell to pre-commit hooks to catch common misspellings in docstrings and comments.

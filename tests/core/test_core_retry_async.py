@@ -318,13 +318,14 @@ def test_acall_with_retry_fallback_gets_full_retry_budget():
 def test_backoff_delay_never_exceeds_cap_sync(monkeypatch):
     """Jitter is applied to the raw exponential value BEFORE capping, so the
     final delay never exceeds TRANSIENT_BACKOFF_CAP regardless of jitter."""
+
     from robotsix_llmio.core.constants import TRANSIENT_BACKOFF_CAP, TRANSIENT_RETRIES
 
-    # Force uniform(a, b) to always return b (max jitter).
-    monkeypatch.setattr(
-        "robotsix_llmio.core.retry.random.uniform",
-        lambda a, b: b,
-    )
+    # Force random.random to always return 1.0 (max jitter).  _compute_backoff
+    # may live in robotsix_http.retry (when installed) or in the local fallback
+    # — patch whichever is active.
+    monkeypatch.setattr("robotsix_http.retry.random.random", lambda: 1.0)
+
     delays: list[float] = []
 
     def record_sleep(d: float) -> None:
@@ -349,12 +350,11 @@ def test_backoff_delay_never_exceeds_cap_sync(monkeypatch):
 
 def test_backoff_delay_never_exceeds_cap_async(monkeypatch):
     """Async: jitter-before-cap — delay never exceeds TRANSIENT_BACKOFF_CAP."""
+
     from robotsix_llmio.core.constants import TRANSIENT_BACKOFF_CAP, TRANSIENT_RETRIES
 
-    monkeypatch.setattr(
-        "robotsix_llmio.core.retry.random.uniform",
-        lambda a, b: b,
-    )
+    monkeypatch.setattr("robotsix_http.retry.random.random", lambda: 1.0)
+
     delays: list[float] = []
 
     async def record_sleep(d: float) -> None:
