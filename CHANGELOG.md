@@ -61,6 +61,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Updated `ARCHITECTURE.md` to replace stale `test_core_retry.py` reference with the three split files (`test_core_retry_sync.py`, `test_core_retry_async.py`, `test_core_retry_properties.py`).
 - Add `TYPE_CHECKING` block to `claude_sdk/__init__.py` so that mypy, pyright, and IDEs can resolve the six lazily-exported names (`ClaudeSDKAPIError`, `ClaudeSDKModel`, `ClaudeSDKProvider`, `ClaudeSDKQueryTimeout`, `ClaudeSDKTurnLimitError`, `ClaudeSDKUsageExhaustedError`) as valid module attributes — matching the pattern used by every other `__init__.py` in the project.
 - Re-export `RefdocsSettings` at the top-level `robotsix_llmio` package so callers of `build_refdocs_tools` can construct its parameter type without reaching into the internal `clients.refdocs` subpackage.
 - Updated `ARCHITECTURE.md` test listing: replaced stale `test_claude_sdk.py` entry with the 10 topic-specific files under `tests/claude_sdk/`, and added `test_core_tier_fallback.py` / `test_core_tier_fallback_next_tier.py` to the `tests/core/` section.

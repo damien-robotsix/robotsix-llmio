@@ -296,8 +296,10 @@ The `tests/` tree mirrors the source layout, with one per-module
 sub-directory for modules that have their own test suite:
 
 - `tests/core/` — unit tests for the base layer:
-  - `test_core_retry.py` — transient / rate-limit classification,
-    backoff progression, fallback handling.
+  - `test_core_retry_sync.py` — sync wrappers, retry-then-fallback.
+  - `test_core_retry_async.py` — async parity, retries-exhausted,
+    rate-limit, backoff jitter.
+  - `test_core_retry_properties.py` — property tests.
   - `test_core_tier_fallback.py` — tier-fallback unit tests.
   - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
   - `test_core_provider.py` — the `LLMProvider` contract.
