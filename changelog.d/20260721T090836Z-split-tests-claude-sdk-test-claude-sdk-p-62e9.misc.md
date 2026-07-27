@@ -1,1 +1,0 @@
-Split tests/claude_sdk/test_claude_sdk.py (1890 lines) into topic-specific test files

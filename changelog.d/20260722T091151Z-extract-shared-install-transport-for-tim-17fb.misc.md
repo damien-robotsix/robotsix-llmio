@@ -1,1 +1,0 @@
-Extract shared `install_transport` for `timeout_http_client` tests from 5 duplicated copies

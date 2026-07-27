@@ -1,1 +1,0 @@
-optimization — The refine stage spent $1.90 on a single Opus generation (9.5K input / 21.6K output tokens

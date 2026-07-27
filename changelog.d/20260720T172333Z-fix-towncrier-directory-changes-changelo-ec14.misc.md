@@ -1,1 +1,0 @@
-Flip towncrier fragment directory from `changes/` to `changelog.d/` to match the fleet auto-release workflow's hardcoded path; migrate 5 pending fragments, remove one stale never-compiled fragment, and update CONTRIBUTING.md, CHANGELOG.md, and docs/modules.yaml.
