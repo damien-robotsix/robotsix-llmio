@@ -1,1 +1,0 @@
-Add `deptry` to dev dependencies, pre-commit, and CI

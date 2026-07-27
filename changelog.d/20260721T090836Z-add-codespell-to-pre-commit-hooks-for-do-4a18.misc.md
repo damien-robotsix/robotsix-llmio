@@ -1,1 +1,0 @@
-Add codespell to pre-commit hooks for docstring/comment spell-checking
