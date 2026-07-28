@@ -166,3 +166,16 @@ def make_adapter() -> LangfuseCostLogSource:
     return LangfuseCostLogSource(
         public_key="pub", secret_key="sec", base_url="https://lf.example.com"
     )
+
+
+# --------------------------------------------------------------------------- #
+#  Tier-fallback sleep helpers (avoids real waits in tests)                   #
+# --------------------------------------------------------------------------- #
+
+
+def _noop_sleep(_d: float) -> None:
+    return None
+
+
+async def _anoop_sleep(_d: float) -> None:
+    return None
