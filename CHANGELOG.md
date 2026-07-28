@@ -72,6 +72,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Sync `CONTRIBUTING.md` pre-commit hooks table with `.pre-commit-config.yaml`: removed `check-ast`, `check-case-conflict`, `debug-statements` (not configured); added `codespell` and `deptry` (configured but undocumented).
 - Added missing `tests/openrouter/` test-file entries (`test_async_client.py`,
   `test_openrouter_provider.py`, `test_openrouter_provider_cost.py`) to the
   Test coverage strategy section of ARCHITECTURE.md.

@@ -66,14 +66,13 @@ Hooks pinned in `.pre-commit-config.yaml`:
 | check-json              | validates JSON syntax                        |
 | check-merge-conflict    | rejects files with unresolved merge markers  |
 | check-added-large-files | rejects files over 1 MB (lockfile/baseline exempt) |
-| check-ast               | rejects Python files that don't parse        |
-| check-case-conflict     | rejects names that collide case-insensitively |
-| debug-statements        | catches leftover `breakpoint()` / `pdb` etc. |
 | detect-private-key      | rejects committed private keys               |
 | ruff                    | linter (auto-fix on commit)                  |
 | ruff-format             | formatter (auto-applied on commit)           |
+| codespell               | spell-checks source files                    |
 | mypy                    | type-checks `src/`                           |
 | vulture                 | dead-code check over `src/`                  |
+| deptry                  | dependency hygiene check                     |
 | detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
 | actionlint              | lints GitHub Actions workflow files          |
 
