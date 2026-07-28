@@ -72,6 +72,7 @@ def run_agent[T](
     trace_input: Any = None,
     sleep: Callable[[float], None] = time.sleep,
     is_transient_fn: Callable[[BaseException], bool] = is_transient,
+    should_fallback: Callable[[BaseException], bool] = lambda _e: True,
 ) -> T:
     """Run *run* under a trace span and bounded retry, always closing *handle*.
 
@@ -81,6 +82,13 @@ def run_agent[T](
     :func:`acall_with_retry_and_fallback` when *fallback* is given); on success
     the result is recorded as the span output and returned. ``handle.close()``
     runs in a ``finally`` — even when *run* raises after retries are exhausted.
+
+    *should_fallback* gates when *fallback* is used: it is only invoked when the
+    primary fails its whole retry session AND ``should_fallback(exc)`` is true.
+    The default falls back on any error; pass
+    :func:`~robotsix_llmio.core.retry.is_usage_exhausted` to degrade to the
+    fallback model only when the primary's usage is exhausted (out of credits /
+    budget cap) while still failing loudly on genuine errors.
     """
 
     async def _arun_wrapper() -> T:
@@ -102,6 +110,7 @@ def run_agent[T](
                 sleep=_asleep,
                 is_transient_primary=is_transient_fn,
                 is_transient_fallback=is_transient_fn,
+                should_fallback=should_fallback,
             )
         return await acall_with_retry(
             _arun_wrapper, what=what, sleep=_asleep, is_transient_fn=is_transient_fn
@@ -139,6 +148,7 @@ async def arun_agent[T](
     trace_input: Any = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     is_transient_fn: Callable[[BaseException], bool] = is_transient,
+    should_fallback: Callable[[BaseException], bool] = lambda _e: True,
 ) -> T:
     """Async mirror of :func:`run_agent`.
 
@@ -146,7 +156,10 @@ async def arun_agent[T](
     :func:`acall_with_retry` / :func:`acall_with_retry_and_fallback` with
     *sleep* defaulting to :func:`asyncio.sleep`. ``handle.aclose()`` is
     awaited in the ``finally`` block to close the HTTP client in the caller's
-    running event loop.
+    running event loop. *should_fallback* gates fallback exactly as in
+    :func:`run_agent` (default: fall back on any error; pass
+    :func:`~robotsix_llmio.core.retry.is_usage_exhausted` to fall back only on
+    usage exhaustion).
     """
 
     async def _run() -> T:
@@ -158,6 +171,7 @@ async def arun_agent[T](
                 sleep=sleep,
                 is_transient_primary=is_transient_fn,
                 is_transient_fallback=is_transient_fn,
+                should_fallback=should_fallback,
             )
         return await acall_with_retry(
             run, what=what, sleep=sleep, is_transient_fn=is_transient_fn
