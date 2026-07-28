@@ -52,6 +52,7 @@ __all__ = [
     "call_with_retry_and_fallback",
     "is_rate_limited",
     "is_transient",
+    "is_usage_exhausted",
 ]
 
 # ---------------------------------------------------------------------------
@@ -136,6 +137,33 @@ def is_rate_limited(exc: BaseException) -> bool:
     """True only for ``UsageLimitExceeded`` (the pydantic-ai budget-cap
     exception). Walks the cause/context chain."""
     return any(isinstance(cur, UsageLimitExceeded) for cur in _walk_cause_chain(exc))
+
+
+def is_usage_exhausted(exc: BaseException) -> bool:
+    """True when *exc* reports that a model's usage capacity is exhausted.
+
+    Matches either shape llmio surfaces:
+
+    * pydantic-ai ``UsageLimitExceeded`` — a per-run request/token budget cap; or
+    * ``ClaudeSDKUsageExhaustedError`` — the Claude subscription tier is out of
+      usage credits.
+
+    Both are non-transient (re-running the SAME model cannot help) but ARE
+    fallback-eligible: the request should be retried on a DIFFERENT model. Pass
+    this as ``should_fallback`` to :func:`call_with_retry_and_fallback` /
+    :func:`acall_with_retry_and_fallback` (or :func:`~robotsix_llmio.core.run.run_agent`
+    / :func:`~robotsix_llmio.core.run.arun_agent`) so a run degrades to the
+    fallback model on exhaustion while still failing loudly on genuine errors.
+    Walks the cause/context chain. The Claude-SDK error is matched by class name
+    to keep this module free of an import cycle with
+    :mod:`robotsix_llmio.claude_sdk`.
+    """
+    if is_rate_limited(exc):
+        return True
+    return any(
+        type(cur).__name__ == "ClaudeSDKUsageExhaustedError"
+        for cur in _walk_cause_chain(exc)
+    )
 
 
 def _record_rate_limit_span(

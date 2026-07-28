@@ -65,6 +65,7 @@ if TYPE_CHECKING:
         call_with_retry_and_fallback,
         is_rate_limited,
         is_transient,
+        is_usage_exhausted,
     )
     from .run import arun_agent, run_agent
     from .sqlite_utils import (
@@ -141,6 +142,7 @@ __all__ = [
     "install_signal_handlers",
     "is_rate_limited",
     "is_transient",
+    "is_usage_exhausted",
     "langfuse_project",
     "langfuse_session",
     "langfuse_trace_url",
@@ -207,6 +209,7 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "call_with_retry_and_fallback": (".retry", "call_with_retry_and_fallback"),
     "is_rate_limited": (".retry", "is_rate_limited"),
     "is_transient": (".retry", "is_transient"),
+    "is_usage_exhausted": (".retry", "is_usage_exhausted"),
     # -- tier_fallback
     "acall_with_tier_fallback": (".tier_fallback", "acall_with_tier_fallback"),
     "call_with_tier_fallback": (".tier_fallback", "call_with_tier_fallback"),

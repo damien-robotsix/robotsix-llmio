@@ -12,6 +12,7 @@ from robotsix_llmio.core.retry import (
     call_with_retry_and_fallback,
     is_rate_limited,
     is_transient,
+    is_usage_exhausted,
 )
 
 
@@ -51,6 +52,69 @@ def test_usage_limit_is_rate_limited_not_transient():
     e = UsageLimitExceeded("cap")
     assert is_rate_limited(e) is True
     assert is_transient(e) is False
+
+
+class _FakeClaudeSDKUsageExhaustedError(Exception):
+    """Stand-in matched by class name (see is_usage_exhausted), avoiding a
+    claude_sdk import in a core test."""
+
+
+# Real name so type(cur).__name__ matches the predicate's class-name check.
+_FakeClaudeSDKUsageExhaustedError.__name__ = "ClaudeSDKUsageExhaustedError"
+
+
+def test_is_usage_exhausted_covers_both_shapes():
+    # pydantic-ai budget cap
+    assert is_usage_exhausted(UsageLimitExceeded("cap")) is True
+    # Claude-SDK out-of-credits (matched by class name)
+    assert is_usage_exhausted(_FakeClaudeSDKUsageExhaustedError("no credits")) is True
+    # genuine errors are NOT usage exhaustion
+    assert is_usage_exhausted(ValueError("boom")) is False
+    assert is_usage_exhausted(_HTTPErr(500)) is False
+
+
+def test_is_usage_exhausted_walks_cause_chain():
+    outer = RuntimeError("wrapped")
+    outer.__cause__ = _FakeClaudeSDKUsageExhaustedError("no credits")
+    assert is_usage_exhausted(outer) is True
+
+
+def test_should_fallback_is_usage_exhausted_gates_fallback():
+    """should_fallback=is_usage_exhausted falls back on exhaustion, re-raises
+    on a genuine error."""
+    calls = {"fallback": 0}
+
+    def _fallback():
+        calls["fallback"] += 1
+        return "fallback-ok"
+
+    def _exhausted_primary():
+        raise UsageLimitExceeded("cap")
+
+    def _buggy_primary():
+        raise ValueError("real bug")
+
+    # usage exhausted -> fallback runs
+    assert (
+        call_with_retry_and_fallback(
+            _exhausted_primary,
+            _fallback,
+            sleep=_noop_sleep,
+            should_fallback=is_usage_exhausted,
+        )
+        == "fallback-ok"
+    )
+    assert calls["fallback"] == 1
+
+    # genuine bug -> re-raised, fallback NOT run
+    with pytest.raises(ValueError):
+        call_with_retry_and_fallback(
+            _buggy_primary,
+            _fallback,
+            sleep=_noop_sleep,
+            should_fallback=is_usage_exhausted,
+        )
+    assert calls["fallback"] == 1
 
 
 def test_call_with_retry_retries_then_succeeds():
