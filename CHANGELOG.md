@@ -72,6 +72,9 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Added missing `tests/openrouter/` test-file entries (`test_async_client.py`,
+  `test_openrouter_provider.py`, `test_openrouter_provider_cost.py`) to the
+  Test coverage strategy section of ARCHITECTURE.md.
 - Updated `ARCHITECTURE.md` test coverage listing: added `tests/clients/` and
   `tests/config/` directories, and expanded the `tests/core/` section to cover
   all 29 test files.
