@@ -343,6 +343,11 @@ sub-directory for modules that have their own test suite:
   - `test_openrouter_deepseek.py` — unit tests for the DeepSeek derived layer.
   - `test_openrouter_deepseek_live.py` — live tests; reproduces the DeepSeek
     thinking-mode 400 that the `reasoning_content` round-trip fixes.
+  - `test_async_client.py` — ``AsyncOpenRouterClient`` unit tests (httpx.MockTransport,
+    no network).
+  - `test_openrouter_provider.py` — ``OpenRouterProvider.__init__`` auth resolution
+    unit tests.
+  - `test_openrouter_provider_cost.py` — provider-cost read seam unit tests.
 - `tests/claude_sdk/`:
   - `test_confine_hook.py` — exercises the workspace-confinement
     `PreToolUse` hook used by the injected-MCP-tools path.
