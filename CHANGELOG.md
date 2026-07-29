@@ -76,6 +76,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
   constructor (matching the existing behaviour of `get_provider_for_level()` and
   `build_agent_for_level()` in `core/factory.py`).  Previously the baked
   `max_tokens` value was silently dropped.
+- Split `tests/claude_sdk/test_stream.py` (641 lines) into two files: `test_stream_short_log.py` (~214 lines, 18 tests) for `_short`/`_log_stream_message`/activity event callbacks, and the trimmed `test_stream.py` (~427 lines, 17 tests) for `_stream_query`. Both files are well under the 500-line community limit.
 - Sync `CONTRIBUTING.md` pre-commit hooks table with `.pre-commit-config.yaml`: removed `check-ast`, `check-case-conflict`, `debug-statements` (not configured); added `codespell` and `deptry` (configured but undocumented).
 - Added missing `tests/openrouter/` test-file entries (`test_async_client.py`,
   `test_openrouter_provider.py`, `test_openrouter_provider_cost.py`) to the
