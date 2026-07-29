@@ -1,0 +1,1 @@
+Bump the pinned `robotsix-http` to pick up its `is_transient` fix. After llmio's retry primitives moved to that package, a `json.JSONDecodeError` wrapped in a cause chain (a model emitting malformed JSON for a tool call) and openai's `APITimeoutError` stopped being recognised as transient, so those failures hard-errored a run instead of being retried.
