@@ -19,6 +19,7 @@ from robotsix_llmio.openrouter.model import (
 from robotsix_llmio.openrouter.transient import (
     is_openrouter_transient,
     is_openrouter_upstream_error,
+    is_openrouter_upstream_payment_error,
 )
 
 
@@ -74,6 +75,69 @@ def test_plain_validation_error_not_upstream():
         pass
 
     assert is_openrouter_upstream_error(ValidationError("bad schema")) is False
+
+
+# --- upstream provider 402 (vs. our own credits running out) ---------------
+
+
+class _HTTPErr(Exception):
+    """Stand-in for ``ModelHTTPError``: carries ``status_code`` and renders the
+    body in its ``str()``, which is what the predicate inspects."""
+
+    def __init__(self, status_code: int, body: str) -> None:
+        super().__init__(f"status_code: {status_code}, body: {body}")
+        self.status_code = status_code
+
+
+#: The real body seen on 2026-07-29 (Python dict repr, via ModelHTTPError).
+_UPSTREAM_402_BODY = (
+    "{'message': 'Provider returned error', 'code': 402, 'metadata': "
+    '{\'raw\': \'{"error":{"message":"Insufficient Balance"}}\', '
+    "'provider_name': 'DeepSeek', 'is_byok': False}}"
+)
+
+
+def test_upstream_provider_402_is_transient():
+    """OpenRouter's *upstream* provider had no balance — retrying lets it route
+    to one of the other providers serving the same model."""
+    e = _HTTPErr(402, _UPSTREAM_402_BODY)
+    assert is_openrouter_upstream_payment_error(e) is True
+    assert is_openrouter_transient(e) is True
+
+
+def test_upstream_provider_402_detected_in_json_rendering():
+    """Same signal, JSON-rendered rather than Python-repr'd."""
+    body = (
+        '{"message":"Provider returned error","code":402,"metadata":'
+        '{"provider_name":"DeepSeek","is_byok":false}}'
+    )
+    assert is_openrouter_upstream_payment_error(_HTTPErr(402, body)) is True
+
+
+def test_own_credits_402_is_not_transient():
+    """Our OpenRouter account being out of credits must fail fast — retrying
+    cannot help, and silently riding it out would burn the retry budget."""
+    e = _HTTPErr(402, "{'error': {'message': 'Insufficient credits', 'code': 402}}")
+    assert is_openrouter_upstream_payment_error(e) is False
+    assert is_openrouter_transient(e) is False
+
+
+def test_byok_402_is_not_transient():
+    """A BYOK key is *ours*: its provider running dry is a real billing failure
+    on our side, so it must not be retried."""
+    body = (
+        "{'message': 'Provider returned error', 'code': 402, 'metadata': "
+        "{'provider_name': 'DeepSeek', 'is_byok': True}}"
+    )
+    assert is_openrouter_upstream_payment_error(_HTTPErr(402, body)) is False
+
+
+def test_non_402_with_provider_metadata_is_not_payment_error():
+    """The status gate matters: a 500 carrying provider metadata is already
+    transient via the core set, not via the payment predicate."""
+    assert is_openrouter_upstream_payment_error(_HTTPErr(500, _UPSTREAM_402_BODY)) is (
+        False
+    )
 
 
 @patch("robotsix_llmio.openrouter.model.get_recording_span")

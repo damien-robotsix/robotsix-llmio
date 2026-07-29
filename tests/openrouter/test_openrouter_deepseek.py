@@ -32,23 +32,87 @@ def _model(level: int):
 # --- pin + reasoning policy ------------------------------------------------
 
 
-def test_level2_pins_and_xhigh():
+def test_level2_prefers_deepseek_and_xhigh():
+    from robotsix_llmio.openrouter._deepseek_model import DEFAULT_MAX_PRICE_CAPABLE
+
     m = _model(2)
     ms: dict = {}
     m._inject_pin((), {"model_settings": ms})
     assert ms["extra_body"]["provider"] == {
-        "only": ["DeepSeek"],
-        "allow_fallbacks": False,
+        "allow_fallbacks": True,
+        "order": ["DeepSeek"],
+        "max_price": DEFAULT_MAX_PRICE_CAPABLE,
     }
     assert ms["extra_body"]["reasoning"] == {"effort": "xhigh"}
 
 
-def test_level1_disables_reasoning():
+def test_level1_disables_reasoning_and_uses_cheap_ceiling():
+    from robotsix_llmio.openrouter._deepseek_model import DEFAULT_MAX_PRICE_CHEAP
+
     m = _model(1)
     ms: dict = {}
     m._inject_pin((), {"model_settings": ms})
-    assert ms["extra_body"]["provider"]["only"] == ["DeepSeek"]
+    assert ms["extra_body"]["provider"]["order"] == ["DeepSeek"]
+    assert ms["extra_body"]["provider"]["max_price"] == DEFAULT_MAX_PRICE_CHEAP
     assert ms["extra_body"]["reasoning"] == {"enabled": False}
+
+
+def test_routing_never_forbids_fallbacks_by_default():
+    """The 2026-07-29 board-wide outage: ``allow_fallbacks: False`` meant one
+    dry upstream account 402'd every request while ~17 providers were healthy.
+    A hard pin must not creep back in as a default on any tier."""
+    for level in (1, 2):
+        ms: dict = {}
+        _model(level)._inject_pin((), {"model_settings": ms})
+        routing = ms["extra_body"]["provider"]
+        assert routing["allow_fallbacks"] is True
+        assert "only" not in routing
+
+
+def test_price_ceiling_is_configurable_per_bound():
+    """Each bound overrides independently, so raising the completion ceiling
+    does not silently reset the prompt one."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import (
+        DEFAULT_MAX_PRICE_CAPABLE,
+        OpenRouterDeepseekModel,
+    )
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("deepseek/deepseek-v4-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x", max_price_completion=9.0)._post_build_model(
+        m, 2
+    )
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["max_price"] == {
+        "prompt": DEFAULT_MAX_PRICE_CAPABLE["prompt"],
+        "completion": 9.0,
+    }
+
+
+def test_hard_pin_remains_available_as_an_explicit_opt_in():
+    """Callers that genuinely need one provider can still say so — they just
+    have to ask for it rather than get it by default."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("deepseek/deepseek-v4-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x", allow_fallbacks=False)._post_build_model(
+        m, 2
+    )
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["allow_fallbacks"] is False
 
 
 def test_pin_respects_caller_provider_override():

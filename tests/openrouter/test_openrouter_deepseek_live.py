@@ -324,7 +324,13 @@ def test_pro_thinking_only_assistant_turn_does_not_400() -> None:
         result = agent.run_sync(
             "What is 2+2? Answer with just the number.",
             message_history=history,
-            model_settings={"max_tokens": 50},
+            # 200, not 50, to match the other reasoning-tier tests above: this
+            # is the capable tier at ``effort: xhigh``, and how many reasoning
+            # tokens get spent before the first output token is
+            # provider-dependent. Since routing may now fall back off DeepSeek,
+            # a 50-token budget can be consumed entirely by reasoning, failing
+            # on the token cap rather than on the 400 this test is about.
+            model_settings={"max_tokens": 200},
         )
         assert result.output is not None
     finally:
