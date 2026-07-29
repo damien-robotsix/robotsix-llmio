@@ -26,12 +26,44 @@ def is_openrouter_upstream_error(exc: BaseException) -> bool:
     return "finish_reason" in msg and "'error'" in msg
 
 
+def is_openrouter_upstream_payment_error(exc: BaseException) -> bool:
+    """Recognise a 402 raised by the *upstream provider*, not by our account.
+
+    OpenRouter reports two very different things as HTTP 402:
+
+    * our own OpenRouter credits are exhausted — a real billing failure that
+      must surface immediately, since retrying cannot help; and
+    * the upstream provider OpenRouter routed to has no balance of its own. The
+      body then carries ``"Provider returned error"`` with
+      ``metadata.provider_name`` set and ``metadata.is_byok: False`` — meaning
+      it is *OpenRouter's* account with that provider, nothing to do with ours.
+
+    Only the second is transient: a retry lets OpenRouter route to one of the
+    other providers serving the same model. Observed 2026-07-29, when the
+    DeepSeek upstream ran dry and every ``deepseek/*`` request 402'd while ~17
+    other providers were healthy.
+
+    Matched on the ``provider_name`` + ``is_byok`` markers rather than the
+    status alone, so a genuine "your account is out of credits" 402 (which
+    carries neither) still fails fast. The body reaches us either as a Python
+    dict repr (``'is_byok': False``, via ``ModelHTTPError``) or as raw JSON
+    (``"is_byok":false``), so quotes/spacing are normalised before matching.
+    """
+    if _core_retry._status(exc) != 402:
+        return False
+    normalised = str(exc).replace('"', "").replace("'", "").replace(" ", "").lower()
+    return "provider_name" in normalised and "is_byok:false" in normalised
+
+
 def is_openrouter_transient(exc: BaseException) -> bool:
-    """Core transient set OR the OpenRouter upstream-error signature, walking
-    the cause/context chain for the latter."""
+    """Core transient set OR an OpenRouter upstream-failure signature (mid-stream
+    provider error, or an upstream provider's 402), walking the cause/context
+    chain for the latter."""
     if _core_retry.is_transient(exc):
         return True
     for cur in _core_retry._walk_cause_chain(exc):
-        if is_openrouter_upstream_error(cur):
+        if is_openrouter_upstream_error(cur) or is_openrouter_upstream_payment_error(
+            cur
+        ):
             return True
     return False

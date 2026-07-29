@@ -1,9 +1,10 @@
-"""DeepSeek-on-OpenRouter model — provider pin + per-tier reasoning policy +
+"""DeepSeek-on-OpenRouter model — provider routing + per-tier reasoning policy +
 reasoning round-trip.
 
 Extends the OpenRouter transport model with DeepSeek's thinking-mode quirks:
-- pin the upstream provider to DeepSeek (warms the per-provider prompt cache and
-  keeps routing deterministic);
+- *prefer* the DeepSeek upstream provider (warms the per-provider prompt cache
+  and keeps routing stable) while allowing OpenRouter to fall back to another
+  provider, under a price ceiling — see "Why preference, not a hard pin" below;
 - inject a per-tier reasoning policy into the request (set by the provider:
   ``{"effort": "xhigh"}`` for the capable tier, ``{"enabled": False}`` for the
   cheap tier);
@@ -29,6 +30,22 @@ when present, else an empty string. DeepSeek requires the field to be a string;
 an empty/placeholder string is accepted, a ``reasoning_details`` array is NOT
 (both verified live). On the disabled (cheap) tier, all reasoning is stripped so
 the sequence is consistently reasoning-free.
+
+Why preference, not a hard pin: this layer used to send
+``{"only": ["DeepSeek"], "allow_fallbacks": False}``, which forbids OpenRouter
+from routing anywhere else. On 2026-07-29 the DeepSeek *upstream account* ran
+out of balance and every ``deepseek/*`` request failed with HTTP 402
+("Provider returned error" / ``provider_name: DeepSeek`` /
+``is_byok: False``), blocking the whole mill board. Because the pin disabled
+fallbacks, the ~17 healthy providers serving the same model — and OpenRouter's
+own circuit breaker, which had already marked DeepSeek ``status: -5`` — were
+bypassed by force, so the outage could not self-heal.
+
+``order`` + ``allow_fallbacks: True`` keeps DeepSeek first (so the prompt cache
+still warms in the common case) but lets OpenRouter route past it when it is
+failing. ``max_price`` bounds what that fallback may cost: the same model is
+served from ~$0.435/M to ~$1.740/M, so an unbounded fallback could silently
+cost ~4x. The ceilings below were measured against the live endpoint list.
 """
 
 from __future__ import annotations
@@ -37,11 +54,56 @@ from typing import Any, ClassVar
 
 from .model import OpenRouterModel, _resolve_model_settings
 
-_PINNED_PROVIDER = "DeepSeek"
+_PREFERRED_PROVIDER = "DeepSeek"
 _PIN_MODEL_PREFIX = "deepseek/"
 _REASONING_KEY = "reasoning"
 _REASONING_CONTENT_KEY = "reasoning_content"
 _TOOL_CALLS_KEY = "tool_calls"
+
+#: Price ceilings in USD per 1M tokens, passed straight through to OpenRouter's
+#: ``provider.max_price``. Chosen from the live per-provider price list on
+#: 2026-07-29 so that several healthy providers stay eligible (a ceiling that
+#: admits nobody makes the request fail outright):
+#:
+#: * capable tier (``deepseek-v4-pro``) — DeepSeek $0.435/$0.870, Baidu
+#:   $0.625/$1.251, StreamLake $0.670/$1.340, GMICloud $0.679/$1.357 all fit
+#:   under $0.70/$1.40; the $1.740/$3.480 tail (Together, Fireworks, CoreWeave,
+#:   Parasail, …) is excluded.
+#: * cheap tier (``deepseek-v4-flash``) — the whole healthy field runs
+#:   $0.090/$0.180 (DeepInfra) to $0.140/$0.280, so $0.15/$0.30 admits all of
+#:   them and excludes only the outlier (Mancer 2 at $0.200/$1.000).
+DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.70, "completion": 1.40}
+DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.15, "completion": 0.30}
+
+
+def build_provider_routing(
+    *,
+    preferred_provider: str | None = _PREFERRED_PROVIDER,
+    allow_fallbacks: bool = True,
+    max_price: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """Build the OpenRouter ``provider`` routing preference block.
+
+    Args:
+        preferred_provider: Upstream provider to try first (``order``). Pass
+            ``None`` to express no preference and let OpenRouter choose freely.
+        allow_fallbacks: Whether OpenRouter may route to another provider when
+            the preferred one fails. Keep ``True`` unless a caller genuinely
+            needs a single provider and accepts that its outages become
+            hard failures.
+        max_price: Optional ``{"prompt": …, "completion": …}`` ceiling in USD
+            per 1M tokens. Omitted entirely when ``None``.
+
+    Returns:
+        A dict suitable for ``extra_body["provider"]``.
+
+    """
+    routing: dict[str, Any] = {"allow_fallbacks": allow_fallbacks}
+    if preferred_provider:
+        routing["order"] = [preferred_provider]
+    if max_price:
+        routing["max_price"] = dict(max_price)
+    return routing
 
 
 def _reasoning_text(message: Any) -> str:
@@ -62,14 +124,21 @@ class OpenRouterDeepseekModel(OpenRouterModel):
     """OpenRouter model pinned to DeepSeek, with a per-tier reasoning policy and
     the thinking-mode ``reasoning_content`` round-trip.
 
-    The provider stamps ``reasoning_setting`` per tier after construction (e.g.
-    ``{"effort": "xhigh"}`` for the capable tier or ``{"enabled": False}`` for
-    the cheap tier); a sensible default (reasoning on, xhigh) applies if unset.
-    The round-trip is active on every tier except the disabled one, derived from
-    ``reasoning_setting`` (no separate flag needed).
+    The provider stamps ``reasoning_setting`` and ``provider_routing`` per tier
+    after construction (e.g. ``{"effort": "xhigh"}`` for the capable tier or
+    ``{"enabled": False}`` for the cheap tier); sensible defaults (reasoning on
+    at xhigh, DeepSeek preferred with fallbacks under the capable-tier price
+    ceiling) apply if unset. The round-trip is active on every tier except the
+    disabled one, derived from ``reasoning_setting`` (no separate flag needed).
     """
 
     reasoning_setting: ClassVar[dict[str, Any]] = {"effort": "xhigh"}
+    #: OpenRouter ``provider`` routing preference, stamped per tier by the
+    #: provider. Defaults to the capable-tier ceiling — the safe side, since a
+    #: too-low ceiling fails the request outright.
+    provider_routing: ClassVar[dict[str, Any]] = build_provider_routing(
+        max_price=DEFAULT_MAX_PRICE_CAPABLE
+    )
 
     @property
     def _echo_reasoning(self) -> bool:
@@ -86,10 +155,7 @@ class OpenRouterDeepseekModel(OpenRouterModel):
             return
         extra_body = dict(settings.get("extra_body") or {})
         if "provider" not in extra_body:
-            extra_body["provider"] = {
-                "only": [_PINNED_PROVIDER],
-                "allow_fallbacks": False,
-            }
+            extra_body["provider"] = dict(self.provider_routing)
         if "reasoning" not in extra_body:
             extra_body["reasoning"] = dict(self.reasoning_setting)
         settings["extra_body"] = extra_body
