@@ -36,6 +36,7 @@ class TestCreateModelHappyPath:
         result = create_model(level=1)
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-flash",
+            max_tokens=4096,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
@@ -47,6 +48,7 @@ class TestCreateModelHappyPath:
         result = create_model(level=2)
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-pro",
+            max_tokens=8192,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
@@ -58,6 +60,7 @@ class TestCreateModelHappyPath:
         result = create_model(level=3)
         mock_get_provider_for_identifier.assert_called_once_with(
             "claudeSDK-opus",
+            max_tokens=8192,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
@@ -121,6 +124,7 @@ class TestCreateModelDefaultFallback:
 
         mock_get_provider_for_identifier.assert_called_once_with(
             expected.model,
+            max_tokens=expected.max_tokens,
         )
 
     def test_explicit_tier_config_overrides_defaults(

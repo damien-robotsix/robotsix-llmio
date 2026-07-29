@@ -72,6 +72,10 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- `create_model()` now forwards `tlc.max_tokens` from the tier config to the provider
+  constructor (matching the existing behaviour of `get_provider_for_level()` and
+  `build_agent_for_level()` in `core/factory.py`).  Previously the baked
+  `max_tokens` value was silently dropped.
 - Sync `CONTRIBUTING.md` pre-commit hooks table with `.pre-commit-config.yaml`: removed `check-ast`, `check-case-conflict`, `debug-statements` (not configured); added `codespell` and `deptry` (configured but undocumented).
 - Added missing `tests/openrouter/` test-file entries (`test_async_client.py`,
   `test_openrouter_provider.py`, `test_openrouter_provider_cost.py`) to the
