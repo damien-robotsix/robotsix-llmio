@@ -111,7 +111,7 @@ class LLMProvider(ABC):
     def _is_transient(self, exc: BaseException) -> bool:
         """Transient predicate for ``call_with_retry``. Override to widen with
         provider-specific signatures."""
-        return _retry.is_transient(exc)  # type: ignore[no-any-return]  # robotsix_http untyped
+        return _retry.is_transient(exc)
 
     def build_agent(
         self,
