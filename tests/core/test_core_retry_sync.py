@@ -288,3 +288,82 @@ def test_each_side_uses_its_own_transient_predicate():
     assert out == "fallback-ok"
     assert calls["primary"] > 1  # primary retried on its own predicate
     assert calls["fallback"] == 2  # fallback retried on the generic predicate
+
+
+# --- on_retry callback contract -------------------------------------------
+
+
+def test_record_transient_retry_span_uses_robotsix_http_arg_order(monkeypatch):
+    """``_record_transient_retry_span`` is handed to ``RetryConfig.on_retry``,
+    whose robotsix-http contract is ``(attempt, exc, delay)`` with a 1-indexed
+    attempt and an already-computed delay.
+
+    Regression: llmio previously defined it as ``(exc, attempt, config)`` and
+    recomputed the delay. Nothing exercised the callback, so when the upstream
+    signature changed the mismatch was invisible to the test suite and only
+    surfaced in type checking.
+    """
+    from robotsix_llmio.core import retry as retry_mod
+
+    recorded: dict[str, object] = {}
+
+    class _Span:
+        def set_attribute(self, key, value):
+            recorded[key] = value
+
+    monkeypatch.setattr(retry_mod, "get_recording_span", lambda: _Span())
+    retry_mod._record_transient_retry_span(3, ValueError("boom"), 1.25)
+
+    assert recorded["llmio.retry.count"] == 3
+    assert recorded["llmio.retry.backoff_seconds"] == 1.25
+    assert recorded["llmio.retry.error"] == "ValueError"
+
+
+def test_record_transient_retry_span_noop_without_span(monkeypatch):
+    from robotsix_llmio.core import retry as retry_mod
+
+    monkeypatch.setattr(retry_mod, "get_recording_span", lambda: None)
+    assert retry_mod._record_transient_retry_span(1, ValueError("x"), 0.5) is None
+
+
+def test_retry_loop_invokes_on_retry_with_one_indexed_attempt():
+    """The live call site must match the same contract: the first retry reports
+    attempt 1 (not 0), and the delay handed to the callback is the one actually
+    slept — not a separately recomputed value."""
+    import asyncio
+
+    from robotsix_llmio.core import retry as retry_mod
+
+    calls: list[tuple] = []
+    slept: list[float] = []
+    cfg = retry_mod.RetryConfig(
+        max_retries=2,
+        backoff_base=1.0,
+        backoff_cap=1.0,
+        jitter_factor=0.0,
+        on_retry=lambda attempt, exc, delay: calls.append((attempt, type(exc), delay)),
+    )
+
+    attempts = {"n": 0}
+
+    def _flaky():
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise _HTTPErr(503)
+        return "ok"
+
+    async def _invoke(fn):
+        return fn()
+
+    async def _sleep(d):
+        slept.append(d)
+
+    result = asyncio.run(
+        retry_mod._retry_loop(_flaky, invoke=_invoke, sleep_fn=_sleep, config=cfg)
+    )
+
+    assert result == "ok"
+    assert len(calls) == 1
+    assert calls[0][0] == 1  # 1-indexed, not 0
+    assert calls[0][1] is _HTTPErr
+    assert calls[0][2] == slept[0]

@@ -103,19 +103,17 @@ def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
 # ---------------------------------------------------------------------------
 
 
-def _record_transient_retry_span(
-    exc: Exception, attempt: int, config: RetryConfig
-) -> None:
+def _record_transient_retry_span(attempt: int, exc: Exception, delay: float) -> None:
     """Record transient-retry metrics on the current OTel span; no-op without OTel.
 
     Signature matches ``robotsix_http.retry.RetryConfig.on_retry``:
-    ``(exc, attempt, config)`` where *attempt* is 0-indexed.
+    ``(attempt, exc, delay)`` where *attempt* is 1-indexed and *delay* is the
+    already-computed backoff.
     """
     span = get_recording_span()
     if span is None:
         return
-    delay = _compute_backoff(attempt, config)
-    span.set_attribute("llmio.retry.count", attempt + 1)
+    span.set_attribute("llmio.retry.count", attempt)
     span.set_attribute("llmio.retry.backoff_seconds", delay)
     span.set_attribute("llmio.retry.error", type(exc).__name__)
 
@@ -284,7 +282,9 @@ async def _retry_loop(
                     e, attempt, config, cumulative_backoff, what
                 )
                 if config.on_retry is not None:
-                    config.on_retry(e, attempt, config)
+                    # robotsix-http's callback contract: 1-indexed attempt, the
+                    # exception, and the already-computed delay.
+                    config.on_retry(attempt + 1, e, delay)
                 await sleep_fn(delay)
                 attempt += 1
                 continue
