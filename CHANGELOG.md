@@ -72,6 +72,10 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Split `tests/core/test_tracing_routing.py` (530 lines → 211) into three
+  files by testing strategy: routing, `_StampProcessor`, and
+  `_FilteredBatchSpanProcessor`. Extracted shared `_FakeSpan` helpers to
+  `tests/core/_fake_span.py`.
 - `create_model()` now forwards `tlc.max_tokens` from the tier config to the provider
   constructor (matching the existing behaviour of `get_provider_for_level()` and
   `build_agent_for_level()` in `core/factory.py`).  Previously the baked
