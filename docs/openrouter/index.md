@@ -37,11 +37,20 @@ from robotsix_llmio.openrouter import (
 
 ### Transient error detection
 
-- `is_openrouter_transient` — returns `True` for core transient errors *or* the
-  OpenRouter upstream-error signature, walking the cause/context chain
-- `is_openrouter_upstream_error` — detects OpenRouter's `finish_reason='error'`
-  upstream-failure pattern (pydantic `ValidationError` mentioning
-  `finish_reason` and `'error'`)
+- `is_openrouter_transient` — returns `True` for core transient errors *or* any
+  of the OpenRouter upstream-error signatures below, walking the cause/context
+  chain
+- `is_openrouter_upstream_error` — detects OpenRouter's
+  `finish_reason='error'` upstream-failure pattern (pydantic `ValidationError`
+  mentioning `finish_reason` and `'error'`)
+- `is_openrouter_upstream_payment_error` — detects a 402 raised by the
+  *upstream provider* (OpenRouter routed to a provider with no balance of its
+  own, carrying `metadata.provider_name` and `metadata.is_byok: false`), as
+  distinct from our own account running out of credits — only the former is
+  transient
+- `is_deepseek_reasoning_400` — detects DeepSeek's reasoning-content 400
+  (missing `reasoning_content` in thinking mode), treating it as an
+  infrastructure hiccup to retry
 
 ### Cost sources & recording
 
