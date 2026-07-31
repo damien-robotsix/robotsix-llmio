@@ -32,7 +32,6 @@ modules:
       - docs/reference/exceptions.md
       - docs/index.md
       - docs/changelog.md
-      - changelog.d/*.md
 
   - id: openrouter
     description: >-
