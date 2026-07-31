@@ -78,6 +78,9 @@ def create_model(
     # Merge: tier-config provider_kwargs as base, explicit kwargs override.
     merged_kwargs: dict[str, Any] = {**tlc.provider_kwargs, **provider_kwargs}
 
+    if tlc.max_tokens is not None:
+        merged_kwargs.setdefault("max_tokens", tlc.max_tokens)
+
     # Derive provider from the tier config's combined provider-model
     # identifier.  The identifier's prefix drives the lazy backend import;
     # the model name is the backend's concern.
