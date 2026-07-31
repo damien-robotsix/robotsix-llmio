@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class ClaudeSDKProvider(LLMProvider):
-    """Builds :class:`~robotsix_llmio.claude_sdk.model.ClaudeSDKModel` instances,
+    """Builds :class:`~robotsix_llmio.claude_sdk._model.ClaudeSDKModel` instances,
     one per model name, authenticated by your ``claude login`` subscription."""
 
     def __init__(self, *, max_tokens: int | None = None) -> None:

@@ -72,6 +72,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Remove ``claude_sdk/model.py`` backward-compatibility re-export shim; all consumers migrated to the private sub-modules (``_errors``, ``_model``, ``_prompt``).
 - `openrouter`: add `is_deepseek_reasoning_400` transient detection for DeepSeek's reasoning-content 400, wired into `is_openrouter_transient` so a missing-`reasoning_content` API error is retried instead of surfacing as terminal.
 - Split `tests/core/test_core_retry_async.py` (455 lines, 22 tests) into three
   focused modules: `test_core_retry_async_parity.py`, `test_core_retry_async_fallback.py`,
