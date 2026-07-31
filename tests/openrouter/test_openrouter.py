@@ -17,6 +17,7 @@ from robotsix_llmio.openrouter.model import (
     record_openrouter_cost,
 )
 from robotsix_llmio.openrouter.transient import (
+    is_deepseek_reasoning_400,
     is_openrouter_transient,
     is_openrouter_upstream_error,
     is_openrouter_upstream_payment_error,
@@ -138,6 +139,52 @@ def test_non_402_with_provider_metadata_is_not_payment_error():
     assert is_openrouter_upstream_payment_error(_HTTPErr(500, _UPSTREAM_402_BODY)) is (
         False
     )
+
+
+# --- DeepSeek reasoning-400 --------------------------------------------------
+
+
+_DEEPSEEK_400_BODY = (
+    "Error code: 400 - {'error': {'message': "
+    '"The `reasoning_content` in the thinking mode must be passed back '
+    "to the API.\", 'type': 'invalid_request_error'}}"
+)
+
+
+def test_deepseek_reasoning_400_is_detected():
+    """HTTP 400 with the distinctive reasoning_content + thinking mode markers
+    is transient — a re-run with reasoning injected will succeed."""
+    e = _HTTPErr(400, _DEEPSEEK_400_BODY)
+    assert is_deepseek_reasoning_400(e) is True
+    assert is_openrouter_transient(e) is True
+
+
+def test_deepseek_reasoning_400_in_cause_chain():
+    """The reasoning-400 may be wrapped by a framework exception — it should
+    still be recognised through the cause chain."""
+
+    class Wrapper(Exception):
+        pass
+
+    inner = _HTTPErr(400, _DEEPSEEK_400_BODY)
+    outer = Wrapper("wrapped")
+    outer.__cause__ = inner
+    assert is_deepseek_reasoning_400(outer) is False  # the wrapper itself isn't a 400
+    assert is_openrouter_transient(outer) is True  # but the chain finds it
+
+
+def test_plain_400_is_not_reasoning_400():
+    """A generic 400 (e.g. bad schema) must NOT be mistaken for the
+    DeepSeek reasoning-content error."""
+    e = _HTTPErr(400, "Bad request: invalid schema")
+    assert is_deepseek_reasoning_400(e) is False
+    assert is_openrouter_transient(e) is False
+
+
+def test_non_400_is_not_reasoning_400():
+    """Status other than 400 must not match, even with the keywords."""
+    e = _HTTPErr(500, _DEEPSEEK_400_BODY)
+    assert is_deepseek_reasoning_400(e) is False
 
 
 @patch("robotsix_llmio.openrouter.model.get_recording_span")
