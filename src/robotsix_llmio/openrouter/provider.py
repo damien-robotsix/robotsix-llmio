@@ -46,8 +46,8 @@ class OpenRouterProvider(LLMProvider):
             base_url: OpenRouter-compatible REST endpoint. Defaults to the
                 public OpenRouter API; pass a custom value to route requests
                 through a proxy or mirror.
-            max_tokens: Optional output token cap (unused by the OpenRouter
-                transport; accepted for tier-config compatibility).
+            max_tokens: Optional output token cap, forwarded to the model as
+                ``max_tokens`` in the default model settings.
 
         """
         self._api_key = api_key or os.environ.get(_ENV_OPENROUTER_API_KEY, "")
@@ -117,7 +117,13 @@ class OpenRouterProvider(LLMProvider):
                     http_client=http_client,
                 )
                 pyd_provider = _PydOpenRouterProvider(openai_client=openai_client)
-            model_obj = self._model_class()(model_name, provider=pyd_provider)
+
+            model_kwargs: dict[str, Any] = {}
+            if self._max_tokens is not None:
+                model_kwargs["settings"] = {"max_tokens": self._max_tokens}
+            model_obj = self._model_class()(
+                model_name, provider=pyd_provider, **model_kwargs
+            )
             self._post_build_model(model_obj, level)
             return model_obj, http_client
         except BaseException:

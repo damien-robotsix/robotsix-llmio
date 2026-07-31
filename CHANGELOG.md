@@ -72,6 +72,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- OpenRouter provider now forwards ``max_tokens`` from tier config to the model constructor as ``max_tokens`` in default model settings, making the baked output-token caps (4096 for level 1, 8192 for level 2) actually take effect instead of being silently dropped.
 - Split `tests/core/test_core_retry_async.py` (455 lines, 22 tests) into three
   focused modules: `test_core_retry_async_parity.py`, `test_core_retry_async_fallback.py`,
   and `test_core_retry_async_sync_wrappers.py`. Moved `_HTTPErr` and reused
