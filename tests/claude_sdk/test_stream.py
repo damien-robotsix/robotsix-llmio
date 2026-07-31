@@ -152,7 +152,7 @@ def test_stream_query_blank_thinking_ignored(monkeypatch):
 def test_stream_query_raises_on_usage_exhausted(monkeypatch):
     """An is_error=True result reporting exhausted credits raises
     ClaudeSDKUsageExhaustedError instead of returning the text as a reply."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
 
     fake = _install_stream_fake_sdk(monkeypatch)
 
@@ -210,7 +210,7 @@ def test_stream_query_raises_on_usage_exhausted_via_collapsed_exception(monkeypa
     signature. The text already streamed into `chunks` before that exception
     fired must still be checked, or this leaks to the user as a generic
     "returned an error result: success" error after 3 wasted retries."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
 
     fake = _install_stream_fake_sdk(monkeypatch)
 
@@ -253,7 +253,7 @@ def test_stream_query_collapsed_exception_without_usage_signature_unaffected(
 
 def test_stream_query_timeout(monkeypatch):
     """asyncio.wait_for timeout raises ClaudeSDKQueryTimeout."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKQueryTimeout
     from robotsix_llmio.core import constants
 
     fake = _install_stream_fake_sdk(monkeypatch)
@@ -277,7 +277,7 @@ def test_stream_query_timeout(monkeypatch):
 def test_stream_query_extra_transient_true(monkeypatch):
     """When extra_transient returns True, original exception is wrapped in
     ClaudeSDKTurnLimitError."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKTurnLimitError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKTurnLimitError
 
     fake = _install_stream_fake_sdk(monkeypatch)
 
@@ -303,7 +303,7 @@ def test_stream_query_extra_transient_true(monkeypatch):
 def test_stream_query_extra_transient_false(monkeypatch):
     """When extra_transient returns False, the original exception is wrapped
     in ClaudeSDKAPIError with __cause__ preserving the original."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKAPIError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAPIError
 
     fake = _install_stream_fake_sdk(monkeypatch)
 
@@ -329,7 +329,7 @@ def test_stream_query_extra_transient_false(monkeypatch):
 def test_stream_query_default_wraps_sdk_error(monkeypatch):
     """When extra_transient is not passed (default None), a raw SDK exception
     is wrapped in ClaudeSDKAPIError, preserving the original as __cause__."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKAPIError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAPIError
 
     fake = _install_stream_fake_sdk(monkeypatch)
 

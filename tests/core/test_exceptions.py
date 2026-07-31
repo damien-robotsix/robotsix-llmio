@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from robotsix_llmio import RobotsixLLMIOError
-from robotsix_llmio.claude_sdk.model import (
+from robotsix_llmio.claude_sdk._errors import (
     ClaudeSDKAPIError,
     ClaudeSDKQueryTimeout,
     ClaudeSDKTurnLimitError,

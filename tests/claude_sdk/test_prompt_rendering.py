@@ -19,14 +19,14 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import ModelRequestParameters
 
-from robotsix_llmio.claude_sdk._tool_agent import _SdkToolAgentHandle
-from robotsix_llmio.claude_sdk.model import (
-    ClaudeSDKModel,
+from robotsix_llmio.claude_sdk._model import ClaudeSDKModel
+from robotsix_llmio.claude_sdk._prompt import (
     build_sdk_prompt,
     collect_latest_user_images,
     extract_prompt_parts,
     render_prompt,
 )
+from robotsix_llmio.claude_sdk._tool_agent import _SdkToolAgentHandle
 
 # --- prompt rendering ------------------------------------------------------
 
@@ -118,7 +118,7 @@ def test_system_text_combines_instructions_and_system_parts():
 
 def test_extract_prompt_parts_splits_text_and_images():
 
-    from robotsix_llmio.claude_sdk.model import extract_prompt_parts
+    from robotsix_llmio.claude_sdk._prompt import extract_prompt_parts
 
     image = BinaryContent(data=b"\x89PNG12345", media_type="image/png")
     audio = BinaryContent(data=b"RIFF1234", media_type="audio/wav")

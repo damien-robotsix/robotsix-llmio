@@ -16,7 +16,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import Tool as PydanticTool
 
-from robotsix_llmio.claude_sdk.model import ClaudeSDKModel
+from robotsix_llmio.claude_sdk._model import ClaudeSDKModel
 from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
 from robotsix_llmio.core.agent import AgentHandle
 from robotsix_llmio.core.tracing import (

@@ -219,7 +219,7 @@ short rationale grounded in the source.
   `ClaudeSDKQueryTimeout` stall) **and** explicitly excludes the
   turn-cap failure (`ClaudeSDKTurnLimitError`) so it fails loudly
   instead of looping.
-- **Hard vs transient SDK failures.** `claude_sdk/model.py`
+- **Hard vs transient SDK failures.** `claude_sdk/_errors.py`
   distinguishes `ClaudeSDKQueryTimeout` (a stalled subprocess — treated
   as transient so the bounded retry re-runs it) from
   `ClaudeSDKTurnLimitError` (the agent loop did not converge within
@@ -260,7 +260,7 @@ optional Langfuse exporter ships those attributes verbatim.
 - **DeepSeek cost.** Inherited unchanged from `OpenRouterModel`;
   `OpenRouterDeepseekModel` only adds the upstream-provider pin and
   per-level reasoning policy on top, not new cost logic.
-- **Claude SDK cost.** `claude_sdk/model.py:ClaudeSDKModel.request`
+- **Claude SDK cost.** `claude_sdk/_model.py:ClaudeSDKModel.request`
   calls the generic helper
   `core.cost.record_cost(result, lambda r: getattr(r, "total_cost_usd", None))`
   after the SDK loop, reading the cost from the SDK's `ResultMessage`.

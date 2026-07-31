@@ -11,12 +11,12 @@ import pytest
 
 pytest.importorskip("pydantic_ai")
 
+from robotsix_llmio.claude_sdk._prompt import _map_usage
 from robotsix_llmio.claude_sdk._usage import (
     _aggregate_per_model,
     _best_usage_dict,
     map_usage_dict,
 )
-from robotsix_llmio.claude_sdk.model import _map_usage
 
 # --- usage mapping ---------------------------------------------------------
 

@@ -72,7 +72,7 @@ def test_live_query_timeout_fires_against_real_cli(monkeypatch):
     if shutil.which("claude") is None:
         pytest.skip("claude CLI not found on PATH")
 
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKQueryTimeout
     from robotsix_llmio.core import constants
 
     # 1ms cap — far below the time to even spawn the CLI, so it must trip.

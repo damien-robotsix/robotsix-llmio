@@ -179,9 +179,6 @@ select = [
 # S101: assert used for unreachable-branch documentation after an
 # exhaustive loop (not input validation).
 "src/robotsix_llmio/claude_sdk/_tool_agent.py" = ["S101"]
-# S110 (try-except-pass): swallowing errors from best-effort subprocess
-# teardown; the query result is already decided at that point.
-"src/robotsix_llmio/claude_sdk/model.py" = ["S110"]
 # D417: ``build_agent`` only documents its own additional parameters
 # (``model``, ``workspace_root``); the base-class parameters are
 # documented in the parent ``LLMProvider.build_agent`` docstring.

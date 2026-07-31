@@ -99,7 +99,7 @@ def test_spans_set_gen_ai_provider_name(monkeypatch, otel_exporter_tracer):
     OpenRouter transport's span attributes."""
     exporter, tracer = otel_exporter_tracer
     import robotsix_llmio.claude_sdk._tool_agent as _ta
-    from robotsix_llmio.claude_sdk.model import PROVIDER_NAME
+    from robotsix_llmio.claude_sdk._model import PROVIDER_NAME
 
     monkeypatch.setattr(_ta, "get_tracer", lambda _name: tracer)
 

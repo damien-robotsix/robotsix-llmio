@@ -15,8 +15,8 @@ from pydantic_ai.exceptions import UserError
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.tools import Tool as PydanticTool
 
+from robotsix_llmio.claude_sdk._model import ClaudeSDKModel
 from robotsix_llmio.claude_sdk._tool_agent import _SdkToolAgentHandle
-from robotsix_llmio.claude_sdk.model import ClaudeSDKModel
 from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
 from robotsix_llmio.claude_sdk.transient import (
     is_claude_sdk_transient,
@@ -135,7 +135,7 @@ def test_turn_limit_wins_even_when_wrapped_as_process_error():
 
 
 def test_turn_limit_error_type_detected_and_not_transient():
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKTurnLimitError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKTurnLimitError
 
     e = ClaudeSDKTurnLimitError("hit the cap")
     assert is_claude_sdk_turn_limit(e) is True
@@ -150,7 +150,7 @@ def test_non_turn_limit_runtime_error_unaffected():
 
 
 def test_usage_exhausted_error_type_detected_and_not_transient():
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
     from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
 
     e = ClaudeSDKUsageExhaustedError("You're out of usage credits")
@@ -160,7 +160,7 @@ def test_usage_exhausted_error_type_detected_and_not_transient():
 
 
 def test_usage_exhausted_detected_through_chain():
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
     from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
 
     cause = ClaudeSDKUsageExhaustedError("out of usage credits")
@@ -189,7 +189,7 @@ def test_is_usage_exhausted_text_matches_case_insensitively():
 
 
 def test_query_timeout_is_transient_but_not_turn_limit():
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKQueryTimeout
 
     e = ClaudeSDKQueryTimeout("stalled")
     # A stall re-runs cleanly, so it must be retried...
@@ -201,7 +201,7 @@ def test_query_timeout_is_transient_but_not_turn_limit():
 def test_tool_loop_query_timeout_raises_claude_sdk_query_timeout(monkeypatch):
     """A query() that stalls past SDK_QUERY_TIMEOUT raises ClaudeSDKQueryTimeout
     (the tool-loop path), instead of hanging on the SDK's own backstop."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKQueryTimeout
     from robotsix_llmio.core import constants
 
     fake = _install_fake_sdk(monkeypatch)
@@ -228,7 +228,8 @@ def test_tool_loop_query_timeout_raises_claude_sdk_query_timeout(monkeypatch):
 def test_single_turn_invoke_query_timeout_raises(monkeypatch):
     """The no-tools single-turn path (ClaudeSDKModel._invoke) also enforces the
     per-call wall-clock cap."""
-    from robotsix_llmio.claude_sdk.model import ClaudeSDKModel, ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKQueryTimeout
+    from robotsix_llmio.claude_sdk._model import ClaudeSDKModel
     from robotsix_llmio.core import constants
 
     fake = _install_fake_sdk(monkeypatch)
@@ -249,7 +250,7 @@ def test_single_turn_invoke_query_timeout_raises(monkeypatch):
 
 
 def test_tool_handle_uses_shared_max_turns_cap():
-    from robotsix_llmio.claude_sdk.model import _MAX_TURNS
+    from robotsix_llmio.claude_sdk._model import _MAX_TURNS
 
     handle = _SdkToolAgentHandle("opus", "sys", None, [], str)
     assert handle._max_turns == _MAX_TURNS  # single source — paths can't drift
