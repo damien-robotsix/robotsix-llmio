@@ -33,6 +33,7 @@ modules:
       - docs/index.md
       - docs/changelog.md
       - changelog.d/*.md
+      - changelog.d/.gitkeep
 
   - id: openrouter
     description: >-
@@ -112,7 +113,6 @@ modules:
       - ARCHITECTURE.md
       - CONTRIBUTING.md
       - CHANGELOG.md
-      - changelog.d/**
       - LICENSE
       - SECURITY.md
       - AGENT.md
