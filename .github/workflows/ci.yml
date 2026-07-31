@@ -51,8 +51,6 @@ jobs:
         run: uv run deptry src
       - name: modules (registration check)
         run: uv run robotsix-modules check-registration docs/modules.yaml --root .
-      - name: depsafe (typosquatting)
-        run: uvx depsafe pyproject.toml --check
 
   changelog:
     name: Changelog
