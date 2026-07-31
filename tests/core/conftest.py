@@ -6,9 +6,12 @@ imported explicitly by the test modules that need them.
 
 from __future__ import annotations
 
+import base64
+import os
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 
 from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
 from robotsix_llmio.core import langfuse_cost as langfuse_cost_module
@@ -179,3 +182,52 @@ def _noop_sleep(_d: float) -> None:
 
 async def _anoop_sleep(_d: float) -> None:
     return None
+
+
+# --------------------------------------------------------------------------- #
+#  Live-test Langfuse helpers (shared across OpenRouter / Claude SDK tests)   #
+# --------------------------------------------------------------------------- #
+
+
+def _langfuse_creds() -> tuple[str | None, str | None, str]:
+    return (
+        os.environ.get("LANGFUSE_PUBLIC_KEY"),
+        os.environ.get("LANGFUSE_SECRET_KEY"),
+        os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com"),
+    )
+
+
+def _require() -> None:
+    pk, sk, _ = _langfuse_creds()
+    if not (pk and sk):
+        pytest.skip("LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY not set")
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        pytest.skip("OPENROUTER_API_KEY not set")
+
+
+def _langfuse_traces(session_id: str) -> list[dict] | None:
+    """GET the Langfuse traces for *session_id*, or None on a failed request."""
+    pk, sk, base = _langfuse_creds()
+    auth = base64.b64encode(f"{pk}:{sk}".encode()).decode()
+    with httpx.Client(timeout=20) as client:
+        resp = client.get(
+            f"{base.rstrip('/')}/api/public/traces",
+            params={"sessionId": session_id, "limit": 10},
+            headers={"Authorization": f"Basic {auth}"},
+        )
+    if resp.status_code != 200:
+        return None
+    return resp.json().get("data", [])
+
+
+def _langfuse_get(path: str, params: dict) -> dict | None:
+    """Authenticated GET to the Langfuse public API; None on failure."""
+    pk, sk, base = _langfuse_creds()
+    auth = base64.b64encode(f"{pk}:{sk}".encode()).decode()
+    with httpx.Client(timeout=20) as client:
+        resp = client.get(
+            f"{base.rstrip('/')}{path}",
+            params=params,
+            headers={"Authorization": f"Basic {auth}"},
+        )
+    return resp.json() if resp.status_code == 200 else None
