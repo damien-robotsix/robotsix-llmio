@@ -181,3 +181,123 @@ def test_langfuse_trace_tool_and_subagent() -> None:
     assert generations >= 2, (
         f"expected >=2 generations (outer + subagent), got {by_type}"
     )
+
+
+@pytest.mark.live
+@pytest.mark.timeout(120)
+def test_langfuse_trace_url_resolves_to_real_trace() -> None:
+    """langfuse_trace_url builds a UI URL with the project's real id, pointing at
+    a trace that actually exists. The project id is discovered from the API, so
+    no LANGFUSE_PROJECT_ID env is required."""
+    _require()  # LANGFUSE_* + OPENROUTER_API_KEY
+
+    from robotsix_llmio.core import (
+        flush_tracing,
+        langfuse_trace_url,
+        make_session_id,
+        setup_langfuse_tracing,
+        start_trace,
+    )
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
+
+    projects = _langfuse_get("/api/public/projects", {})
+    assert projects and projects.get("data"), "could not discover the Langfuse project"
+    project_id = projects["data"][0]["id"]
+
+    # Register (or backfill) the project id so langfuse_trace_url can use it.
+    assert setup_langfuse_tracing(project_id=project_id) is True
+    _, _, base = _langfuse_creds()
+
+    provider = OpenRouterDeepseekProvider()
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="Concise.",
+        name="url-test",
+    )
+    trace_id: str | None = None
+    try:
+        with start_trace("url-trace", session_id=make_session_id("urltest")) as root:
+            provider.call_with_retry(
+                lambda: agent.run_sync(
+                    "2+2? Just the number.", model_settings={"max_tokens": 20}
+                )
+            )
+            trace_id = root.trace_id
+    finally:
+        agent.close()
+    flush_tracing()
+
+    assert trace_id, "start_trace should expose a trace_id"
+    url = langfuse_trace_url(trace_id)
+    assert url == f"{base.rstrip('/')}/project/{project_id}/traces/{trace_id}", url
+
+    # The trace the URL points at must actually exist (poll for ingestion).
+    found = None
+    for _ in range(12):
+        found = _langfuse_get(f"/api/public/traces/{trace_id}", {})
+        if found:
+            break
+        time.sleep(4)
+    assert found and found.get("id") == trace_id, "URL points at a missing trace"
+
+
+@pytest.mark.live
+@pytest.mark.timeout(120)
+def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
+    """A freshly logged session's cost is readable back through the neutral
+    ``CostLogSource`` port (the read-side counterpart to the OTLP write seam)."""
+    _require()  # LANGFUSE_* + OPENROUTER_API_KEY
+
+    import datetime as _dt
+
+    from robotsix_llmio.core import (
+        CostWindow,
+        LangfuseCostLogSource,
+        flush_tracing,
+        langfuse_session,
+        setup_langfuse_tracing,
+    )
+    from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
+
+    assert setup_langfuse_tracing() is True, "tracing should configure with creds"
+
+    start = _dt.datetime.now(_dt.UTC) - _dt.timedelta(minutes=5)
+    session_id = f"llmio-livetest-costlog-{uuid.uuid4().hex[:12]}"
+    provider = OpenRouterDeepseekProvider()
+    agent = provider.build_agent(
+        level=1,
+        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        system_prompt="You are concise. Answer with just the number.",
+        name="costlog-livetest",
+    )
+    try:
+        with langfuse_session(session_id):
+            result = provider.call_with_retry(
+                lambda: agent.run_sync(
+                    "What is 2+2?", model_settings={"max_tokens": 20}
+                )
+            )
+        assert "4" in str(result.output)
+    finally:
+        agent.close()
+
+    flush_tracing()
+
+    # Langfuse ingestion is asynchronous — poll for the trace to appear.
+    traces: list[dict] | None = None
+    for _ in range(15):
+        traces = _langfuse_traces(session_id)
+        if traces:
+            break
+        time.sleep(4)
+    assert traces, f"no Langfuse trace for session {session_id!r} after polling"
+
+    pk, sk, base = _langfuse_creds()
+    source = LangfuseCostLogSource(public_key=pk, secret_key=sk, base_url=base)
+    end = _dt.datetime.now(_dt.UTC) + _dt.timedelta(minutes=1)
+    logged = source.fetch_logged_cost(CostWindow(start=start, end=end))
+    assert logged.total_cost > 0, (
+        f"expected total_cost > 0 read back via LangfuseCostLogSource, "
+        f"got {logged.total_cost}"
+    )
