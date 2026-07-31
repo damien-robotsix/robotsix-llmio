@@ -172,6 +172,16 @@ def make_adapter() -> LangfuseCostLogSource:
 
 
 # --------------------------------------------------------------------------- #
+#  Retry test helpers                                                         #
+# --------------------------------------------------------------------------- #
+
+
+class _HTTPErr(Exception):
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+
+# --------------------------------------------------------------------------- #
 #  Tier-fallback sleep helpers (avoids real waits in tests)                   #
 # --------------------------------------------------------------------------- #
 

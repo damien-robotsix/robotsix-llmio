@@ -72,6 +72,10 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Split `tests/core/test_core_retry_async.py` (455 lines, 22 tests) into three
+  focused modules: `test_core_retry_async_parity.py`, `test_core_retry_async_fallback.py`,
+  and `test_core_retry_async_sync_wrappers.py`. Moved `_HTTPErr` and reused
+  `_anoop_sleep`/`_noop_sleep` from `tests/core/conftest.py`.
 - Split `tests/core/test_tracing_routing.py` (530 lines → 211) into three
   files by testing strategy: routing, `_StampProcessor`, and
   `_FilteredBatchSpanProcessor`. Extracted shared `_FakeSpan` helpers to
