@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, Any
 
 from robotsix_llmio.exceptions import RobotsixLLMIOError
 
-from .transient import is_openrouter_transient, is_openrouter_upstream_error
+from .transient import (
+    is_deepseek_reasoning_400,
+    is_openrouter_transient,
+    is_openrouter_upstream_error,
+)
 
 
 class OpenRouterAPIError(RobotsixLLMIOError):
@@ -49,6 +53,7 @@ __all__ = [
     "OpenRouterModel",
     "OpenRouterProvider",
     "OpenRouterProviderCostSource",
+    "is_deepseek_reasoning_400",
     "is_openrouter_transient",
     "is_openrouter_upstream_error",
     "record_openrouter_cost",

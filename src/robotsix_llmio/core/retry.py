@@ -32,6 +32,9 @@ from robotsix_http.retry import (
     _walk_cause_chain,
     is_transient,
 )
+from robotsix_http.retry import (
+    _retry_loop as _http_retry_loop,
+)
 
 from . import constants
 from ._otel import get_recording_span
@@ -207,38 +210,12 @@ def _handle_rate_limit(
     raise
 
 
-def _handle_transient(
-    e: Exception,
-    attempt: int,
-    config: RetryConfig,
-    cumulative_backoff: float,
-    what: str,
-) -> tuple[float, float]:
-    """Handle a transient error: compute backoff, log, flush.
-
-    Returns ``(delay, new_cumulative_backoff)`` so the caller can sleep
-    (sync or async) and increment *attempt*.  Raises if retries are
-    exhausted.
-    """
-    if attempt >= config.max_retries:
-        _safe_flush()
-        raise
-    delay = _compute_backoff(attempt, config)
-    cumulative_backoff += delay
-    log.warning(
-        "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
-        what,
-        type(e).__name__,
-        attempt + 1,
-        config.max_retries,
-        delay,
-    )
-    _safe_flush()
-    return delay, cumulative_backoff
-
-
 # ---------------------------------------------------------------------------
-# Core retry loop (async) — LLM-domain with rate-limit / fallback logic
+# Core retry loop (async) — LLM-domain with rate-limit / fallback logic.
+#
+# Delegates the transient-retry inner loop to ``robotsix_http._retry_loop``
+# so that backoff computation and attempt counting stay in one place; the
+# LLM-domain wrapper only adds ``UsageLimitExceeded`` → fallback logic.
 # ---------------------------------------------------------------------------
 
 
@@ -252,47 +229,68 @@ async def _retry_loop(
     fallback_fn: Callable[[], Any] | None = None,
     is_transient_fn: Callable[[BaseException], bool] = is_transient,
 ) -> Any:
-    """Shared retry loop — ``invoke`` and ``sleep_fn`` adapt sync vs async.
+    """Shared retry loop — delegates transient retries to
+    ``robotsix_http._retry_loop``, with LLM-specific rate-limit/fallback
+    logic on top.
 
-    Transient retries use exponential backoff from *config*; span recording
-    is wired through ``config.on_retry``.  ``UsageLimitExceeded`` triggers
-    a one-shot fallback (if provided) rather than a retry.
+    Transient retries use exponential backoff from *config*; span recording,
+    logging, and cost-trace flushing are wired through a per-call
+    ``RetryConfig.on_retry`` callback.  ``UsageLimitExceeded`` triggers a
+    one-shot fallback (if provided) rather than a retry.
     """
     using_fallback = False
     cumulative_backoff = 0.0
 
-    attempt = 0
-    while attempt <= config.max_retries:
+    def _on_retry(attempt: int, exc: Exception, delay: float) -> None:
+        nonlocal cumulative_backoff
+        cumulative_backoff += delay
+        # Respect the caller's on_retry (e.g. _RETRY_CONFIG's
+        # _record_transient_retry_span, or a test spy).
+        if config.on_retry is not None:
+            config.on_retry(attempt, exc, delay)
+        log.warning(
+            "%s: transient %s (attempt %d/%d) — retrying in %.1fs",
+            what,
+            type(exc).__name__,
+            attempt,
+            config.max_retries,
+            delay,
+        )
+        _safe_flush()
+
+    loop_config = RetryConfig(
+        max_retries=config.max_retries,
+        backoff_base=config.backoff_base,
+        backoff_cap=config.backoff_cap,
+        on_retry=_on_retry,
+    )
+
+    while True:
+        target: Callable[[], Any] | None = fallback_fn if using_fallback else fn
+        assert target is not None  # using_fallback implies fallback_fn is not None
         try:
-            if using_fallback:
-                assert fallback_fn is not None  # type-narrowing
-                return await invoke(fallback_fn)
-            return await invoke(fn)
+            # robotsix_http._retry_loop expects ``invoke`` returning
+            # ``Coroutine``, but our adapters return the broader
+            # ``Awaitable``.  At runtime ``await`` works on any
+            # Awaitable, so cast the callable types.
+            return await _http_retry_loop(
+                target,
+                invoke=cast(Any, invoke),
+                sleep_fn=cast(Any, sleep_fn),
+                config=loop_config,
+                what=what,
+                is_transient_fn=is_transient_fn,
+            )
         except Exception as e:
             if is_rate_limited(e):
                 _handle_rate_limit(
                     using_fallback, fallback_fn, cumulative_backoff, what
                 )
                 using_fallback = True
-                attempt = 0  # fresh retry budget for fallback
+                cumulative_backoff = 0.0  # fresh budget for fallback
                 continue
-
-            if is_transient_fn(e):
-                delay, cumulative_backoff = _handle_transient(
-                    e, attempt, config, cumulative_backoff, what
-                )
-                if config.on_retry is not None:
-                    # robotsix-http's callback contract: 1-indexed attempt, the
-                    # exception, and the already-computed delay.
-                    config.on_retry(attempt + 1, e, delay)
-                await sleep_fn(delay)
-                attempt += 1
-                continue
-
-            # non-retryable
             _safe_flush()
             raise
-    raise AssertionError("unreachable")  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------

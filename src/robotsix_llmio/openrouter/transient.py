@@ -55,15 +55,36 @@ def is_openrouter_upstream_payment_error(exc: BaseException) -> bool:
     return "provider_name" in normalised and "is_byok:false" in normalised
 
 
+def is_deepseek_reasoning_400(exc: BaseException) -> bool:
+    """Recognise DeepSeek's reasoning-content 400.
+
+    DeepSeek's capable tier runs in thinking mode and rejects assistant
+    ``tool_calls`` turns that lack ``reasoning_content`` with HTTP 400
+    (``"The reasoning_content in the thinking mode must be passed back to
+    the API."``).  That is an infrastructure hiccup — the layer already
+    injects reasoning content, so a re-run almost always succeeds.
+
+    Matched on status 400 plus the distinctive ``reasoning_content`` +
+    ``thinking mode`` markers, so it does NOT catch genuine schema/request
+    400s.
+    """
+    if _core_retry._status(exc) != 400:
+        return False
+    msg = str(exc).lower()
+    return "reasoning_content" in msg and "thinking mode" in msg
+
+
 def is_openrouter_transient(exc: BaseException) -> bool:
     """Core transient set OR an OpenRouter upstream-failure signature (mid-stream
-    provider error, or an upstream provider's 402), walking the cause/context
-    chain for the latter."""
+    provider error, upstream provider's 402, or DeepSeek reasoning-400),
+    walking the cause/context chain for the latter."""
     if _core_retry.is_transient(exc):
         return True
     for cur in _core_retry._walk_cause_chain(exc):
-        if is_openrouter_upstream_error(cur) or is_openrouter_upstream_payment_error(
-            cur
+        if (
+            is_openrouter_upstream_error(cur)
+            or is_openrouter_upstream_payment_error(cur)
+            or is_deepseek_reasoning_400(cur)
         ):
             return True
     return False
