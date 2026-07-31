@@ -39,9 +39,22 @@ from typing import Any, TypeVar
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 
+from ._otel import get_recording_span, get_tracer, start_span
 from .retry import _drive_sync
 
 log = logging.getLogger("robotsix_llmio.tier_fallback")
+
+_TRACER_NAME: str = "robotsix_llmio.core.tier_fallback"
+
+# OTel span attribute keys for tier-fallback observability.
+# Centralised constants so a rename is a one-line change.
+_ATTR_TIER_LEVEL = "llmio.tier.level"
+_ATTR_TIER_PROVIDER = "llmio.tier.provider"
+_ATTR_TIER_MODEL = "llmio.tier.model"
+_ATTR_TIER_ATTEMPT_INDEX = "llmio.tier.attempt_index"
+_ATTR_TIER_SUCCEEDED = "llmio.tier.succeeded"
+_ATTR_TIER_PROMOTIONS = "llmio.tier.promotions"
+_ATTR_TIER_FALLBACK_ACTIVATED = "llmio.tier.fallback_activated"
 
 T = TypeVar("T")
 
@@ -106,45 +119,67 @@ async def _tier_fallback_loop(
     promotions = 0
     current_level = level
 
+    run_span = get_recording_span()
+
     while True:
         tlc: TierLevelConfig = getattr(tier_config, current_level.value)
 
-        log.info(
-            "%s: trying %s (provider=%s, model=%s)",
-            what,
-            current_level.value,
-            tlc.provider,
-            tlc.model_name,
-        )
-
-        try:
-            callable_fn = fn_factory(tlc)
-            result = await invoke(callable_fn)
-        except Exception as exc:
-            next_level = _next_unvisited_tier(current_level, frozenset(visited))
-
-            if next_level is None:
-                raise
-
-            exhausted = not fallback_enabled or promotions >= max_fallback_depth
-            if exhausted:
-                raise
-
-            log.warning(
-                "%s: %s failed with %s — falling back to %s",
+        with start_span(
+            get_tracer(_TRACER_NAME),
+            "llmio.tier.attempt",
+            attributes={
+                _ATTR_TIER_LEVEL: current_level.value,
+                _ATTR_TIER_PROVIDER: tlc.provider,
+                _ATTR_TIER_MODEL: tlc.model_name,
+                _ATTR_TIER_ATTEMPT_INDEX: len(visited),
+            },
+        ) as span:
+            log.info(
+                "%s: trying %s (provider=%s, model=%s)",
                 what,
                 current_level.value,
-                type(exc).__name__,
-                next_level.value,
+                tlc.provider,
+                tlc.model_name,
             )
 
-            visited.add(next_level)
-            promotions += 1
-            current_level = next_level
-            continue
+            try:
+                callable_fn = fn_factory(tlc)
+                result = await invoke(callable_fn)
+            except Exception as exc:
+                if span is not None:
+                    span.set_attribute(_ATTR_TIER_SUCCEEDED, False)
 
-        log.info("%s: %s succeeded", what, current_level.value)
-        return result
+                next_level = _next_unvisited_tier(current_level, frozenset(visited))
+
+                if next_level is None:
+                    raise
+
+                exhausted = not fallback_enabled or promotions >= max_fallback_depth
+                if exhausted:
+                    raise
+
+                log.warning(
+                    "%s: %s failed with %s — falling back to %s",
+                    what,
+                    current_level.value,
+                    type(exc).__name__,
+                    next_level.value,
+                )
+
+                if run_span is not None:
+                    run_span.set_attribute(_ATTR_TIER_PROMOTIONS, promotions + 1)
+                    run_span.set_attribute(_ATTR_TIER_FALLBACK_ACTIVATED, True)
+
+                visited.add(next_level)
+                promotions += 1
+                current_level = next_level
+                continue
+
+            if span is not None:
+                span.set_attribute(_ATTR_TIER_SUCCEEDED, True)
+
+            log.info("%s: %s succeeded", what, current_level.value)
+            return result
 
 
 def call_with_tier_fallback[T](
