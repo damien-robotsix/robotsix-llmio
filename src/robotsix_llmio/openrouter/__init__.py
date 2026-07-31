@@ -15,6 +15,7 @@ from .transient import (
     is_deepseek_reasoning_400,
     is_openrouter_transient,
     is_openrouter_upstream_error,
+    is_openrouter_upstream_payment_error,
 )
 
 
@@ -56,6 +57,7 @@ __all__ = [
     "is_deepseek_reasoning_400",
     "is_openrouter_transient",
     "is_openrouter_upstream_error",
+    "is_openrouter_upstream_payment_error",
     "record_openrouter_cost",
 ]
 
