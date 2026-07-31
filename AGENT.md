@@ -28,4 +28,8 @@ See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/
 
 **Rationale:** Two CI-fix tickets exhibited single-tool-only fixes because CONTRIBUTING.md documented only `uv audit` while CI runs both `uv audit` and `pip-audit` with separate ignore configs.
 
+**Rule:** When adding a changelog.d newsfragment, do NOT add a `changelog.d/**` or `changelog.d/*.md` glob to any module's `paths` in `docs/modules.yaml` — the `project-root` module already claims those files via its `changelog.d/**` glob (docs/modules.yaml:114). A duplicate glob makes the modules check (vulture/deptry) flag every newsfragment as multi-claimed and fail CI.
+
+**Rationale:** On 2026-07-31 the implement stage of ticket 20260731T133725Z-remove-claude-sdk-model-py-backward-comp-78ca added `changelog.d/*.md` to the `core` module's paths in docs/modules.yaml (commit f3dd455), overlapping project-root's existing `changelog.d/**`; the modules check failed and a fixing_ci cycle reverted the one-line addition (commit 6b86b9a) — a net-zero round-trip. project-root has owned the newsfragment glob since the towncrier `changes/`→`changelog.d/` migration (commit bfd0741).
+
 See [repo-baseline.md — CI gates](https://github.com/damien-robotsix/robotsix-standards/blob/main/repo-baseline.md) for the required-artifact `if: always()` rule.
