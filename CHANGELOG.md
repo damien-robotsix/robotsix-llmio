@@ -72,6 +72,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Re-export `is_openrouter_upstream_payment_error` from `robotsix_llmio.openrouter`, matching the package's existing convention of individually exporting its transient-signature peer predicates.
 - Add OpenTelemetry span observability to tier-fallback lifecycle (`_tier_fallback_loop`): each tier attempt now produces a child span with `llmio.tier.level`, `llmio.tier.provider`, `llmio.tier.model`, `llmio.tier.attempt_index`, and `llmio.tier.succeeded` attributes; promotion events additionally stamp `llmio.tier.promotions` and `llmio.tier.fallback_activated` on the parent run span so Langfuse traces expose the full tier-escalation history.
 - Remove ``claude_sdk/model.py`` backward-compatibility re-export shim; all consumers migrated to the private sub-modules (``_errors``, ``_model``, ``_prompt``).
 - `openrouter`: add `is_deepseek_reasoning_400` transient detection for DeepSeek's reasoning-content 400, wired into `is_openrouter_transient` so a missing-`reasoning_content` API error is retried instead of surfacing as terminal.
