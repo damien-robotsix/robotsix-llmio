@@ -509,3 +509,82 @@ def test_stream_query_is_error_without_api_400_signature_unaffected(monkeypatch)
 
     text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
     assert text == "API Error: 429 rate limited"
+
+
+# ---------------------------------------------------------------------------
+# _stream_query — OTel span attributes
+# ---------------------------------------------------------------------------
+
+
+def test_stream_query_sets_span_attributes(monkeypatch, otel_exporter_tracer):
+    """_stream_query stamps ``llmio.stream.*`` attributes on the current
+    recording span — turn_count, tool_calls, thinking_blocks, is_error."""
+    exporter, tracer = otel_exporter_tracer
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    class _FakeToolUseBlock:
+        def __init__(self, name: str, input: dict) -> None:
+            self.name = name
+            self.input = input
+
+    _FakeToolUseBlock.__name__ = "ToolUseBlock"
+
+    class _FakeThinkingBlock:
+        def __init__(self, thinking: str) -> None:
+            self.thinking = thinking
+
+    _FakeThinkingBlock.__name__ = "ThinkingBlock"
+
+    async def _fake_query(*, prompt, options):
+        msg1 = fake.AssistantMessage("")
+        msg1.content = [
+            _FakeToolUseBlock("search", {"q": "x"}),
+            _FakeToolUseBlock("read", {"path": "f"}),
+        ]
+        yield msg1
+        msg2 = fake.AssistantMessage("")
+        msg2.content = [_FakeThinkingBlock("hmm")]
+        yield msg2
+        yield fake.AssistantMessage("done")
+        yield fake.ResultMessage()
+
+    fake.query = _fake_query
+
+    with tracer.start_as_current_span("test-stream"):
+        asyncio.run(_stream_query("prompt", None, "test"))
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    s = spans[0]
+    assert s.attributes["llmio.stream.turn_count"] == 3
+    assert s.attributes["llmio.stream.tool_calls"] == 2
+    assert s.attributes["llmio.stream.thinking_blocks"] == 1
+    assert s.attributes["llmio.stream.is_error"] is False
+
+
+def test_stream_query_is_error_attribute(monkeypatch, otel_exporter_tracer):
+    """When the ResultMessage has is_error=True, ``llmio.stream.is_error`` is
+    ``True`` on the span (not just the default False)."""
+    exporter, tracer = otel_exporter_tracer
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("error reply")
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    with tracer.start_as_current_span("test-stream"):
+        asyncio.run(_stream_query("prompt", None, "test"))
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    s = spans[0]
+    assert s.attributes["llmio.stream.turn_count"] == 1
+    assert s.attributes["llmio.stream.tool_calls"] == 0
+    assert s.attributes["llmio.stream.thinking_blocks"] == 0
+    assert s.attributes["llmio.stream.is_error"] is True

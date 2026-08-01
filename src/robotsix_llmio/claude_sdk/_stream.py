@@ -14,6 +14,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from ..core._otel import get_recording_span
+
 log = logging.getLogger("robotsix_llmio.claude_sdk")
 
 ActivityKind = Literal["tool_call", "tool_result", "thinking", "text"]
@@ -79,6 +81,9 @@ def _log_stream_message(
     turn: list[int],
     label: str,
     on_event: Callable[[ClaudeSDKActivityEvent], None] | None = None,
+    *,
+    n_tool_calls: list[int] | None = None,
+    n_thinking: list[int] | None = None,
 ) -> None:
     """Emit a concise INFO line for one streamed Claude SDK message.
 
@@ -92,6 +97,10 @@ def _log_stream_message(
     thinking block, or intermediate assistant text — the same events this
     function logs, structured for a caller to forward elsewhere (e.g. a chat
     UI). Never raises: a broken callback only skips that one event.
+
+    *n_tool_calls* and *n_thinking*, when given, are 1-element mutable
+    counters incremented for each ``ToolUseBlock`` / ``ThinkingBlock`` so
+    that :func:`_stream_query` can stamp them as OTel span attributes.
     """
     cls = type(message).__name__
     try:
@@ -110,6 +119,8 @@ def _log_stream_message(
                             ),
                         )
                 elif bcls == "ToolUseBlock":
+                    if n_tool_calls is not None:
+                        n_tool_calls[0] += 1
                     tool_name = getattr(block, "name", "?")
                     tool_input = _short(getattr(block, "input", {}))
                     log.info(
@@ -129,6 +140,8 @@ def _log_stream_message(
                         ),
                     )
                 elif bcls == "ThinkingBlock":
+                    if n_thinking is not None:
+                        n_thinking[0] += 1
                     n_chars = len(getattr(block, "thinking", "") or "")
                     log.info("%s turn %d: thinking (%d chars)", label, turn[0], n_chars)
                     _emit(
@@ -268,6 +281,8 @@ async def _stream_query(
     thoughts: list[str] = []
     result: Any = None
     turn = [0]
+    n_tool_calls = [0]
+    n_thinking = [0]
     effective_on_event = on_event if on_event is not None else _current_on_event.get()
 
     sdk_prompt: str | AsyncIterator[dict[str, Any]] = (
@@ -277,7 +292,14 @@ async def _stream_query(
     async def _consume() -> None:
         nonlocal result
         async for message in query(prompt=sdk_prompt, options=options):
-            _log_stream_message(message, turn, label, effective_on_event)
+            _log_stream_message(
+                message,
+                turn,
+                label,
+                effective_on_event,
+                n_tool_calls=n_tool_calls,
+                n_thinking=n_thinking,
+            )
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if isinstance(block, TextBlock):
@@ -370,6 +392,16 @@ async def _stream_query(
     ):
         raise ClaudeSDKPermanentAPIError(
             f"Anthropic API rejected the request ({label}): {text}"
+        )
+
+    span = get_recording_span()
+    if span is not None:
+        span.set_attribute("llmio.stream.turn_count", turn[0])
+        span.set_attribute("llmio.stream.tool_calls", n_tool_calls[0])
+        span.set_attribute("llmio.stream.thinking_blocks", n_thinking[0])
+        span.set_attribute(
+            "llmio.stream.is_error",
+            bool(result and getattr(result, "is_error", False)),
         )
 
     return text, result, reasoning
