@@ -64,8 +64,8 @@ class _NewModelProvider(OpenRouterProvider):
     effects without touching the network or pydantic-ai internals.
     """
 
-    def __init__(self, *, api_key: str = "sk-test"):
-        super().__init__(api_key=api_key)
+    def __init__(self, *, api_key: str = "sk-test", max_tokens: int | None = None):
+        super().__init__(api_key=api_key, max_tokens=max_tokens)
         self._post_build_calls: list[tuple] = []
         self._model_cls_mock = MagicMock()
 
@@ -126,6 +126,42 @@ def test_new_model_passes_correct_model_name(monkeypatch):
     provider._model_cls_mock.assert_called_once()
     args = provider._model_cls_mock.call_args[0]
     assert args[0] == "test-model-default"
+
+
+def test_new_model_forwards_max_tokens(monkeypatch):
+    """When ``max_tokens=256`` is passed to the provider, ``new_model()``
+    forwards it as ``settings={"max_tokens": 256}`` in the model kwargs."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider(max_tokens=256)
+    provider.new_model(model="test-model-default")
+
+    provider._model_cls_mock.assert_called_once()
+    kwargs = provider._model_cls_mock.call_args[1]
+    assert kwargs["settings"] == {"max_tokens": 256}
+
+
+def test_new_model_no_max_tokens_omits_settings(monkeypatch):
+    """When ``max_tokens`` is not set (default ``None``), the model kwargs
+    do NOT contain a ``settings`` key."""
+    _install_fake_pydantic_openrouter(monkeypatch)
+    mock_http = MagicMock()
+    monkeypatch.setattr(
+        "robotsix_llmio.openrouter.provider.timeout_http_client",
+        lambda: mock_http,
+    )
+
+    provider = _NewModelProvider()
+    provider.new_model(model="test-model-default")
+
+    provider._model_cls_mock.assert_called_once()
+    kwargs = provider._model_cls_mock.call_args[1]
+    assert "settings" not in kwargs
 
 
 def test_new_model_returns_http_client_from_timeout_client(monkeypatch):
