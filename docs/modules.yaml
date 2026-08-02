@@ -19,7 +19,6 @@ modules:
       - src/robotsix_llmio/__init__.py
       - src/robotsix_llmio/exceptions.py
       - src/robotsix_llmio/logging.py
-      - src/robotsix_llmio/changelog.py
       - src/robotsix_llmio/py.typed
       - src/robotsix_llmio/core/**
       - tests/.env.example
