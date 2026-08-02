@@ -74,7 +74,7 @@ Hooks pinned in `.pre-commit-config.yaml`:
 | vulture                 | dead-code check over `src/`                  |
 | deptry                  | dependency hygiene check                     |
 | detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
-| actionlint              | lints GitHub Actions workflow files          |
+| actionlint-docker       | lints GitHub Actions workflow files          |
 
 ## 3. Running tests
 
