@@ -82,6 +82,13 @@ separable:
 
 `openrouter/` and `claude_sdk/` both follow this layout in full.
 
+`claude_sdk/` additionally carries `_task_budget.py`, which maps a tier's
+`max_tokens` onto `ClaudeAgentOptions.task_budget`. The two are *not* the
+same control — `max_tokens` is a hard per-response output cap, while
+`task_budget` is an advisory whole-loop budget with an API-enforced
+minimum — so the mapping clamps to that floor rather than emitting a
+request the API would reject outright.
+
 `openrouter/` contains both the base `OpenRouterProvider` / `OpenRouterModel`
 and the derived DeepSeek classes (`OpenRouterDeepseekProvider`,
 `OpenRouterDeepseekModel`). The DeepSeek classes inherit OpenRouter's
@@ -356,6 +363,7 @@ sub-directory for modules that have their own test suite:
   - `test_prompt_rendering.py` — prompt rendering unit tests.
   - `test_run_kwargs.py` — run-kwargs propagation unit tests.
   - `test_stream.py` — streaming response unit tests.
+  - `test_task_budget.py` — `task_budget` floor/clamp unit tests.
   - `test_tool_bridge.py` — tool-bridge unit tests.
   - `test_tracing.py` — Claude SDK tracing unit tests.
   - `test_transient.py` — transient-error classification unit tests.

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from ._stream import ClaudeSDKActivityEvent, activity_events
 from .transient import (
+    is_claude_sdk_permanent_api_error,
     is_claude_sdk_transient,
     is_claude_sdk_turn_limit,
     is_claude_sdk_usage_exhausted,
@@ -20,6 +21,7 @@ from .transient import (
 if TYPE_CHECKING:
     from ._errors import (
         ClaudeSDKAPIError,
+        ClaudeSDKPermanentAPIError,
         ClaudeSDKQueryTimeout,
         ClaudeSDKTurnLimitError,
         ClaudeSDKUsageExhaustedError,
@@ -31,11 +33,13 @@ __all__ = [
     "ClaudeSDKAPIError",
     "ClaudeSDKActivityEvent",
     "ClaudeSDKModel",
+    "ClaudeSDKPermanentAPIError",
     "ClaudeSDKProvider",
     "ClaudeSDKQueryTimeout",
     "ClaudeSDKTurnLimitError",
     "ClaudeSDKUsageExhaustedError",
     "activity_events",
+    "is_claude_sdk_permanent_api_error",
     "is_claude_sdk_transient",
     "is_claude_sdk_turn_limit",
     "is_claude_sdk_usage_exhausted",
@@ -50,6 +54,7 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         "ClaudeSDKTurnLimitError",
         "ClaudeSDKQueryTimeout",
         "ClaudeSDKUsageExhaustedError",
+        "ClaudeSDKPermanentAPIError",
     ):
         try:
             if name == "ClaudeSDKProvider":
@@ -68,6 +73,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
                 from ._errors import ClaudeSDKUsageExhaustedError
 
                 return ClaudeSDKUsageExhaustedError
+            if name == "ClaudeSDKPermanentAPIError":
+                from ._errors import ClaudeSDKPermanentAPIError
+
+                return ClaudeSDKPermanentAPIError
             if name == "ClaudeSDKAPIError":
                 from ._errors import ClaudeSDKAPIError
 

@@ -48,6 +48,23 @@ class ClaudeSDKUsageExhaustedError(RobotsixLLMIOError):
     :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)."""
 
 
+class ClaudeSDKPermanentAPIError(RobotsixLLMIOError):
+    """The Anthropic API rejected the request itself with a ``400`` — a
+    malformed or out-of-range parameter, not an infrastructure hiccup.
+
+    Like usage exhaustion, the CLI surfaces this as assistant-visible text
+    ("API Error: 400 ...") inside an ``is_error=True`` ``ResultMessage`` rather
+    than raising, and ``claude_agent_sdk`` then collapses that frame into its
+    generic degenerate-success message. Left unclassified it therefore looks
+    *transient*: the bounded retry burns every attempt re-sending the identical
+    (still-invalid) request, and the exhausted retry surfaces as an opaque
+    transport failure that callers may charitably read as "ran, changed
+    nothing". A 400 is deterministic — the same request always reproduces it —
+    so this is never treated as transient (see
+    :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`) and
+    must fail loudly so the offending parameter gets fixed."""
+
+
 class ClaudeSDKAPIError(RobotsixLLMIOError):
     """A terminal Claude Agent SDK transport or process failure that survived
     the transient classification and retry loop.

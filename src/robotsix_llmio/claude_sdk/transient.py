@@ -40,6 +40,34 @@ _DEGENERATE_SUCCESS_SIGNATURE = "returned an error result: success"
 _USAGE_EXHAUSTED_SIGNATURE = "out of usage credits"
 
 
+# The Claude CLI's wording when the Anthropic API rejects the request itself
+# ("API Error: 400 `task_budget.total` must be at least 20,000 tokens..."). Like
+# usage exhaustion this arrives as ordinary assistant TEXT inside an
+# is_error=True ResultMessage, not as a raised exception — same best-effort
+# string-matching tradeoff, since the CLI's phrasing isn't a documented
+# contract. Scoped to 400 deliberately: a 400 is request validation and is
+# perfectly reproducible, so retrying is pure waste, whereas 429 and 5xx are
+# genuinely retryable and must stay transient.
+_PERMANENT_API_ERROR_SIGNATURE = "api error: 400"
+
+
+def is_permanent_api_error_text(text: str) -> bool:
+    """True if *text* (assistant-visible turn text) reports an API ``400`` —
+    a request-validation rejection that a re-run cannot clear."""
+    return _PERMANENT_API_ERROR_SIGNATURE in text.lower()
+
+
+def is_claude_sdk_permanent_api_error(exc: BaseException) -> bool:
+    """True if *exc* (or anything in its cause/context chain) is the dedicated
+    ``ClaudeSDKPermanentAPIError``. Matched by name so this stays free of an
+    import cycle with the error module, walking the bounded cause/context chain
+    like the other helpers."""
+    return any(
+        type(cur).__name__ == "ClaudeSDKPermanentAPIError"
+        for cur in _walk_cause_chain(exc)
+    )
+
+
 def is_usage_exhausted_text(text: str) -> bool:
     """True if *text* (assistant-visible turn text) reports exhausted usage
     credits for the current tier, per the Claude CLI's own wording."""
@@ -88,14 +116,17 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     """Core transient set OR a Claude Agent SDK subprocess/transport failure,
     walking the cause/context chain for the latter.
 
-    The turn-cap failure and usage-exhaustion are explicitly excluded — and
-    checked FIRST, so they win even when the CLI surfaces them as a
-    (normally-transient) ``ProcessError``. Retrying either at the same tier
-    would just repeat the identical failure, so both must fail loudly rather
-    than burn retries and end in an opaque error."""
+    The turn-cap failure, usage-exhaustion, and API request-validation (400)
+    rejections are explicitly excluded — and checked FIRST, so they win even
+    when the CLI surfaces them as a (normally-transient) ``ProcessError`` or as
+    the degenerate-success frame. Retrying any of them would just repeat the
+    identical failure, so all three must fail loudly rather than burn retries
+    and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
         return False
     if is_claude_sdk_usage_exhausted(exc):
+        return False
+    if is_claude_sdk_permanent_api_error(exc):
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True
