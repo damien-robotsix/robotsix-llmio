@@ -441,3 +441,71 @@ def test_activity_events_context_resets_after_exit(monkeypatch):
     events.clear()
     asyncio.run(_stream_query("prompt", None, "test"))  # outside the context
     assert events == []
+
+
+# ---------------------------------------------------------------------------
+# _stream_query — API 400 (request validation)
+# ---------------------------------------------------------------------------
+
+
+def test_stream_query_raises_on_api_400(monkeypatch):
+    """An is_error=True result carrying "API Error: 400 ..." raises
+    ClaudeSDKPermanentAPIError instead of returning that text as a reply."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKPermanentAPIError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage(
+            "API Error: 400 `task_budget.total` must be at least 20,000 tokens"
+        )
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKPermanentAPIError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "task_budget.total" in str(exc_info.value)
+
+
+def test_stream_query_raises_on_api_400_via_collapsed_exception(monkeypatch):
+    """The live failure mode: the 400 streams in as assistant text and the SDK
+    then collapses the frame into the degenerate-success exception. Without the
+    partial-text check this is classified transient, burns 3 retries on an
+    unfixable request, and surfaces as an opaque transport failure."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKPermanentAPIError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage(
+            "API Error: 400 `task_budget.total` must be at least 20,000 tokens"
+        )
+        raise Exception("Claude Code returned an error result: success")
+        yield  # pragma: no cover — makes this an async generator
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKPermanentAPIError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "task_budget.total" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, Exception)
+
+
+def test_stream_query_is_error_without_api_400_signature_unaffected(monkeypatch):
+    """An is_error=True result that is not a 400 keeps the pre-existing
+    behaviour — narrow scope, same as the usage-exhaustion handling."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("API Error: 429 rate limited")
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "API Error: 429 rate limited"

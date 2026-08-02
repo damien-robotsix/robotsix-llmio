@@ -40,6 +40,7 @@ from ._prompt import (
     collect_latest_user_images,
     render_prompt,
 )
+from ._task_budget import build_task_budget
 from ._usage import _best_usage_dict
 from .transient import is_claude_sdk_turn_limit
 
@@ -168,9 +169,9 @@ class ClaudeSDKModel(Model):
             disallowed_tools=["*"],
             permission_mode="bypassPermissions",
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
-            task_budget={"total": self._max_tokens}
-            if self._max_tokens is not None
-            else None,
+            task_budget=build_task_budget(
+                self._max_tokens, f"claude:{self._model_name}"
+            ),
         )
 
         return await _stream_query(

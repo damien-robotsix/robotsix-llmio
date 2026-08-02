@@ -35,6 +35,7 @@ from ._confinement import (
     _make_confine_hook,
 )
 from ._output import _build_schema_json, _parse_output
+from ._task_budget import build_task_budget
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
     from claude_agent_sdk import (
@@ -342,9 +343,7 @@ class _SdkToolAgentHandle:
             max_turns=self._max_turns,
             mcp_servers={"milltools": self._server},
             setting_sources=[],
-            task_budget=(
-                {"total": self._max_tokens} if self._max_tokens is not None else None
-            ),
+            task_budget=build_task_budget(self._max_tokens, self._name),
             **extra,
         )
 

@@ -255,3 +255,61 @@ def test_tool_handle_uses_shared_max_turns_cap():
     handle = _SdkToolAgentHandle("opus", "sys", None, [], str)
     assert handle._max_turns == _MAX_TURNS  # single source — paths can't drift
     assert _MAX_TURNS >= 100  # generous cap so genuine tool loops don't trip it
+
+
+# --- API 400: request validation, never retryable --------------------------
+
+
+def test_permanent_api_error_type_detected_and_not_transient():
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKPermanentAPIError
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_permanent_api_error
+
+    e = ClaudeSDKPermanentAPIError("API Error: 400 bad param")
+    assert is_claude_sdk_permanent_api_error(e) is True
+    # Re-sending the identical invalid request reproduces it exactly.
+    assert is_claude_sdk_transient(e) is False
+
+
+def test_permanent_api_error_beats_degenerate_success_wrapper():
+    """The regression that let a 400 burn all 3 retries: the SDK collapses the
+    error frame into its degenerate-success message, which IS transient. The
+    permanent cause must win when both signatures are in the chain."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKPermanentAPIError
+    from robotsix_llmio.claude_sdk.transient import (
+        is_claude_sdk_degenerate_success,
+        is_claude_sdk_permanent_api_error,
+    )
+
+    cause = ClaudeSDKPermanentAPIError(
+        "API Error: 400 `task_budget.total` must be at least 20,000 tokens"
+    )
+    try:
+        raise Exception("Claude Code returned an error result: success") from cause
+    except Exception as e:
+        assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
+        assert is_claude_sdk_permanent_api_error(e) is True  # ...but permanent wins
+        assert is_claude_sdk_transient(e) is False
+
+
+def test_non_permanent_api_error_runtime_error_unaffected():
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_permanent_api_error
+
+    assert is_claude_sdk_permanent_api_error(RuntimeError("something else")) is False
+
+
+def test_is_permanent_api_error_text_matches_case_insensitively():
+    from robotsix_llmio.claude_sdk.transient import is_permanent_api_error_text
+
+    assert is_permanent_api_error_text("API Error: 400 `task_budget.total` too low")
+    assert is_permanent_api_error_text("api error: 400") is True
+    assert is_permanent_api_error_text("all good here") is False
+
+
+def test_retryable_status_codes_stay_transient():
+    """Scoped to 400 on purpose — rate limits and server errors must keep
+    burning retries, since a re-run genuinely clears them."""
+    from robotsix_llmio.claude_sdk.transient import is_permanent_api_error_text
+
+    assert is_permanent_api_error_text("API Error: 429 rate limited") is False
+    assert is_permanent_api_error_text("API Error: 500 internal") is False
+    assert is_permanent_api_error_text("API Error: 529 overloaded") is False

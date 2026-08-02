@@ -257,11 +257,12 @@ async def _stream_query(
     from ..exceptions import RobotsixLLMIOError
     from ._errors import (
         ClaudeSDKAPIError,
+        ClaudeSDKPermanentAPIError,
         ClaudeSDKQueryTimeout,
         ClaudeSDKTurnLimitError,
         ClaudeSDKUsageExhaustedError,
     )
-    from .transient import is_usage_exhausted_text
+    from .transient import is_permanent_api_error_text, is_usage_exhausted_text
 
     chunks: list[str] = []
     thoughts: list[str] = []
@@ -315,6 +316,15 @@ async def _stream_query(
         partial_text = "".join(chunks).strip()
         if partial_text and is_usage_exhausted_text(partial_text):
             raise ClaudeSDKUsageExhaustedError(partial_text) from exc
+        # Same shape, same reasoning: an API 400 streams in as assistant text
+        # and is then collapsed into the degenerate-success frame, which the
+        # classifier would otherwise call transient — burning all retries on a
+        # request that can never succeed. Checked before that branch so the
+        # permanent cause wins.
+        if partial_text and is_permanent_api_error_text(partial_text):
+            raise ClaudeSDKPermanentAPIError(
+                f"Anthropic API rejected the request ({label}): {partial_text}"
+            ) from exc
         if extra_transient is not None and extra_transient(exc):
             raise ClaudeSDKTurnLimitError(
                 f"Claude Agent SDK hit the turn cap without "
@@ -349,5 +359,17 @@ async def _stream_query(
         and is_usage_exhausted_text(text)
     ):
         raise ClaudeSDKUsageExhaustedError(text)
+
+    # Likewise for a request-validation rejection reported as a normal-looking
+    # completion — without this the "API Error: 400 ..." text is returned as if
+    # it were the model's genuine reply.
+    if (
+        result is not None
+        and getattr(result, "is_error", False)
+        and is_permanent_api_error_text(text)
+    ):
+        raise ClaudeSDKPermanentAPIError(
+            f"Anthropic API rejected the request ({label}): {text}"
+        )
 
     return text, result, reasoning
