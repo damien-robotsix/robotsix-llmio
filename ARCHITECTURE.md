@@ -263,7 +263,15 @@ optional Langfuse exporter ships those attributes verbatim.
   `super()._completions_create`. The OpenRouter `usage.include = true`
   opt-in (injected into `model_settings.extra_body` by
   `_inject_usage_include`) is what makes `usage.cost` appear in the
-  response in the first place.
+  response in the first place. When the response carries cached-token
+  details it also emits an INFO log line summarising the cached-vs-uncached
+  input-token split (total / cached / `%` hit / cache-creation tokens) so the
+  prompt-caching win is measurable directly in logs. To make the cache hit on
+  repeated turns, `OpenRouterModel` annotates the stable request prefix (last
+  system message + last tool definition) with
+  `cache_control: {"type": "ephemeral"}` markers — see the
+  `openrouter/model.py` module docstring for the confirmed
+  DeepSeek-via-OpenRouter cache semantics.
 - **DeepSeek cost.** Inherited unchanged from `OpenRouterModel`;
   `OpenRouterDeepseekModel` only adds the upstream-provider pin and
   per-level reasoning policy on top, not new cost logic.

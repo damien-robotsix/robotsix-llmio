@@ -33,7 +33,13 @@ from robotsix_llmio.openrouter import (
   models; tier→model mapping is supplied by `TierConfig` — subclasses optionally
   inject provider-family quirks such as upstream pinning and per-tier reasoning policy
 - `OpenRouterModel` — `OpenAIChatModel` subclass that opts into OpenRouter usage
-  accounting (`usage.include`) and stamps `usage.cost` onto the active OTel span
+  accounting (`usage.include`) and stamps `usage.cost` onto the active OTel span.
+  It also annotates the stable request prefix (last system message and last tool
+  definition) with `cache_control: {"type": "ephemeral"}` markers so
+  OpenRouter-compatible upstream providers (DeepSeek, Anthropic, …) apply
+  prompt caching to the repeated system prompt + tool schemas. Subclasses or
+  callers can opt out per-model by setting `_prompt_caching_enabled = False`.
+  Cache semantics are documented in the `openrouter/model.py` module docstring.
 
 ### Transient error detection
 
@@ -64,7 +70,10 @@ from robotsix_llmio.openrouter import (
   `OpenRouterKeyCostSource`
 - `record_openrouter_cost` — stamps per-call cost, token counts, cache details,
   and gen_ai attributes onto the active OTel span (no-op without OTel or a
-  recording span)
+  recording span). When the response carries cached-token details it also emits
+  an INFO log line summarising the cached-vs-uncached input-token split (total /
+  cached / `%` hit / cache-creation tokens) so the prompt-caching win is
+  measurable in logs without a Langfuse UI.
 
 ### Usage data types
 
