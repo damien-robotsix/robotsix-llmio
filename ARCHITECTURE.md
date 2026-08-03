@@ -312,7 +312,6 @@ sub-directory for modules that have their own test suite:
 
 - `tests/core/` — unit tests for the base layer (selected highlights;
   see directory for full listing):
-  - `test_changelog.py` — changelog utilities.
   - `test_constants.py` — module-level constants.
   - `test_core_agent.py` — core agent unit tests.
   - `test_core_cost.py` — cost model unit tests.
@@ -331,6 +330,7 @@ sub-directory for modules that have their own test suite:
   - `test_core_tier_fallback_async.py` — async tier-fallback unit tests.
   - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
   - `test_core_tier_fallback_sync.py` — sync tier-fallback unit tests.
+  - `test_core_tier_fallback_tracing.py` — tier-fallback tracing unit tests.
   - `test_exceptions.py` — custom exception classes.
   - `test_factory.py` — agent factory unit tests.
   - `test_factory_levels.py` — capability-level factory tests.
