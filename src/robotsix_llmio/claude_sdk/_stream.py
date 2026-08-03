@@ -270,12 +270,17 @@ async def _stream_query(
     from ..exceptions import RobotsixLLMIOError
     from ._errors import (
         ClaudeSDKAPIError,
+        ClaudeSDKAuthError,
         ClaudeSDKPermanentAPIError,
         ClaudeSDKQueryTimeout,
         ClaudeSDKTurnLimitError,
         ClaudeSDKUsageExhaustedError,
     )
-    from .transient import is_permanent_api_error_text, is_usage_exhausted_text
+    from .transient import (
+        is_auth_error_text,
+        is_permanent_api_error_text,
+        is_usage_exhausted_text,
+    )
 
     chunks: list[str] = []
     thoughts: list[str] = []
@@ -347,6 +352,17 @@ async def _stream_query(
             raise ClaudeSDKPermanentAPIError(
                 f"Anthropic API rejected the request ({label}): {partial_text}"
             ) from exc
+        # Same shape again: an expired/rejected OAuth credential streams in as
+        # assistant text and is then collapsed into the degenerate-success
+        # frame. Without this branch the classifier calls it transient and the
+        # retry re-sends against the same dead credential, ending in an opaque
+        # transport failure that hides a plain "re-authenticate" instruction.
+        if partial_text and is_auth_error_text(partial_text):
+            raise ClaudeSDKAuthError(
+                f"Claude CLI authentication failed ({label}) — the stored "
+                f"credential is expired or rejected and must be renewed "
+                f"before this tier can serve again: {partial_text}"
+            ) from exc
         if extra_transient is not None and extra_transient(exc):
             raise ClaudeSDKTurnLimitError(
                 f"Claude Agent SDK hit the turn cap without "
@@ -392,6 +408,20 @@ async def _stream_query(
     ):
         raise ClaudeSDKPermanentAPIError(
             f"Anthropic API rejected the request ({label}): {text}"
+        )
+
+    # Likewise for an authentication failure reported as a normal-looking
+    # completion — without this the "Failed to authenticate. API Error: 401 ..."
+    # text is returned as if it were the model's genuine reply.
+    if (
+        result is not None
+        and getattr(result, "is_error", False)
+        and is_auth_error_text(text)
+    ):
+        raise ClaudeSDKAuthError(
+            f"Claude CLI authentication failed ({label}) — the stored "
+            f"credential is expired or rejected and must be renewed before "
+            f"this tier can serve again: {text}"
         )
 
     span = get_recording_span()

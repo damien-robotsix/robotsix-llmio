@@ -51,6 +51,41 @@ _USAGE_EXHAUSTED_SIGNATURE = "out of usage credits"
 _PERMANENT_API_ERROR_SIGNATURE = "api error: 400"
 
 
+# The Claude CLI's wording when the stored OAuth credential is rejected
+# ("Failed to authenticate. API Error: 401 OAuth access token has expired.
+# Re-authenticate to continue."). Same delivery shape as the two signatures
+# above — assistant-visible TEXT inside an is_error=True ResultMessage, not a
+# raised exception — so the same best-effort string-matching tradeoff applies.
+#
+# Scoped to 401 and the CLI's own auth wording, deliberately: a 401 means the
+# credential itself is dead, so every retry at this tier re-sends against the
+# same dead credential. 403 is left out because it is authorisation (a scope or
+# entitlement problem) rather than a bad credential, and 429/5xx stay transient.
+_AUTH_ERROR_SIGNATURES = (
+    "api error: 401",
+    "oauth access token has expired",
+    "failed to authenticate",
+)
+
+
+def is_auth_error_text(text: str) -> bool:
+    """True if *text* (assistant-visible turn text) reports an authentication
+    failure — an expired or rejected Claude OAuth credential. No re-run at this
+    tier can clear it; a human must re-authenticate."""
+    lowered = text.lower()
+    return any(sig in lowered for sig in _AUTH_ERROR_SIGNATURES)
+
+
+def is_claude_sdk_auth_error(exc: BaseException) -> bool:
+    """True if *exc* (or anything in its cause/context chain) is the dedicated
+    ``ClaudeSDKAuthError``. Matched by name so this stays free of an import
+    cycle with the error module, walking the bounded cause/context chain like
+    the other helpers."""
+    return any(
+        type(cur).__name__ == "ClaudeSDKAuthError" for cur in _walk_cause_chain(exc)
+    )
+
+
 def is_permanent_api_error_text(text: str) -> bool:
     """True if *text* (assistant-visible turn text) reports an API ``400`` —
     a request-validation rejection that a re-run cannot clear."""
@@ -116,17 +151,19 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     """Core transient set OR a Claude Agent SDK subprocess/transport failure,
     walking the cause/context chain for the latter.
 
-    The turn-cap failure, usage-exhaustion, and API request-validation (400)
-    rejections are explicitly excluded — and checked FIRST, so they win even
-    when the CLI surfaces them as a (normally-transient) ``ProcessError`` or as
-    the degenerate-success frame. Retrying any of them would just repeat the
-    identical failure, so all three must fail loudly rather than burn retries
-    and end in an opaque error."""
+    The turn-cap failure, usage-exhaustion, API request-validation (400)
+    rejections, and authentication (401) failures are explicitly excluded — and
+    checked FIRST, so they win even when the CLI surfaces them as a
+    (normally-transient) ``ProcessError`` or as the degenerate-success frame.
+    Retrying any of them would just repeat the identical failure, so all four
+    must fail loudly rather than burn retries and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
         return False
     if is_claude_sdk_usage_exhausted(exc):
         return False
     if is_claude_sdk_permanent_api_error(exc):
+        return False
+    if is_claude_sdk_auth_error(exc):
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True

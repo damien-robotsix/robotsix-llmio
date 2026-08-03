@@ -511,6 +511,72 @@ def test_stream_query_is_error_without_api_400_signature_unaffected(monkeypatch)
     assert text == "API Error: 429 rate limited"
 
 
+def test_stream_query_raises_on_auth_401_via_collapsed_exception(monkeypatch):
+    """The live outage: an expired OAuth credential 401s, the text streams in
+    as assistant output, and the SDK then collapses the frame into the
+    degenerate-success exception. Without the partial-text check this is
+    classified transient, burns 3 retries against a credential that cannot
+    work, and surfaces as an opaque transport failure."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAuthError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage(
+            "Failed to authenticate. API Error: 401 OAuth access token has "
+            "expired. Re-authenticate to continue."
+        )
+        raise Exception("Claude Code returned an error result: success")
+        yield  # pragma: no cover — makes this an async generator
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKAuthError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "Re-authenticate" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, Exception)
+
+
+def test_stream_query_raises_on_auth_401_reported_as_clean_result(monkeypatch):
+    """The other shape: the CLI reports the 401 as a normal-looking completion
+    (is_error=True, nothing raised). Left unhandled the failure text would be
+    returned to the caller as if it were the model's genuine reply."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAuthError
+
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage(
+            "Failed to authenticate. API Error: 401 OAuth access token has expired."
+        )
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    with pytest.raises(ClaudeSDKAuthError) as exc_info:
+        asyncio.run(_stream_query("prompt", None, "test"))
+    assert "401" in str(exc_info.value)
+
+
+def test_stream_query_is_error_without_auth_signature_unaffected(monkeypatch):
+    """An is_error=True result that is not an auth failure keeps the
+    pre-existing behaviour — narrow scope, same as the 400 handling."""
+    fake = _install_stream_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("API Error: 403 forbidden")
+        result = fake.ResultMessage()
+        result.is_error = True
+        yield result
+
+    fake.query = _fake_query
+
+    text, _result, _reasoning = asyncio.run(_stream_query("prompt", None, "test"))
+    assert text == "API Error: 403 forbidden"
+
+
 # ---------------------------------------------------------------------------
 # _stream_query — OTel span attributes
 # ---------------------------------------------------------------------------

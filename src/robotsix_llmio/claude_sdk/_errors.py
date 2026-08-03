@@ -65,6 +65,29 @@ class ClaudeSDKPermanentAPIError(RobotsixLLMIOError):
     must fail loudly so the offending parameter gets fixed."""
 
 
+class ClaudeSDKAuthError(RobotsixLLMIOError):
+    """The ``claude`` CLI could not authenticate — the stored OAuth credential
+    is expired, revoked, or otherwise rejected with a ``401``.
+
+    Surfaced exactly like usage exhaustion and the ``400``: the CLI streams the
+    failure as assistant-visible text ("Failed to authenticate. API Error: 401
+    OAuth access token has expired.") inside an ``is_error=True``
+    ``ResultMessage``, which ``claude_agent_sdk`` then collapses into its
+    generic degenerate-success message. Left unclassified it looks *transient*,
+    so the bounded retry re-sends the identical request against the same dead
+    credential and the exhausted retry surfaces as an opaque transport failure —
+    the exact shape that made a plain expired token read as an SDK bug.
+
+    Re-running at the *same* tier can never help: the credential stays invalid
+    until a human re-authenticates. It is therefore never treated as transient
+    (see :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`).
+    Because the credential is per-provider rather than per-request, callers
+    should treat it like usage exhaustion and fall back to a *different*
+    capability tier (e.g. via
+    :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`), which
+    keeps a keyed provider serving while the Claude credential is dead."""
+
+
 class ClaudeSDKAPIError(RobotsixLLMIOError):
     """A terminal Claude Agent SDK transport or process failure that survived
     the transient classification and retry loop.
