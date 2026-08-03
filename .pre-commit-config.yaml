@@ -37,7 +37,7 @@ repos:
         # breaks `pre-commit run --all-files`.
         args: ["src/"]
         pass_filenames: false
-        additional_dependencies: ["pydantic-ai>=2.18.0", "httpx"]
+        additional_dependencies: ["pydantic-ai>=2.21.0", "httpx"]
   - repo: local
     hooks:
       - id: vulture
