@@ -1,17 +1,42 @@
-"""OpenRouter transport model — usage accounting + cost recording only.
+"""OpenRouter transport model — usage accounting + cost recording + prompt caching.
 
 Model-family agnostic: this layer knows how to talk to OpenRouter (opt into
 ``usage.include`` and read ``usage.cost``) but applies no provider pin and no
 reasoning policy. Those quirks live in derived modules (e.g.
 ``_deepseek_model``).
+
+Prompt caching: the stable prefix of every request (system prompt + tool
+schemas) is annotated with ``cache_control: {"type": "ephemeral"}`` markers so
+that OpenRouter-compatible upstream providers (DeepSeek, Anthropic, …) cache it
+and charge only cache-read rates (~10% of the full input price) on subsequent
+turns instead of re-billing the full prefix as fresh input.
+
+Why this matters: the mill worker loop resends the full system prompt and tool
+schemas on every turn.  The input:output token ratio on the two highest-volume
+models (deepseek-v4-pro and deepseek-v4-flash) runs ~176:1, so the prefix
+dominates real cash spend.  Caching it moves those tokens from the "input"
+bucket into the "cache read" bucket (roughly one-tenth the price).
+
+Cache semantics confirmed (2026-08):
+- OpenRouter normalizes per-content-block ``cache_control`` markers across
+  providers.  The ``{"type": "ephemeral"}`` object on a message or tool
+  definition tells the upstream to cache everything preceding it.
+- DeepSeek honours these markers; the minimum cacheable prefix is 1,024 tokens
+  and the cache TTL is ~5 minutes of active usage.
+- Cache hits surface in ``usage.prompt_tokens_details.cached_tokens`` (already
+  recorded on the OTel span by ``record_openrouter_cost``).
+- Cache *writes* (the first request that populates the cache) are billed at a
+  premium (~125% of the normal input price).  Subsequent reads are ~10%.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from openai import AsyncStream
+from openai.types import chat
 from openai.types.chat import ChatCompletionChunk
 from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -33,7 +58,15 @@ from robotsix_llmio.core.tracing import (
     get_recording_span,
 )
 
+logger = logging.getLogger(__name__)
+
 PROVIDER_NAME: str = "openrouter"
+
+#: ``cache_control`` marker for prompt caching on upstream providers that
+#: support it (DeepSeek, Anthropic, etc.).  Placed on the last system message
+#: and the last tool definition to mark the end of the cacheable prefix.
+#: See module docstring for cache-semantics notes.
+_CACHE_CONTROL_MARKER: dict[str, str] = {"type": "ephemeral"}
 
 
 def _resolve_model_settings(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -82,6 +115,9 @@ def _get_cost_from_response(response: Any) -> float | None:
 def record_openrouter_cost(response: Any) -> None:
     """Copy ``usage.cost`` (+ tokens + cache details + gen_ai attrs) onto the
     current OTel span. No-op without a cost, a recording span, or OpenTelemetry.
+
+    Also emits an INFO-level log line summarising the cached vs. uncached input
+    token split so the prompt-caching win is directly measurable in logs.
     """
     cost = _get_cost_from_response(response)
     if cost is None:
@@ -104,9 +140,14 @@ def record_openrouter_cost(response: Any) -> None:
     # the logged side to "openrouter" to match an OpenRouter key's scope).
     span.set_attribute(LANGFUSE_OBSERVATION_METADATA_PROVIDER, PROVIDER_NAME)
 
-    model = getattr(response, "model", None)
-    if model:
-        span.set_attribute(GEN_AI_REQUEST_MODEL, model)
+    model_name = getattr(response, "model", None)
+    if model_name:
+        span.set_attribute(GEN_AI_REQUEST_MODEL, model_name)
+
+    cached_tokens: int | None = None
+    cache_creation_tokens: int | None = None
+    prompt_tokens: int | None = None
+
     if usage_obj is not None:
         prompt_tokens = getattr(usage_obj, "prompt_tokens", None)
         if prompt_tokens is not None:
@@ -125,8 +166,10 @@ def record_openrouter_cost(response: Any) -> None:
                     prompt_details, "cache_creation_input_tokens", None
                 )
             if cached is not None:
+                cached_tokens = cached
                 span.set_attribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, cached)
             if cache_creation is not None:
+                cache_creation_tokens = cache_creation
                 span.set_attribute(
                     GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, cache_creation
                 )
@@ -138,6 +181,21 @@ def record_openrouter_cost(response: Any) -> None:
                 reasoning = getattr(completion_details, "reasoning_tokens", None)
             if reasoning is not None:
                 span.set_attribute(GEN_AI_USAGE_REASONING_TOKENS, reasoning)
+
+    # ------------------------------------------------------------------
+    # Log cache-hit ratio so the win is measurable without a Langfuse UI.
+    # ------------------------------------------------------------------
+    if prompt_tokens is not None and cached_tokens is not None:
+        cache_hit_pct = (cached_tokens / prompt_tokens * 100) if prompt_tokens else 0.0
+        model_tag = f"{model_name} " if model_name else ""
+        logger.info(
+            "%sprompt tokens: total=%d cached=%d (%.1f%% hit)%s",
+            model_tag,
+            prompt_tokens,
+            cached_tokens,
+            cache_hit_pct,
+            f" cache_creation={cache_creation_tokens}" if cache_creation_tokens else "",
+        )
 
 
 class _CostCapturingStream:
@@ -175,8 +233,37 @@ class _CostCapturingStream:
 
 
 class OpenRouterModel(OpenAIChatModel):
-    """``OpenAIChatModel`` that opts into OpenRouter usage accounting and emits
-    ``usage.cost`` onto the active OTel span. No pin, no reasoning policy."""
+    """``OpenAIChatModel`` that opts into OpenRouter usage accounting, emits
+    ``usage.cost`` onto the active OTel span, and annotates the stable request
+    prefix with ``cache_control`` markers for prompt caching. No pin, no
+    reasoning policy."""
+
+    #: Whether to annotate the stable prefix (system messages + tools) with
+    #: ``cache_control`` markers.  Enabled by default; subclasses or callers may
+    #: set ``False`` to opt out (e.g. for providers that reject the marker).
+    _prompt_caching_enabled: bool = True
+
+    async def _map_messages(
+        self, *args: Any, **kwargs: Any
+    ) -> list[chat.ChatCompletionMessageParam]:
+        messages = await super()._map_messages(*args, **kwargs)
+        if not self._prompt_caching_enabled or not messages:
+            return messages
+        # Annotate the last system message so the system prompt is cached.
+        for msg in reversed(messages):
+            if msg.get("role") == "system":
+                msg["cache_control"] = _CACHE_CONTROL_MARKER  # type: ignore[typeddict-unknown-key]
+                break
+        return messages
+
+    def _get_tool_choice(
+        self, *args: Any, **kwargs: Any
+    ) -> tuple[list[chat.ChatCompletionToolParam], Any]:
+        tools, tool_choice = super()._get_tool_choice(*args, **kwargs)
+        if self._prompt_caching_enabled and tools:
+            # Annotate the last tool definition so the tool schemas are cached.
+            tools[-1]["cache_control"] = _CACHE_CONTROL_MARKER  # type: ignore[typeddict-unknown-key]
+        return tools, tool_choice
 
     async def _completions_create(self, *args: Any, **kwargs: Any) -> Any:
         _inject_usage_include(args, kwargs)

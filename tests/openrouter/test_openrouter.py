@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from robotsix_llmio.openrouter.model import (
+    _CACHE_CONTROL_MARKER,
     PROVIDER_NAME,
     OpenRouterModel,
     _CostCapturingStream,
@@ -428,3 +429,151 @@ def test_completions_create_non_stream_records_cost_directly(
     result = asyncio.run(_run())
     assert not isinstance(result, _CostCapturingStream)
     span.set_attribute.assert_any_call("gen_ai.usage.cost", 0.01)
+
+
+# ---------------------------------------------------------------------------
+# Prompt-caching tests — _map_messages, _get_tool_choice, cache logging
+# ---------------------------------------------------------------------------
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._map_messages")
+def test_map_messages_adds_cache_control_to_last_system_message(mock_super, mock_init):
+    mock_super.return_value = [
+        {"role": "system", "content": "first system"},
+        {"role": "user", "content": "hello"},
+        {"role": "system", "content": "second system"},
+        {"role": "assistant", "content": "hi"},
+    ]
+
+    async def _run():
+        model = OpenRouterModel("x/y")
+        return await model._map_messages([], {})
+
+    result = asyncio.run(_run())
+
+    # Only the last system message should carry cache_control.
+    assert result[0].get("cache_control") is None
+    assert result[1].get("cache_control") is None
+    assert result[2]["cache_control"] == _CACHE_CONTROL_MARKER
+    assert result[3].get("cache_control") is None
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._map_messages")
+def test_map_messages_no_cache_control_when_disabled(mock_super, mock_init):
+    mock_super.return_value = [
+        {"role": "system", "content": "only system"},
+    ]
+
+    async def _run():
+        model = OpenRouterModel("x/y")
+        model._prompt_caching_enabled = False
+        return await model._map_messages([], {})
+
+    result = asyncio.run(_run())
+    assert result[0].get("cache_control") is None
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._map_messages")
+def test_map_messages_no_system_messages_no_cache_control(mock_super, mock_init):
+    mock_super.return_value = [
+        {"role": "user", "content": "hello"},
+    ]
+
+    async def _run():
+        model = OpenRouterModel("x/y")
+        return await model._map_messages([], {})
+
+    result = asyncio.run(_run())
+    assert result[0].get("cache_control") is None
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._get_tool_choice")
+def test_get_tool_choice_adds_cache_control_to_last_tool(mock_super, mock_init):
+    mock_super.return_value = (
+        [
+            {"type": "function", "function": {"name": "tool_a", "description": "a"}},
+            {"type": "function", "function": {"name": "tool_b", "description": "b"}},
+        ],
+        "auto",
+    )
+
+    model = OpenRouterModel("x/y")
+    tools, _tool_choice = model._get_tool_choice({}, {})
+
+    assert len(tools) == 2
+    assert tools[0].get("cache_control") is None
+    assert tools[1]["cache_control"] == _CACHE_CONTROL_MARKER
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._get_tool_choice")
+def test_get_tool_choice_no_cache_control_when_disabled(mock_super, mock_init):
+    mock_super.return_value = (
+        [{"type": "function", "function": {"name": "tool_a", "description": "a"}}],
+        "auto",
+    )
+
+    model = OpenRouterModel("x/y")
+    model._prompt_caching_enabled = False
+    tools, _tool_choice = model._get_tool_choice({}, {})
+
+    assert tools[0].get("cache_control") is None
+
+
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel.__init__", return_value=None)
+@patch("robotsix_llmio.openrouter.model.OpenAIChatModel._get_tool_choice")
+def test_get_tool_choice_no_tools_no_cache_control(mock_super, mock_init):
+    mock_super.return_value = ([], None)
+
+    model = OpenRouterModel("x/y")
+    tools, _tool_choice = model._get_tool_choice({}, {})
+
+    assert tools == []
+
+
+@patch("robotsix_llmio.openrouter.model.logger")
+@patch("robotsix_llmio.openrouter.model.get_recording_span")
+def test_record_cost_logs_cache_hit_ratio(mock_get_span, mock_logger):
+    span = MagicMock()
+    mock_get_span.return_value = span
+    resp = SimpleNamespace(
+        usage=SimpleNamespace(
+            cost=0.04,
+            model_extra=None,
+            prompt_tokens=100,
+            prompt_tokens_details={
+                "cached_tokens": 80,
+                "cache_creation_input_tokens": 20,
+            },
+        ),
+        model="deepseek/deepseek-v4-pro",
+    )
+    record_openrouter_cost(resp)
+    mock_logger.info.assert_called_once()
+    args, _kwargs = mock_logger.info.call_args
+    log_msg = args[0] % args[1:]
+    assert "prompt tokens: total=100 cached=80" in log_msg
+    assert "80.0% hit" in log_msg
+    assert "cache_creation=20" in log_msg
+
+
+@patch("robotsix_llmio.openrouter.model.logger")
+@patch("robotsix_llmio.openrouter.model.get_recording_span")
+def test_record_cost_no_cache_log_when_no_cached_tokens(mock_get_span, mock_logger):
+    span = MagicMock()
+    mock_get_span.return_value = span
+    resp = SimpleNamespace(
+        usage=SimpleNamespace(
+            cost=0.04,
+            model_extra=None,
+            prompt_tokens=100,
+        ),
+        model="x/y",
+    )
+    record_openrouter_cost(resp)
+    # No log call for cache because cached_tokens is absent.
+    assert not mock_logger.info.called

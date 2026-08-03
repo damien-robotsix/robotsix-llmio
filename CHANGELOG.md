@@ -72,6 +72,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Annotate the stable request prefix (system prompt + tool schemas) with `cache_control: {"type": "ephemeral"}` markers on the OpenRouter path so upstream providers (DeepSeek, Anthropic, …) cache it and charge cache-read rates (~10% of full input price) on subsequent turns instead of re-billing the full prefix as fresh input.  Add an INFO log line in `record_openrouter_cost` summarising the cached-vs-uncached input token split so the win is directly measurable in logs.
 - Removed dead `robotsix_llmio.changelog` module and its orphaned test; the project uses towncrier newsfragments under `changelog.d/` instead.
 - Stamp ``llmio.stream.turn_count``, ``llmio.stream.tool_calls``, ``llmio.stream.thinking_blocks``, and ``llmio.stream.is_error`` OTEL span attributes from the Claude SDK streaming loop, mirroring the pattern used by ``core/retry.py`` and ``core/tier_fallback.py``.
 - Update `ARCHITECTURE.md` test tree: replace stale split-file references (`test_core_retry_async.py`, `test_tracing_live.py`, `test_tier.py`) with their actual split children, and add 11 other test files that were missing from the listing.

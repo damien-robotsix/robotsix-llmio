@@ -32,8 +32,10 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
    assembler. All numeric parameters (timeouts, retry counts, backoff) are
    **baked constants** — not tunable.
 2. **`robotsix_llmio.openrouter`** — OpenRouter transport: auth/base-url,
-   `usage.include` opt-in, cost extraction from `usage.cost`, and the
-   OpenRouter upstream-error transient signature. Model-family agnostic.
+   `usage.include` opt-in, cost extraction from `usage.cost`, the
+   OpenRouter upstream-error transient signature, and prompt caching of the
+   stable request prefix (system prompt + tool schemas) via `cache_control`
+   markers. Model-family agnostic.
 3. **`robotsix_llmio.openrouter`** — the derived layer most consumers
    plug in. Extends the OpenRouter layer with DeepSeek specifics: pin the
    upstream provider to DeepSeek (warm prompt cache) and a level→reasoning
