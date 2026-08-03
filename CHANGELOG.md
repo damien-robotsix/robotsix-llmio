@@ -98,6 +98,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Add `credit_balance` periodic workflow stub (`.robotsix-mill/periodic/credit_balance.yaml`) to enable OpenRouter credit monitoring at the library level.
 - Added a new testing convention rule to `AGENT.md`: when splitting, renaming, or removing test files (or adding a new `tests/` sub-suite), update ARCHITECTURE.md's test coverage strategy listing in the same change to prevent documentation drift.
 - Annotate the stable request prefix (system prompt + tool schemas) with `cache_control: {"type": "ephemeral"}` markers on the OpenRouter path so upstream providers (DeepSeek, Anthropic, …) cache it and charge cache-read rates (~10% of full input price) on subsequent turns instead of re-billing the full prefix as fresh input.  Add an INFO log line in `record_openrouter_cost` summarising the cached-vs-uncached input token split so the win is directly measurable in logs.
 - Removed dead `robotsix_llmio.changelog` module and its orphaned test; the project uses towncrier newsfragments under `changelog.d/` instead.
