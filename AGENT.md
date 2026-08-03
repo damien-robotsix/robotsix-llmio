@@ -10,6 +10,10 @@ robotsix-llmio is a **library** ([repo-baseline tier](https://damien-robotsix.gi
 
 **Rationale:** This pattern of duplicated test helpers has been observed across multiple tickets and should not recur.
 
+**Rule:** When splitting, renaming, or removing a test file (or adding a new `tests/` sub-suite), update the `tests/` tree listing in ARCHITECTURE.md's 'Test coverage strategy' section (currently ~L308–361) in the same change — replace stale single-file references with the split children rather than leaving the architecture doc for a later doc-only ticket.
+
+**Rationale:** Three test-split tickets (20260731T011721Z retry split, 20260730T123815Z tracing-live split, 20260729T144040Z tier split) referenced by ticket 20260802T142620Z-update-architecture-md-stale-test-file-r-1483 were merged without updating ARCHITECTURE.md, leaving stale file references that required a dedicated doc-only follow-up to correct — the same documentation-drift class already called out for the README configuration table.
+
 See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/blob/main/python.md) for the shared-fixture-in-conftest rule.
 
 ## Configuration conventions
