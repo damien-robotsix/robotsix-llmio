@@ -252,7 +252,7 @@ class OpenRouterModel(OpenAIChatModel):
         # Annotate the last system message so the system prompt is cached.
         for msg in reversed(messages):
             if msg.get("role") == "system":
-                msg["cache_control"] = _CACHE_CONTROL_MARKER
+                msg["cache_control"] = _CACHE_CONTROL_MARKER  # type: ignore[typeddict-unknown-key]
                 break
         return messages
 
@@ -262,7 +262,7 @@ class OpenRouterModel(OpenAIChatModel):
         tools, tool_choice = super()._get_tool_choice(*args, **kwargs)
         if self._prompt_caching_enabled and tools:
             # Annotate the last tool definition so the tool schemas are cached.
-            tools[-1]["cache_control"] = _CACHE_CONTROL_MARKER
+            tools[-1]["cache_control"] = _CACHE_CONTROL_MARKER  # type: ignore[typeddict-unknown-key]
         return tools, tool_choice
 
     async def _completions_create(self, *args: Any, **kwargs: Any) -> Any:
