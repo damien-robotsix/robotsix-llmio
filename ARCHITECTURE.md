@@ -314,12 +314,15 @@ sub-directory for modules that have their own test suite:
   - `test_core_provider.py` — the `LLMProvider` contract.
   - `test_core_provider_cost.py` — provider cost tracking.
   - `test_core_retry_sync.py` — sync wrappers, retry-then-fallback.
-  - `test_core_retry_async.py` — async parity, retries-exhausted,
-    rate-limit, backoff jitter.
+  - `test_core_retry_async_fallback.py` — async fallback unit tests.
+  - `test_core_retry_async_parity.py` — async parity unit tests.
+  - `test_core_retry_async_sync_wrappers.py` — async sync wrappers unit tests.
   - `test_core_retry_properties.py` — property tests.
   - `test_core_run.py` — top-level run loop unit tests.
   - `test_core_tier_fallback.py` — tier-fallback unit tests.
+  - `test_core_tier_fallback_async.py` — async tier-fallback unit tests.
   - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
+  - `test_core_tier_fallback_sync.py` — sync tier-fallback unit tests.
   - `test_exceptions.py` — custom exception classes.
   - `test_factory.py` — agent factory unit tests.
   - `test_factory_levels.py` — capability-level factory tests.
@@ -331,9 +334,13 @@ sub-directory for modules that have their own test suite:
   - `test_otel.py` — OpenTelemetry setup unit tests.
   - `test_sqlite_utils.py` — SQLite utility unit tests.
   - `test_text_utils.py` — text utility unit tests.
-  - `test_tracing_setup.py` — tracing setup + surface API unit tests.
+  - `test_tracing_filtered_batch.py` — filtered batch unit tests.
   - `test_tracing_routing.py` — trace routing + span processor unit tests.
-  - `test_tracing_live.py` — live tracing (opt-in).
+  - `test_tracing_setup.py` — tracing setup + surface API unit tests.
+  - `test_tracing_stamp_processor.py` — stamp processor unit tests.
+  - `test_tracing_live_claude.py` — live tracing: Claude SDK (opt-in).
+  - `test_tracing_live_multitenant.py` — live tracing: multitenant (opt-in).
+  - `test_tracing_live_openrouter.py` — live tracing: OpenRouter (opt-in).
 - `tests/clients/` — unit tests for the client layer:
   - `_base/test_base.py` — base client unit tests.
   - `knowledge/test_knowledge.py` — knowledge client unit tests.
@@ -344,7 +351,10 @@ sub-directory for modules that have their own test suite:
   - `test_config_integration.py` — config integration tests.
   - `test_lazy_imports.py` — lazy imports tests.
   - `test_loader.py` — config loader unit tests.
-  - `test_tier.py` — tier config unit tests.
+  - `test_tier_config.py` — tier config unit tests.
+  - `test_tier_level.py` — tier level unit tests.
+  - `test_tier_level_config.py` — tier level config unit tests.
+  - `test_tier_reexports.py` — tier reexports unit tests.
 - `tests/openrouter/`:
   - `test_openrouter.py` — OpenRouter transport unit tests.
   - `test_openrouter_deepseek.py` — unit tests for the DeepSeek derived layer.
@@ -363,9 +373,12 @@ sub-directory for modules that have their own test suite:
   - `test_prompt_rendering.py` — prompt rendering unit tests.
   - `test_run_kwargs.py` — run-kwargs propagation unit tests.
   - `test_stream.py` — streaming response unit tests.
+  - `test_stream_short_log.py` — short log streaming unit tests.
   - `test_task_budget.py` — `task_budget` floor/clamp unit tests.
   - `test_tool_bridge.py` — tool-bridge unit tests.
   - `test_tracing.py` — Claude SDK tracing unit tests.
+  - `test_tracing_notools.py` — tracing without tools unit tests.
+  - `test_tracing_reasoning.py` — tracing with reasoning unit tests.
   - `test_transient.py` — transient-error classification unit tests.
   - `test_usage.py` — usage/cost tracking unit tests.
 

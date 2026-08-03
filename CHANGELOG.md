@@ -74,6 +74,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 - Removed dead `robotsix_llmio.changelog` module and its orphaned test; the project uses towncrier newsfragments under `changelog.d/` instead.
 - Stamp ``llmio.stream.turn_count``, ``llmio.stream.tool_calls``, ``llmio.stream.thinking_blocks``, and ``llmio.stream.is_error`` OTEL span attributes from the Claude SDK streaming loop, mirroring the pattern used by ``core/retry.py`` and ``core/tier_fallback.py``.
+- Update `ARCHITECTURE.md` test tree: replace stale split-file references (`test_core_retry_async.py`, `test_tracing_live.py`, `test_tier.py`) with their actual split children, and add 11 other test files that were missing from the listing.
 - Add OpenTelemetry span observability to tier-fallback lifecycle (`_tier_fallback_loop`): each tier attempt now produces a child span with `llmio.tier.level`, `llmio.tier.provider`, `llmio.tier.model`, `llmio.tier.attempt_index`, and `llmio.tier.succeeded` attributes; promotion events additionally stamp `llmio.tier.promotions` and `llmio.tier.fallback_activated` on the parent run span so Langfuse traces expose the full tier-escalation history.
 - Documented CI rule: do not add `changelog.d/**` globs to any module's `paths` in `docs/modules.yaml` — the `project-root` module already claims them.
 - Re-export `is_openrouter_upstream_payment_error` from `robotsix_llmio.openrouter`, matching the package's existing convention of individually exporting its transient-signature peer predicates.
