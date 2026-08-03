@@ -1,5 +1,0 @@
-Claude SDK: respect the `task_budget.total` API floor, and stop retrying API `400`s.
-
-A tier's `max_tokens` was mapped straight onto `ClaudeAgentOptions.task_budget`, but the two are different controls — `max_tokens` is a hard per-response output cap, while `task_budget` is an advisory whole-loop budget with an API-enforced minimum of 20,000 tokens. Any agent configured below that floor had **every** call rejected with `400 \`task_budget.total\` must be at least 20,000 tokens for this model` (mill's `refine`, at `max_tokens: 8192`). `build_task_budget()` now clamps to the floor and warns once per agent.
-
-The 400 was also misclassified as transient: the CLI reports it as assistant text inside an `is_error=True` result, which `claude_agent_sdk` collapses into its degenerate-success frame, so the bounded retry burned all three attempts re-sending an identically invalid request and then surfaced an opaque transport failure that callers could read as "ran, changed nothing". A 400 is deterministic, so it now raises the dedicated `ClaudeSDKPermanentAPIError` and is never retried. Scoped to 400 — 429 and 5xx stay transient.
