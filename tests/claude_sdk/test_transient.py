@@ -313,3 +313,70 @@ def test_retryable_status_codes_stay_transient():
     assert is_permanent_api_error_text("API Error: 429 rate limited") is False
     assert is_permanent_api_error_text("API Error: 500 internal") is False
     assert is_permanent_api_error_text("API Error: 529 overloaded") is False
+
+
+# --- API 401: dead credential, never retryable at this tier -----------------
+
+
+def test_auth_error_type_detected_and_not_transient():
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAuthError
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_auth_error
+
+    e = ClaudeSDKAuthError("API Error: 401 OAuth access token has expired")
+    assert is_claude_sdk_auth_error(e) is True
+    # The credential stays dead until a human re-authenticates, so every retry
+    # re-sends against the same expired token.
+    assert is_claude_sdk_transient(e) is False
+
+
+def test_auth_error_beats_degenerate_success_wrapper():
+    """The live outage shape: an expired OAuth token 401s, the CLI exits
+    non-zero, and claude_agent_sdk replaces the real ProcessError with its
+    degenerate-success message — which IS transient. The auth cause must win,
+    or a plain "re-authenticate" instruction burns 3 retries and surfaces as an
+    opaque transport failure."""
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKAuthError
+    from robotsix_llmio.claude_sdk.transient import (
+        is_claude_sdk_auth_error,
+        is_claude_sdk_degenerate_success,
+    )
+
+    cause = ClaudeSDKAuthError(
+        "Failed to authenticate. API Error: 401 OAuth access token has expired."
+    )
+    try:
+        raise Exception("Claude Code returned an error result: success") from cause
+    except Exception as e:
+        assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
+        assert is_claude_sdk_auth_error(e) is True  # ...but auth wins
+        assert is_claude_sdk_transient(e) is False
+
+
+def test_non_auth_runtime_error_unaffected():
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_auth_error
+
+    assert is_claude_sdk_auth_error(RuntimeError("something else")) is False
+
+
+def test_is_auth_error_text_matches_the_cli_wording_case_insensitively():
+    from robotsix_llmio.claude_sdk.transient import is_auth_error_text
+
+    # Verbatim wording observed from Claude Code 2.1.199 on an expired token.
+    assert is_auth_error_text(
+        "Failed to authenticate. API Error: 401 OAuth access token has "
+        "expired. Re-authenticate to continue."
+    )
+    assert is_auth_error_text("api error: 401") is True
+    assert is_auth_error_text("OAUTH ACCESS TOKEN HAS EXPIRED") is True
+    assert is_auth_error_text("all good here") is False
+
+
+def test_auth_signature_stays_narrow():
+    """Scoped to 401 deliberately: 403 is authorisation rather than a dead
+    credential, and 429/5xx are genuinely retryable — none may be swallowed
+    into the never-retry class."""
+    from robotsix_llmio.claude_sdk.transient import is_auth_error_text
+
+    assert is_auth_error_text("API Error: 403 forbidden") is False
+    assert is_auth_error_text("API Error: 429 rate limited") is False
+    assert is_auth_error_text("API Error: 500 server error") is False
