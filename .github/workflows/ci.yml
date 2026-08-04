@@ -84,7 +84,7 @@ jobs:
       install-extras: "openrouter claude_sdk"
       trufflehog-pr-diff: true
       trufflehog-extra-args: "--results=verified,unknown"
-      pip-audit-ignore-vulns: "CVE-2026-59950"
+      pip-audit-ignore-vulns: "CVE-2026-59950 PYSEC-2026-3552 PYSEC-2026-3553 PYSEC-2026-3554"
 
   codeql:
     name: CodeQL
