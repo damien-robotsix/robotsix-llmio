@@ -98,6 +98,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Add `robotsix-modules` pre-commit hook and document the `uv run robotsix-modules check-registration` command in CONTRIBUTING.md, so the CI modules-registration gate is reproducible locally.
 - Enable pin_bump periodic workflow for automated dependency pin bumping
 - Add `credit_balance` periodic workflow stub (`.robotsix-mill/periodic/credit_balance.yaml`) to enable OpenRouter credit monitoring at the library level.
 - Added a new testing convention rule to `AGENT.md`: when splitting, renaming, or removing test files (or adding a new `tests/` sub-suite), update ARCHITECTURE.md's test coverage strategy listing in the same change to prevent documentation drift.
