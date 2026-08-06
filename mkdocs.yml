@@ -10,6 +10,7 @@ docs_dir: docs
 
 plugins:
   - search
+  - include-markdown
   - mkdocstrings:
       handlers:
         python:
@@ -48,3 +49,4 @@ nav:
       - Refdocs: reference/refdocs.md
       - Self-Review: reference/self_review.md
   - Changelog: changelog.md
+  - Contributing: contributing.md
