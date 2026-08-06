@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from dataclasses import dataclass
 
 import pytest
 
 from robotsix_llmio.claude_sdk._task_budget import (
     TASK_BUDGET_MIN_TOTAL,
     build_task_budget,
+    run_with_task_budget,
+    supports_task_budget,
 )
 
 
@@ -17,8 +21,10 @@ def _reset_warn_state():
     from robotsix_llmio.claude_sdk import _task_budget
 
     _task_budget._clamp_warned.clear()
+    _task_budget._unsupported_models.clear()
     yield
     _task_budget._clamp_warned.clear()
+    _task_budget._unsupported_models.clear()
 
 
 def test_none_max_tokens_yields_no_budget():
@@ -52,3 +58,130 @@ def test_clamp_warning_is_emitted_once_per_label(caplog):
 
 def test_floor_matches_documented_api_minimum():
     assert TASK_BUDGET_MIN_TOTAL == 20_000
+
+
+# ---------------------------------------------------------------------------
+# Unsupported-model discovery
+#
+# ``task_budget`` is a beta parameter only some models accept, and the tier
+# alias is resolved by the CLI downstream of this process — so the transport
+# learns the answer from the API's rejection rather than a hardcoded list.
+#
+# These drive the coroutine with ``asyncio.run`` rather than an async test
+# plugin: this suite has no async tests and no asyncio plugin configured, and
+# one helper is not worth a new test dependency.
+# ---------------------------------------------------------------------------
+
+_UNSUPPORTED_MSG = (
+    "Anthropic API rejected the request (claude:sonnet): API Error: 400 "
+    "This model does not support user-configurable task budgets."
+)
+
+
+@dataclass
+class _Opts:
+    """Stand-in for ``ClaudeAgentOptions`` — a mutable dataclass carrying the
+    one field under test, so these tests don't need the SDK installed.
+    ``dataclasses.replace`` (used by the helper) requires a real dataclass."""
+
+    task_budget: dict | None = None
+    model: str = "sonnet"
+
+
+def test_unsupported_model_retries_once_without_budget():
+    """The one 400 worth retrying: drop the budget, re-send, succeed."""
+    seen: list[dict | None] = []
+
+    async def run(opts):
+        seen.append(opts.task_budget)
+        if opts.task_budget is not None:
+            raise RuntimeError(_UNSUPPORTED_MSG)
+        return "ok"
+
+    result = asyncio.run(
+        run_with_task_budget(
+            run, _Opts(task_budget={"total": 20_000}), "sonnet", "claude:sonnet"
+        )
+    )
+
+    assert result == "ok"
+    assert seen == [{"total": 20_000}, None], "expected one retry, budget dropped"
+    assert not supports_task_budget("sonnet"), "model should be remembered"
+
+
+def test_subsequent_calls_skip_the_budget_entirely():
+    """After discovery, build_task_budget stops asking — no second round trip."""
+
+    async def run(opts):
+        if opts.task_budget is not None:
+            raise RuntimeError(_UNSUPPORTED_MSG)
+        return "ok"
+
+    asyncio.run(
+        run_with_task_budget(
+            run, _Opts(task_budget={"total": 20_000}), "sonnet", "claude:sonnet"
+        )
+    )
+
+    assert build_task_budget(50_000, "claude:sonnet", "sonnet") is None
+    # A different model is unaffected — aliases can resolve differently.
+    assert build_task_budget(50_000, "claude:opus", "opus") == {"total": 50_000}
+
+
+def test_other_400s_are_not_retried():
+    """Every other request-validation rejection is reproducible — retrying it
+    would burn a round trip for nothing."""
+    calls = 0
+
+    async def run(opts):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("API Error: 400 `task_budget.total` must be at least 20,000")
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(
+            run_with_task_budget(
+                run, _Opts(task_budget={"total": 100}), "sonnet", "claude:sonnet"
+            )
+        )
+
+    assert calls == 1, "a non-task-budget 400 must not be retried"
+    assert supports_task_budget("sonnet")
+
+
+def test_no_budget_means_no_retry():
+    """With no budget to drop there is nothing to retry — don't loop."""
+    calls = 0
+
+    async def run(opts):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError(_UNSUPPORTED_MSG)
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(
+            run_with_task_budget(
+                run, _Opts(task_budget=None), "sonnet", "claude:sonnet"
+            )
+        )
+
+    assert calls == 1
+
+
+def test_retry_failure_propagates():
+    """If the budget-free retry also fails, the caller sees that error."""
+
+    async def run(opts):
+        raise RuntimeError(_UNSUPPORTED_MSG if opts.task_budget else "boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(
+            run_with_task_budget(
+                run, _Opts(task_budget={"total": 20_000}), "sonnet", "claude:sonnet"
+            )
+        )
+
+
+def test_model_arg_is_optional_and_backward_compatible():
+    """Existing two-arg callers keep working."""
+    assert build_task_budget(50_000, "agent") == {"total": 50_000}

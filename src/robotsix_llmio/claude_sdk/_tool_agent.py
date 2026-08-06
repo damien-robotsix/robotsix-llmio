@@ -35,7 +35,7 @@ from ._confinement import (
     _make_confine_hook,
 )
 from ._output import _build_schema_json, _parse_output
-from ._task_budget import build_task_budget
+from ._task_budget import build_task_budget, run_with_task_budget
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
     from claude_agent_sdk import (
@@ -343,7 +343,9 @@ class _SdkToolAgentHandle:
             max_turns=self._max_turns,
             mcp_servers={"milltools": self._server},
             setting_sources=[],
-            task_budget=build_task_budget(self._max_tokens, self._name),
+            task_budget=build_task_budget(
+                self._max_tokens, self._name, self._sdk_model
+            ),
             **extra,
         )
 
@@ -361,28 +363,40 @@ class _SdkToolAgentHandle:
         ``subtype="success"`` frame, which a re-run clears — are retried here.
         The no-tools Model path gets this for free via pydantic-ai's retries;
         the tool path drives the SDK loop itself, so it must retry on its own.
+
+        The whole retry loop is wrapped in :func:`run_with_task_budget` rather
+        than each attempt: a model that rejects ``task_budget`` rejects it on
+        every attempt, so discovering that inside the loop would burn the
+        transient budget re-sending the same invalid request. Wrapping outside
+        means the budget is dropped once and the loop then runs with its full
+        allowance against a request that can actually succeed.
         """
         from ._stream import _stream_query
         from .transient import is_claude_sdk_transient
 
-        last_exc: Exception | None = None
-        for attempt in range(_SDK_QUERY_ATTEMPTS):
-            try:
-                return await _stream_query(prompt, options, self._name)
-            except Exception as exc:
-                last_exc = exc
-                if attempt + 1 < _SDK_QUERY_ATTEMPTS and is_claude_sdk_transient(exc):
-                    log.warning(
-                        "%s: transient SDK error on attempt %d/%d, retrying: %s",
-                        self._name,
-                        attempt + 1,
-                        _SDK_QUERY_ATTEMPTS,
-                        exc,
-                    )
-                    continue
-                raise
-        assert last_exc is not None  # unreachable: loop returns or raises
-        raise last_exc
+        async def _run(opts: ClaudeAgentOptions) -> tuple[str, Any, str]:
+            last_exc: Exception | None = None
+            for attempt in range(_SDK_QUERY_ATTEMPTS):
+                try:
+                    return await _stream_query(prompt, opts, self._name)
+                except Exception as exc:
+                    last_exc = exc
+                    if attempt + 1 < _SDK_QUERY_ATTEMPTS and is_claude_sdk_transient(
+                        exc
+                    ):
+                        log.warning(
+                            "%s: transient SDK error on attempt %d/%d, retrying: %s",
+                            self._name,
+                            attempt + 1,
+                            _SDK_QUERY_ATTEMPTS,
+                            exc,
+                        )
+                        continue
+                    raise
+            assert last_exc is not None  # unreachable: loop returns or raises
+            raise last_exc
+
+        return await run_with_task_budget(_run, options, self._sdk_model, self._name)
 
     def _record_generation_span(
         self,
