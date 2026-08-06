@@ -51,6 +51,16 @@ _USAGE_EXHAUSTED_SIGNATURE = "out of usage credits"
 _PERMANENT_API_ERROR_SIGNATURE = "api error: 400"
 
 
+# The one 400 above that is NOT the caller's fault and IS worth re-running.
+# ``task_budget`` is accepted only by a subset of models; every other model
+# rejects the request outright with this wording. Because the parameter is one
+# *this transport* adds (from the tier's ``max_tokens``), the fix is to drop it
+# and retry rather than to fail the caller — see
+# ``_task_budget.mark_task_budget_unsupported``. Matched on the distinctive
+# phrase rather than the full sentence so minor rewording upstream still hits.
+_TASK_BUDGET_UNSUPPORTED_SIGNATURE = "does not support user-configurable task budgets"
+
+
 # The Claude CLI's wording when the stored OAuth credential is rejected
 # ("Failed to authenticate. API Error: 401 OAuth access token has expired.
 # Re-authenticate to continue."). Same delivery shape as the two signatures
@@ -90,6 +100,30 @@ def is_permanent_api_error_text(text: str) -> bool:
     """True if *text* (assistant-visible turn text) reports an API ``400`` —
     a request-validation rejection that a re-run cannot clear."""
     return _PERMANENT_API_ERROR_SIGNATURE in text.lower()
+
+
+def is_task_budget_unsupported_text(text: str) -> bool:
+    """True if *text* reports the one ``400`` that IS clearable by re-running.
+
+    ``task_budget`` is only accepted by a subset of models. Sending it to any
+    other one is rejected with this message, and unlike every other 400 here
+    the offending parameter is one this transport added on the caller's behalf
+    — so dropping it and retrying is both possible and correct, where retrying
+    a genuinely malformed request would be waste. Callers pair this with
+    :func:`~robotsix_llmio.claude_sdk._task_budget.mark_task_budget_unsupported`
+    so the retry happens once per model rather than once per call.
+    """
+    return _TASK_BUDGET_UNSUPPORTED_SIGNATURE in text.lower()
+
+
+def is_task_budget_unsupported_error(exc: BaseException) -> bool:
+    """True if *exc* (or anything in its cause/context chain) carries the
+    task-budget-unsupported rejection. The raise sites fold the offending turn
+    text into the exception message, so matching the message is what's
+    available — same best-effort string tradeoff as the signatures above."""
+    return any(
+        is_task_budget_unsupported_text(str(cur)) for cur in _walk_cause_chain(exc)
+    )
 
 
 def is_claude_sdk_permanent_api_error(exc: BaseException) -> bool:
