@@ -125,8 +125,7 @@ two scans stay in sync.
   errors that come from subclassing pydantic-ai's `OpenAIChatModel`.
 - **Module layering**: core → openrouter (DeepSeek derived classes live inside
 `openrouter`); `claude_sdk` is
-  a sibling of openrouter (see the [README](README.md) for the architectural
-  narrative). Don't introduce new top-level tunable knobs — timeout, retry, and
+  a sibling of openrouter (see the [README](https://github.com/damien-robotsix/robotsix-llmio#readme) for the architectural narrative). Don't introduce new top-level tunable knobs — timeout, retry, and
   backoff values are baked constants by design.
 
 ## 6. Pull request expectations

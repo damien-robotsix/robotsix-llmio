@@ -110,6 +110,7 @@ modules:
       - README.md
       - ARCHITECTURE.md
       - CONTRIBUTING.md
+      - docs/contributing.md
       - CHANGELOG.md
       - LICENSE
       - SECURITY.md
