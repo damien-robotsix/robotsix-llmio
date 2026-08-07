@@ -121,11 +121,19 @@ def build_task_budget(
     """Build the ``task_budget`` option for *label* from a tier's *max_tokens*.
 
     ``None`` (no configured cap) yields ``None`` — an unbounded loop. A value at
-    or above :data:`TASK_BUDGET_MIN_TOTAL` is passed through. A value *below* the
-    floor is clamped up to it, warning once per *label*: the request would
-    otherwise be rejected outright, and a working call with a larger-than-asked
-    advisory budget beats an agent that cannot run at all. The operator's
-    intent is not silently honoured — hence the warning.
+    or above :data:`TASK_BUDGET_MIN_TOTAL` is passed through.
+
+    A value *below* the floor yields ``None`` too, warning once per *label*. It
+    cannot be honoured: the floor is a hard request-validation minimum, and the
+    budget is advisory anyway — so the only alternatives are to send nothing or
+    to send a number the operator did not choose. Sending nothing is the honest
+    one. Clamping *up* (the previous behaviour) was strictly worse than both
+    readings of the intent: it capped nothing, and it told the model it had a
+    small allowance for the whole task — which on a 8,192 → 20,000 clamp meant
+    agents wrapping up before they had started (observed 2026-08-06, an agent
+    reporting itself "out of token budget for this task before I could load the
+    required tools"). An unbudgeted loop is bounded by ``max_turns`` and the
+    caller's own wall-clock and spend controls.
 
     *model*, when given, is checked against the set of models already observed
     rejecting the parameter (see :func:`mark_task_budget_unsupported`); a known
@@ -142,14 +150,16 @@ def build_task_budget(
         _clamp_warned.add(label)
         logger.warning(
             "%s: configured max_tokens=%d is below the Claude Agent SDK "
-            "task_budget floor of %d; clamping. The agent loop's advisory "
-            "budget will be %d, not %d — lower max_tokens cannot be expressed "
-            "as a task_budget. Set max_tokens >= %d to silence this.",
+            "task_budget floor of %d, so no task_budget is sent. A lower value "
+            "cannot be expressed as one, and task_budget is advisory rather "
+            "than an enforced cap — sending the floor instead would tell the "
+            "model it had a %d-token allowance for the whole task, which it "
+            "paces itself against. Set max_tokens >= %d to send a real budget, "
+            "or leave it unset to silence this.",
             label,
             max_tokens,
             TASK_BUDGET_MIN_TOTAL,
             TASK_BUDGET_MIN_TOTAL,
-            max_tokens,
             TASK_BUDGET_MIN_TOTAL,
         )
-    return {"total": TASK_BUDGET_MIN_TOTAL}
+    return None

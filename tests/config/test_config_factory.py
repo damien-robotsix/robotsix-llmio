@@ -58,9 +58,11 @@ class TestCreateModelHappyPath:
         """``create_model(level=3)`` derives provider from LEVEL3_DEFAULT's
         identifier (``"claudeSDK-opus"``)."""
         result = create_model(level=3)
+        # No max_tokens: the Claude SDK levels carry none, because the SDK has
+        # no per-response cap and the value could only become an advisory
+        # task_budget (see tier.py). The OpenRouter levels above still do.
         mock_get_provider_for_identifier.assert_called_once_with(
             "claudeSDK-opus",
-            max_tokens=8192,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
@@ -122,9 +124,18 @@ class TestCreateModelDefaultFallback:
 
         create_model(level=level)
 
+        # max_tokens is forwarded only when the level actually sets one. The
+        # OpenRouter levels do (there it is a real per-response cap); the
+        # Claude SDK level does not (see tier.py), so no kwarg is passed at all
+        # rather than an explicit None.
+        expected_kwargs = (
+            {"max_tokens": expected.max_tokens}
+            if expected.max_tokens is not None
+            else {}
+        )
         mock_get_provider_for_identifier.assert_called_once_with(
             expected.model,
-            max_tokens=expected.max_tokens,
+            **expected_kwargs,
         )
 
     def test_explicit_tier_config_overrides_defaults(

@@ -126,14 +126,23 @@ LEVEL2_DEFAULT = TierLevelConfig(
     max_tokens=8192,
 )
 
+# No ``max_tokens`` on the Claude SDK levels, deliberately. ``ClaudeAgentOptions``
+# has no per-response cap at all, so the value can only be forwarded as a
+# ``task_budget`` — an *advisory* whole-loop allowance the model is shown as a
+# countdown, not a ceiling anything enforces. Both defaults sat below the API's
+# 20,000 floor and were clamped UP, so they capped nothing and simply told the
+# model it had a small allowance for the entire agentic task. Observed
+# 2026-08-06: agents abandoning work before starting it ("I'm out of token
+# budget for this task before I could load the required tools"), and, on models
+# that reject the parameter outright, a hard 400 that killed the caller's stage.
+# The OpenRouter levels above keep ``max_tokens`` — there it IS a real enforced
+# per-response cap, which is what the field means.
 LEVEL3_DEFAULT = TierLevelConfig(
     model="claudeSDK-opus",
-    max_tokens=8192,
 )
 
 LEVEL4_DEFAULT = TierLevelConfig(
     model="claudeSDK-claude-fable-5",
-    max_tokens=16384,
 )
 
 
