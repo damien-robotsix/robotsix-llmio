@@ -81,7 +81,7 @@ robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", 
 # via claude-agent-sdk.  No fix is available in the claude-agent-sdk
 # dependency tree yet — ignore the advisory until the upstream chain
 # updates.
-ignore = ["GHSA-vj7q-gjh5-988w", "PYSEC-2026-3552", "PYSEC-2026-3553", "PYSEC-2026-3554"]
+ignore = ["GHSA-vj7q-gjh5-988w"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]
