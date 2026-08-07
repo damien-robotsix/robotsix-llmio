@@ -11,3 +11,4 @@ extra_sandbox_packages:
   - pip:pytest-xdist
   - pip:pytest-timeout
   - pip:hypothesis
+  - pip:ruff
