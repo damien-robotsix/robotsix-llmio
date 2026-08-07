@@ -67,7 +67,7 @@ tracing = [
 # default via [tool.uv] default-groups.
 [dependency-groups]
 dev = ["deptry", "hypothesis", "mypy", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "pyyaml", "robotsix-modules", "ruff", "towncrier", "vulture"]
-docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+docs = ["mkdocs", "mkdocs-include-markdown-plugin", "mkdocs-material", "mkdocstrings[python]"]
 
 [tool.uv]
 default-groups = ["dev"]
