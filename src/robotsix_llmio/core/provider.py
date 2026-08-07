@@ -125,6 +125,7 @@ class LLMProvider(ABC):
         name: str | None = None,
         retries: int = 2,
         builtin_tools: bool = True,
+        web_tools: bool = False,
     ) -> AgentHandle:
         """Build a ready-to-run agent for the requested capability *level*.
 
@@ -185,6 +186,13 @@ class LLMProvider(ABC):
             built-in toolset (only honored by the claude-sdk provider).
             Set ``False`` to restrict the agent to only the explicitly
             provided *tools*.
+        web_tools:
+            Grants ``WebFetch`` / ``WebSearch`` even when *builtin_tools* is
+            ``False``. They read nothing local and mutate nothing, so an agent
+            restricted from the filesystem and shell can still look something
+            up. Default ``False`` — an agent that never needs the web should
+            not carry the capability. Also only honored by the claude-sdk
+            provider.
 
         Returns
         -------

@@ -76,6 +76,7 @@ class ClaudeSDKProvider(LLMProvider):
         retries: int = 2,
         workspace_root: str | Path | None = None,
         builtin_tools: bool = True,
+        web_tools: bool = False,
     ) -> Any:
         """Build a ready-to-run agent for the requested capability *level*.
 
@@ -153,5 +154,6 @@ class ClaudeSDKProvider(LLMProvider):
             name=name,
             workspace_root=workspace_root,
             builtin_tools=builtin_tools,
+            web_tools=web_tools,
             max_tokens=self._max_tokens,
         )
