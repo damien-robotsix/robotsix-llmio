@@ -98,6 +98,7 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 ## 0.0.0 (unreleased)
 
+- Add `ruff` to sandbox extra packages (`.robotsix-mill/config.yaml`) so the implement agent's pre-flight lint checks find it on PATH without repeated discovery attempts.
 - Enable pin_bump periodic workflow for automated dependency pin bumping
 - Add `credit_balance` periodic workflow stub (`.robotsix-mill/periodic/credit_balance.yaml`) to enable OpenRouter credit monitoring at the library level.
 - Added a new testing convention rule to `AGENT.md`: when splitting, renaming, or removing test files (or adding a new `tests/` sub-suite), update ARCHITECTURE.md's test coverage strategy listing in the same change to prevent documentation drift.
