@@ -65,6 +65,17 @@ _SDK_QUERY_ATTEMPTS = 3
 # so the built-ins are enumerated by name; MCP tools are namespaced ``mcp__*``
 # and are therefore unaffected. Intentionally broad — listing a tool a given SDK
 # version doesn't expose is harmless.
+# Read-only web access. Denied with the rest of the built-ins by default, but
+# separable: an agent restricted from the filesystem and shell may still have a
+# legitimate need to look something up, and denying that silently is worse than
+# denying it loudly. A research subsession asked to check three CVE advisories
+# reported "11 sources fetched, all empty" on 2026-08-07 — the calls had been
+# REFUSED, and the refusals were indistinguishable from empty results.
+#
+# These read nothing local and mutate nothing, so they do not reopen the
+# sandbox the denylist exists to enforce.
+_WEB_TOOL_NAMES = ["WebFetch", "WebSearch"]
+
 _BUILTIN_TOOL_DENYLIST = [
     "Bash",
     "BashOutput",
@@ -79,8 +90,6 @@ _BUILTIN_TOOL_DENYLIST = [
     "Glob",
     "Grep",
     "LS",
-    "WebFetch",
-    "WebSearch",
     "Task",
     "Agent",
     "Monitor",
@@ -152,6 +161,7 @@ class _SdkToolAgentHandle:
         max_turns: int | None = None,
         workspace_root: str | Path | None = None,
         builtin_tools: bool = True,
+        web_tools: bool = False,
         max_tokens: int | None = None,
     ) -> None:
         self._sdk_model = sdk_model
@@ -175,6 +185,7 @@ class _SdkToolAgentHandle:
         # built-in tool access (coding agents), with edits confined to
         # *workspace_root* if given.
         self._builtin_tools = builtin_tools
+        self._web_tools = web_tools
         self._max_tokens = max_tokens
         if max_turns is None:
             # Single source of truth for the runaway cap (see model._MAX_TURNS).
@@ -335,7 +346,10 @@ class _SdkToolAgentHandle:
             # rather than ``"*"`` — the wildcard would also deny the ``mcp__*``
             # tools — leaving the injected MCP tools (registered via
             # ``mcp_servers``) callable. ``allowed_tools`` is intentionally unset.
-            extra["disallowed_tools"] = list(_BUILTIN_TOOL_DENYLIST)
+            denied = list(_BUILTIN_TOOL_DENYLIST)
+            if not self._web_tools:
+                denied += _WEB_TOOL_NAMES
+            extra["disallowed_tools"] = denied
 
         return ClaudeAgentOptions(
             system_prompt=system_prompt,

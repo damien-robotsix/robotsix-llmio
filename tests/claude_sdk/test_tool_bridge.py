@@ -14,6 +14,7 @@ from pydantic_ai.tools import Tool as PydanticTool
 
 from robotsix_llmio.claude_sdk._tool_agent import (
     _BUILTIN_TOOL_DENYLIST,
+    _WEB_TOOL_NAMES,
     _SdkToolAgentHandle,
     _SdkToolResult,
 )
@@ -91,7 +92,7 @@ def test_restricted_tool_path_denies_builtins_not_mcp(monkeypatch):
         builtin_tools=False,
     )
     opts = restricted._build_options("sys")  # type: ignore[attr-defined]
-    assert opts.disallowed_tools == list(_BUILTIN_TOOL_DENYLIST)
+    assert opts.disallowed_tools == list(_BUILTIN_TOOL_DENYLIST) + _WEB_TOOL_NAMES
     assert "Bash" in opts.disallowed_tools
     assert "*" not in opts.disallowed_tools
     assert opts.permission_mode == "bypassPermissions"
@@ -254,3 +255,51 @@ def test_required_ctx_no_default_still_raises(monkeypatch):
 
     with pytest.raises(UserError, match=r"required.*RunContext|no default"):
         _convert_tools([tool])
+
+
+def test_web_tools_opt_in_keeps_the_rest_denied(monkeypatch) -> None:
+    """``web_tools=True`` grants WebFetch/WebSearch without reopening the
+    sandbox the denylist exists to enforce.
+
+    A restricted research agent asked to check three CVE advisories reported
+    "11 sources fetched, all empty" — the calls had been refused, and a refusal
+    is indistinguishable from an empty result to the model. Reading the web
+    mutates nothing local, so it is separable from the filesystem and shell
+    restrictions.
+    """
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+
+    agent = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=False,
+        web_tools=True,
+    )
+    opts = agent._build_options("sys")  # type: ignore[attr-defined]
+    for name in _WEB_TOOL_NAMES:
+        assert name not in opts.disallowed_tools
+    # Everything the sandbox actually protects stays denied.
+    for name in ("Bash", "Read", "Write", "Edit", "Glob"):
+        assert name in opts.disallowed_tools
+    agent.close()
+
+
+def test_web_tools_default_off(monkeypatch) -> None:
+    """An agent that never needs the web should not carry the capability."""
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+
+    agent = provider.build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="sys",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        builtin_tools=False,
+    )
+    opts = agent._build_options("sys")  # type: ignore[attr-defined]
+    for name in _WEB_TOOL_NAMES:
+        assert name in opts.disallowed_tools
+    agent.close()
