@@ -61,8 +61,18 @@ class OTelTraceFilter(logging.Filter):
 
         """
         span = get_recording_span()
-        if span is not None:
-            tid = getattr(span.get_span_context(), "trace_id", 0)
+        # Duck-typed, not assumed: anything that reports itself as recording
+        # ends up here, including span shims, no-op spans, and test doubles
+        # that implement only the parts of the OTel Span protocol their caller
+        # needs. Calling ``get_span_context()`` unguarded made this filter
+        # raise on those — and a raising filter breaks *logging itself* for
+        # the whole process, which is a far worse failure than a missing trace
+        # id. The existing ``getattr`` on ``trace_id`` already conceded the
+        # attribute may be absent; this extends the same tolerance one level
+        # up, honouring the "never raises" contract in the class docstring.
+        get_span_context = getattr(span, "get_span_context", None) if span else None
+        if get_span_context is not None:
+            tid = getattr(get_span_context(), "trace_id", 0)
             record.trace_id = format(tid, "032x") if tid else _NO_TRACE_ID
         else:
             record.trace_id = _NO_TRACE_ID
