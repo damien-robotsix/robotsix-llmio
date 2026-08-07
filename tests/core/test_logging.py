@@ -197,3 +197,38 @@ def test_multiple_loggers_configured(monkeypatch):
             for handler in list(target.handlers):
                 target.removeHandler(handler)
             target.setLevel(logging.NOTSET)
+
+
+def test_trace_filter_tolerates_a_partial_span(monkeypatch):
+    """A recording span without ``get_span_context`` must not break logging.
+
+    Anything reporting itself as recording reaches this filter — span shims,
+    no-op spans, and test doubles that implement only the slice of the OTel
+    Span protocol their own caller needs. A filter that raises takes down
+    logging for the entire process, so a missing attribute has to degrade to
+    "no trace id", not to an exception.
+    """
+    import robotsix_llmio.logging as llmio_logging
+
+    class PartialSpan:
+        """Implements is_recording/set_attribute only — no get_span_context."""
+
+        def is_recording(self):
+            return True
+
+        def set_attribute(self, key, value):
+            pass
+
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: PartialSpan())
+
+    record = logging.LogRecord(
+        name="t",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="hello",
+        args=(),
+        exc_info=None,
+    )
+    assert OTelTraceFilter().filter(record) is True
+    assert record.trace_id == "-"

@@ -38,11 +38,16 @@ def test_value_at_or_above_floor_passes_through():
     assert build_task_budget(65536, "agent") == {"total": 65536}
 
 
-def test_value_below_floor_is_clamped_not_passed_through(caplog):
-    """The live outage: refine's max_tokens=8192 went through verbatim and the
-    API rejected every single call with a 400."""
+def test_value_below_floor_sends_no_budget(caplog):
+    """Below the floor there is no honest budget to send.
+
+    Passing it verbatim is a 400. Clamping UP is worse than either reading of
+    the operator's intent: task_budget is advisory, so the clamp caps nothing
+    and instead tells the model it has a 20,000-token allowance for the whole
+    task — which is how agents ended up wrapping up before starting work.
+    """
     with caplog.at_level(logging.WARNING):
-        assert build_task_budget(8192, "refine") == {"total": TASK_BUDGET_MIN_TOTAL}
+        assert build_task_budget(8192, "refine") is None
     assert "below the Claude Agent SDK task_budget floor" in caplog.text
     assert "refine" in caplog.text
 

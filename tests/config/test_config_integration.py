@@ -69,9 +69,9 @@ class TestLoaderToFactoryChain:
 
         create_model(level=3, tier_config=cfg)
 
+        # No max_tokens: LEVEL3_DEFAULT carries none (see tier.py).
         mock_get_provider_for_identifier.assert_called_once_with(
             "claudeSDK-opus",
-            max_tokens=8192,
         )
 
 
