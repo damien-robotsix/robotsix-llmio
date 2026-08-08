@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.3.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.0...v0.3.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **release:** regenerate uv.lock on the release branch ([#550](https://github.com/damien-robotsix/robotsix-llmio/issues/550)) ([6fd2de4](https://github.com/damien-robotsix/robotsix-llmio/commit/6fd2de4bfc1d3922092bfcda59b8fb473d3c440b))
+
 ## [0.3.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.2.0...v0.3.0) (2026-08-08)
 
 
