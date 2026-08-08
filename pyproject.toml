@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robotsix-llmio"
-version = "0.1.5"
+dynamic = ["version"]
 description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. DeepSeek over OpenRouter)."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -82,6 +82,11 @@ robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", 
 # dependency tree yet — ignore the advisory until the upstream chain
 # updates.
 ignore = ["GHSA-vj7q-gjh5-988w"]
+
+[tool.hatch.version]
+source = "regex"
+path = "src/robotsix_llmio/_version.py"
+pattern = '__version__\s*=\s*"(?P<version>[^"]+)"'
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_llmio"]

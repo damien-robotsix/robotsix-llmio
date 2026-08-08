@@ -1,0 +1,1 @@
+Expose `robotsix_llmio.__version__` via `src/robotsix_llmio/_version.py` as the single source for hatchling's `[tool.hatch.version]` regex resolver. Consumers can now `import robotsix_llmio; robotsix_llmio.__version__` to get the library version at runtime.
