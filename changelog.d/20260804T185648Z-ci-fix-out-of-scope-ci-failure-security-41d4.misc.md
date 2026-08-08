@@ -1,1 +1,0 @@
-ci_fix: out-of-scope CI failure — security / security (pip-audit: cryptography PYSEC-2026-3552, PYSEC-2026-3553, PYSEC-2026-3554) in .github/workflows/ci.yml (pip-audit-ignore-vulns) and pyproject.toml ([tool.uv.audit].ignore)

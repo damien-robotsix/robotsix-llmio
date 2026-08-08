@@ -7,6 +7,64 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## 0.2.0 (2026-08-08)
+
+### Features
+
+- Claude SDK agents can now be granted `WebFetch` / `WebSearch` while otherwise
+  restricted, via the new `web_tools=True` argument. They were previously denied
+  along with the filesystem and shell built-ins, so a restricted research agent had
+  no way to look anything up — and a refused tool call is indistinguishable from an
+  empty result, so it reported "sources fetched, all empty" instead of "I cannot
+  search". Reading the web mutates nothing local, so it is separable from the
+  sandbox the denylist exists to enforce. Default stays off. ([#web-tools-opt-in](https://github.com/damien-robotsix/robotsix-llmio/issues/web-tools-opt-in))
+
+### Bug Fixes
+
+- Clear the security audit on `main`: bump `cryptography` 48.0.1 → 50.0.0
+  (GHSA-g6cj-pr64-35w5, GHSA-m2h6-j472-rp4c, GHSA-jwv3-5hgf-82ww and their PYSEC
+  equivalents — six advisories) and `pymdown-extensions` 10.21.3 → 11.0.1
+  (GHSA-9xwg-3r6f-jcx2, a path traversal in the b64 extension). Both are
+  transitive and were failing the audit on every PR, not just new ones. ([#clear-security-audit-debt](https://github.com/damien-robotsix/robotsix-llmio/issues/clear-security-audit-debt))
+- Dropped the audit suppressions for PYSEC-2026-3552/3553/3554. All three are
+  fixed in cryptography 49.0.0/50.0.0 and this repo already resolves 50.0.0, so the
+  advisories never applied — the entries silenced nothing and would have masked any
+  future advisory that reused an id. The mcp/claude-agent-sdk suppression, which
+  still has no upstream fix, is untouched. ([#drop-obsolete-cve-suppressions](https://github.com/damien-robotsix/robotsix-llmio/issues/drop-obsolete-cve-suppressions))
+- Stop sending a `task_budget` derived from `max_tokens` on the Claude SDK
+  tiers. `ClaudeAgentOptions` has no per-response cap, so the value could only
+  become an *advisory* whole-loop allowance the model is shown as a countdown —
+  and both baked defaults (8192 on level 3, 16384 on level 4) sat below the
+  API's 20,000 floor and were clamped **up**, so they capped nothing and simply
+  told the model it had a small allowance for the entire task. Observed
+  2026-08-06: agents abandoning work before starting it ("I'm out of token budget
+  for this task before I could load the required tools"), and a hard 400 on
+  models that reject the parameter outright. Below-floor values now send no
+  budget at all rather than being clamped up. The OpenRouter tiers keep
+  `max_tokens` — there it is a real enforced per-response cap. ([#no-task-budget-on-claude-sdk-tiers](https://github.com/damien-robotsix/robotsix-llmio/issues/no-task-budget-on-claude-sdk-tiers))
+- Drop `task_budget` and retry once when the API reports the model does not
+  support it, instead of failing the call. `task_budget` is a beta parameter only
+  some models accept; the transport was sending it unconditionally whenever a
+  tier configured `max_tokens`, so every call against any other model died with
+  `400 This model does not support user-configurable task budgets`. Observed on
+  2026-08-06 taking mill's refine stage down across five boards. The supported
+  set cannot be hardcoded here — callers configure a tier alias (`sonnet`,
+  `opus`) that the `claude` CLI resolves downstream — so the rejection itself is
+  the discovery mechanism: the budget is dropped, the request re-sent, and the
+  model remembered so later calls skip straight to the working shape. ([#task-budget-unsupported-model](https://github.com/damien-robotsix/robotsix-llmio/issues/task-budget-unsupported-model))
+- `OTelTraceFilter` no longer raises when the active span does not implement
+  `get_span_context()`. Anything reporting itself as recording reaches the
+  filter — span shims, no-op spans, and test doubles implementing only the slice
+  of the OTel Span protocol their own caller needs — and a raising log filter
+  breaks logging for the entire process. A missing attribute now degrades to "no
+  trace id", honouring the "never raises" contract the class docstring already
+  stated. ([#trace-filter-tolerates-partial-span](https://github.com/damien-robotsix/robotsix-llmio/issues/trace-filter-tolerates-partial-span))
+
+### Miscellaneous
+
+- [#20260803T115850Z-robotsix-llmio-enable-credit-balance-per-253f](https://github.com/damien-robotsix/robotsix-llmio/issues/20260803T115850Z-robotsix-llmio-enable-credit-balance-per-253f), [#20260803T141753Z-remove-stale-test-changelog-py-reference-7e51](https://github.com/damien-robotsix/robotsix-llmio/issues/20260803T141753Z-remove-stale-test-changelog-py-reference-7e51), [#20260803T153036Z-enable-pin-bump-periodic-workflow-on-rob-15f7](https://github.com/damien-robotsix/robotsix-llmio/issues/20260803T153036Z-enable-pin-bump-periodic-workflow-on-rob-15f7), [#20260804T185648Z-ci-fix-out-of-scope-ci-failure-security-41d4](https://github.com/damien-robotsix/robotsix-llmio/issues/20260804T185648Z-ci-fix-out-of-scope-ci-failure-security-41d4), [#20260806T185814Z-add-a-contributing-page-to-the-docs-site-d54d](https://github.com/damien-robotsix/robotsix-llmio/issues/20260806T185814Z-add-a-contributing-page-to-the-docs-site-d54d)
+
+
 ## 0.1.5 (2026-08-03)
 
 ### Features

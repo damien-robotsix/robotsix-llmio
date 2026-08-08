@@ -52,29 +52,6 @@ jobs:
       - name: modules (registration check)
         run: uv run robotsix-modules check-registration docs/modules.yaml --root .
 
-  changelog:
-    name: Changelog
-    # Hand-rolled gate, justified: robotsix-github-workflows carries no shared
-    # changelog-check workflow yet — replace this job with the shared caller
-    # once one exists (tracked as a standards gap).
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      UV_MALWARE_CHECK: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-      - name: towncrier check
-        # GITHUB_BASE_REF is provided by Actions on pull_request events.
-        run: uvx towncrier check --compare-with "origin/${GITHUB_BASE_REF}"
-
   security:
     permissions:
       contents: read
