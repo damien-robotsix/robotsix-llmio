@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from ._version import __version__
 from .exceptions import RobotsixLLMIOError
 
 # Static re-declaration of the lazily-exported names (see ``__getattr__``
@@ -50,6 +51,7 @@ __all__ = [
     "RobotsixLLMIOError",
     "SelfReviewClient",
     "SelfReviewClientError",
+    "__version__",
     "build_agent_for_level",
     "build_knowledge_tools",
     "build_recent_activity_tools",
