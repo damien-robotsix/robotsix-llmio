@@ -28,6 +28,7 @@ permissions: {}
 
 jobs:
   release-please:
+    name: Release Please
     runs-on: ubuntu-latest
     permissions:
       contents: write       # create the release commit, tag and GitHub Release
