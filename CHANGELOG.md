@@ -7,6 +7,41 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.3.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.2.0...v0.3.0) (2026-08-08)
+
+
+### Features
+
+* add build_agent_for_level — pick a capability level, get an agent on that level's default provider+model ([#210](https://github.com/damien-robotsix/robotsix-llmio/issues/210)) ([28b23a8](https://github.com/damien-robotsix/robotsix-llmio/commit/28b23a84800366d8a6dfe97f04354100c248298f))
+* **claude_sdk:** surface tool/thinking activity as live events ([#405](https://github.com/damien-robotsix/robotsix-llmio/issues/405)) ([54b495c](https://github.com/damien-robotsix/robotsix-llmio/commit/54b495cc5a14916a93eb2e66f71585f00a1c88d6))
+* **claude-sdk:** allow web tools while otherwise restricted ([#544](https://github.com/damien-robotsix/robotsix-llmio/issues/544)) ([a065fe7](https://github.com/damien-robotsix/robotsix-llmio/commit/a065fe74ee0dc1bfb19ded6c9103fd08555585ed))
+* **claude-sdk:** restrict built-in tools via builtin_tools, fix tool-path model ([#207](https://github.com/damien-robotsix/robotsix-llmio/issues/207)) ([596f52f](https://github.com/damien-robotsix/robotsix-llmio/commit/596f52f7c9a1b151608b8cd1a04f5000d1a6fa8e))
+* **claude-sdk:** surface model reasoning in Langfuse traces ([#208](https://github.com/damien-robotsix/robotsix-llmio/issues/208)) ([03c5d0d](https://github.com/damien-robotsix/robotsix-llmio/commit/03c5d0d7891602c17ec27ee0d3b658fc8d67bb49))
+* **config:** make TierConfig.level1 optional with a baked default ([#290](https://github.com/damien-robotsix/robotsix-llmio/issues/290)) ([1fdde38](https://github.com/damien-robotsix/robotsix-llmio/commit/1fdde3820d8d5555c381206ba4330763966e71ce))
+* **core:** is_usage_exhausted predicate + thread should_fallback through run_agent ([#496](https://github.com/damien-robotsix/robotsix-llmio/issues/496)) ([5c52572](https://github.com/damien-robotsix/robotsix-llmio/commit/5c5257222caefd7c3690a00b396cb0838dad94a2))
+* native image support on the claude_sdk path ([#411](https://github.com/damien-robotsix/robotsix-llmio/issues/411)) ([aada2ed](https://github.com/damien-robotsix/robotsix-llmio/commit/aada2ed0032d28b97349bc31e61128fe2b2b3691))
+* **release:** adopt release-please, retire towncrier ([#547](https://github.com/damien-robotsix/robotsix-llmio/issues/547)) ([e4e8018](https://github.com/damien-robotsix/robotsix-llmio/commit/e4e8018b9fe7e5ea8a7f444ffbcafe986b56ae23))
+
+
+### Bug Fixes
+
+* **audit:** drop suppressions for CVEs this repo already fixed ([#545](https://github.com/damien-robotsix/robotsix-llmio/issues/545)) ([d11916a](https://github.com/damien-robotsix/robotsix-llmio/commit/d11916a2f9a6b0109e9263560f8f7950bb8a5def))
+* claude_sdk prompt flattening stringifies binary content parts ([#410](https://github.com/damien-robotsix/robotsix-llmio/issues/410)) ([93b9f4a](https://github.com/damien-robotsix/robotsix-llmio/commit/93b9f4adf7807f0e1a15b24c7d1e17857533a8e9))
+* **claude-sdk:** honour the task_budget floor; never retry API 400s ([#526](https://github.com/damien-robotsix/robotsix-llmio/issues/526)) ([c65df6b](https://github.com/damien-robotsix/robotsix-llmio/commit/c65df6bbb6fdc26665f4494e9e994bcf87891145))
+* **claude-sdk:** retry without task_budget when the model rejects it ([#541](https://github.com/damien-robotsix/robotsix-llmio/issues/541)) ([cfe7cdc](https://github.com/damien-robotsix/robotsix-llmio/commit/cfe7cdc9f7ec5abd5c4feff2ff1811301bb066c1))
+* **claude-sdk:** treat an expired OAuth credential as terminal, not transient ([#528](https://github.com/damien-robotsix/robotsix-llmio/issues/528)) ([27af25c](https://github.com/damien-robotsix/robotsix-llmio/commit/27af25c626e9982bbd2efb5d05ba99942b2c97a9))
+* **config:** stop deriving task_budget from max_tokens on Claude SDK tiers ([#542](https://github.com/damien-robotsix/robotsix-llmio/issues/542)) ([621f9e5](https://github.com/damien-robotsix/robotsix-llmio/commit/621f9e5196a2d4b2c2fbddf83cf07b3220c49ff4))
+* detect Claude usage-credit exhaustion instead of treating it as a reply ([#388](https://github.com/damien-robotsix/robotsix-llmio/issues/388)) ([519c376](https://github.com/damien-robotsix/robotsix-llmio/commit/519c3763518b1d2ca0f94a85654100e413d77d77))
+* detect usage-exhaustion when the SDK collapses it into a raised exception ([#390](https://github.com/damien-robotsix/robotsix-llmio/issues/390)) ([fd88a2b](https://github.com/damien-robotsix/robotsix-llmio/commit/fd88a2b90bf39796f2ae77c505f62c2fd499797f))
+* **openrouter:** stop hard-pinning DeepSeek; bound fallback price ([#499](https://github.com/damien-robotsix/robotsix-llmio/issues/499)) ([4874a16](https://github.com/damien-robotsix/robotsix-llmio/commit/4874a16559c9802135939c4cb83b1058cd286b2b))
+* raise Claude Agent SDK query wall-clock cap from 20min to 1h ([#408](https://github.com/damien-robotsix/robotsix-llmio/issues/408)) ([0112772](https://github.com/damien-robotsix/robotsix-llmio/commit/01127721a1608d308c7db54d5efcd7ed6e5b342a))
+* **release:** mint an App token so release PRs get CI ([#549](https://github.com/damien-robotsix/robotsix-llmio/issues/549)) ([3957795](https://github.com/damien-robotsix/robotsix-llmio/commit/3957795d1d0eaa54f9dbc9e8c91c5d94ac3f3bea))
+* statically declare lazy core exports under TYPE_CHECKING to kill CodeQL py/undefined-export FP ([#204](https://github.com/damien-robotsix/robotsix-llmio/issues/204)) ([6cc7f41](https://github.com/damien-robotsix/robotsix-llmio/commit/6cc7f41b8ebb5af0fa7020be275da590cf3698d1))
+* **tests:** stop fake claude_agent_sdk stub leaking across tests ([#148](https://github.com/damien-robotsix/robotsix-llmio/issues/148)) ([4891330](https://github.com/damien-robotsix/robotsix-llmio/commit/4891330b9b3f3c6f3f3509b0720ba7682344a32c))
+* **tier:** break provider↔config.tier import cycle via core.tier_enum leaf ([a7c128e](https://github.com/damien-robotsix/robotsix-llmio/commit/a7c128e375111663745635c248177a943c3b0f7b))
+* **tracing:** always give the trace root a non-empty Langfuse name ([#192](https://github.com/damien-robotsix/robotsix-llmio/issues/192)) ([cbe22ee](https://github.com/damien-robotsix/robotsix-llmio/commit/cbe22ee3edbfee8ee7d21b55c2181a6543449f49))
+* **tracing:** name the trace even when the root loses session context ([#197](https://github.com/damien-robotsix/robotsix-llmio/issues/197)) ([2af509c](https://github.com/damien-robotsix/robotsix-llmio/commit/2af509cfbfb6f35e99f02651143dfa265a400a27))
+
 ## 0.2.0 (2026-08-08)
 
 ### Features
