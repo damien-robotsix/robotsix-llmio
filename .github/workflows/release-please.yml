@@ -14,6 +14,13 @@ on:
       - main
   workflow_dispatch:
 
+# Serialise releases per branch. Unlike ci.yml this does NOT cancel in
+# progress: a cancelled run could abort between pushing the release commit
+# and creating the tag, leaving the repo in a half-released state.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
 # Nothing at the workflow level — zizmor flags `contents: write` /
 # `pull-requests: write` here as overly broad, since it grants them to every
 # job. They belong on the one job that needs them.
