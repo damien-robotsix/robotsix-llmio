@@ -14,13 +14,17 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# Nothing at the workflow level — zizmor flags `contents: write` /
+# `pull-requests: write` here as overly broad, since it grants them to every
+# job. They belong on the one job that needs them.
+permissions: {}
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the release commit, tag and GitHub Release
+      pull-requests: write  # open and update the release PR
     # Only act on a push, or on the merge of release-please's own release PR —
     # never on the merge of an unrelated PR.
     if: |
