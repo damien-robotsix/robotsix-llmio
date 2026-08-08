@@ -1,0 +1,47 @@
+name: release-please
+
+# Fleet-wide release automation per robotsix-standards release-please.md.
+# Opens/updates a release PR on every push to main; creates the tag and
+# GitHub Release when that release PR is merged.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_dispatch:
+
+# Serialise releases per branch. Unlike ci.yml this does NOT cancel in
+# progress: a cancelled run could abort between pushing the release commit
+# and creating the tag, leaving the repo in a half-released state.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+# Nothing at the workflow level — zizmor flags `contents: write` /
+# `pull-requests: write` here as overly broad, since it grants them to every
+# job. They belong on the one job that needs them.
+permissions: {}
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the release commit, tag and GitHub Release
+      pull-requests: write  # open and update the release PR
+    # Only act on a push, or on the merge of release-please's own release PR —
+    # never on the merge of an unrelated PR.
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'release-please--branches--main')
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

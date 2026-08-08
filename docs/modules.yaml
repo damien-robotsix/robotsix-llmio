@@ -31,7 +31,6 @@ modules:
       - docs/reference/exceptions.md
       - docs/index.md
       - docs/changelog.md
-      - changelog.d/*.md
 
   - id: openrouter
     description: >-
@@ -104,15 +103,16 @@ modules:
   - id: project-root
     description: >-
       Top-level housekeeping files: README, architecture and contributor
-      docs, license, security policy, and the compiled changelog with its
-      pending newsfragments.
+      docs, license, security policy, the compiled changelog, and the
+      release-please configuration that generates it.
     paths:
       - README.md
       - ARCHITECTURE.md
       - CONTRIBUTING.md
       - docs/contributing.md
       - CHANGELOG.md
+      - release-please-config.json
+      - .release-please-manifest.json
       - LICENSE
       - SECURITY.md
       - AGENT.md
-      - changelog.d/.gitkeep
