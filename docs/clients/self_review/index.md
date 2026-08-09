@@ -24,7 +24,7 @@ from robotsix_llmio.clients.self_review import (
 
 client = SelfReviewClient(
     base_url="http://self-review:8000/api/v1",
-    api_key="...",      # optional
+    api_key="...",  # optional
 )
 
 # Direct use
