@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     )
 
     from .agent import AgentHandle, build_agent
+    from .cooldown import ModelHealthTracker, get_health_tracker, reset_health_tracker
     from .cost import flush_current_provider, record_cost
     from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
     from .factory import (
@@ -110,6 +111,7 @@ __all__ = [
     "LangfuseReadClient",
     "LoggedCost",
     "MalformedIdentifierError",
+    "ModelHealthTracker",
     "ParsedIdentifier",
     "ProviderCost",
     "ProviderCostSource",
@@ -134,6 +136,7 @@ __all__ = [
     "default_tier_config",
     "flush_current_provider",
     "flush_tracing",
+    "get_health_tracker",
     "get_provider_for_identifier",
     "get_provider_for_level",
     "get_recording_span",
@@ -151,6 +154,7 @@ __all__ = [
     "parse_model_identifier",
     "reconcile",
     "record_cost",
+    "reset_health_tracker",
     "run_additive_migrations",
     "run_agent",
     "run_multi_table_migrations",
@@ -168,6 +172,10 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     # -- agent
     "AgentHandle": (".agent", "AgentHandle"),
     "build_agent": (".agent", "build_agent"),
+    # -- cooldown
+    "ModelHealthTracker": (".cooldown", "ModelHealthTracker"),
+    "get_health_tracker": (".cooldown", "get_health_tracker"),
+    "reset_health_tracker": (".cooldown", "reset_health_tracker"),
     # -- cost_log
     "CostLogSource": (".cost_log", "CostLogSource"),
     "CostRecord": (".cost_log", "CostRecord"),
