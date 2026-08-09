@@ -44,6 +44,8 @@ jobs:
       - uses: ./.github/actions/setup-repo
         with:
           python-version: '3.14'
+      - name: uv lock --check (lockfile consistency)
+        run: uv lock --check
       - run: uv sync --frozen
       - name: vulture (dead code)
         run: uv run vulture --ignore-decorators "@field_validator,@model_validator" src/ vulture_whitelist.py
