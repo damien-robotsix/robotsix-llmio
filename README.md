@@ -71,13 +71,17 @@ from robotsix_llmio.claude_sdk import ClaudeSDKProvider
 
 provider = ClaudeSDKProvider()  # no key — uses your `claude login` session
 
+
 class City(BaseModel):
     name: str
     country: str
 
+
 agent = provider.build_agent(
-    level=4, system_prompt="Extract the city.",
-    output_type=PromptedOutput(City), name="extract",
+    level=4,
+    system_prompt="Extract the city.",
+    output_type=PromptedOutput(City),
+    name="extract",
 )  # level 4 resolves to claude-fable-5 via the baked tier defaults
 result = provider.call_with_retry(lambda: agent.run_sync("Tell me about Kyoto."))
 print(result.output)  # name='Kyoto' country='Japan'
@@ -135,7 +139,9 @@ To route requests through a custom OpenRouter-compatible endpoint (e.g. a proxy
 or mirror), pass `base_url=` when constructing the provider:
 
 ```python
-provider = get_provider_for_level(level=1, api_key="sk-...", base_url="https://proxy.example/api/v1")
+provider = get_provider_for_level(
+    level=1, api_key="sk-...", base_url="https://proxy.example/api/v1"
+)
 ```
 
 The default endpoint is `https://openrouter.ai/api/v1`.
@@ -215,7 +221,9 @@ provider = create_model(level=2, api_key="sk-or-...")
 ```python
 from robotsix_llmio.core import get_provider_for_level
 
-provider = get_provider_for_level(level=1, api_key="sk-or-...")  # or OPENROUTER_API_KEY env
+provider = get_provider_for_level(
+    level=1, api_key="sk-or-..."
+)  # or OPENROUTER_API_KEY env
 
 agent = provider.build_agent(
     level=2,
@@ -281,7 +289,7 @@ from robotsix_llmio.core import setup_langfuse_tracing, langfuse_session, flush_
 
 setup_langfuse_tracing()  # reads LANGFUSE_* env; no-op without credentials
 
-with langfuse_session("my-run-id"):       # groups the run's spans under one session
+with langfuse_session("my-run-id"):  # groups the run's spans under one session
     result = provider.call_with_retry(lambda: agent.run_sync("..."))
 
 flush_tracing()  # force-export before exit (or after a run you want shipped)
@@ -307,6 +315,6 @@ project, then route each unit of work to its project:
 ```python
 from robotsix_llmio.core import langfuse_project
 
-with langfuse_project("pk-projectB"):     # spans here ship to project B
+with langfuse_project("pk-projectB"):  # spans here ship to project B
     result = provider.call_with_retry(lambda: agent.run_sync("..."))
 ```

@@ -19,7 +19,7 @@ from robotsix_llmio.clients.knowledge import KnowledgeClient, build_knowledge_to
 
 client = KnowledgeClient(
     base_url="http://knowledge-store:8000/api/v1",
-    api_key="...",      # optional
+    api_key="...",  # optional
 )
 
 # Direct use
