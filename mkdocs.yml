@@ -48,5 +48,5 @@ nav:
       - Knowledge: reference/knowledge.md
       - Refdocs: reference/refdocs.md
       - Self-Review: reference/self_review.md
-  - Changelog: changelog.md
   - Contributing: contributing.md
+  - Changelog: changelog.md
