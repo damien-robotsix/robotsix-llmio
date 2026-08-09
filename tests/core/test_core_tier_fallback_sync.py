@@ -17,6 +17,7 @@ from conftest import (
 )
 
 from robotsix_llmio.config.tier import TierLevel, TierLevelConfig
+from robotsix_llmio.core.cooldown import reset_health_tracker
 from robotsix_llmio.core.tier_fallback import call_with_tier_fallback
 
 # --------------------------------------------------------------------------- #
@@ -41,6 +42,38 @@ def test_fallback_disabled_raises_immediately():
             fallback_enabled=False,
             sleep=_noop_sleep,
         )
+
+
+def test_fallback_is_on_by_default():
+    """No ``fallback_enabled`` argument at all: the chain still escalates.
+
+    Guards the fleet-wide default. A caller that never heard of tiers gets
+    its work done by another tier when the starting one is unavailable
+    (provider outage, exhausted subscription credits) instead of failing.
+    """
+    reset_health_tracker()
+    tracking: dict = {}
+
+    def factory(tlc: TierLevelConfig):
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
+        if tlc.model_name == "opus":  # STD_TIER_CONFIG's level1
+
+            def fn():
+                raise RuntimeError("starting-tier-unavailable")
+        else:
+
+            def fn():
+                return "next-tier-ok"
+
+        return fn
+
+    out = call_with_tier_fallback(
+        factory,
+        tier_config=STD_TIER_CONFIG,
+        sleep=_noop_sleep,
+    )
+    assert out == "next-tier-ok"
+    assert tracking["factory_calls"] == ["opus", "haiku"]
 
 
 def test_fallback_level1_to_level2_on_failure():

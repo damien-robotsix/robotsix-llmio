@@ -15,6 +15,7 @@ from conftest import (
 )
 
 from robotsix_llmio.config.tier import TierLevel, TierLevelConfig
+from robotsix_llmio.core.cooldown import reset_health_tracker
 from robotsix_llmio.core.tier_fallback import acall_with_tier_fallback
 
 # --------------------------------------------------------------------------- #
@@ -55,6 +56,32 @@ def test_acall_fallback_disabled_raises_immediately():
                 sleep=_anoop_sleep,
             )
         )
+
+
+def test_acall_fallback_is_on_by_default():
+    """Async mirror of the default-on guard — no ``fallback_enabled`` passed."""
+    reset_health_tracker()
+    tracking: dict = {}
+
+    def factory(tlc: TierLevelConfig):
+        tracking.setdefault("factory_calls", []).append(tlc.model_name)
+
+        async def fn():
+            if tlc.model_name == "opus":  # STD_TIER_CONFIG's level1
+                raise RuntimeError("starting-tier-unavailable")
+            return "next-tier-ok"
+
+        return fn
+
+    out = asyncio.run(
+        acall_with_tier_fallback(
+            factory,
+            tier_config=STD_TIER_CONFIG,
+            sleep=_anoop_sleep,
+        )
+    )
+    assert out == "next-tier-ok"
+    assert tracking["factory_calls"] == ["opus", "haiku"]
 
 
 def test_acall_fallback_level1_to_level2_to_level3():

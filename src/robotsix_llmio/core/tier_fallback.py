@@ -27,6 +27,16 @@ LEVEL4    LEVEL4 → LEVEL3 → LEVEL2 → stop
 
 (The default ``max_fallback_depth=2`` allows two promotions, so at most
 three of the four tiers are visited per call.)
+
+Fallback is **on by default** (``fallback_enabled=True``). A tier binding can
+fail for reasons that have nothing to do with the request — a provider outage,
+or a subscription whose usage credits are exhausted until they reset — and in
+those cases the work is better done by another tier than not done at all.
+Note that two tiers may share one backend (the baked defaults put LEVEL3 and
+LEVEL4 both on the Claude SDK), so a backend-wide failure is only escaped once
+the chain reaches a tier on a different provider. Pass ``fallback_enabled=False``
+where a caller depends on one specific tier's behaviour rather than on getting
+an answer.
 """
 
 from __future__ import annotations
@@ -110,7 +120,7 @@ async def _tier_fallback_loop(
     invoke: Callable[[Callable[[], Any]], Awaitable[Any]],
     tier_config: TierConfig,
     level: TierLevel = TierLevel.LEVEL1,
-    fallback_enabled: bool = False,
+    fallback_enabled: bool = True,
     max_fallback_depth: int = 2,
     what: str = "model call",
 ) -> Any:
@@ -236,7 +246,7 @@ def call_with_tier_fallback[T](
     *,
     tier_config: TierConfig,
     level: TierLevel = TierLevel.LEVEL1,
-    fallback_enabled: bool = False,
+    fallback_enabled: bool = True,
     max_fallback_depth: int = 2,
     what: str = "model call",
     sleep: Callable[[float], None] = time.sleep,
@@ -253,10 +263,11 @@ def call_with_tier_fallback[T](
             ``level1``, ``level2``, ``level3``, ``level4``
             :class:`TierLevelConfig` attributes.
         level: The starting :class:`TierLevel` (default ``LEVEL1``).
-        fallback_enabled: When ``False`` (default), only the starting
-            level is tried; any failure re-raises immediately. When
-            ``True``, escalation proceeds according to
-            *max_fallback_depth*.
+        fallback_enabled: When ``True`` (the default), escalation
+            proceeds according to *max_fallback_depth*. Pass ``False``
+            to try only the starting level, re-raising any failure
+            immediately — the right choice when a caller depends on a
+            specific tier's behaviour rather than on getting an answer.
         max_fallback_depth: Maximum number of tier promotions (tier
             switches) allowed. Default ``2`` means at most two
             promotions, so up to three tiers can be tried. ``0`` means
@@ -289,7 +300,7 @@ async def acall_with_tier_fallback[T](
     *,
     tier_config: TierConfig,
     level: TierLevel = TierLevel.LEVEL1,
-    fallback_enabled: bool = False,
+    fallback_enabled: bool = True,
     max_fallback_depth: int = 2,
     what: str = "model call",
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,

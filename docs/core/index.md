@@ -50,7 +50,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 ### Tier fallback
 
-- `call_with_tier_fallback` — runs a callable with tier escalation: starts at a given `TierLevel`, retries the next tier on failure when `fallback_enabled` is `True`
+- `call_with_tier_fallback` — runs a callable with tier escalation: starts at a given `TierLevel` and retries the next tier on failure. On by default (`fallback_enabled=True`); pass `fallback_enabled=False` to try only the starting tier
 - `acall_with_tier_fallback` — async mirror of `call_with_tier_fallback`
 
 ### Cost recording
