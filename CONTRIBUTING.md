@@ -73,6 +73,7 @@ Hooks pinned in `.pre-commit-config.yaml`:
 | mypy                    | type-checks `src/`                           |
 | vulture                 | dead-code check over `src/`                  |
 | deptry                  | dependency hygiene check                     |
+| robotsix-modules        | validates module registration in `docs/modules.yaml` |
 | detect-secrets          | scans staged changes for plaintext secrets, audited against `.secrets.baseline` |
 | actionlint-docker       | lints GitHub Actions workflow files          |
 
@@ -102,6 +103,7 @@ ruff check .                  # lint
 ruff format --check .         # format verification (hook auto-formats)
 mypy src/                     # type-check
 uv audit                      # dependency vulnerability audit
+robotsix-modules check-registration docs/modules.yaml --root .  # modules registration check
 ```
 
 `ruff format --check .` mirrors what the `ruff-format` pre-commit hook enforces;
