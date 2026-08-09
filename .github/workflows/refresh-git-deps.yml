@@ -16,10 +16,9 @@ jobs:
   refresh:
     name: Refresh git dependencies
     runs-on: ubuntu-latest
-    # needs contents: write to create commits and pull-requests: write to create PRs
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write  # needed to create commits
+      pull-requests: write  # needed to create PRs
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
