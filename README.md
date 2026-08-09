@@ -129,6 +129,8 @@ shell or deployment platform as needed:
 | `LANGFUSE_PROJECT_ID` | Optional Langfuse project id | — |
 | `LLMIO_LEVEL{1,2,3,4}_MODEL` | Override the baked tier model (see [Four-tier configuration](#four-tier-configuration)) | baked defaults |
 | `LLMIO_LEVEL{1,2,3,4}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
+| `LLMIO_COOLDOWN_DURATION_SECONDS` | Cooldown window in seconds before re-probing a terminally-failing model | `21600` (6 hours) |
+| `LLMIO_COOLDOWN_FAILURE_THRESHOLD` | Consecutive terminal failures before a model enters cooldown | `3` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Logging format | `console` |
 

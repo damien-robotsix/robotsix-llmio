@@ -40,6 +40,7 @@ from typing import Any, TypeVar
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
 
 from ._otel import get_recording_span, get_tracer, start_span
+from .cooldown import get_health_tracker
 from .retry import _drive_sync
 
 log = logging.getLogger("robotsix_llmio.tier_fallback")
@@ -55,6 +56,8 @@ _ATTR_TIER_ATTEMPT_INDEX = "llmio.tier.attempt_index"
 _ATTR_TIER_SUCCEEDED = "llmio.tier.succeeded"
 _ATTR_TIER_PROMOTIONS = "llmio.tier.promotions"
 _ATTR_TIER_FALLBACK_ACTIVATED = "llmio.tier.fallback_activated"
+_ATTR_TIER_COOLDOWN_SKIPPED = "llmio.tier.cooldown_skipped"
+_ATTR_TIER_COOLDOWN_REASON = "llmio.tier.cooldown_reason"
 
 T = TypeVar("T")
 
@@ -121,9 +124,49 @@ async def _tier_fallback_loop(
 
     run_span = get_recording_span()
 
+    health_tracker = get_health_tracker()
+
     while True:
         tlc: TierLevelConfig = getattr(tier_config, current_level.value)
 
+        # ---- cooldown check: skip models that are currently unhealthy ----
+        if health_tracker.is_in_cooldown(tlc.model):
+            log.info(
+                "%s: %s (model=%s) is in cooldown — skipping",
+                what,
+                current_level.value,
+                tlc.model,
+            )
+            if run_span is not None:
+                run_span.set_attribute(_ATTR_TIER_COOLDOWN_SKIPPED, True)
+                run_span.set_attribute(_ATTR_TIER_COOLDOWN_REASON, current_level.value)
+
+            next_level = _next_unvisited_tier(current_level, frozenset(visited))
+
+            if next_level is None:
+                raise RuntimeError(
+                    f"{what}: all tiers exhausted; "
+                    f"{current_level.value} is in cooldown and no unvisited "
+                    f"tier remains"
+                )
+
+            exhausted = not fallback_enabled or promotions >= max_fallback_depth
+            if exhausted:
+                raise RuntimeError(
+                    f"{what}: {current_level.value} is in cooldown and "
+                    f"fallback depth ({max_fallback_depth}) exhausted"
+                )
+
+            if run_span is not None:
+                run_span.set_attribute(_ATTR_TIER_PROMOTIONS, promotions + 1)
+                run_span.set_attribute(_ATTR_TIER_FALLBACK_ACTIVATED, True)
+
+            visited.add(next_level)
+            promotions += 1
+            current_level = next_level
+            continue
+
+        # ---- attempt the tier ----
         with start_span(
             get_tracer(_TRACER_NAME),
             "llmio.tier.attempt",
@@ -148,6 +191,9 @@ async def _tier_fallback_loop(
             except Exception as exc:
                 if span is not None:
                     span.set_attribute(_ATTR_TIER_SUCCEEDED, False)
+
+                # Record terminal failures for cooldown tracking.
+                health_tracker.record_failure(tlc.model, exc=exc)
 
                 next_level = _next_unvisited_tier(current_level, frozenset(visited))
 
@@ -177,6 +223,9 @@ async def _tier_fallback_loop(
 
             if span is not None:
                 span.set_attribute(_ATTR_TIER_SUCCEEDED, True)
+
+            # Clear cooldown state on success.
+            health_tracker.record_success(tlc.model)
 
             log.info("%s: %s succeeded", what, current_level.value)
             return result

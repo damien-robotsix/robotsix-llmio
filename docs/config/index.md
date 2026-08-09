@@ -116,9 +116,11 @@ provider = create_model(level=2, tier_config=cfg)
 An explicit dict can override individual fields at highest precedence:
 
 ```python
-cfg = load_tier_config({
-    "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
-})
+cfg = load_tier_config(
+    {
+        "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
+    }
+)
 ```
 
 The loader merges three sources in order of increasing precedence:
