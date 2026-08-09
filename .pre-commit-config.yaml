@@ -21,6 +21,11 @@ repos:
     hooks:
       - id: ruff
       - id: ruff-format
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.25
+    hooks:
+      - id: validate-pyproject
+        additional_dependencies: ["validate-pyproject-schema-store[all]"]
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.3
     hooks:
