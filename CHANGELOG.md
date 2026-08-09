@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.3.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.1...v0.3.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* **release:** don't fail lock-sync when the release branch is gone ([#552](https://github.com/damien-robotsix/robotsix-llmio/issues/552)) ([a235a31](https://github.com/damien-robotsix/robotsix-llmio/commit/a235a311d47ae145f147684b3423bcf3f36df670))
+
 ## [0.3.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.0...v0.3.1) (2026-08-08)
 
 
