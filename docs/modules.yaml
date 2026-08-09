@@ -116,3 +116,4 @@ modules:
       - LICENSE
       - SECURITY.md
       - AGENT.md
+      - renovate.json
