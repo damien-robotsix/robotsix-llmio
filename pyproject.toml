@@ -71,6 +71,7 @@ docs = ["mkdocs", "mkdocs-include-markdown-plugin", "mkdocs-material", "mkdocstr
 
 [tool.uv]
 default-groups = ["dev"]
+exclude-newer = "3 days"
 
 [tool.uv.sources]
 robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
