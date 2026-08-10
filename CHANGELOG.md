@@ -7,6 +7,26 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.4.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.2...v0.4.0) (2026-08-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* callers relying on a failure at the starting tier propagating immediately must now pass fallback_enabled=False.
+
+### Features
+
+* Cooldown before retrying a systematically-failing model in the fallback chain (20260809T142723Z-cooldown-before-retrying-a-systematicall-e410) ([#561](https://github.com/damien-robotsix/robotsix-llmio/issues/561)) ([a4bbddc](https://github.com/damien-robotsix/robotsix-llmio/commit/a4bbddce913369a7910e6a11f4ebb69ed0ce9e3d))
+* tier fallback on by default ([#570](https://github.com/damien-robotsix/robotsix-llmio/issues/570)) ([158b3db](https://github.com/damien-robotsix/robotsix-llmio/commit/158b3db99ad4365e175002303a62934cd823339c))
+
+
+### Bug Fixes
+
+* CI failure: Docs on main (20260809T214217Z-ci-failure-docs-on-main-78fc) ([#564](https://github.com/damien-robotsix/robotsix-llmio/issues/564)) ([4c1c35c](https://github.com/damien-robotsix/robotsix-llmio/commit/4c1c35cda6e3923b2c8e1d53acad73fdd781eed6))
+* CI failure: Docs on main (20260809T235823Z-ci-failure-docs-on-main-537f) ([#572](https://github.com/damien-robotsix/robotsix-llmio/issues/572)) ([dfa0bbe](https://github.com/damien-robotsix/robotsix-llmio/commit/dfa0bbe0e5dfa7da0ebf043a3520be0b416395c4))
+* Fix case mismatch in mkdocs.yml nav: contributing.md → CONTRIBUTING.md (20260809T170705Z-fix-case-mismatch-in-mkdocs-yml-nav-cont-2721) ([#563](https://github.com/damien-robotsix/robotsix-llmio/issues/563)) ([667127f](https://github.com/damien-robotsix/robotsix-llmio/commit/667127f00b4f7ec67385cf33917c8bd3f52e881e))
+* Fix mkdocs.yml nav: contributing.md → CONTRIBUTING.md (regression from PR [#564](https://github.com/damien-robotsix/robotsix-llmio/issues/564)) (20260809T220937Z-fix-mkdocs-yml-nav-contributing-md-contr-ec93) ([#571](https://github.com/damien-robotsix/robotsix-llmio/issues/571)) ([b77c22f](https://github.com/damien-robotsix/robotsix-llmio/commit/b77c22f4b69af4de9ffbde8052284066ec582cd6))
+
 ## [0.3.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.1...v0.3.2) (2026-08-09)
 
 
