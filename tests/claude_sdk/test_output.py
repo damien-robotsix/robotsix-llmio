@@ -115,6 +115,13 @@ def test_parse_output_multi_output_second_type_matches():
     assert result.outcome == "rejected"
 
 
+def test_parse_output_empty_prompted_output_returns_raw_data():
+    """PromptedOutput([]) produces no validators — raw dict is returned."""
+    text = '{"verdict": "APPROVE", "auto_merge_eligible": false}'
+    result = _parse_output(text, PromptedOutput([]))
+    assert result == {"verdict": "APPROVE", "auto_merge_eligible": False}
+
+
 def test_parse_output_multi_output_no_match_raises():
     """JSON matching no declared model raises (not silently returns str)."""
     import pytest

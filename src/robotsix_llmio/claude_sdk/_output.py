@@ -135,6 +135,9 @@ def _parse_output(text: str, output_type: Any) -> Any:
             f"expected a JSON object matching the declared output type. "
             f"Response text: {text!r}"
         )
+    if not validators:
+        return data
+
     last_exc: Exception | None = None
     for v in validators:
         try:
