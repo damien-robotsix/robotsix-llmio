@@ -227,6 +227,12 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 - Add `ruff` to sandbox extra packages (`.robotsix-mill/config.yaml`) so the implement agent's pre-flight lint checks find it on PATH without repeated discovery attempts.
 - Added a Contributing page to the MkDocs docs site, including the root `CONTRIBUTING.md` via the `mkdocs-include-markdown-plugin` so new contributors can find the developer guide from the site.
+- Harden prompted-output JSON extraction and system prompt against models
+  that hallucinate DSML/XML tool-call markup (e.g. deepseek-v4-flash).
+  Added XML-tag stripping to ``_extract_json_object`` and an anti-DSML
+  instruction to the system prompt when ``PromptedOutput`` is active.
+  ``_JSON_OUTPUT_INSTRUCTION`` in the Claude SDK tool path also
+  received the anti-DSML hardening.
 - Enable pin_bump periodic workflow for automated dependency pin bumping
 - Add `credit_balance` periodic workflow stub (`.robotsix-mill/periodic/credit_balance.yaml`) to enable OpenRouter credit monitoring at the library level.
 - Added a new testing convention rule to `AGENT.md`: when splitting, renaming, or removing test files (or adding a new `tests/` sub-suite), update ARCHITECTURE.md's test coverage strategy listing in the same change to prevent documentation drift.

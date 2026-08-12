@@ -17,6 +17,31 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+# Appended to the system prompt when PromptedOutput is active, to guard
+# against models (notably deepseek-v4-flash) that occasionally hallucinate
+# DSML / <invoke> tool-call markup instead of emitting raw JSON.  The
+# instruction is deliberately terse — the primary JSON-schema instruction
+# comes from pydantic-ai; this is a reinforcement.
+_ANTI_DSML_INSTRUCTION = (
+    "\n\nIMPORTANT: Output ONLY the raw JSON object. "
+    "Do NOT wrap your response in any XML/DSML markup, "
+    "tool-call tags like <DSML> or <invoke>, "
+    "or any other formatting. "
+    "The response must be pure JSON with no surrounding text."
+)
+
+
+def _is_prompted_output(output_type: Any) -> bool:
+    """Return True if *output_type* will use pydantic-ai's PromptedOutput mode."""
+    from pydantic_ai import PromptedOutput
+
+    if isinstance(output_type, PromptedOutput):
+        return True
+    if isinstance(output_type, (list, tuple)):
+        return any(isinstance(o, PromptedOutput) for o in output_type)
+    return False
+
+
 def _resolve_output_type(output_type: Any, level: int) -> Any:
     """Resolve *output_type* for the given capability *level*.
 
@@ -202,6 +227,11 @@ class LLMProvider(ABC):
 
         """
         resolved_output_type = _resolve_output_type(output_type, level)
+
+        # When using PromptedOutput, harden the system prompt against models
+        # that hallucinate DSML/XML tool-call markup instead of JSON.
+        if _is_prompted_output(resolved_output_type):
+            system_prompt = system_prompt + _ANTI_DSML_INSTRUCTION
 
         if model is not None:
             # Explicit override — bypass tier_config entirely.

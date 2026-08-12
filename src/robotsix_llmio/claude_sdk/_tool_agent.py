@@ -51,7 +51,8 @@ _TRACER_NAME = "robotsix_llmio.claude_sdk"
 _JSON_OUTPUT_INSTRUCTION = (
     "Always respond with a JSON object that's compatible with this schema:\n"
     "{schema}\n"
-    "Don't include any text or Markdown fencing before or after."
+    "Don't include any text or Markdown fencing before or after.\n"
+    "Do NOT wrap your response in XML/DSML markup or tool-call tags."
 )
 
 # How many times to (re-)drive the SDK query for one agent run, retrying only
