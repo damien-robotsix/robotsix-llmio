@@ -10,7 +10,11 @@ pytest.importorskip("pydantic_ai")
 from pydantic_ai import PromptedOutput
 from pydantic_ai.tools import Tool as PydanticTool
 
-from robotsix_llmio.claude_sdk._output import _extract_json_object, _parse_output
+from robotsix_llmio.claude_sdk._output import (
+    _extract_json_object,
+    _parse_output,
+    _strip_xml_tags,
+)
 from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
 
 from .conftest import (
@@ -90,6 +94,45 @@ def test_extract_nested_object_captured_whole():
         "verdict": "APPROVE",
         "nested": {"a": {"b": [1, 2]}},
     }
+
+
+def test_extract_json_from_dsml_wrapped_output():
+    """JSON wrapped in DSML/XML tool-call markup is recovered via tag stripping."""
+    text = (
+        "<DSML>\n"
+        '<invoke name="tools">\n'
+        '{"verdict": "APPROVE", "auto_merge_eligible": true}\n'
+        "</invoke>\n"
+        "</DSML>"
+    )
+    assert _extract_json_object(text) == {
+        "verdict": "APPROVE",
+        "auto_merge_eligible": True,
+    }
+
+
+def test_extract_json_from_dsml_no_newlines():
+    """Compact single-line DSML wrapping still recovers the JSON."""
+    text = '<DSML><invoke>{"verdict": "REQUEST_CHANGES"}</invoke></DSML>'
+    assert _extract_json_object(text) == {"verdict": "REQUEST_CHANGES"}
+
+
+# ---------------------------------------------------------------------------
+# _strip_xml_tags unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_strip_xml_tags_removes_dsml():
+    assert _strip_xml_tags("<DSML><invoke>hello</invoke></DSML>") == "hello"
+
+
+def test_strip_xml_tags_no_tags_is_identity():
+    text = '{"verdict": "APPROVE"}'
+    assert _strip_xml_tags(text) == text
+
+
+def test_strip_xml_tags_preserves_inner_content():
+    assert _strip_xml_tags("<a>keep <b>nested</b> text</a>") == "keep nested text"
 
 
 # ---------------------------------------------------------------------------

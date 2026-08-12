@@ -91,15 +91,34 @@ def _balanced_objects(text: str) -> list[str]:
     return out
 
 
+_XML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_xml_tags(text: str) -> str:
+    """Remove XML/DSML markup tags from *text*, preserving inner content.
+
+    Some models (notably deepseek-v4-flash) occasionally hallucinate Claude
+    ``<DSML>`` / ``<invoke>`` tool-call markup around the JSON payload. This
+    strips those tags so the inner JSON can be extracted by the normal
+    candidate pipeline.
+    """
+    return _XML_TAG_RE.sub("", text)
+
+
 def _extract_json_object(text: str) -> dict[str, Any] | None:
     """Best-effort extraction of a JSON object from model *text*.
 
-    Tries, in order: (1) the whole text as JSON; (2) each ```-fenced block,
-    last first (a prose preamble + trailing ```json fence is the common shape);
-    (3) each top-level balanced ``{...}`` substring, last first. Returns the
-    first candidate that parses to a ``dict``, else ``None``.
+    Tries, in order: (1) the whole text as JSON; (2) the whole text after
+    stripping XML/DSML markup (to recover from models that hallucinate
+    tool-call tags); (3) each ```-fenced block, last first (a prose
+    preamble + trailing ```json fence is the common shape); (4) each
+    top-level balanced ``{...}`` substring, last first. Returns the first
+    candidate that parses to a ``dict``, else ``None``.
     """
     candidates: list[str] = [text]
+    stripped = _strip_xml_tags(text)
+    if stripped != text:
+        candidates.append(stripped)
     candidates += list(reversed(_fenced_blocks(text)))
     candidates += list(reversed(_balanced_objects(text)))
     for cand in candidates:

@@ -571,3 +571,136 @@ def test_build_agent_model_override_level_2_wraps(monkeypatch):
     passed = captured["output_type"]
     assert isinstance(passed, PromptedOutput)
     assert passed.outputs is _Foo
+
+
+# ---- _is_prompted_output unit tests --------------------------------------
+
+
+def test_is_prompted_output_with_prompted_output_instance():
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output(PromptedOutput(str)) is True
+
+
+def test_is_prompted_output_with_tool_output_is_false():
+    from pydantic_ai import ToolOutput
+
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output(ToolOutput(str)) is False
+
+
+def test_is_prompted_output_with_native_output_is_false():
+    from pydantic_ai import NativeOutput
+
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output(NativeOutput(str)) is False
+
+
+def test_is_prompted_output_with_str_is_false():
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output(str) is False
+
+
+def test_is_prompted_output_with_raw_type_is_false():
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output(dict) is False
+
+
+def test_is_prompted_output_with_list_containing_prompted():
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output([PromptedOutput(str), dict]) is True
+
+
+def test_is_prompted_output_with_empty_list_is_false():
+    from robotsix_llmio.core.provider import _is_prompted_output
+
+    assert _is_prompted_output([]) is False
+
+
+# ---- anti-DSML instruction injection -------------------------------------
+
+
+def test_build_agent_injects_anti_dsml_for_prompted_output(monkeypatch):
+    """When the resolved output type is PromptedOutput, the system prompt
+    is augmented with an anti-DSML instruction."""
+    from pydantic_ai import PromptedOutput
+
+    from robotsix_llmio.core import provider as provider_module
+    from robotsix_llmio.core.provider import _ANTI_DSML_INSTRUCTION
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=1, system_prompt="Be helpful.", output_type=PromptedOutput(str))
+    assert captured["system_prompt"] == "Be helpful." + _ANTI_DSML_INSTRUCTION
+
+
+def test_build_agent_no_anti_dsml_for_str_output(monkeypatch):
+    """When output_type is str, the system prompt is NOT augmented."""
+    from robotsix_llmio.core import provider as provider_module
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=1, system_prompt="Be helpful.", output_type=str)
+    assert captured["system_prompt"] == "Be helpful."
+
+
+def test_build_agent_no_anti_dsml_for_tool_output(monkeypatch):
+    """When output_type is ToolOutput, the system prompt is NOT augmented."""
+    from pydantic_ai import ToolOutput
+
+    from robotsix_llmio.core import provider as provider_module
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=1, system_prompt="Be helpful.", output_type=ToolOutput(str))
+    assert captured["system_prompt"] == "Be helpful."
+
+
+def test_build_agent_injects_anti_dsml_for_level2_raw_type(monkeypatch):
+    """At level=2 a raw pydantic type is wrapped in PromptedOutput, so the
+    anti-DSML instruction is injected."""
+    from pydantic import BaseModel
+
+    from robotsix_llmio.core import provider as provider_module
+    from robotsix_llmio.core.provider import _ANTI_DSML_INSTRUCTION
+
+    class _Foo(BaseModel):
+        bar: str
+
+    p = _MockProvider()
+    captured: dict[str, Any] = {}
+
+    def fake_build_agent(model, http_client, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
+    p.build_agent(level=2, system_prompt="sys", output_type=_Foo)
+    assert captured["system_prompt"] == "sys" + _ANTI_DSML_INSTRUCTION
