@@ -7,6 +7,8 @@ infrastructure hiccup that a re-run usually clears — treat those as transient.
 
 from __future__ import annotations
 
+import errno
+
 from ..core.retry import _walk_cause_chain
 from ..core.retry import is_transient as _core_is_transient
 
@@ -93,6 +95,28 @@ def is_claude_sdk_auth_error(exc: BaseException) -> bool:
     the other helpers."""
     return any(
         type(cur).__name__ == "ClaudeSDKAuthError" for cur in _walk_cause_chain(exc)
+    )
+
+
+def is_claude_sdk_spawn_argv_too_long(exc: BaseException) -> bool:
+    """True if *exc* is the CLI spawn failing with ``E2BIG``.
+
+    The kernel refuses the ``execve`` when a single argument exceeds
+    ``MAX_ARG_STRLEN`` (128 KiB) or when argv plus envp together exceed
+    ``ARG_MAX`` (``RLIMIT_STACK / 4``, so 2 MiB at the usual 8 MiB stack). The
+    transport builds the same command from the same options on every attempt,
+    so the size is identical each time and no retry can clear it — observed
+    2026-08-13 on robotsix-chat, where four autonomous sessions each burned all
+    three attempts on it in a ten-second window and surfaced an opaque
+    ``server_error`` to the user.
+
+    Matched on the ``errno`` rather than the message so it holds under a
+    non-English locale, walking the bounded cause/context chain like the other
+    helpers.
+    """
+    return any(
+        isinstance(cur, OSError) and cur.errno == errno.E2BIG
+        for cur in _walk_cause_chain(exc)
     )
 
 
@@ -186,11 +210,12 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     walking the cause/context chain for the latter.
 
     The turn-cap failure, usage-exhaustion, API request-validation (400)
-    rejections, and authentication (401) failures are explicitly excluded — and
-    checked FIRST, so they win even when the CLI surfaces them as a
-    (normally-transient) ``ProcessError`` or as the degenerate-success frame.
-    Retrying any of them would just repeat the identical failure, so all four
-    must fail loudly rather than burn retries and end in an opaque error."""
+    rejections, authentication (401) failures, and an ``E2BIG`` spawn refusal
+    are explicitly excluded — and checked FIRST, so they win even when the CLI
+    surfaces them as a (normally-transient) ``ProcessError`` or as the
+    degenerate-success frame. Retrying any of them would just repeat the
+    identical failure, so all five must fail loudly rather than burn retries
+    and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
         return False
     if is_claude_sdk_usage_exhausted(exc):
@@ -198,6 +223,8 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     if is_claude_sdk_permanent_api_error(exc):
         return False
     if is_claude_sdk_auth_error(exc):
+        return False
+    if is_claude_sdk_spawn_argv_too_long(exc):
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True
