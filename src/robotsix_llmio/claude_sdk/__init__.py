@@ -14,6 +14,7 @@ from ._stream import ClaudeSDKActivityEvent, activity_events
 from .transient import (
     is_claude_sdk_auth_error,
     is_claude_sdk_permanent_api_error,
+    is_claude_sdk_spawn_argv_too_long,
     is_claude_sdk_transient,
     is_claude_sdk_turn_limit,
     is_claude_sdk_usage_exhausted,
@@ -44,6 +45,7 @@ __all__ = [
     "activity_events",
     "is_claude_sdk_auth_error",
     "is_claude_sdk_permanent_api_error",
+    "is_claude_sdk_spawn_argv_too_long",
     "is_claude_sdk_transient",
     "is_claude_sdk_turn_limit",
     "is_claude_sdk_usage_exhausted",

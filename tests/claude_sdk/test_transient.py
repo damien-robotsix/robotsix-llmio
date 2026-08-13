@@ -6,6 +6,7 @@ can be tested in isolation."""
 from __future__ import annotations
 
 import asyncio
+import errno
 
 import pytest
 
@@ -380,3 +381,54 @@ def test_auth_signature_stays_narrow():
     assert is_auth_error_text("API Error: 403 forbidden") is False
     assert is_auth_error_text("API Error: 429 rate limited") is False
     assert is_auth_error_text("API Error: 500 server error") is False
+
+
+# ---------------------------------------------------------------------------
+# E2BIG spawn refusal — deterministic, so retrying can never clear it.
+#
+# Observed 2026-08-13 on robotsix-chat: four autonomous sessions each burned
+# all three attempts on it inside a ten-second window and surfaced an opaque
+# server_error to the user.
+# ---------------------------------------------------------------------------
+
+
+def _e2big() -> OSError:
+    """The exact shape subprocess raises when the kernel refuses the exec."""
+    return OSError(
+        errno.E2BIG,
+        "Argument list too long",
+        "/usr/local/lib/python3.14/site-packages/claude_agent_sdk/_bundled/claude",
+    )
+
+
+def test_spawn_argv_too_long_is_detected() -> None:
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_spawn_argv_too_long
+
+    assert is_claude_sdk_spawn_argv_too_long(_e2big()) is True
+
+
+def test_spawn_argv_too_long_is_detected_through_the_cause_chain() -> None:
+    """The SDK wraps it in a transport error before it reaches the retry loop."""
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_spawn_argv_too_long
+
+    wrapped = RuntimeError("Failed to start Claude Code")
+    wrapped.__cause__ = _e2big()
+    assert is_claude_sdk_spawn_argv_too_long(wrapped) is True
+
+
+def test_spawn_argv_too_long_is_not_transient() -> None:
+    """The whole point: it must not burn the retry budget."""
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_transient
+
+    wrapped = RuntimeError("Failed to start Claude Code")
+    wrapped.__cause__ = _e2big()
+    assert is_claude_sdk_transient(wrapped) is False
+
+
+def test_other_oserrors_still_retry() -> None:
+    """Only E2BIG is excluded — a transient spawn hiccup must still retry."""
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_spawn_argv_too_long
+
+    again = OSError(errno.EAGAIN, "try again")
+    assert is_claude_sdk_spawn_argv_too_long(again) is False
+    assert is_claude_sdk_spawn_argv_too_long(RuntimeError("boom")) is False
