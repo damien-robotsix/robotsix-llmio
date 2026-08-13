@@ -429,5 +429,6 @@ def test_other_oserrors_still_retry() -> None:
     """Only E2BIG is excluded — a transient spawn hiccup must still retry."""
     from robotsix_llmio.claude_sdk.transient import is_claude_sdk_spawn_argv_too_long
 
-    assert is_claude_sdk_spawn_argv_too_long(OSError(errno.EAGAIN, "try again")) is False
+    again = OSError(errno.EAGAIN, "try again")
+    assert is_claude_sdk_spawn_argv_too_long(again) is False
     assert is_claude_sdk_spawn_argv_too_long(RuntimeError("boom")) is False
