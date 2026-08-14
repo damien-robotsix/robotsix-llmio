@@ -20,6 +20,7 @@ from robotsix_llmio.claude_sdk._model import ClaudeSDKModel
 from robotsix_llmio.claude_sdk._tool_agent import _SdkToolAgentHandle
 from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
 from robotsix_llmio.claude_sdk.transient import (
+    is_claude_sdk_session_option_error,
     is_claude_sdk_transient,
     is_claude_sdk_turn_limit,
 )
@@ -432,3 +433,53 @@ def test_other_oserrors_still_retry() -> None:
     again = OSError(errno.EAGAIN, "try again")
     assert is_claude_sdk_spawn_argv_too_long(again) is False
     assert is_claude_sdk_spawn_argv_too_long(RuntimeError("boom")) is False
+
+
+class TestSessionOptionErrors:
+    """A refused session option is decided before the CLI does any work.
+
+    The transport rebuilds an identical command every attempt, so retrying can
+    only reproduce it; the caller has to bind a different option. Observed
+    2026-08-14 on robotsix-chat, where each of three autonomous sessions burned
+    all three attempts on it before the caller's own self-heal got a turn.
+    """
+
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "No conversation found with session ID: "
+            "65d9e053-ccb5-515e-bd5d-d68d8dc94adf",
+            "Error: Session ID abc-123 is already in use.",
+            "Error: --session-id can only be used with --continue or --resume "
+            "if --fork-session is also specified.",
+        ],
+    )
+    def test_session_option_errors_are_not_transient(self, stderr: str) -> None:
+        exc = RuntimeError(
+            f"Claude Agent SDK transport/process failure (agent): "
+            f"Command failed with exit code 1\nCLI stderr:\n{stderr}"
+        )
+        assert is_claude_sdk_session_option_error(exc) is True
+        assert is_claude_sdk_transient(exc) is False
+
+    def test_wins_over_the_process_error_type(self) -> None:
+        """ProcessError is normally transient — the session check must run first."""
+
+        class ProcessError(Exception):
+            pass
+
+        exc = ProcessError(
+            "Command failed with exit code 1\nCLI stderr:\n"
+            "No conversation found with session ID: abc"
+        )
+        assert is_claude_sdk_transient(exc) is False
+
+    def test_an_ordinary_spawn_failure_stays_transient(self) -> None:
+        """Guard the exclusion's blast radius: only session wording is excluded."""
+
+        class ProcessError(Exception):
+            pass
+
+        exc = ProcessError("Command failed with exit code 1")
+        assert is_claude_sdk_session_option_error(exc) is False
+        assert is_claude_sdk_transient(exc) is True
