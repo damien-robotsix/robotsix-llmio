@@ -29,6 +29,7 @@ from ..core.tracing import (
     start_span,
 )
 from ._chat_messages import _chat_messages_input
+from ._cli_stderr import record
 from ._confinement import (
     _EDIT_TOOLS,
     _make_bash_confine_hook,
@@ -351,6 +352,11 @@ class _SdkToolAgentHandle:
             if not self._web_tools:
                 denied += _WEB_TOOL_NAMES
             extra["disallowed_tools"] = denied
+
+        # Capture the CLI's stderr. Without a sink the SDK does not even pipe
+        # it, so a non-zero exit surfaces only as "Command failed with exit
+        # code 1" — the CLI's own diagnosis, which names the fix, is lost.
+        extra["stderr"] = record
 
         return ClaudeAgentOptions(
             system_prompt=system_prompt,

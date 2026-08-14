@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from ..core._otel import get_recording_span
+from ._cli_stderr import describe, start_capture
 
 log = logging.getLogger("robotsix_llmio.claude_sdk")
 
@@ -259,6 +260,11 @@ async def _stream_query(
     message) that discards the real text — checked against whatever text had
     already streamed into ``chunks`` before that exception fired.
     """
+    # Fresh buffer per attempt: the caller retries with the same options, and
+    # attaching a previous attempt's stderr to this one's failure would point
+    # at the wrong cause.
+    start_capture()
+
     from claude_agent_sdk import (
         AssistantMessage,
         ResultMessage,
@@ -377,7 +383,7 @@ async def _stream_query(
         if isinstance(exc, RobotsixLLMIOError):
             raise
         raise ClaudeSDKAPIError(
-            f"Claude Agent SDK transport/process failure ({label}): {exc}"
+            f"Claude Agent SDK transport/process failure ({label}): {exc}{describe()}"
         ) from exc
 
     text = "".join(chunks).strip()
