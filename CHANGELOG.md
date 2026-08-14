@@ -7,6 +7,16 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.4.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.0...v0.4.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* _parse_output raises TypeError on PromptedOutput([]) — empty validators guard missing (20260811T141407Z-parse-output-raises-typeerror-on-prompte-0b4d) ([#576](https://github.com/damien-robotsix/robotsix-llmio/issues/576)) ([7ee9418](https://github.com/damien-robotsix/robotsix-llmio/commit/7ee941889c084277513333b85208ba292fb7a99b))
+* a refused session option is not a transient spawn failure ([#580](https://github.com/damien-robotsix/robotsix-llmio/issues/580)) ([4d9ea9c](https://github.com/damien-robotsix/robotsix-llmio/commit/4d9ea9cd39379146a7292947baa9669ce324ca42))
+* an E2BIG spawn refusal is not transient ([#578](https://github.com/damien-robotsix/robotsix-llmio/issues/578)) ([eee2e14](https://github.com/damien-robotsix/robotsix-llmio/commit/eee2e148e3365a4e1ce3a6fe92b6e366e94e7da6))
+* surface the Claude CLI's stderr on a transport failure ([#579](https://github.com/damien-robotsix/robotsix-llmio/issues/579)) ([8622770](https://github.com/damien-robotsix/robotsix-llmio/commit/8622770cd732daec59a804f005bac4a6586ff548))
+
 ## [0.4.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.3.2...v0.4.0) (2026-08-10)
 
 
