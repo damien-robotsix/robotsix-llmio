@@ -120,6 +120,32 @@ def is_claude_sdk_spawn_argv_too_long(exc: BaseException) -> bool:
     )
 
 
+# The Claude CLI's own wording when the session options it was given cannot
+# be satisfied. All three are decided before the CLI does any work, and the
+# transport rebuilds the identical command every attempt, so a re-run can only
+# reproduce them — the caller has to change which option it binds. Matched on
+# the CLI's stderr, which reaches us only because the transport now captures it
+# (see ``_cli_stderr``); before that these were invisible and burned all three
+# attempts as if they were flaky spawns (robotsix-chat, 2026-08-14).
+_SESSION_OPTION_SIGNATURES = (
+    "no conversation found with session id",
+    "is already in use",
+    "--session-id can only be used with",
+)
+
+
+def is_claude_sdk_session_option_error(exc: BaseException) -> bool:
+    """True if *exc* reports a session option the CLI refuses to honour.
+
+    Covers asking to resume a session the CLI does not have, asking to create
+    one it already has, and passing ``--session-id`` alongside
+    ``--resume``/``--continue`` without ``--fork-session``. None of these is
+    flaky: the fix is always to bind a different option, never to try again.
+    """
+    lowered = str(exc).lower()
+    return any(sig in lowered for sig in _SESSION_OPTION_SIGNATURES)
+
+
 def is_permanent_api_error_text(text: str) -> bool:
     """True if *text* (assistant-visible turn text) reports an API ``400`` —
     a request-validation rejection that a re-run cannot clear."""
@@ -210,12 +236,12 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     walking the cause/context chain for the latter.
 
     The turn-cap failure, usage-exhaustion, API request-validation (400)
-    rejections, authentication (401) failures, and an ``E2BIG`` spawn refusal
-    are explicitly excluded — and checked FIRST, so they win even when the CLI
-    surfaces them as a (normally-transient) ``ProcessError`` or as the
-    degenerate-success frame. Retrying any of them would just repeat the
-    identical failure, so all five must fail loudly rather than burn retries
-    and end in an opaque error."""
+    rejections, authentication (401) failures, an ``E2BIG`` spawn refusal, and
+    a refused session option are explicitly excluded — and checked FIRST, so
+    they win even when the CLI surfaces them as a (normally-transient)
+    ``ProcessError`` or as the degenerate-success frame. Retrying any of them
+    would just repeat the identical failure, so all six must fail loudly rather
+    than burn retries and end in an opaque error."""
     if is_claude_sdk_turn_limit(exc):
         return False
     if is_claude_sdk_usage_exhausted(exc):
@@ -225,6 +251,8 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
     if is_claude_sdk_auth_error(exc):
         return False
     if is_claude_sdk_spawn_argv_too_long(exc):
+        return False
+    if is_claude_sdk_session_option_error(exc):
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True
