@@ -152,9 +152,13 @@ class ClaudeSDKModel(Model):
             ClaudeAgentOptions,
         )
 
+        from ._cli_stderr import record
         from ._stream import _stream_query
 
         options = ClaudeAgentOptions(
+            # See _tool_agent._build_options: without a sink the SDK does not
+            # pipe the CLI's stderr at all, and its diagnosis is lost.
+            stderr=record,
             system_prompt=system_text,
             model=self._sdk_model,
             max_turns=_MAX_TURNS,  # backstop only; no tools => answers in one turn
