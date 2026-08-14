@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robotsix-llmio"
-version = "0.4.0"
+version = "0.4.1"
 description = "Provider-agnostic LLM I/O for pydantic-ai agents, with derived per-provider layers (e.g. DeepSeek over OpenRouter)."
 readme = "README.md"
 requires-python = ">=3.14"
