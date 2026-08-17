@@ -34,7 +34,7 @@ dependencies = [
     "robotsix-http",
     # Pin starlette to a version that resolves CVE-2026-54283 and
     # CVE-2026-54282 (transitively pulled via claude-agent-sdk -> mcp).
-    "starlette>=1.3.1",
+    "starlette>=1.6.0",
 ]
 
 [project.urls]
@@ -52,7 +52,7 @@ openrouter = ["pydantic-ai-slim[openrouter]>=1.0", "openai"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
-claude_sdk = ["claude-agent-sdk>=0.2.97"]
+claude_sdk = ["claude-agent-sdk>=0.2.139"]
 # Optional: emit cost/usage onto the active OpenTelemetry span AND export the
 # resulting traces to Langfuse (core.setup_langfuse_tracing). Trace export is
 # pure OTLP — no langfuse SDK needed.
