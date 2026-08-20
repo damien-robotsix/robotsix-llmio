@@ -50,7 +50,7 @@ class TestLoaderToFactoryChain:
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-flash",
             base_url="https://proxy.example.com",
-            max_tokens=4096,
+            max_tokens=16384,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
@@ -141,5 +141,5 @@ class TestYamlRoundTrip:
 
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-flash",
-            max_tokens=4096,
+            max_tokens=16384,
         )

@@ -116,14 +116,23 @@ class TierLevelConfig(BaseModel):
 #  Baked defaults                                                             #
 # --------------------------------------------------------------------------- #
 
+# ``max_tokens`` on the OpenRouter levels is a hard per-response output cap.
+# Set it too low and a long generation does not degrade — it fails outright,
+# raising "Model token limit (N) exceeded before any response was generated"
+# and, once the retries and the fallback tier are spent, BLOCKing the caller.
+# Observed 2026-08-20: implement agents asked to write a large file (splitting
+# a ~1200-line module, cloning a workflow) blew the 8192 cap before emitting
+# a single token, on models that serve 384k completion tokens. The values
+# below leave generous headroom while still bounding a runaway response to a
+# few cents at the capable tier's ~$2/M completion rate.
 LEVEL1_DEFAULT = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-flash",
-    max_tokens=4096,
+    max_tokens=16384,
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-pro",
-    max_tokens=8192,
+    max_tokens=32768,
 )
 
 # No ``max_tokens`` on the Claude SDK levels, deliberately. ``ClaudeAgentOptions``

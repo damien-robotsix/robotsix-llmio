@@ -61,18 +61,27 @@ _REASONING_CONTENT_KEY = "reasoning_content"
 _TOOL_CALLS_KEY = "tool_calls"
 
 #: Price ceilings in USD per 1M tokens, passed straight through to OpenRouter's
-#: ``provider.max_price``. Chosen from the live per-provider price list on
-#: 2026-07-29 so that several healthy providers stay eligible (a ceiling that
-#: admits nobody makes the request fail outright):
+#: ``provider.max_price``. A ceiling that admits nobody makes the request fail
+#: outright — OpenRouter answers ``404 No endpoints found that satisfy the max
+#: price for this request`` — so these must be re-checked against the live
+#: per-provider price list whenever DeepSeek pricing moves.
 #:
-#: * capable tier (``deepseek-v4-pro``) — DeepSeek $0.435/$0.870, Baidu
-#:   $0.625/$1.251, StreamLake $0.670/$1.340, GMICloud $0.679/$1.357 all fit
-#:   under $0.70/$1.40; the $1.740/$3.480 tail (Together, Fireworks, CoreWeave,
-#:   Parasail, …) is excluded.
-#: * cheap tier (``deepseek-v4-flash``) — the whole healthy field runs
-#:   $0.090/$0.180 (DeepInfra) to $0.140/$0.280, so $0.15/$0.30 admits all of
-#:   them and excludes only the outlier (Mancer 2 at $0.200/$1.000).
-DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.70, "completion": 1.40}
+#: Re-measured 2026-08-20 (previous values dated 2026-07-29):
+#:
+#: * capable tier (``deepseek-v4-pro``) — the old $0.70/$1.40 ceiling had
+#:   decayed to admitting only 2 of 18 endpoints (StreamLake $0.624/$1.247,
+#:   Baidu $0.625/$1.251).  DeepSeek itself had drifted out of its own
+#:   ceiling — $0.435/$0.870 → $0.660/$1.980 — so ``order: ["DeepSeek"]``
+#:   named a provider ``max_price`` then excluded, and any StreamLake/Baidu
+#:   hiccup turned into a hard 404 instead of a fallback.  $0.90/$2.40 admits
+#:   DeepSeek, StreamLake, Baidu, GMICloud ($0.792/$2.376) and DigitalOcean
+#:   ($0.870/$1.740) — 5 healthy endpoints, the preferred one included —
+#:   while still excluding the $1.13+/$2.26+ tail (Ionstream, CoreWeave,
+#:   DeepInfra, Together, Fireworks, Azure, …) the cap exists to keep out.
+#: * cheap tier (``deepseek-v4-flash``) — still healthy at $0.15/$0.30: the
+#:   field runs $0.068/$0.168 (DigitalOcean) to $0.140/$0.280, so 13 of 18
+#:   endpoints qualify.  Left unchanged.
+DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.90, "completion": 2.40}
 DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.15, "completion": 0.30}
 
 
