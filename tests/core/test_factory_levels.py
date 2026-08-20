@@ -192,9 +192,9 @@ def test_build_agent_for_level_provider_kwargs_forwarded(
 
     build_agent_for_level(1, provider_kwargs={"api_key": "explicit"}, system_prompt="x")
 
-    # max_tokens from the baked level-1 default (4096) is forwarded alongside
+    # max_tokens from the baked level-1 default (16384) is forwarded alongside
     # the explicit provider_kwargs.
-    assert calls[0][1] == {"api_key": "explicit", "max_tokens": 4096}
+    assert calls[0][1] == {"api_key": "explicit", "max_tokens": 16384}
 
 
 def test_build_agent_for_level_tier_provider_kwargs_forwarded(
