@@ -33,7 +33,10 @@ def _model(level: int):
 
 
 def test_level2_prefers_deepseek_and_xhigh():
-    from robotsix_llmio.openrouter._deepseek_model import DEFAULT_MAX_PRICE_CAPABLE
+    from robotsix_llmio.openrouter._deepseek_model import (
+        DEFAULT_IGNORE_CAPABLE,
+        DEFAULT_MAX_PRICE_CAPABLE,
+    )
 
     m = _model(2)
     ms: dict = {}
@@ -42,6 +45,7 @@ def test_level2_prefers_deepseek_and_xhigh():
         "allow_fallbacks": True,
         "order": ["DeepSeek"],
         "max_price": DEFAULT_MAX_PRICE_CAPABLE,
+        "ignore": list(DEFAULT_IGNORE_CAPABLE),
     }
     assert ms["extra_body"]["reasoning"] == {"effort": "xhigh"}
 
@@ -93,6 +97,91 @@ def test_price_ceiling_is_configurable_per_bound():
         "prompt": DEFAULT_MAX_PRICE_CAPABLE["prompt"],
         "completion": 9.0,
     }
+
+
+def test_level2_default_ignores_cache_read_outliers():
+    """DigitalOcean/CoreWeave cache-read rates are a multiple of DeepSeek's — a
+    cost ``max_price`` cannot express — so the capable tier excludes them by
+    default via ``provider.ignore``."""
+    from robotsix_llmio.openrouter._deepseek_model import DEFAULT_IGNORE_CAPABLE
+
+    ms: dict = {}
+    _model(2)._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["ignore"] == list(DEFAULT_IGNORE_CAPABLE)
+
+
+def test_level1_has_no_default_ignore():
+    """The cheap tier has no cache-read outliers to exclude, so no ``ignore``
+    key is injected by default."""
+    ms: dict = {}
+    _model(1)._inject_pin((), {"model_settings": ms})
+    assert "ignore" not in ms["extra_body"]["provider"]
+
+
+def test_ignore_providers_is_configurable():
+    """``ignore_providers`` flows from the provider constructor (and hence
+    ``provider_kwargs``) into ``provider.ignore``, overriding the default."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("deepseek/deepseek-v4-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(
+        api_key="x", ignore_providers=["SomeProvider"]
+    )._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["ignore"] == ["SomeProvider"]
+
+
+def test_ignore_providers_empty_list_disables_default():
+    """An explicit empty list opts the capable tier out of its default ignore."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("deepseek/deepseek-v4-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x", ignore_providers=[])._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    assert "ignore" not in ms["extra_body"]["provider"]
+
+
+def test_preferred_provider_price_satisfies_each_tier_ceiling():
+    """Each tier's ceiling must admit the preferred (DeepSeek) endpoint's own
+    listed sticker price, so ``order`` and ``max_price`` never contradict.
+
+    Preferred prices measured against the live endpoint list on 2026-08-21:
+    ``deepseek-v4-flash`` $0.220/$0.660, ``deepseek-v4-pro`` $0.660/$1.980.
+    """
+    from robotsix_llmio.openrouter._deepseek_model import (
+        DEFAULT_MAX_PRICE_CAPABLE,
+        DEFAULT_MAX_PRICE_CHEAP,
+    )
+
+    preferred = {
+        1: {"prompt": 0.220, "completion": 0.660},  # deepseek-v4-flash
+        2: {"prompt": 0.660, "completion": 1.980},  # deepseek-v4-pro
+    }
+    ceilings = {1: DEFAULT_MAX_PRICE_CHEAP, 2: DEFAULT_MAX_PRICE_CAPABLE}
+    for level, ceiling in ceilings.items():
+        sticker = preferred[level]
+        assert ceiling["prompt"] >= sticker["prompt"], (
+            f"level {level} prompt ceiling {ceiling['prompt']!r} "
+            f"excludes preferred provider at {sticker['prompt']!r}"
+        )
+        assert ceiling["completion"] >= sticker["completion"], (
+            f"level {level} completion ceiling {ceiling['completion']!r} "
+            f"excludes preferred provider at {sticker['completion']!r}"
+        )
 
 
 def test_hard_pin_remains_available_as_an_explicit_opt_in():
