@@ -142,7 +142,7 @@ def test_check_tier_ignored_provider_not_admitted(check_module):
     assert report.failures == []
 
 
-def test_check_tier_flags_missing_preferred_provider(check_module):
+def test_check_tier_flags_missing_preferred_provider_as_warning(check_module):
     endpoints = [
         _endpoint("StreamLake", prompt=0.792, completion=2.376),
         _endpoint("Baidu", prompt=0.80, completion=2.00),
@@ -150,7 +150,8 @@ def test_check_tier_flags_missing_preferred_provider(check_module):
     ]
     report = check_module.check_tier(_tier_check(check_module), endpoints)
 
-    assert any("has no endpoints" in failure for failure in report.failures)
+    assert report.failures == []
+    assert any("has no endpoints" in warning for warning in report.warnings)
 
 
 # --- fetch_endpoints (mocked httpx) -------------------------------------------
