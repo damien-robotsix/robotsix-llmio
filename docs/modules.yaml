@@ -92,6 +92,7 @@ modules:
       - .pre-commit-config.yaml
       - .github/**
       - .robotsix-mill/**
+      - scripts/**
       - .editorconfig
       - .gitignore
       - .secrets.baseline

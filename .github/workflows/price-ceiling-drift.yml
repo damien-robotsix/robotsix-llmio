@@ -1,0 +1,29 @@
+name: Price ceiling drift check
+
+on:
+  schedule:
+    # Weekly, Monday 06:00 UTC — a deliberate cadence, not a per-PR gate.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    name: Check DeepSeek price ceilings
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      UV_MALWARE_CHECK: "1"
+    steps:
+      - uses: ./.github/actions/setup-repo
+        with:
+          python-version: '3.14'
+      # The guard imports the openrouter layer (openai, pydantic-ai-slim
+      # openrouter extra), so install that extra on top of the frozen lock.
+      - name: Sync dependencies
+        run: uv sync --frozen --extra openrouter
+      - name: Verify DeepSeek price ceilings against OpenRouter
+        run: uv run python scripts/check-price-ceilings.py
