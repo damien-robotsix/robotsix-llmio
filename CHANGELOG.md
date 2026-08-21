@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.4.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.1...v0.4.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **openrouter:** unstick deepseek routing — refresh price ceiling, raise output caps ([#586](https://github.com/damien-robotsix/robotsix-llmio/issues/586)) ([002bccd](https://github.com/damien-robotsix/robotsix-llmio/commit/002bccd6658b4eef47e77c80eefdc156657914c0))
+
 ## [0.4.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.0...v0.4.1) (2026-08-14)
 
 
