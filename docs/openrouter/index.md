@@ -10,11 +10,21 @@ The module also exports DeepSeek-specific classes that pin the generic
 OpenRouter transport to DeepSeek models on OpenRouter:
 
 - `OpenRouterDeepseekProvider` — provider that maps `level=2` to
-  `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `level=1`
-  to `"deepseek/deepseek-v4-flash"` (reasoning disabled).
+  `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `level=1` to
+  `"deepseek/deepseek-v4-flash"` (reasoning disabled).  Routing is configurable
+  via ``provider_kwargs``: ``max_price_prompt``, ``max_price_completion``, and
+  ``ignore_providers`` (a list of upstream providers to exclude from fallback
+  routing — see ``OpenRouterDeepseekModel`` below).
 - `OpenRouterDeepseekModel` — model that injects
-  `provider: {only: ["DeepSeek"], allow_fallbacks: false}` and per-level
-  `reasoning` settings into every request.
+  ``provider: {order: ["DeepSeek"], allow_fallbacks: true, max_price: …, ignore: …}``
+  and per-level ``reasoning`` settings into every request. ``order`` keeps DeepSeek
+  first (prompt-cache warmth) while ``allow_fallbacks`` lets OpenRouter route
+  past it when it fails; ``max_price`` caps the fallback's sticker price per 1M
+  tokens — each tier's ceiling is set from DeepSeek's own sticker price plus
+  headroom so ``order`` and ``max_price`` never contradict. ``ignore`` bars
+  providers whose cache-read rate is a large multiple of DeepSeek's — a cost
+  ``max_price`` cannot see (OpenRouter's ``max_price`` accepts only ``prompt``,
+  ``completion``, ``request`` and ``image``).
 
 The DeepSeek classes are imported from `robotsix_llmio.openrouter`:
 

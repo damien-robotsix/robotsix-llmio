@@ -45,7 +45,9 @@ bypassed by force, so the outage could not self-heal.
 still warms in the common case) but lets OpenRouter route past it when it is
 failing. ``max_price`` bounds what that fallback may cost: the same model is
 served from ~$0.435/M to ~$1.740/M, so an unbounded fallback could silently
-cost ~4x. The ceilings below were measured against the live endpoint list.
+cost ~4x. ``ignore`` additionally bars a short list of providers whose
+cache-read rate is a multiple of DeepSeek's — a cost ``max_price`` cannot see.
+The ceilings below were measured against the live endpoint list.
 """
 
 from __future__ import annotations
@@ -66,23 +68,31 @@ _TOOL_CALLS_KEY = "tool_calls"
 #: price for this request`` — so these must be re-checked against the live
 #: per-provider price list whenever DeepSeek pricing moves.
 #:
-#: Re-measured 2026-08-20 (previous values dated 2026-07-29):
+#: Each ceiling is set from the *preferred* (DeepSeek) endpoint's sticker price
+#: plus headroom, so ``order: ["DeepSeek"]`` and ``max_price`` can never
+#: contradict each other. Measured 2026-08-21:
 #:
-#: * capable tier (``deepseek-v4-pro``) — the old $0.70/$1.40 ceiling had
-#:   decayed to admitting only 2 of 18 endpoints (StreamLake $0.624/$1.247,
-#:   Baidu $0.625/$1.251).  DeepSeek itself had drifted out of its own
-#:   ceiling — $0.435/$0.870 → $0.660/$1.980 — so ``order: ["DeepSeek"]``
-#:   named a provider ``max_price`` then excluded, and any StreamLake/Baidu
-#:   hiccup turned into a hard 404 instead of a fallback.  $0.90/$2.40 admits
-#:   DeepSeek, StreamLake, Baidu, GMICloud ($0.792/$2.376) and DigitalOcean
-#:   ($0.870/$1.740) — 5 healthy endpoints, the preferred one included —
-#:   while still excluding the $1.13+/$2.26+ tail (Ionstream, CoreWeave,
-#:   DeepInfra, Together, Fireworks, Azure, …) the cap exists to keep out.
-#: * cheap tier (``deepseek-v4-flash``) — still healthy at $0.15/$0.30: the
-#:   field runs $0.068/$0.168 (DigitalOcean) to $0.140/$0.280, so 13 of 18
-#:   endpoints qualify.  Left unchanged.
+#: * capable tier (``deepseek-v4-pro``) — DeepSeek lists $0.660/$1.980, so
+#:   $0.90/$2.40 admits DeepSeek plus StreamLake, Baidu, GMICloud
+#:   ($0.792/$2.376) and DigitalOcean ($0.870/$1.740) — 5 healthy endpoints,
+#:   the preferred one included — while still excluding the $1.13+/$2.26+ tail
+#:   (Ionstream, CoreWeave, DeepInfra, Together, Fireworks, Azure, …) the cap
+#:   exists to keep out.
+#: * cheap tier (``deepseek-v4-flash``) — DeepSeek lists $0.220/$0.660, having
+#:   drifted out of the old $0.15/$0.30 ceiling, so $0.25/$0.70 re-admits the
+#:   preferred provider (whose cache-read rate is the cheapest of all 18
+#:   endpoints at $0.007/1M) while still keeping the $1.13+/$2.26+ tail out.
 DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.90, "completion": 2.40}
-DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.15, "completion": 0.30}
+DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.25, "completion": 0.70}
+
+#: Upstream providers barred from capable-tier fallback routing. Their
+#: cache-read rate is a large multiple of DeepSeek's — DigitalOcean ~$0.174/1M
+#: vs DeepSeek $0.022/1M on ``deepseek-v4-pro`` — and ``max_price`` cannot see
+#: cache reads (OpenRouter's ``max_price`` accepts only ``prompt``,
+#: ``completion``, ``request`` and ``image``). A fallback to one of these is
+#: invisible to the ceiling yet ~4x the bill, so they are excluded via
+#: ``provider.ignore`` instead. Measured 2026-08-21.
+DEFAULT_IGNORE_CAPABLE: tuple[str, ...] = ("DigitalOcean", "CoreWeave")
 
 
 def build_provider_routing(
@@ -90,6 +100,7 @@ def build_provider_routing(
     preferred_provider: str | None = _PREFERRED_PROVIDER,
     allow_fallbacks: bool = True,
     max_price: dict[str, float] | None = None,
+    ignore: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build the OpenRouter ``provider`` routing preference block.
 
@@ -102,6 +113,10 @@ def build_provider_routing(
             hard failures.
         max_price: Optional ``{"prompt": …, "completion": …}`` ceiling in USD
             per 1M tokens. Omitted entirely when ``None``.
+        ignore: Optional list of upstream providers to exclude from routing
+            (``ignore``). Used for costs ``max_price`` cannot express, e.g.
+            providers whose cache-read rate is a multiple of the preferred
+            one's. Omitted entirely when ``None`` or empty.
 
     Returns:
         A dict suitable for ``extra_body["provider"]``.
@@ -112,6 +127,8 @@ def build_provider_routing(
         routing["order"] = [preferred_provider]
     if max_price:
         routing["max_price"] = dict(max_price)
+    if ignore:
+        routing["ignore"] = list(ignore)
     return routing
 
 

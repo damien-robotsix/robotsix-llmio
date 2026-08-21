@@ -13,6 +13,7 @@ without a code change — see :class:`OpenRouterDeepseekProvider`.
 from __future__ import annotations
 
 from ._deepseek_model import (
+    DEFAULT_IGNORE_CAPABLE,
     DEFAULT_MAX_PRICE_CAPABLE,
     DEFAULT_MAX_PRICE_CHEAP,
     OpenRouterDeepseekModel,
@@ -31,7 +32,8 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
 
         {"level2": {"model": "openrouter-deepseek/deepseek-v4-pro",
                     "provider_kwargs": {"max_price_prompt": 1.0,
-                                        "max_price_completion": 2.0}}}
+                                        "max_price_completion": 2.0,
+                                        "ignore_providers": ["SomeProvider"]}}}
     """
 
     def __init__(
@@ -41,6 +43,7 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
         allow_fallbacks: bool = True,
         max_price_prompt: float | None = None,
         max_price_completion: float | None = None,
+        ignore_providers: list[str] | None = None,
         **kwargs: object,
     ) -> None:
         """Configure auth (see :class:`OpenRouterProvider`) plus routing policy.
@@ -56,6 +59,10 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
                 back to the per-level default when omitted.
             max_price_completion: Completion price ceiling, USD per 1M tokens.
                 Falls back to the per-level default when omitted.
+            ignore_providers: Upstream providers to exclude from fallback
+                routing (``provider.ignore``) — e.g. ones whose cache-read
+                rate is a multiple of the preferred provider's. Falls back to
+                the per-level default when omitted.
             **kwargs: Forwarded verbatim to :class:`OpenRouterProvider`
                 (``api_key``, ``base_url``, ``max_tokens``).
 
@@ -65,6 +72,7 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
         self._allow_fallbacks = allow_fallbacks
         self._max_price_prompt = max_price_prompt
         self._max_price_completion = max_price_completion
+        self._ignore_providers = ignore_providers
 
     def _model_class(self) -> type[OpenRouterDeepseekModel]:
         return OpenRouterDeepseekModel
@@ -97,8 +105,15 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
         else:
             # Capable tier (or unknown level) — reasoning at max effort.
             model.reasoning_setting = {"effort": "xhigh"}
+        if self._ignore_providers is not None:
+            ignore = list(self._ignore_providers)
+        elif level == 1:
+            ignore = []
+        else:
+            ignore = list(DEFAULT_IGNORE_CAPABLE)
         model.provider_routing = build_provider_routing(
             preferred_provider=self._preferred_provider,
             allow_fallbacks=self._allow_fallbacks,
             max_price=self._max_price_for_level(level),
+            ignore=ignore,
         )
