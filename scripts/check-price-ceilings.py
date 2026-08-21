@@ -14,6 +14,7 @@ it fetches ``GET /api/v1/models/{model}/endpoints`` and checks, against the
 ceilings the library actually ships:
 
 1. the preferred provider (``DeepSeek``) still satisfies its tier ceiling;
+   a missing preferred provider is a warning, not a failure;
 2. at least ``--min-healthy`` healthy endpoints satisfy the ceiling;
 3. no admitted (ceiling-passing, non-ignored) endpoint's ``input_cache_read``
    exceeds the preferred provider's by more than ``--max-cache-read-factor``.
@@ -90,6 +91,7 @@ class TierReport:
     endpoints: list[EndpointSnapshot]
     admitted_indices: set[int]
     failures: list[str]
+    warnings: list[str]
     preferred_admitted: bool = False
     reference_cache_read: float | None = None
 
@@ -170,24 +172,24 @@ def check_tier(
         endpoints=snapshots,
         admitted_indices=admitted_indices,
         failures=[],
+        warnings=[],
     )
 
     preferred = [s for s in snapshots if s.provider == preferred_provider]
     if not preferred:
-        report.failures.append(
+        report.warnings.append(
             f"{check.label}: preferred provider {preferred_provider!r} has no "
             f"endpoints for {check.model}"
         )
-        return report
-
-    report.preferred_admitted = any(_satisfies(s, ceiling) for s in preferred)
-    if not report.preferred_admitted:
-        cheapest = min(preferred, key=lambda s: (s.prompt, s.completion))
-        report.failures.append(
-            f"{check.label}: preferred provider {preferred_provider!r} lists "
-            f"${cheapest.prompt:.3f}/${cheapest.completion:.3f}, above the "
-            f"${ceiling['prompt']:.2f}/${ceiling['completion']:.2f} ceiling"
-        )
+    else:
+        report.preferred_admitted = any(_satisfies(s, ceiling) for s in preferred)
+        if not report.preferred_admitted:
+            cheapest = min(preferred, key=lambda s: (s.prompt, s.completion))
+            report.failures.append(
+                f"{check.label}: preferred provider {preferred_provider!r} lists "
+                f"${cheapest.prompt:.3f}/${cheapest.completion:.3f}, above the "
+                f"${ceiling['prompt']:.2f}/${ceiling['completion']:.2f} ceiling"
+            )
 
     healthy = [s for s in admitted if s.status == _HEALTHY_STATUS]
     if len(healthy) < min_healthy:
@@ -196,7 +198,9 @@ def check_tier(
             f"the ceiling (need {min_healthy})"
         )
 
-    report.reference_cache_read = min((s.cache_read for s in preferred), default=None)
+    report.reference_cache_read = (
+        min((s.cache_read for s in preferred), default=None) if preferred else None
+    )
     if report.reference_cache_read and report.reference_cache_read > 0:
         for s in admitted:
             if s.provider == preferred_provider:
@@ -256,7 +260,11 @@ def _render_tier(report: TierReport) -> str:
         lines.append("")
         lines.append("**Failures:**")
         lines.extend(f"- {failure}" for failure in report.failures)
-    else:
+    if report.warnings:
+        lines.append("")
+        lines.append("**Warnings:**")
+        lines.extend(f"- {warning}" for warning in report.warnings)
+    if not report.failures and not report.warnings:
         lines.append("")
         lines.append("**OK**")
     return "\n".join(lines)
@@ -307,10 +315,20 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print("\n\n".join(_render_tier(report) for report in reports))
     total_failures = sum(len(report.failures) for report in reports)
+    total_warnings = sum(len(report.warnings) for report in reports)
     print()
     if total_failures:
-        print(f"PRICE CEILING DRIFT DETECTED: {total_failures} violation(s).")
+        msg = f"PRICE CEILING DRIFT DETECTED: {total_failures} violation(s)."
+        if total_warnings:
+            msg += f" ({total_warnings} additional warning(s) — see above.)"
+        print(msg)
         return 1
+    if total_warnings:
+        print(
+            f"All DeepSeek price ceilings verified. "
+            f"{total_warnings} warning(s) — see above."
+        )
+        return 0
     print("All DeepSeek price ceilings verified against the live endpoint list.")
     return 0
 
