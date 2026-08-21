@@ -6,6 +6,11 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
+# Only one drift check should run at a time
+concurrency:
+  group: price-ceiling-drift
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
