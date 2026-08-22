@@ -116,7 +116,7 @@ def default_tier_config() -> TierConfig:
 
     This is the single source of the baked per-level *(provider, model)*
     binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash``,
-    level 2 → ``openrouter-deepseek/deepseek-v4-pro``,
+    level 2 → ``openrouter-xiaomi/mimo-v2.5-pro``,
     level 3 → ``claudeSDK-opus``,
     level 4 → ``claudeSDK-claude-fable-5``.
 

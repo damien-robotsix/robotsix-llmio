@@ -154,7 +154,7 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
     ("level", "expected_model"),
     [
         (1, "deepseek/deepseek-v4-flash"),
-        (2, "deepseek/deepseek-v4-pro"),
+        (2, "xiaomi/mimo-v2.5-pro"),
         (3, "opus"),
         (4, "claude-fable-5"),
     ],

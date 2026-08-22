@@ -92,19 +92,24 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
         return ceiling
 
     def _post_build_model(self, model: OpenRouterDeepseekModel, level: int) -> None:
-        """Apply reasoning + routing policy based on capability *level*.
+        """Apply routing + (for DeepSeek) reasoning policy based on capability *level*.
 
+        - Provider routing (order / allow_fallbacks / max_price / ignore) is
+          model-agnostic — always applied.
+        - Reasoning policy is DeepSeek-specific — only set for ``deepseek/`` models.
         - ``level == 1`` → reasoning disabled (cheap tier), cheap-tier ceiling
         - ``level != 1`` → reasoning at max effort (capable tier), capable ceiling
         - ``level == 0`` → sentinel for direct ``new_model()`` calls;
           applies capable-tier policy as a safe default.
         """
-        if level == 1:
-            # Cheap tier — verdict/generation work, no chain-of-thought.
-            model.reasoning_setting = {"enabled": False}
-        else:
-            # Capable tier (or unknown level) — reasoning at max effort.
-            model.reasoning_setting = {"effort": "xhigh"}
+        model_name = str(getattr(model, "model_name", "") or "")
+        if model_name.startswith("deepseek/"):
+            if level == 1:
+                # Cheap tier — verdict/generation work, no chain-of-thought.
+                model.reasoning_setting = {"enabled": False}
+            else:
+                # Capable tier (or unknown level) — reasoning at max effort.
+                model.reasoning_setting = {"effort": "xhigh"}
         if self._ignore_providers is not None:
             ignore = list(self._ignore_providers)
         elif level == 1:

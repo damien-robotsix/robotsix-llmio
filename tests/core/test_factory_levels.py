@@ -56,7 +56,7 @@ def test_default_tier_config_bakes_per_level_defaults() -> None:
     cfg = default_tier_config()
 
     assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash"
-    assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-pro"
+    assert cfg.for_level(2).model == "openrouter-xiaomi/mimo-v2.5-pro"
     assert cfg.for_level(3).model == "claudeSDK-opus"
     assert cfg.for_level(4).model == "claudeSDK-claude-fable-5"
 
