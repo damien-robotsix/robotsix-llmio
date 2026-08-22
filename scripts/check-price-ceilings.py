@@ -55,7 +55,6 @@ _TOKENS_PER_MILLION = 1_000_000
 # those) while tolerating the small spread among ordinary providers.
 _MIN_HEALTHY_ENDPOINTS = 3
 _CACHE_READ_MAX_FACTOR = 4.0
-_HEALTHY_STATUS = "healthy"
 
 
 @dataclass(frozen=True)
@@ -63,7 +62,7 @@ class EndpointSnapshot:
     """One endpoint's prices, normalised to USD per 1M tokens."""
 
     provider: str
-    status: str
+    status: int | None
     prompt: float
     completion: float
     cache_read: float
@@ -131,7 +130,7 @@ def _snapshot(endpoint: dict[str, Any]) -> EndpointSnapshot:
     pricing = endpoint.get("pricing") or {}
     return EndpointSnapshot(
         provider=str(endpoint.get("provider_name") or "unknown"),
-        status=str(endpoint.get("status") or ""),
+        status=endpoint.get("status"),
         prompt=_price_per_million(pricing.get("prompt")),
         completion=_price_per_million(pricing.get("completion")),
         cache_read=_price_per_million(pricing.get("input_cache_read")),
@@ -144,6 +143,15 @@ def _satisfies(snapshot: EndpointSnapshot, ceiling: dict[str, float]) -> bool:
         snapshot.prompt <= ceiling["prompt"]
         and snapshot.completion <= ceiling["completion"]
     )
+
+
+def _is_healthy(status: int | None) -> bool:
+    """An endpoint is healthy when its status is ``None`` (absent) or >= 0.
+
+    OpenRouter's endpoint ``status`` is an integer: ``0`` for a normal
+    endpoint, negative values for degraded/disabled.
+    """
+    return status is None or status >= 0
 
 
 def check_tier(
@@ -191,7 +199,7 @@ def check_tier(
                 f"${ceiling['prompt']:.2f}/${ceiling['completion']:.2f} ceiling"
             )
 
-    healthy = [s for s in admitted if s.status == _HEALTHY_STATUS]
+    healthy = [s for s in admitted if _is_healthy(s.status)]
     if len(healthy) < min_healthy:
         report.failures.append(
             f"{check.label}: only {len(healthy)} healthy endpoint(s) satisfy "
@@ -253,8 +261,9 @@ def _render_tier(report: TierReport) -> str:
     for index, s in enumerate(report.endpoints):
         admitted = "yes" if index in report.admitted_indices else "no"
         lines.append(
-            f"| {s.provider} | {s.status} | {s.prompt:.3f} | "
-            f"{s.completion:.3f} | {s.cache_read:.3f} | {admitted} |"
+            f"| {s.provider} | {s.status if s.status is not None else '—'} | "
+            f"{s.prompt:.3f} | {s.completion:.3f} | {s.cache_read:.3f} | "
+            f"{admitted} |"
         )
     if report.failures:
         lines.append("")

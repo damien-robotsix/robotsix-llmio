@@ -40,7 +40,7 @@ def _endpoint(
     prompt: float,
     completion: float,
     cache_read: float = 0.0,
-    status: str = "healthy",
+    status: int | None = 0,
 ) -> dict[str, Any]:
     """Build an endpoint dict with per-1M prices expressed as per-token strings."""
     return {
@@ -106,9 +106,9 @@ def test_check_tier_flags_preferred_provider_above_ceiling(check_module):
 
 def test_check_tier_flags_insufficient_healthy_endpoints(check_module):
     endpoints = [
-        _endpoint("DeepSeek", prompt=0.66, completion=1.98, status="healthy"),
-        _endpoint("StreamLake", prompt=0.792, completion=2.376, status="degraded"),
-        _endpoint("Baidu", prompt=0.80, completion=2.00, status="unhealthy"),
+        _endpoint("DeepSeek", prompt=0.66, completion=1.98, status=0),
+        _endpoint("StreamLake", prompt=0.792, completion=2.376, status=-2),
+        _endpoint("Baidu", prompt=0.80, completion=2.00, status=-5),
     ]
     report = check_module.check_tier(_tier_check(check_module), endpoints)
 
@@ -155,6 +155,28 @@ def test_check_tier_flags_missing_preferred_provider_as_warning(check_module):
 
 
 # --- fetch_endpoints (mocked httpx) -------------------------------------------
+
+
+def test_healthy_endpoints_with_real_status_shapes_no_false_failure(
+    check_module,
+):
+    """Regression: status ``0`` (healthy) must NOT produce an empty healthy list.
+
+    OpenRouter's endpoint status is an integer (0 = healthy, negative =
+    degraded/disabled).  An earlier bug mapped ``0`` to ``""``, causing every
+    check to report zero healthy endpoints regardless of reality.
+    """
+    endpoints = [
+        _endpoint("DeepSeek", prompt=0.66, completion=1.98, status=0),
+        _endpoint("StreamLake", prompt=0.792, completion=2.376, status=-2),
+        _endpoint("Baidu", prompt=0.80, completion=2.00, status=None),
+        _endpoint("GMICloud", prompt=0.85, completion=2.10, status=0),
+    ]
+    # Baidu has status=None (absent key) → counted as healthy.
+    report = check_module.check_tier(_tier_check(check_module), endpoints)
+
+    assert report.failures == []
+    assert report.admitted_indices == {0, 1, 2, 3}
 
 
 def test_fetch_endpoints_hits_model_endpoints_path(check_module):
