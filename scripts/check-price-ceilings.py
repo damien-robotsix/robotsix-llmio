@@ -76,6 +76,7 @@ class TierCheck:
     model: str
     ceiling: dict[str, float]
     ignore: tuple[str, ...]
+    preferred_provider: str = "DeepSeek"
 
 
 @dataclass
@@ -95,22 +96,51 @@ class TierReport:
     reference_cache_read: float | None = None
 
 
-#: The DeepSeek-on-OpenRouter tiers from the baked tier defaults. Model names
-#: come from ``config.tier`` (``deepseek/deepseek-v4-flash`` etc.); ceilings
-#: and ignore lists come from ``_deepseek_model``, so this guard checks the
-#: exact values the library ships rather than a hand-maintained copy.
+def _ceiling_from_kwargs(kwargs: dict[str, Any]) -> dict[str, float] | None:
+    """Extract a ``max_price`` ceiling from *provider_kwargs* if present."""
+    prompt = kwargs.get("max_price_prompt")
+    completion = kwargs.get("max_price_completion")
+    if prompt is not None and completion is not None:
+        return {"prompt": float(prompt), "completion": float(completion)}
+    return None
+
+
+def _ignore_from_kwargs(kwargs: dict[str, Any]) -> tuple[str, ...] | None:
+    """Extract ``ignore_providers`` from *provider_kwargs* if present."""
+    ignore = kwargs.get("ignore_providers")
+    if ignore is not None:
+        return tuple(ignore)
+    return None
+
+
+def _preferred_from_kwargs(kwargs: dict[str, Any]) -> str:
+    """Extract the preferred provider from *provider_kwargs*, defaulting to
+    DeepSeek."""
+    return str(kwargs.get("preferred_provider", _PREFERRED_PROVIDER))
+
+
+#: The OpenRouter tiers from the baked tier defaults. Ceilings, ignore lists,
+#: and preferred providers come from each tier's ``provider_kwargs`` where
+#: present, falling back to the module-level DeepSeek defaults — so the guard
+#: covers whatever model the tier currently binds rather than hard-coding
+#: DeepSeek.
 _TIERS: tuple[TierCheck, ...] = (
     TierCheck(
         label="cheap (level 1)",
         model=LEVEL1_DEFAULT.model_name,
-        ceiling=DEFAULT_MAX_PRICE_CHEAP,
-        ignore=(),
+        ceiling=_ceiling_from_kwargs(LEVEL1_DEFAULT.provider_kwargs)
+        or DEFAULT_MAX_PRICE_CHEAP,
+        ignore=_ignore_from_kwargs(LEVEL1_DEFAULT.provider_kwargs) or (),
+        preferred_provider=_preferred_from_kwargs(LEVEL1_DEFAULT.provider_kwargs),
     ),
     TierCheck(
         label="capable (level 2)",
         model=LEVEL2_DEFAULT.model_name,
-        ceiling=DEFAULT_MAX_PRICE_CAPABLE,
-        ignore=DEFAULT_IGNORE_CAPABLE,
+        ceiling=_ceiling_from_kwargs(LEVEL2_DEFAULT.provider_kwargs)
+        or DEFAULT_MAX_PRICE_CAPABLE,
+        ignore=_ignore_from_kwargs(LEVEL2_DEFAULT.provider_kwargs)
+        or DEFAULT_IGNORE_CAPABLE,
+        preferred_provider=_preferred_from_kwargs(LEVEL2_DEFAULT.provider_kwargs),
     ),
 )
 
@@ -158,7 +188,7 @@ def check_tier(
     check: TierCheck,
     endpoints: Sequence[dict[str, Any]],
     *,
-    preferred_provider: str = _PREFERRED_PROVIDER,
+    preferred_provider: str | None = None,
     min_healthy: int = _MIN_HEALTHY_ENDPOINTS,
     max_cache_read_factor: float = _CACHE_READ_MAX_FACTOR,
 ) -> TierReport:
@@ -167,6 +197,8 @@ def check_tier(
     Returns a :class:`TierReport` whose ``failures`` is empty when the tier is
     healthy; otherwise it holds one human-readable line per violated assertion.
     """
+    if preferred_provider is None:
+        preferred_provider = check.preferred_provider
     snapshots = [_snapshot(ep) for ep in endpoints]
     ceiling = check.ceiling
     admitted_indices = {

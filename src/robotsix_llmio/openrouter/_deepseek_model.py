@@ -168,21 +168,26 @@ class OpenRouterDeepseekModel(OpenRouterModel):
 
     @property
     def _echo_reasoning(self) -> bool:
-        """Carry reasoning_content on tool-call turns iff reasoning is enabled —
-        i.e. every tier except the cheap one's ``{"enabled": False}``."""
+        """Carry reasoning_content on tool-call turns iff reasoning is enabled
+        AND the model is a DeepSeek model — i.e. every tier except the cheap
+        one's ``{"enabled": False}``."""
+        model_name = str(getattr(self, "model_name", "") or "")
+        if not model_name.startswith(_PIN_MODEL_PREFIX):
+            return False
         return self.reasoning_setting.get("enabled", True) is not False
 
     def _inject_pin(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         model_name = str(getattr(self, "model_name", "") or "")
-        if not model_name.startswith(_PIN_MODEL_PREFIX):
-            return
         settings = _resolve_model_settings(args, kwargs)
         if settings is None:
             return
         extra_body = dict(settings.get("extra_body") or {})
+        # Provider routing — model-agnostic: order / allow_fallbacks /
+        # max_price / ignore.
         if "provider" not in extra_body:
             extra_body["provider"] = dict(self.provider_routing)
-        if "reasoning" not in extra_body:
+        # Reasoning — DeepSeek-specific.
+        if model_name.startswith(_PIN_MODEL_PREFIX) and "reasoning" not in extra_body:
             extra_body["reasoning"] = dict(self.reasoning_setting)
         settings["extra_body"] = extra_body
 

@@ -102,7 +102,7 @@ them with baked defaults:
 
 ```bash
 export LLMIO_LEVEL1_MODEL="openrouter-deepseek/deepseek-v4-flash"
-export LLMIO_LEVEL2_MODEL="openrouter-deepseek/deepseek-v4-pro"
+export LLMIO_LEVEL2_MODEL="openrouter-xiaomi/mimo-v2.5-pro"
 export LLMIO_LEVEL2_PROVIDER_KWARGS='{"api_key":"sk-or-..."}'
 ```
 
@@ -118,7 +118,7 @@ An explicit dict can override individual fields at highest precedence:
 ```python
 cfg = load_tier_config(
     {
-        "level2": {"model": "openrouter-deepseek/deepseek-v4-pro"},
+        "level2": {"model": "openrouter-xiaomi/mimo-v2.5-pro"},
     }
 )
 ```
@@ -136,7 +136,7 @@ out of the box and levels 2–4 have sensible fallbacks:
 | Constant | Identifier | `max_tokens` |
 |----------|------------|--------------|
 | `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` | 4 096 |
-| `LEVEL2_DEFAULT` | `openrouter-deepseek/deepseek-v4-pro` | 8 192 |
+| `LEVEL2_DEFAULT` | `openrouter-xiaomi/mimo-v2.5-pro` | 32 768 |
 | `LEVEL3_DEFAULT` | `claudeSDK-opus` | 8 192 |
 | `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` | 16 384 |
 

@@ -43,7 +43,7 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
    pydantic-ai round-trips reasoning natively, so this layer neither remaps
    reasoning nor adds a DeepSeek-specific transient signature (it inherits
    OpenRouter's). The models are **baked**:
-   `level 2 = deepseek/deepseek-v4-pro`,
+   `level 2 = xiaomi/mimo-v2.5-pro`,
    `level 1 = deepseek/deepseek-v4-flash`.
 
 ### Alternative transport — Claude Agent SDK (subscription auth)
@@ -157,7 +157,7 @@ The library uses a four-tier model selection system exposed through the
 | Level | Intended use                           | Example env var (combined identifier)                    |
 |-------|----------------------------------------|----------------------------------------------------------|
 | 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_MODEL=openrouter-deepseek/deepseek-v4-flash` |
-| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_MODEL=openrouter-deepseek/deepseek-v4-pro`   |
+| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_MODEL=openrouter-xiaomi/mimo-v2.5-pro`   |
 | 3     | High-level planning and refinement     | `LLMIO_LEVEL3_MODEL=claudeSDK-opus`                        |
 | 4     | Frontier — hardest reasoning and long-horizon work | `LLMIO_LEVEL4_MODEL=claudeSDK-claude-fable-5`   |
 
@@ -194,7 +194,7 @@ architect = build_agent_for_level(
 ```
 
 With everything left at its default the baked per-level defaults apply
-(level 1 → `deepseek/deepseek-v4-flash`, level 2 → `deepseek/deepseek-v4-pro`,
+(level 1 → `deepseek/deepseek-v4-flash`, level 2 → `xiaomi/mimo-v2.5-pro`,
 level 3 → `opus`, level 4 → `claude-fable-5`) — each on its **own** provider, so a DeepSeek model never runs
 on the Claude transport. `model=` overrides only the model name (the provider
 stays the one bound to the level); pass a custom `tier_config=` to override the

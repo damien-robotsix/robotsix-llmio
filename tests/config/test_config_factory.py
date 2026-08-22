@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -44,10 +45,14 @@ class TestCreateModelHappyPath:
         self, mock_get_provider_for_identifier: MagicMock
     ):
         """``create_model(level=2)`` derives provider from LEVEL2_DEFAULT's
-        identifier."""
+        identifier (MiMo v2.5-pro via Xiaomi)."""
         result = create_model(level=2)
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter-deepseek/deepseek-v4-pro",
+            "openrouter-xiaomi/mimo-v2.5-pro",
+            preferred_provider="Xiaomi",
+            max_price_prompt=0.55,
+            max_price_completion=1.10,
+            ignore_providers=["DigitalOcean", "DeepInfra"],
             max_tokens=32768,
         )
         assert result is mock_get_provider_for_identifier.return_value
@@ -128,11 +133,9 @@ class TestCreateModelDefaultFallback:
         # OpenRouter levels do (there it is a real per-response cap); the
         # Claude SDK level does not (see tier.py), so no kwarg is passed at all
         # rather than an explicit None.
-        expected_kwargs = (
-            {"max_tokens": expected.max_tokens}
-            if expected.max_tokens is not None
-            else {}
-        )
+        expected_kwargs: dict[str, Any] = {**expected.provider_kwargs}
+        if expected.max_tokens is not None:
+            expected_kwargs.setdefault("max_tokens", expected.max_tokens)
         mock_get_provider_for_identifier.assert_called_once_with(
             expected.model,
             **expected_kwargs,

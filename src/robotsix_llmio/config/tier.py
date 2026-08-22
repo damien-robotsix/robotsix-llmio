@@ -131,8 +131,14 @@ LEVEL1_DEFAULT = TierLevelConfig(
 )
 
 LEVEL2_DEFAULT = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-pro",
+    model="openrouter-xiaomi/mimo-v2.5-pro",
     max_tokens=32768,
+    provider_kwargs={
+        "preferred_provider": "Xiaomi",
+        "max_price_prompt": 0.55,
+        "max_price_completion": 1.10,
+        "ignore_providers": ["DigitalOcean", "DeepInfra"],
+    },
 )
 
 # No ``max_tokens`` on the Claude SDK levels, deliberately. ``ClaudeAgentOptions``
