@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.5.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.2...v0.5.0) (2026-08-24)
+
+
+### Features
+
+* Switch llmio level1 default model to deepseek/deepseek-v4-flash-latest (20260824T192519Z-switch-llmio-level1-default-model-to-dee-56bd) ([#599](https://github.com/damien-robotsix/robotsix-llmio/issues/599)) ([d52f6ae](https://github.com/damien-robotsix/robotsix-llmio/commit/d52f6ae1f9b6e9f7148f09b8b1d26a382208fbde))
+
 ## [0.4.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.1...v0.4.2) (2026-08-21)
 
 
