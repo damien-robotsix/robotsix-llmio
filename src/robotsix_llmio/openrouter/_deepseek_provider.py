@@ -94,9 +94,12 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
     def _post_build_model(self, model: OpenRouterDeepseekModel, level: int) -> None:
         """Apply routing + (for DeepSeek) reasoning policy based on capability *level*.
 
-        - Provider routing (order / allow_fallbacks / max_price / ignore) is
-          model-agnostic — always applied.
-        - Reasoning policy is DeepSeek-specific — only set for ``deepseek/`` models.
+        - Provider routing (order / allow_fallbacks / max_price / ignore) AND
+          reasoning policy are DeepSeek-specific — only applied for
+          ``deepseek/`` models.
+        - Non-DeepSeek models get only ``allow_fallbacks`` (no order pin, no
+          price ceiling, no ignore list), so the request is priced by the
+          model's own providers.
         - ``level == 1`` → reasoning disabled (cheap tier), cheap-tier ceiling
         - ``level != 1`` → reasoning at max effort (capable tier), capable ceiling
         - ``level == 0`` → sentinel for direct ``new_model()`` calls;
@@ -110,15 +113,20 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
             else:
                 # Capable tier (or unknown level) — reasoning at max effort.
                 model.reasoning_setting = {"effort": "xhigh"}
-        if self._ignore_providers is not None:
-            ignore = list(self._ignore_providers)
-        elif level == 1:
-            ignore = []
+            if self._ignore_providers is not None:
+                ignore = list(self._ignore_providers)
+            elif level == 1:
+                ignore = []
+            else:
+                ignore = list(DEFAULT_IGNORE_CAPABLE)
+            model.provider_routing = build_provider_routing(
+                preferred_provider=self._preferred_provider,
+                allow_fallbacks=self._allow_fallbacks,
+                max_price=self._max_price_for_level(level),
+                ignore=ignore,
+            )
         else:
-            ignore = list(DEFAULT_IGNORE_CAPABLE)
-        model.provider_routing = build_provider_routing(
-            preferred_provider=self._preferred_provider,
-            allow_fallbacks=self._allow_fallbacks,
-            max_price=self._max_price_for_level(level),
-            ignore=ignore,
-        )
+            model.provider_routing = build_provider_routing(
+                preferred_provider=None,
+                allow_fallbacks=self._allow_fallbacks,
+            )

@@ -431,6 +431,51 @@ def test_map_model_response_level1_strips_with_tool_calls(monkeypatch):
     assert "reasoning_content" not in result
 
 
+# --- non-DeepSeek model routing --------------------------------------------
+
+
+def test_non_deepseek_model_has_no_deepseek_ceiling_or_order():
+    """Non-DeepSeek models (e.g. openai/gpt-4o) must not carry a DeepSeek-
+    derived max_price ceiling or order pin — only allow_fallbacks."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("openai/gpt-4o", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x")._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    routing = ms["extra_body"]["provider"]
+    assert routing["allow_fallbacks"] is True
+    assert "order" not in routing
+    assert "max_price" not in routing
+    assert "ignore" not in routing
+
+
+def test_non_deepseek_model_no_ceiling_at_level_1_too():
+    """The guard applies regardless of level — level 1 also avoids the cheap-
+    tier DeepSeek ceiling."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("openai/gpt-4o", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x")._post_build_model(m, 1)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    routing = ms["extra_body"]["provider"]
+    assert "max_price" not in routing
+    assert "order" not in routing
+
+
 # --- response key constants ------------------------------------------------
 
 
