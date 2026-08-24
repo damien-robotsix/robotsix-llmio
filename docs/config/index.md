@@ -84,7 +84,7 @@ loaded through `load_tier_config`.
 from robotsix_llmio.config import TierConfig, TierLevelConfig, create_model
 
 cfg = TierConfig(
-    level1=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-flash"),
+    level1=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-flash-latest"),
     # level2 and level3 use baked defaults
 )
 
@@ -135,7 +135,7 @@ out of the box and levels 2–4 have sensible fallbacks:
 
 | Constant | Identifier | `max_tokens` |
 |----------|------------|--------------|
-| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash` | 4 096 |
+| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash-latest` | 16 384 |
 | `LEVEL2_DEFAULT` | `openrouter-xiaomi/mimo-v2.5-pro` | 32 768 |
 | `LEVEL3_DEFAULT` | `claudeSDK-opus` | 8 192 |
 | `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` | 16 384 |
