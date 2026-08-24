@@ -124,7 +124,7 @@ class LLMProvider(ABC):
         Parameters
         ----------
         model:
-            The concrete model name (e.g. ``"deepseek/deepseek-v4-flash"``).
+            The concrete model name (e.g. ``"deepseek/deepseek-v4-flash-latest"``).
         level:
             Capability level (1, 2, 3, or 4) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``

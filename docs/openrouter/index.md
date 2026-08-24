@@ -11,7 +11,7 @@ OpenRouter transport to DeepSeek models on OpenRouter:
 
 - `OpenRouterDeepseekProvider` — provider that maps `level=2` to
   `"deepseek/deepseek-v4-pro"` (reasoning at `"xhigh"`) and `level=1` to
-  `"deepseek/deepseek-v4-flash"` (reasoning disabled).  Routing is configurable
+  `"deepseek/deepseek-v4-flash-latest"` (reasoning disabled).  Routing is configurable
   via ``provider_kwargs``: ``max_price_prompt``, ``max_price_completion``, and
   ``ignore_providers`` (a list of upstream providers to exclude from fallback
   routing — see ``OpenRouterDeepseekModel`` below).

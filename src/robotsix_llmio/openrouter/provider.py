@@ -85,7 +85,7 @@ class OpenRouterProvider(LLMProvider):
 
         Args:
             model: The concrete model name (e.g.
-                ``"deepseek/deepseek-v4-flash"``).
+                ``"deepseek/deepseek-v4-flash-latest"``).
             level: Capability level (1, 2, 3) forwarded to
                 :meth:`_post_build_model` for per-level policy hooks.
                 ``0`` means unknown / direct ``new_model()`` call.

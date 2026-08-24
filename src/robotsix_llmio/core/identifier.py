@@ -1,7 +1,7 @@
 """Provider-model identifier parser — leaf module with no intra-package imports.
 
 Parses a combined ``provider-model`` tier identifier (e.g.
-``claudeSDK-opus`` or ``openrouter-deepseek/deepseek-v4-flash``) into its
+``claudeSDK-opus`` or ``openrouter-deepseek/deepseek-v4-flash-latest``) into its
 provider prefix and concrete model name, split on the first hyphen.
 
 Isolated as a leaf (only imports :class:`RobotsixLLMIOError` from the
@@ -28,7 +28,7 @@ class ParsedIdentifier(NamedTuple):
             ``"claudeSDK"`` or ``"openrouter"``).
         model_name: Everything after the first hyphen — the concrete model
             name fed to the backend.  May contain hyphens and slashes
-            (e.g. ``"deepseek/deepseek-v4-flash"``).
+            (e.g. ``"deepseek/deepseek-v4-flash-latest"``).
 
     """
 
@@ -50,7 +50,7 @@ def parse_model_identifier(identifier: str) -> ParsedIdentifier:
     Args:
         identifier: The combined identifier string — e.g.
             ``"claudeSDK-opus"`` or
-            ``"openrouter-deepseek/deepseek-v4-flash"``.
+            ``"openrouter-deepseek/deepseek-v4-flash-latest"``.
 
     Returns:
         ParsedIdentifier: Parsed components.

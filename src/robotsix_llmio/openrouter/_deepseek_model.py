@@ -78,7 +78,7 @@ _TOOL_CALLS_KEY = "tool_calls"
 #:   the preferred one included — while still excluding the $1.13+/$2.26+ tail
 #:   (Ionstream, CoreWeave, DeepInfra, Together, Fireworks, Azure, …) the cap
 #:   exists to keep out.
-#: * cheap tier (``deepseek-v4-flash``) — DeepSeek lists $0.220/$0.660, having
+#: * cheap tier (``deepseek-v4-flash-latest``) — DeepSeek lists $0.04/$0.08, having
 #:   drifted out of the old $0.15/$0.30 ceiling, so $0.25/$0.70 re-admits the
 #:   preferred provider (whose cache-read rate is the cheapest of all 18
 #:   endpoints at $0.007/1M) while still keeping the $1.13+/$2.26+ tail out.

@@ -63,7 +63,7 @@ def test_tier_level_config_model_dump_round_trip():
     """A constructed instance round-trips through ``model_dump()`` →
     ``TierLevelConfig(**dump)`` without losing data."""
     original = TierLevelConfig(
-        model="openrouter-deepseek/deepseek-v4-flash",
+        model="openrouter-deepseek/deepseek-v4-flash-latest",
         provider_kwargs={"base_url": "https://custom"},
     )
     reloaded = TierLevelConfig(**original.model_dump())
@@ -83,7 +83,7 @@ def test_tier_level_config_model_dump_emits_model_not_transport():
 def test_tier_level_config_json_round_trip():
     """``model_dump_json()`` → ``model_validate_json()`` preserves equality."""
     original = TierLevelConfig(
-        model="openrouter-deepseek/deepseek-v4-flash",
+        model="openrouter-deepseek/deepseek-v4-flash-latest",
         provider_kwargs={"key": "val"},
     )
     json_str = original.model_dump_json()
@@ -126,9 +126,9 @@ def test_tier_level_config_malformed_identifier_raises():
 
 
 def test_level1_default():
-    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash-latest"
     assert LEVEL1_DEFAULT.provider == "openrouter"
-    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash"
+    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash-latest"
 
 
 def test_level2_default():

@@ -287,10 +287,10 @@ def test_partial_dict_only_level2_model(monkeypatch: pytest.MonkeyPatch):
         LLMIO_LEVEL1_MODEL="claudeSDK-opus",
     )
     cfg = load_tier_config(
-        {"level2": {"model": "openrouter-deepseek/deepseek-v4-flash"}}
+        {"level2": {"model": "openrouter-deepseek/deepseek-v4-flash-latest"}}
     )
-    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-flash"
-    assert cfg.level2.model_name == "deepseek/deepseek-v4-flash"
+    assert cfg.level2.model == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert cfg.level2.model_name == "deepseek/deepseek-v4-flash-latest"
 
 
 # ========================================================================== #

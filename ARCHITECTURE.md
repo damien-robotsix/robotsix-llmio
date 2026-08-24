@@ -36,7 +36,7 @@ The library is organised into three logical roles:
   `openrouter` package and extend `OpenRouterProvider` with DeepSeek-specific
   quirks (pinned upstream provider, per-level reasoning policy, `reasoning_content`
   round-trip), pinning model names to `deepseek/deepseek-v4-pro` /
-  `deepseek/deepseek-v4-flash`.
+  `deepseek/deepseek-v4-flash-latest`.
 
 ```mermaid
 classDiagram
