@@ -143,8 +143,10 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(system_prompt="sys")
-    # Default level=1 → LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash"
-    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
+    # Default level=1 → LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash-latest"
+    assert p.new_model_calls == [
+        {"model": "deepseek/deepseek-v4-flash-latest", "level": 1},
+    ]
     assert captured["model"] is p.model_obj
     assert captured["http_client"] is p.http_client_obj
     assert captured["system_prompt"] == "sys"
@@ -153,7 +155,7 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 @pytest.mark.parametrize(
     ("level", "expected_model"),
     [
-        (1, "deepseek/deepseek-v4-flash"),
+        (1, "deepseek/deepseek-v4-flash-latest"),
         (2, "xiaomi/mimo-v2.5-pro"),
         (3, "opus"),
         (4, "claude-fable-5"),
@@ -251,8 +253,10 @@ def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent
     """When ``model=None`` (the default), tier_config resolution works as before."""
     p = _MockProvider()
     p.build_agent(level=1, system_prompt="sys")
-    # LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash"
-    assert p.new_model_calls == [{"model": "deepseek/deepseek-v4-flash", "level": 1}]
+    # LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash-latest"
+    assert p.new_model_calls == [
+        {"model": "deepseek/deepseek-v4-flash-latest", "level": 1},
+    ]
 
 
 # --- build_agent primary path (tier_config provided) ------------------------

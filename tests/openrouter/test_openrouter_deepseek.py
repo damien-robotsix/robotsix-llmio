@@ -19,7 +19,7 @@ def _model(level: int):
     )
 
     name = {
-        1: "deepseek/deepseek-v4-flash",
+        1: "deepseek/deepseek-v4-flash-latest",
         2: "deepseek/deepseek-v4-pro",
     }[level]
     from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd

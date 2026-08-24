@@ -20,10 +20,10 @@ class TestParseModelIdentifier:
         assert result == ParsedIdentifier(provider="claudeSDK", model_name="opus")
 
     def test_openrouter_deepseek_with_model(self):
-        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
+        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash-latest")
         assert result == ParsedIdentifier(
             provider="openrouter",
-            model_name="deepseek/deepseek-v4-flash",
+            model_name="deepseek/deepseek-v4-flash-latest",
         )
 
     def test_model_name_contains_hyphens(self):
@@ -37,9 +37,9 @@ class TestParseModelIdentifier:
         assert result.model_name == "deepseek/deepseek-v4-pro"
 
     def test_provider_split_on_first_hyphen(self):
-        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
+        result = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash-latest")
         assert result.provider == "openrouter"
-        assert result.model_name == "deepseek/deepseek-v4-flash"
+        assert result.model_name == "deepseek/deepseek-v4-flash-latest"
 
 
 class TestMalformedIdentifiers:
@@ -79,9 +79,9 @@ class TestParsedIdentifier:
         assert len(p) == 2
 
     def test_field_access(self):
-        p = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash")
+        p = parse_model_identifier("openrouter-deepseek/deepseek-v4-flash-latest")
         assert p.provider == "openrouter"
-        assert p.model_name == "deepseek/deepseek-v4-flash"
+        assert p.model_name == "deepseek/deepseek-v4-flash-latest"
 
     def test_unpacking(self):
         provider, model_name = parse_model_identifier("claudeSDK-opus")

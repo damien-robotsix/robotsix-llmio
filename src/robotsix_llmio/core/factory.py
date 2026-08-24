@@ -67,7 +67,7 @@ def get_provider_for_identifier(identifier: str, **kwargs: Any) -> LLMProvider:
     Args:
         identifier: Combined provider-model identifier — e.g.
             ``"claudeSDK-opus"`` or
-            ``"openrouter-deepseek/deepseek-v4-flash"``.
+            ``"openrouter-deepseek/deepseek-v4-flash-latest"``.
         **kwargs: Forwarded to the resolved provider class constructor.
 
     Returns:
@@ -115,7 +115,7 @@ def default_tier_config() -> TierConfig:
     """Return a :class:`TierConfig` built from the baked per-level defaults.
 
     This is the single source of the baked per-level *(provider, model)*
-    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash``,
+    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash-latest``,
     level 2 → ``openrouter-xiaomi/mimo-v2.5-pro``,
     level 3 → ``claudeSDK-opus``,
     level 4 → ``claudeSDK-claude-fable-5``.

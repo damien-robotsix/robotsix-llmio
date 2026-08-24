@@ -44,7 +44,7 @@ class TierLevelConfig(BaseModel):
     :class:`TierLevel`.  The identifier is ``<provider>-<model-name>``: the
     provider prefix (before the first hyphen) and the concrete model name —
     e.g. ``"claudeSDK-opus"`` or
-    ``"openrouter-deepseek/deepseek-v4-flash"``.
+    ``"openrouter-deepseek/deepseek-v4-flash-latest"``.
 
     A :func:`~pydantic.model_validator` parses the identifier and confirms
     the provider prefix is a known backend; the concrete model name is the
@@ -55,7 +55,7 @@ class TierLevelConfig(BaseModel):
         description=(
             "Combined provider-model identifier — e.g. "
             "``'claudeSDK-opus'`` or "
-            "``'openrouter-deepseek/deepseek-v4-flash'``. "
+            "``'openrouter-deepseek/deepseek-v4-flash-latest'``. "
             "The provider prefix (before the first hyphen) "
             "drives lazy backend import; the remainder is the concrete "
             "model name fed to the backend."
@@ -126,7 +126,7 @@ class TierLevelConfig(BaseModel):
 # below leave generous headroom while still bounding a runaway response to a
 # few cents at the capable tier's ~$2/M completion rate.
 LEVEL1_DEFAULT = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-flash",
+    model="openrouter-deepseek/deepseek-v4-flash-latest",
     max_tokens=16384,
 )
 
@@ -176,7 +176,7 @@ class TierConfig(BaseModel):
 
     Example YAML/JSON (override level 1 only; levels 2-4 stay default)::
 
-        {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash"}}
+        {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash-latest"}}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
     :class:`TierLevelConfig`.

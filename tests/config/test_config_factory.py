@@ -36,7 +36,7 @@ class TestCreateModelHappyPath:
         combined identifier."""
         result = create_model(level=1)
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter-deepseek/deepseek-v4-flash",
+            "openrouter-deepseek/deepseek-v4-flash-latest",
             max_tokens=16384,
         )
         assert result is mock_get_provider_for_identifier.return_value
@@ -87,7 +87,7 @@ class TestCreateModelHappyPath:
 
         cfg = TierConfig(
             level1=TierLevelConfig(
-                model="openrouter-deepseek/deepseek-v4-flash",
+                model="openrouter-deepseek/deepseek-v4-flash-latest",
                 provider_kwargs={
                     "base_url": "https://from-tier.example.com",
                     "api_key": "tier-key",
@@ -103,7 +103,7 @@ class TestCreateModelHappyPath:
             api_key="explicit-key",
         )
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter-deepseek/deepseek-v4-flash",
+            "openrouter-deepseek/deepseek-v4-flash-latest",
             base_url="https://from-tier.example.com",
             api_key="explicit-key",
         )

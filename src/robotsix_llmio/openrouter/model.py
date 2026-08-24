@@ -13,7 +13,7 @@ turns instead of re-billing the full prefix as fresh input.
 
 Why this matters: the mill worker loop resends the full system prompt and tool
 schemas on every turn.  The input:output token ratio on the two highest-volume
-models (deepseek-v4-pro and deepseek-v4-flash) runs ~176:1, so the prefix
+models (deepseek-v4-pro and deepseek-v4-flash-latest) runs ~176:1, so the prefix
 dominates real cash spend.  Caching it moves those tokens from the "input"
 bucket into the "cache read" bucket (roughly one-tenth the price).
 
