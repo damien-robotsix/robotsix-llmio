@@ -55,7 +55,7 @@ def _patch_factory(
 def test_default_tier_config_bakes_per_level_defaults() -> None:
     cfg = default_tier_config()
 
-    assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert cfg.for_level(2).model == "openrouter-xiaomi/mimo-v2.5-pro"
     assert cfg.for_level(3).model == "claudeSDK-opus"
     assert cfg.for_level(4).model == "claudeSDK-claude-fable-5"
@@ -73,7 +73,7 @@ def test_get_provider_for_level_resolves_per_level_identifier(
     assert get_provider_for_level(3) is provider
 
     # Level 1 -> openrouter prefix; level 3 -> claudeSDK prefix.
-    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert calls[1][0] == "claudeSDK-opus"
 
 
@@ -119,11 +119,11 @@ def test_build_agent_for_level_default_level1(
 
     assert handle == "agent-handle"
     # OpenRouter provider resolved from the level-1 identifier.
-    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-20260731"
     # build_agent got level= and the bare level-1 model name.
     call = provider.build_agent_calls[0]
     assert call["level"] == 1
-    assert call["model"] == "deepseek/deepseek-v4-flash-latest"
+    assert call["model"] == "deepseek/deepseek-v4-flash-20260731"
     assert call["system_prompt"] == "cheap task"
     assert call["name"] == "lvl1"
 
@@ -164,7 +164,7 @@ def test_build_agent_for_level_model_override_keeps_provider(
     build_agent_for_level(1, model="deepseek/deepseek-v4-pro", system_prompt="x")
 
     # Provider still resolved from the level's identifier (openrouter).
-    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-20260731"
     # Only the model name is overridden.
     assert provider.build_agent_calls[0]["model"] == "deepseek/deepseek-v4-pro"
 

@@ -126,9 +126,9 @@ def test_tier_level_config_malformed_identifier_raises():
 
 
 def test_level1_default():
-    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash-latest"
+    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert LEVEL1_DEFAULT.provider == "openrouter"
-    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash-latest"
+    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash-20260731"
 
 
 def test_level2_default():

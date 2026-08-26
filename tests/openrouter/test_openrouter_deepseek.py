@@ -155,33 +155,44 @@ def test_ignore_providers_empty_list_disables_default():
     assert "ignore" not in ms["extra_body"]["provider"]
 
 
-def test_preferred_provider_price_satisfies_each_tier_ceiling():
-    """Each tier's ceiling must admit the preferred (DeepSeek) endpoint's own
-    listed sticker price, so ``order`` and ``max_price`` never contradict.
+def test_preferred_provider_price_satisfies_capable_tier_ceiling():
+    """The capable tier's ceiling must admit the preferred (DeepSeek)
+    endpoint's own listed sticker price, so ``order`` and ``max_price``
+    never contradict.
 
-    Preferred prices measured against the live endpoint list on 2026-08-21:
-    ``deepseek-v4-flash`` $0.220/$0.660, ``deepseek-v4-pro`` $0.660/$1.980.
+    Preferred price measured against the live endpoint list on
+    2026-08-21: ``deepseek-v4-pro`` $0.660/$1.980.
     """
     from robotsix_llmio.openrouter._deepseek_model import (
         DEFAULT_MAX_PRICE_CAPABLE,
+    )
+
+    sticker = {"prompt": 0.660, "completion": 1.980}
+    assert DEFAULT_MAX_PRICE_CAPABLE["prompt"] >= sticker["prompt"]
+    assert DEFAULT_MAX_PRICE_CAPABLE["completion"] >= sticker["completion"]
+
+
+def test_cheap_tier_ceiling_deliberately_excludes_repriced_deepseek():
+    """The cheap tier's ceiling intentionally does NOT admit DeepSeek's
+    own endpoint: DeepSeek repriced its flash serving to $0.22/$0.66
+    (measured 2026-08-26) while several healthy endpoints serve the same
+    snapshot under $0.10/$0.20 with cache-read rates matching DeepSeek's.
+    Re-admitting DeepSeek would also re-admit the expensive fallback
+    tail — see the module comment on ``DEFAULT_MAX_PRICE_CHEAP``.
+    """
+    from robotsix_llmio.openrouter._deepseek_model import (
         DEFAULT_MAX_PRICE_CHEAP,
     )
 
-    preferred = {
-        1: {"prompt": 0.220, "completion": 0.660},  # deepseek-v4-flash
-        2: {"prompt": 0.660, "completion": 1.980},  # deepseek-v4-pro
-    }
-    ceilings = {1: DEFAULT_MAX_PRICE_CHEAP, 2: DEFAULT_MAX_PRICE_CAPABLE}
-    for level, ceiling in ceilings.items():
-        sticker = preferred[level]
-        assert ceiling["prompt"] >= sticker["prompt"], (
-            f"level {level} prompt ceiling {ceiling['prompt']!r} "
-            f"excludes preferred provider at {sticker['prompt']!r}"
-        )
-        assert ceiling["completion"] >= sticker["completion"], (
-            f"level {level} completion ceiling {ceiling['completion']!r} "
-            f"excludes preferred provider at {sticker['completion']!r}"
-        )
+    deepseek_sticker = {"prompt": 0.220, "completion": 0.660}
+    # Cheapest healthy endpoints measured 2026-08-26: OpenInference
+    # $0.03/$0.075, Relace $0.06/$0.12, DeepInfra $0.08/$0.18, Makora
+    # $0.09/$0.195 — the ceiling must keep admitting at least these.
+    costliest_admitted = {"prompt": 0.09, "completion": 0.195}
+    assert DEFAULT_MAX_PRICE_CHEAP["prompt"] < deepseek_sticker["prompt"]
+    assert DEFAULT_MAX_PRICE_CHEAP["completion"] < deepseek_sticker["completion"]
+    assert DEFAULT_MAX_PRICE_CHEAP["prompt"] >= costliest_admitted["prompt"]
+    assert DEFAULT_MAX_PRICE_CHEAP["completion"] >= costliest_admitted["completion"]
 
 
 def test_hard_pin_remains_available_as_an_explicit_opt_in():
