@@ -125,8 +125,12 @@ class TierLevelConfig(BaseModel):
 # a single token, on models that serve 384k completion tokens. The values
 # below leave generous headroom while still bounding a runaway response to a
 # few cents at the capable tier's ~$2/M completion rate.
+# Level 1 pins the dated snapshot rather than OpenRouter's
+# "~deepseek/deepseek-v4-flash-latest" alias: the un-prefixed "-latest" slug
+# is not a routable model id, and a floating alias would drift out of the
+# measured cheap-tier price ceiling anyway.
 LEVEL1_DEFAULT = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-flash-latest",
+    model="openrouter-deepseek/deepseek-v4-flash-20260731",
     max_tokens=16384,
 )
 
