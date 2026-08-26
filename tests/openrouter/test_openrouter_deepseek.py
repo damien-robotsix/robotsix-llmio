@@ -190,13 +190,9 @@ def test_cheap_tier_ceiling_deliberately_excludes_repriced_deepseek():
     # $0.09/$0.195 — the ceiling must keep admitting at least these.
     costliest_admitted = {"prompt": 0.09, "completion": 0.195}
     assert DEFAULT_MAX_PRICE_CHEAP["prompt"] < deepseek_sticker["prompt"]
-    assert (
-        DEFAULT_MAX_PRICE_CHEAP["completion"] < deepseek_sticker["completion"]
-    )
+    assert DEFAULT_MAX_PRICE_CHEAP["completion"] < deepseek_sticker["completion"]
     assert DEFAULT_MAX_PRICE_CHEAP["prompt"] >= costliest_admitted["prompt"]
-    assert (
-        DEFAULT_MAX_PRICE_CHEAP["completion"] >= costliest_admitted["completion"]
-    )
+    assert DEFAULT_MAX_PRICE_CHEAP["completion"] >= costliest_admitted["completion"]
 
 
 def test_hard_pin_remains_available_as_an_explicit_opt_in():
