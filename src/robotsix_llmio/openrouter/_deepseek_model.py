@@ -78,12 +78,17 @@ _TOOL_CALLS_KEY = "tool_calls"
 #:   the preferred one included — while still excluding the $1.13+/$2.26+ tail
 #:   (Ionstream, CoreWeave, DeepInfra, Together, Fireworks, Azure, …) the cap
 #:   exists to keep out.
-#: * cheap tier (``deepseek-v4-flash-latest``) — DeepSeek lists $0.04/$0.08, having
-#:   drifted out of the old $0.15/$0.30 ceiling, so $0.25/$0.70 re-admits the
-#:   preferred provider (whose cache-read rate is the cheapest of all 18
-#:   endpoints at $0.007/1M) while still keeping the $1.13+/$2.26+ tail out.
+#: * cheap tier (``deepseek-v4-flash-20260731``) — measured 2026-08-26:
+#:   DeepSeek repriced its own endpoint to $0.22/$0.66 (only its $0.007/1M
+#:   cache-read rate stayed cheap), while OpenInference ($0.03/$0.075),
+#:   Relace ($0.06/$0.12), DeepInfra ($0.08/$0.18) and Makora ($0.09/$0.195)
+#:   serve the same snapshot under $0.10/$0.20 with cache-read rates
+#:   ≤ $0.02/1M. The ceiling deliberately excludes DeepSeek's repriced
+#:   endpoint: the old $0.25/$0.70 ceiling that admitted it also admitted a
+#:   fallback tail whose cache-read rates are 2-10x, which doubled the
+#:   fleet's effective flash cost on 2026-08-25.
 DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.90, "completion": 2.40}
-DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.25, "completion": 0.70}
+DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.10, "completion": 0.20}
 
 #: Upstream providers barred from capable-tier fallback routing. Their
 #: cache-read rate is a large multiple of DeepSeek's — DigitalOcean ~$0.174/1M
