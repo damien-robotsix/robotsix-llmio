@@ -125,6 +125,19 @@ class TierLevelConfig(BaseModel):
 # a single token, on models that serve 384k completion tokens. The values
 # below leave generous headroom while still bounding a runaway response to a
 # few cents at the capable tier's ~$2/M completion rate.
+#
+# The cap covers REASONING tokens too. Every tier above level 1 runs with
+# ``reasoning_setting={"effort": "xhigh"}`` (see ``_deepseek_provider``), and
+# those tokens are billed and counted against ``max_tokens`` before a single
+# content token is emitted — so a cap sized for the visible answer alone is
+# really a cap on the thinking. Observed 2026-08-27: mill's implement stage
+# blew the 32768 level-2 cap on ``xiaomi/mimo-v2.5-pro`` before generating any
+# output, on every attempt, deterministically. Size these against the tier's
+# *reasoning + answer*, not the answer.
+#
+# Keep the value at or below the smallest ``max_completion_tokens`` among the
+# endpoints the tier's price ceiling admits, or OpenRouter rejects the request
+# outright. For level 2 today that floor is StreamLake's 128000.
 # Level 1 pins the dated snapshot rather than OpenRouter's
 # "~deepseek/deepseek-v4-flash-latest" alias: the un-prefixed "-latest" slug
 # is not a routable model id, and a floating alias would drift out of the
@@ -136,7 +149,7 @@ LEVEL1_DEFAULT = TierLevelConfig(
 
 LEVEL2_DEFAULT = TierLevelConfig(
     model="openrouter-xiaomi/mimo-v2.5-pro",
-    max_tokens=32768,
+    max_tokens=65536,
     provider_kwargs={
         "preferred_provider": "Xiaomi",
         "max_price_prompt": 0.55,
