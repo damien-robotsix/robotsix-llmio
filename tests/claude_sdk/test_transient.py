@@ -187,6 +187,41 @@ def test_is_usage_exhausted_text_matches_case_insensitively():
     assert is_usage_exhausted_text("all good here") is False
 
 
+def test_session_limit_text_is_usage_exhausted():
+    """The rolling session window must be fallback-eligible, not transient.
+
+    Observed on robotsix-chat 2026-08-27. Matching no signature, this text
+    fell through to the degenerate-success frame the CLI wraps it in, was
+    classified transient, burned all three retries against the same limited
+    tier, and reached the user as an opaque internal error — while the
+    fallback model, gated on ClaudeSDKUsageExhaustedError, was never tried.
+    """
+    from robotsix_llmio.claude_sdk.transient import is_usage_exhausted_text
+
+    assert is_usage_exhausted_text(
+        "You've hit your session limit \u00b7 resets 11:10am (UTC)"
+    )
+    assert is_usage_exhausted_text("Claude usage limit reached") is True
+
+
+def test_session_limit_is_not_transient_even_as_a_degenerate_success():
+    """The degenerate-success wrapper must not win over the session limit.
+
+    ``is_claude_sdk_transient`` checks the terminal classes first precisely so
+    a wrapped permanent cause is not retried; this pins that ordering for the
+    session-limit case.
+    """
+    from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
+    from robotsix_llmio.claude_sdk.transient import is_claude_sdk_transient
+
+    exc = ClaudeSDKUsageExhaustedError(
+        "You've hit your session limit \u00b7 resets 11:10am (UTC)"
+    )
+    exc.__cause__ = RuntimeError("Claude Code returned an error result: success")
+
+    assert is_claude_sdk_transient(exc) is False
+
+
 # --- per-call wall-clock timeout: stalled run fails fast + is retryable ------
 
 
