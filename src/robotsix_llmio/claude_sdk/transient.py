@@ -31,15 +31,29 @@ _TURN_LIMIT_SIGNATURE = "maximum number of turns"
 # "; ".join(errors) or str(subtype) -> "success". A re-run clears it.
 _DEGENERATE_SUCCESS_SIGNATURE = "returned an error result: success"
 
-# The Claude CLI's own wording when a tier's usage credits are exhausted. This
-# arrives as ordinary assistant TEXT inside an is_error=True ResultMessage, not
-# as a raised exception — best-effort string matching, same tradeoff as the
-# other signatures here, since the CLI's exact phrasing isn't a documented
-# contract. Unlike a degenerate success, a re-run at the SAME tier cannot
-# help — the credits stay exhausted until they reset — so this is excluded
-# from "transient" (see is_claude_sdk_transient) and must be handled by
-# falling back to a different tier instead.
-_USAGE_EXHAUSTED_SIGNATURE = "out of usage credits"
+# The Claude CLI's own wording when a tier cannot serve any more requests until
+# some quota resets. These arrive as ordinary assistant TEXT inside an
+# is_error=True ResultMessage, not as a raised exception — best-effort string
+# matching, same tradeoff as the other signatures here, since the CLI's exact
+# phrasing isn't a documented contract. Unlike a degenerate success, a re-run at
+# the SAME tier cannot help — the quota stays spent until it resets — so these
+# are excluded from "transient" (see is_claude_sdk_transient) and must be
+# handled by falling back to a different tier instead.
+#
+# Two distinct limits share that handling because they need the same response:
+#
+# * credit exhaustion — "You're out of usage credits";
+# * the rolling session window — "You've hit your session limit · resets
+#   11:10am (UTC)", observed on robotsix-chat 2026-08-27. Because it matched no
+#   signature, it fell through to the degenerate-success frame the CLI wraps it
+#   in, was classified TRANSIENT, burned all three retries against the same
+#   limited tier, and surfaced to the user as an opaque internal error — while
+#   the fallback model, gated on ClaudeSDKUsageExhaustedError, was never tried.
+_USAGE_EXHAUSTED_SIGNATURES = (
+    "out of usage credits",
+    "hit your session limit",
+    "usage limit reached",
+)
 
 
 # The Claude CLI's wording when the Anthropic API rejects the request itself
@@ -188,9 +202,15 @@ def is_claude_sdk_permanent_api_error(exc: BaseException) -> bool:
 
 
 def is_usage_exhausted_text(text: str) -> bool:
-    """True if *text* (assistant-visible turn text) reports exhausted usage
-    credits for the current tier, per the Claude CLI's own wording."""
-    return _USAGE_EXHAUSTED_SIGNATURE in text.lower()
+    """True if *text* (assistant-visible turn text) reports that the current
+    tier is out of capacity until a quota resets — exhausted usage credits or
+    a spent session window — per the Claude CLI's own wording.
+
+    Both are reported the same way and need the same response (do not retry
+    this tier; fall back to another), so they share one signature set.
+    """
+    lowered = text.lower()
+    return any(sig in lowered for sig in _USAGE_EXHAUSTED_SIGNATURES)
 
 
 def is_claude_sdk_degenerate_success(exc: BaseException) -> bool:
