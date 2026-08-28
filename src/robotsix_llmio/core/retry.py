@@ -27,13 +27,15 @@ from typing import Any, TypeVar, cast
 from pydantic_ai import UsageLimitExceeded
 from robotsix_http.retry import (
     RetryConfig,
-    _compute_backoff,
     _status,
     _walk_cause_chain,
     is_transient,
 )
 from robotsix_http.retry import (
     _retry_loop as _http_retry_loop,
+)
+from robotsix_http.retry import (
+    compute_backoff as _compute_backoff,
 )
 
 from . import constants
