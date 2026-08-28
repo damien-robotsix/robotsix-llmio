@@ -13,6 +13,8 @@ without a code change — see :class:`OpenRouterDeepseekProvider`.
 from __future__ import annotations
 
 from ._deepseek_model import (
+    _PIN_MODEL_PREFIX,
+    _PREFERRED_PROVIDER,
     DEFAULT_IGNORE_CAPABLE,
     DEFAULT_MAX_PRICE_CAPABLE,
     DEFAULT_MAX_PRICE_CHEAP,
@@ -20,6 +22,12 @@ from ._deepseek_model import (
     build_provider_routing,
 )
 from .provider import OpenRouterProvider
+
+#: Sentinel for "``preferred_provider`` not passed": resolved per model at
+#: build time — DeepSeek for ``deepseek/*`` models, no preference otherwise.
+#: A bare ``"DeepSeek"`` default would pin a non-DeepSeek model to a provider
+#: that does not serve it, while ``None`` would lose the DeepSeek default.
+PREFERRED_PROVIDER_PER_MODEL: str = "<per-model default>"
 
 
 class OpenRouterDeepseekProvider(OpenRouterProvider):
@@ -34,12 +42,20 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
                     "provider_kwargs": {"max_price_prompt": 1.0,
                                         "max_price_completion": 2.0,
                                         "ignore_providers": ["SomeProvider"]}}}
+
+    The routing knobs (``preferred_provider``, ``max_price_*``,
+    ``ignore_providers``, ``allow_fallbacks``) apply to EVERY model served
+    through this provider — explicit values are always honoured, and only
+    the *defaults* differ by model family (DeepSeek-derived ceilings and
+    ignore list for ``deepseek/*``, no routing constraints otherwise). The
+    reasoning policy and the ``reasoning_content`` round-trip stay
+    DeepSeek-specific.
     """
 
     def __init__(
         self,
         *,
-        preferred_provider: str | None = "DeepSeek",
+        preferred_provider: str | None = PREFERRED_PROVIDER_PER_MODEL,
         allow_fallbacks: bool = True,
         max_price_prompt: float | None = None,
         max_price_completion: float | None = None,
@@ -50,7 +66,8 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
 
         Args:
             preferred_provider: Upstream tried first. ``None`` lets OpenRouter
-                choose freely.
+                choose freely. When omitted, ``deepseek/*`` models prefer
+                DeepSeek and every other model expresses no preference.
             allow_fallbacks: Whether OpenRouter may route past the preferred
                 provider when it fails. Setting this ``False`` restores the old
                 hard-pin behaviour and makes that provider a single point of
@@ -91,42 +108,75 @@ class OpenRouterDeepseekProvider(OpenRouterProvider):
             ceiling["completion"] = self._max_price_completion
         return ceiling
 
+    def _explicit_max_price(self) -> dict[str, float] | None:
+        """Ceiling built ONLY from constructor args — no per-level defaults.
+
+        Used for non-DeepSeek models, whose sticker prices the DeepSeek-derived
+        defaults know nothing about (a too-low ceiling fails every request
+        with ``404 No endpoints found``).
+        """
+        ceiling: dict[str, float] = {}
+        if self._max_price_prompt is not None:
+            ceiling["prompt"] = self._max_price_prompt
+        if self._max_price_completion is not None:
+            ceiling["completion"] = self._max_price_completion
+        return ceiling or None
+
     def _post_build_model(self, model: OpenRouterDeepseekModel, level: int) -> None:
         """Apply routing + (for DeepSeek) reasoning policy based on capability *level*.
 
-        - Provider routing (order / allow_fallbacks / max_price / ignore) AND
-          reasoning policy are DeepSeek-specific — only applied for
-          ``deepseek/`` models.
-        - Non-DeepSeek models get only ``allow_fallbacks`` (no order pin, no
-          price ceiling, no ignore list), so the request is priced by the
-          model's own providers.
-        - ``level == 1`` → reasoning disabled (cheap tier), cheap-tier ceiling
-        - ``level != 1`` → reasoning at max effort (capable tier), capable ceiling
-        - ``level == 0`` → sentinel for direct ``new_model()`` calls;
-          applies capable-tier policy as a safe default.
+        Provider routing (order / allow_fallbacks / max_price / ignore) is
+        applied to EVERY model: explicit constructor values — which is how a
+        tier's ``provider_kwargs`` arrive — are always honoured. Only the
+        defaults are model-family specific:
+
+        - ``deepseek/`` models: DeepSeek preferred, per-level price ceiling,
+          capable-tier ignore list; plus the DeepSeek-only reasoning policy
+          (``level == 1`` → disabled, otherwise ``xhigh``; ``level == 0`` is
+          the sentinel for direct ``new_model()`` calls and takes the capable
+          policy as a safe default).
+        - every other model: no preference, no ceiling, no ignore list unless
+          given explicitly, so the request is priced by the model's own
+          providers.
+
+        Dropping the explicit knobs for non-DeepSeek models (the behaviour
+        until 2026-08-28) silently discarded the level-2 defaults declared in
+        :data:`~robotsix_llmio.config.tier.LEVEL2_DEFAULT`: OpenRouter then
+        routed ``xiaomi/mimo-v2.5-pro`` freely and landed on providers whose
+        cache-read rate is 20-45x Xiaomi's, multiplying the fleet's real
+        level-2 cost several-fold on a cache-dominated workload.
         """
         model_name = str(getattr(model, "model_name", "") or "")
-        if model_name.startswith("deepseek/"):
+        is_deepseek = model_name.startswith(_PIN_MODEL_PREFIX)
+
+        if is_deepseek:
             if level == 1:
                 # Cheap tier — verdict/generation work, no chain-of-thought.
                 model.reasoning_setting = {"enabled": False}
             else:
                 # Capable tier (or unknown level) — reasoning at max effort.
                 model.reasoning_setting = {"effort": "xhigh"}
-            if self._ignore_providers is not None:
-                ignore = list(self._ignore_providers)
-            elif level == 1:
-                ignore = []
-            else:
-                ignore = list(DEFAULT_IGNORE_CAPABLE)
-            model.provider_routing = build_provider_routing(
-                preferred_provider=self._preferred_provider,
-                allow_fallbacks=self._allow_fallbacks,
-                max_price=self._max_price_for_level(level),
-                ignore=ignore,
-            )
+
+        preferred = self._preferred_provider
+        if preferred == PREFERRED_PROVIDER_PER_MODEL:
+            preferred = _PREFERRED_PROVIDER if is_deepseek else None
+
+        if self._ignore_providers is not None:
+            ignore = list(self._ignore_providers)
+        elif is_deepseek and level != 1:
+            ignore = list(DEFAULT_IGNORE_CAPABLE)
         else:
-            model.provider_routing = build_provider_routing(
-                preferred_provider=None,
-                allow_fallbacks=self._allow_fallbacks,
-            )
+            ignore = []
+
+        max_price = (
+            self._max_price_for_level(level)
+            if is_deepseek
+            else self._explicit_max_price()
+        )
+
+        model.provider_routing = build_provider_routing(
+            preferred_provider=preferred,
+            allow_fallbacks=self._allow_fallbacks,
+            max_price=max_price,
+            ignore=ignore,
+        )
