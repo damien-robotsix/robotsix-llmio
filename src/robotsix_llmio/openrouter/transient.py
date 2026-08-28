@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from ..core import retry as _core_retry
 
+#: Exception type names that can carry OpenRouter's ``finish_reason='error'``
+#: signature: the raw pydantic error, and pydantic-ai's wrapper around it.
+_UPSTREAM_ERROR_TYPE_NAMES: frozenset[str] = frozenset(
+    {"ValidationError", "UnexpectedModelBehavior"}
+)
+
 
 def is_openrouter_upstream_error(exc: BaseException) -> bool:
     """Recognise OpenRouter's ``finish_reason='error'`` upstream-failure
@@ -15,12 +21,19 @@ def is_openrouter_upstream_error(exc: BaseException) -> bool:
     ``finish_reason`` literal set. That's an upstream hiccup, not a bug in the
     prompt/schema — a re-run almost always succeeds, so ride it out.
 
-    Matched by the exception type name (``ValidationError``) plus the
-    distinctive ``finish_reason`` + ``'error'`` markers, so it does NOT catch
-    genuine structured-output validation failures (those don't mention
-    ``finish_reason``).
+    Matched by the exception type name plus the distinctive ``finish_reason``
+    + ``'error'`` markers, so it does NOT catch genuine structured-output
+    validation failures (those don't mention ``finish_reason``). Two type
+    names qualify: the raw pydantic ``ValidationError``, and pydantic-ai's
+    ``UnexpectedModelBehavior`` — since pydantic-ai wraps the response
+    validation failure as ``UnexpectedModelBehavior("Invalid response from
+    openrouter chat completions endpoint: 1 validation error for
+    ChatCompletion choices.0.finish_reason … input_value='error'")`` without
+    chaining the original, the type-only check let every such hiccup
+    surface as a hard agent failure (observed 2026-08-28: mill's document
+    stage gave up on a ticket for exactly this).
     """
-    if type(exc).__name__ != "ValidationError":
+    if type(exc).__name__ not in _UPSTREAM_ERROR_TYPE_NAMES:
         return False
     msg = str(exc)
     return "finish_reason" in msg and "'error'" in msg
