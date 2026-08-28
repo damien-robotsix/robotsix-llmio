@@ -487,6 +487,113 @@ def test_non_deepseek_model_no_ceiling_at_level_1_too():
     assert "order" not in routing
 
 
+def test_non_deepseek_model_honours_explicit_routing_kwargs():
+    """Explicit routing knobs (how a tier's ``provider_kwargs`` arrive) apply
+    to non-DeepSeek models too; only the reasoning policy stays DeepSeek-only.
+
+    Regression: until 2026-08-28 these were silently dropped for ``xiaomi/``
+    models, so OpenRouter free-routed level 2 onto providers whose cache-read
+    rate is 20-45x Xiaomi's."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("xiaomi/mimo-v2.5-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(
+        api_key="x",
+        preferred_provider="Xiaomi",
+        max_price_prompt=0.55,
+        max_price_completion=1.10,
+        ignore_providers=["DigitalOcean", "DeepInfra"],
+    )._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    routing = ms["extra_body"]["provider"]
+    assert routing == {
+        "allow_fallbacks": True,
+        "order": ["Xiaomi"],
+        "max_price": {"prompt": 0.55, "completion": 1.10},
+        "ignore": ["DigitalOcean", "DeepInfra"],
+    }
+    # Reasoning policy remains DeepSeek-specific.
+    assert "reasoning" not in ms["extra_body"]
+
+
+def test_non_deepseek_model_partial_ceiling_sends_only_given_bounds():
+    """A single explicit bound yields a one-key ceiling — never a DeepSeek
+    default for the missing half."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("xiaomi/mimo-v2.5-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(
+        api_key="x", max_price_completion=1.10
+    )._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    routing = ms["extra_body"]["provider"]
+    assert routing["max_price"] == {"completion": 1.10}
+    assert "order" not in routing
+    assert "ignore" not in routing
+
+
+def test_deepseek_model_default_preference_still_deepseek():
+    """The per-model sentinel resolves to DeepSeek for ``deepseek/`` models,
+    so omitting ``preferred_provider`` keeps the historical pin."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.openrouter._deepseek_model import OpenRouterDeepseekModel
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel("deepseek/deepseek-v4-pro", provider=_Pyd(api_key="x"))
+    OpenRouterDeepseekProvider(api_key="x")._post_build_model(m, 2)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    assert ms["extra_body"]["provider"]["order"] == ["DeepSeek"]
+
+
+def test_level2_default_tier_routing_reaches_the_request():
+    """End-to-end through the factory: the baked level-2 ``provider_kwargs``
+    (Xiaomi preferred, ceiling, ignore list) must land in the request body.
+    This is the path mill and chat use — the one that was silently dropping
+    them."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+
+    from robotsix_llmio.config.tier import LEVEL2_DEFAULT
+    from robotsix_llmio.core.factory import get_provider_for_level
+
+    provider = get_provider_for_level(2, api_key="x")
+    model, http_client = provider.new_model(model=LEVEL2_DEFAULT.model_name, level=2)
+    try:
+        ms: dict = {}
+        model._inject_pin((), {"model_settings": ms})
+        routing = ms["extra_body"]["provider"]
+        expected = LEVEL2_DEFAULT.provider_kwargs
+        assert routing["order"] == [expected["preferred_provider"]]
+        assert routing["max_price"] == {
+            "prompt": expected["max_price_prompt"],
+            "completion": expected["max_price_completion"],
+        }
+        assert routing["ignore"] == expected["ignore_providers"]
+        assert routing["allow_fallbacks"] is True
+    finally:
+        import asyncio
+
+        asyncio.run(http_client.aclose())
+
+
 # --- response key constants ------------------------------------------------
 
 
