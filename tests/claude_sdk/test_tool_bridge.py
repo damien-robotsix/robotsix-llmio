@@ -4,6 +4,9 @@ builtin-tool control, and ctx-handling edge cases.  Offline only
 
 from __future__ import annotations
 
+import asyncio
+import base64
+
 import pytest
 
 pytest.importorskip("pydantic_ai")
@@ -18,7 +21,7 @@ from robotsix_llmio.claude_sdk._tool_agent import (
     _SdkToolAgentHandle,
     _SdkToolResult,
 )
-from robotsix_llmio.claude_sdk._tool_converter import _convert_tools
+from robotsix_llmio.claude_sdk._tool_converter import _convert_tools, _span_output
 from robotsix_llmio.claude_sdk.provider import (
     ClaudeSDKProvider,
 )
@@ -303,3 +306,118 @@ def test_web_tools_default_off(monkeypatch) -> None:
     for name in _WEB_TOOL_NAMES:
         assert name in opts.disallowed_tools
     agent.close()
+
+
+# ---------------------------------------------------------------------------
+# MCP tool-result content mapping
+# ---------------------------------------------------------------------------
+
+
+def _wrapped_tool(monkeypatch, fn, *, name: str):
+    """Convert *fn* and return the SDK-registered wrapper for it."""
+    fake = _install_fake_sdk(monkeypatch)
+    _convert_tools([PydanticTool(fn, name=name)])
+    return fake, fake._server_calls[0]["tools"][0]
+
+
+def test_tool_returning_text_is_unchanged(monkeypatch):
+    """A plain string return still ships as one MCP text block."""
+    _fake, wrapper = _wrapped_tool(monkeypatch, _echo_sync, name="echo_sync")
+
+    result = asyncio.run(wrapper({"text": "hello"}))
+
+    assert result == {"content": [{"type": "text", "text": "hello"}]}
+
+
+def test_tool_returning_image_ships_a_native_image_block(monkeypatch):
+    """A ``BinaryContent`` image becomes an MCP ``image`` block, not a repr.
+
+    ``str()`` on a ``BinaryContent`` reprs the raw bytes, so a rendered PDF
+    page used to reach the model as a huge blob of escaped byte escapes
+    instead of a viewable image.
+    """
+    from pydantic_ai.messages import BinaryContent, TextContent
+
+    png = b"\x89PNG\r\n\x1a\n" + bytes(range(256))
+
+    def render_page() -> object:
+        """Render a page."""
+        return [
+            TextContent(content="900x1200 px"),
+            BinaryContent(data=png, media_type="image/png"),
+        ]
+
+    _fake, wrapper = _wrapped_tool(monkeypatch, render_page, name="render_page")
+
+    result = asyncio.run(wrapper({}))
+
+    assert result["content"] == [
+        {"type": "text", "text": "900x1200 px"},
+        {
+            "type": "image",
+            "data": base64.b64encode(png).decode("ascii"),
+            "mimeType": "image/png",
+        },
+    ]
+    # The bytes are never stringified into the text channel.
+    text = "".join(b.get("text", "") for b in result["content"])
+    assert "\\x89PNG" not in text
+    assert "BinaryContent" not in text
+
+
+def test_non_image_binary_degrades_to_a_placeholder(monkeypatch):
+    """An audio/document payload is described, never repr'd."""
+    from pydantic_ai.messages import BinaryContent
+
+    def fetch_doc() -> object:
+        """Fetch a document."""
+        return BinaryContent(
+            data=b"%PDF-1.7" + b"\x00" * 64, media_type="application/pdf"
+        )
+
+    _fake, wrapper = _wrapped_tool(monkeypatch, fetch_doc, name="fetch_doc")
+
+    result = asyncio.run(wrapper({}))
+
+    assert len(result["content"]) == 1
+    block = result["content"][0]
+    assert block["type"] == "text"
+    assert "application/pdf" in block["text"]
+    assert "%PDF" not in block["text"]
+
+
+def test_tool_return_wrapper_is_unwrapped(monkeypatch):
+    """A pydantic-ai ``ToolReturn`` carrying an image is unwrapped, not repr'd."""
+    from pydantic_ai.messages import BinaryContent, ToolReturn
+
+    png = b"\x89PNG\r\n\x1a\n"
+
+    def render_page() -> object:
+        """Render a page."""
+        return ToolReturn(
+            return_value="rendered",
+            content=[BinaryContent(data=png, media_type="image/png")],
+        )
+
+    _fake, wrapper = _wrapped_tool(monkeypatch, render_page, name="render_page")
+
+    result = asyncio.run(wrapper({}))
+
+    assert result["content"] == [
+        {"type": "text", "text": "rendered"},
+        {
+            "type": "image",
+            "data": base64.b64encode(png).decode("ascii"),
+            "mimeType": "image/png",
+        },
+    ]
+
+
+def test_span_output_summarises_image_blocks():
+    """Image payloads never reach the trace attribute verbatim."""
+    blocks = [
+        {"type": "text", "text": "900x1200 px"},
+        {"type": "image", "data": "QUJD", "mimeType": "image/png"},
+    ]
+
+    assert _span_output(blocks) == "900x1200 px\n[image: image/png, 4 base64 chars]"
