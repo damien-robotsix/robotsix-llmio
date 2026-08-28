@@ -72,6 +72,29 @@ def test_upstream_error_detected():
     assert is_openrouter_transient(e) is True
 
 
+def test_upstream_error_detected_when_wrapped_by_pydantic_ai():
+    """pydantic-ai surfaces the finish_reason='error' validation failure as
+    ``UnexpectedModelBehavior`` (no chained cause) — must still be transient."""
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    e = UnexpectedModelBehavior(
+        "Invalid response from openrouter chat completions endpoint: 1 validation "
+        "error for ChatCompletion\nchoices.0.finish_reason\n  Input should be "
+        "'stop', 'length', 'tool_calls', 'content_filter' or 'function_call' "
+        "[type=literal_error, input_value='error', input_type=str]"
+    )
+    assert is_openrouter_upstream_error(e) is True
+    assert is_openrouter_transient(e) is True
+
+
+def test_unexpected_model_behavior_without_finish_reason_not_upstream():
+    """A genuine structured-output failure keeps surfacing immediately."""
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    e = UnexpectedModelBehavior("Exceeded maximum output retries (2)")
+    assert is_openrouter_upstream_error(e) is False
+
+
 def test_plain_validation_error_not_upstream():
     class ValidationError(Exception):
         pass
