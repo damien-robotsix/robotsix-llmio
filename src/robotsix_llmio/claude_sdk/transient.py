@@ -49,9 +49,16 @@ _DEGENERATE_SUCCESS_SIGNATURE = "returned an error result: success"
 #   in, was classified TRANSIENT, burned all three retries against the same
 #   limited tier, and surfaced to the user as an opaque internal error — while
 #   the fallback model, gated on ClaudeSDKUsageExhaustedError, was never tried.
+# * the account-level cap — "You've hit your limit · resets 8pm (UTC)",
+#   observed on robotsix-chat 2026-08-29 18:03Z: same failure shape, same
+#   consequence (20 opaque internal errors in 40 minutes, no fallback).
+#   "hit your limit" is deliberately loose so future wordings of the same
+#   family ("hit your weekly limit", ...) land here too.
 _USAGE_EXHAUSTED_SIGNATURES = (
     "out of usage credits",
     "hit your session limit",
+    "hit your limit",
+    "hit your weekly limit",
     "usage limit reached",
 )
 

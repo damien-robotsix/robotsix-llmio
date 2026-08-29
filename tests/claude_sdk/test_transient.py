@@ -184,6 +184,12 @@ def test_is_usage_exhausted_text_matches_case_insensitively():
 
     assert is_usage_exhausted_text("You're OUT OF USAGE CREDITS · resets soon")
     assert is_usage_exhausted_text("out of usage credits") is True
+    # The three cap wordings the CLI has been seen to use (2026-08-27/29).
+    assert is_usage_exhausted_text(
+        "You've hit your session limit · resets 11:10am (UTC)"
+    )
+    assert is_usage_exhausted_text("You've hit your limit · resets 8pm (UTC)")
+    assert is_usage_exhausted_text("You've hit your weekly limit · resets Monday")
     assert is_usage_exhausted_text("all good here") is False
 
 
