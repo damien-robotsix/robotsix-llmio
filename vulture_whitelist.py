@@ -152,3 +152,9 @@ TierLevelConfig.provider_kwargs
 TierConfig.level1
 TierConfig.level2
 TierConfig.level3
+
+# ``_SdkToolAgentHandle._reprompt_for_json`` sets these on a copied
+# ``ClaudeAgentOptions`` for the same-session JSON-only follow-up; the SDK
+# reads them, not our code.
+ClaudeAgentOptions.resume
+ClaudeAgentOptions.disallowed_tools

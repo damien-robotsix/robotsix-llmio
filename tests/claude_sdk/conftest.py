@@ -72,6 +72,7 @@ def _fake_sdk_module() -> SimpleNamespace:
             self.model_usage = model_usage
             self.result = None
             self.total_cost_usd = None
+            self.session_id = "fake-session"
 
     class _FakeClaudeAgentOptions:
         def __init__(self, **kwargs: Any) -> None:
