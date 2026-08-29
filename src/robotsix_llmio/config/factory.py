@@ -33,8 +33,8 @@ def create_model(
     via :func:`~robotsix_llmio.core.factory.get_provider_for_identifier`.
 
     Args:
-        level: Capability level (1, 2, 3, or 4).  Level 1 selects the
-            cheap/fast model; levels 2-4 select progressively more
+        level: Capability level (1, 2, 3, 4, or 5).  Level 1 selects the
+            cheap/fast model; levels 2-5 select progressively more
             capable defaults (level 4 is the frontier tier,
             ``claudeSDK-claude-fable-5`` by default).
         tier_config: Optional :class:`~.tier.TierConfig` to resolve the
@@ -51,7 +51,7 @@ def create_model(
             :meth:`~LLMProvider.new_model` calls.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, or 4.
+        ValueError: If *level* is not 1, 2, 3, 4, or 5.
         ImportError: If the provider's optional extra is not installed.
 
     Example:

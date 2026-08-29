@@ -26,9 +26,14 @@ _L1_TF_CFG = TierLevelConfig(model="claudeSDK-opus")
 _L2_TF_CFG = TierLevelConfig(model="claudeSDK-haiku")
 _L3_TF_CFG = TierLevelConfig(model="claudeSDK-sonnet")
 _L4_TF_CFG = TierLevelConfig(model="claudeSDK-claude-fable-5")
+_L5_TF_CFG = TierLevelConfig(model="claudeSDK-frontier")
 
 STD_TIER_CONFIG = TierConfig(
-    level1=_L1_TF_CFG, level2=_L2_TF_CFG, level3=_L3_TF_CFG, level4=_L4_TF_CFG
+    level1=_L1_TF_CFG,
+    level2=_L2_TF_CFG,
+    level3=_L3_TF_CFG,
+    level4=_L4_TF_CFG,
+    level5=_L5_TF_CFG,
 )
 
 

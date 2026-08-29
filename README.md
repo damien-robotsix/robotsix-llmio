@@ -5,7 +5,7 @@
 LLM provider abstraction — capability levels, cost tracking, tracing.
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
-consumer only ever picks a **level** (1, 2, 3, or 4).
+consumer only ever picks a **level** (1, 2, 3, 4, or 5).
 
 This repo is a **library** — imported by other stack packages, no runnable
 service — and follows the
@@ -39,12 +39,12 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
 3. **`robotsix_llmio.openrouter`** — the derived layer most consumers
    plug in. Extends the OpenRouter layer with DeepSeek specifics: pin the
    upstream provider to DeepSeek (warm prompt cache) and a level→reasoning
-   policy (levels 2–3→`effort: xhigh`; level 1→`reasoning disabled`).
+   policy (level 3→`effort: xhigh`; level 1→`reasoning disabled`).
    pydantic-ai round-trips reasoning natively, so this layer neither remaps
    reasoning nor adds a DeepSeek-specific transient signature (it inherits
    OpenRouter's). The models are **baked**:
-   `level 2 = xiaomi/mimo-v2.5-pro`,
-   `level 1 = deepseek/deepseek-v4-flash-latest`.
+   `level 3 = xiaomi/mimo-v2.5-pro`,
+   `level 1 = deepseek/deepseek-v4-flash-20260731`.
 
 ### Alternative transport — Claude Agent SDK (subscription auth)
 
@@ -53,7 +53,8 @@ from `core.LLMProvider`) that needs **no API key**: it drives the local `claude`
 CLI through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk),
 so it authenticates with your `claude login` (Claude Code subscription / OAuth)
 credentials. Models are resolved from the tier configuration: the baked
-defaults bind `level 3` to `claudeSDK-opus` and `level 4` to
+defaults bind `level 2` to `claudeSDK-haiku` (cheap flat-rate: monitors,
+retrospects, classification), `level 4` to `claudeSDK-opus` and `level 5` to
 `claudeSDK-claude-fable-5` (Claude Fable 5, the frontier tier).
 
 Because the SDK runs its own agent loop and executes tools internally — returning
@@ -82,7 +83,7 @@ agent = provider.build_agent(
     system_prompt="Extract the city.",
     output_type=PromptedOutput(City),
     name="extract",
-)  # level 4 resolves to claude-fable-5 via the baked tier defaults
+)  # level 5 resolves to claude-fable-5 via the baked tier defaults
 result = provider.call_with_retry(lambda: agent.run_sync("Tell me about Kyoto."))
 print(result.output)  # name='Kyoto' country='Japan'
 agent.close()
@@ -127,7 +128,7 @@ shell or deployment platform as needed:
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable Langfuse trace/cost export when **both** are set | unset → tracing off |
 | `LANGFUSE_BASE_URL` | Langfuse endpoint | `https://cloud.langfuse.com` |
 | `LANGFUSE_PROJECT_ID` | Optional Langfuse project id | — |
-| `LLMIO_LEVEL{1,2,3,4}_MODEL` | Override the baked tier model (see [Four-tier configuration](#four-tier-configuration)) | baked defaults |
+| `LLMIO_LEVEL{1,2,3,4,5}_MODEL` | Override the baked tier model (see [Five-tier configuration](#five-tier-configuration)) | baked defaults |
 | `LLMIO_LEVEL{1,2,3,4}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
 | `LLMIO_COOLDOWN_DURATION_SECONDS` | Cooldown window in seconds before re-probing a terminally-failing model | `21600` (6 hours) |
 | `LLMIO_COOLDOWN_FAILURE_THRESHOLD` | Consecutive terminal failures before a model enters cooldown | `3` |
@@ -148,22 +149,23 @@ provider = get_provider_for_level(
 
 The default endpoint is `https://openrouter.ai/api/v1`.
 
-## Four-tier configuration
+## Five-tier configuration
 
-The library uses a four-tier model selection system exposed through the
+The library uses a five-tier model selection system exposed through the
 `level` parameter on `LLMProvider.build_agent()`.  Each level is backed by a
 `TierLevelConfig` holding a combined `provider-model` identifier:
 
 | Level | Intended use                           | Example env var (combined identifier)                    |
 |-------|----------------------------------------|----------------------------------------------------------|
-| 1     | Cheap, obvious, repetitive tasks       | `LLMIO_LEVEL1_MODEL=openrouter-deepseek/deepseek-v4-flash-latest` |
-| 2     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL2_MODEL=openrouter-xiaomi/mimo-v2.5-pro`   |
-| 3     | High-level planning and refinement     | `LLMIO_LEVEL3_MODEL=claudeSDK-opus`                        |
-| 4     | Frontier — hardest reasoning and long-horizon work | `LLMIO_LEVEL4_MODEL=claudeSDK-claude-fable-5`   |
+| 1     | Cheap, obvious, repetitive tasks (pay-per-token) | `LLMIO_LEVEL1_MODEL=openrouter-deepseek/deepseek-v4-flash-20260731` |
+| 2     | Cheap flat-rate: monitors, retrospects, classification | `LLMIO_LEVEL2_MODEL=claudeSDK-haiku` |
+| 3     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL3_MODEL=openrouter-xiaomi/mimo-v2.5-pro`   |
+| 4     | High-level planning and refinement     | `LLMIO_LEVEL4_MODEL=claudeSDK-opus`                        |
+| 5     | Frontier — hardest reasoning and long-horizon work | `LLMIO_LEVEL5_MODEL=claudeSDK-claude-fable-5`   |
 
 Level 1 is the default — cheap and fast is the safe default.  The
 configuration system (`TierConfig` / `load_tier_config` / `call_with_tier_fallback`)
-supports all four levels end-to-end.
+supports all five levels end-to-end.
 
 You can also set `LLMIO_LEVEL<N>_PROVIDER_KWARGS` as a JSON object for extra
 constructor arguments (e.g. `{"base_url": "https://proxy.example/api/v1"}`).
@@ -177,13 +179,13 @@ binding, lazy-imports the right backend, and returns a ready-to-run agent:
 ```python
 from robotsix_llmio import build_agent_for_level
 
-# Level 1 → OpenRouter DeepSeek (deepseek-v4-flash-latest): cheap and fast.
+# Level 1 → OpenRouter DeepSeek (deepseek-v4-flash-20260731): cheap and fast.
 cheap = build_agent_for_level(1, system_prompt="Classify this.", name="classify")
 
-# Level 3 → Claude SDK (opus): high-level planning. Requires the
+# Level 4 → Claude SDK (opus): high-level planning. Requires the
 # `claude_sdk` extra.
 planner = build_agent_for_level(
-    3, system_prompt="Plan this epic.", tools=[], name="plan"
+    4, system_prompt="Plan this epic.", tools=[], name="plan"
 )
 
 # Level 4 → Claude SDK (claude-fable-5): frontier tier for the hardest

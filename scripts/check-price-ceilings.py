@@ -35,7 +35,7 @@ from typing import Any
 
 import httpx
 
-from robotsix_llmio.config.tier import LEVEL1_DEFAULT, LEVEL2_DEFAULT
+from robotsix_llmio.config.tier import LEVEL1_DEFAULT, LEVEL3_DEFAULT
 from robotsix_llmio.core.constants import HTTP_CLIENT_TIMEOUT
 from robotsix_llmio.openrouter._base import _DEFAULT_BASE_URL
 from robotsix_llmio.openrouter._deepseek_model import (
@@ -134,13 +134,13 @@ _TIERS: tuple[TierCheck, ...] = (
         preferred_provider=_preferred_from_kwargs(LEVEL1_DEFAULT.provider_kwargs),
     ),
     TierCheck(
-        label="capable (level 2)",
-        model=LEVEL2_DEFAULT.model_name,
-        ceiling=_ceiling_from_kwargs(LEVEL2_DEFAULT.provider_kwargs)
+        label="capable (level 3)",
+        model=LEVEL3_DEFAULT.model_name,
+        ceiling=_ceiling_from_kwargs(LEVEL3_DEFAULT.provider_kwargs)
         or DEFAULT_MAX_PRICE_CAPABLE,
-        ignore=_ignore_from_kwargs(LEVEL2_DEFAULT.provider_kwargs)
+        ignore=_ignore_from_kwargs(LEVEL3_DEFAULT.provider_kwargs)
         or DEFAULT_IGNORE_CAPABLE,
-        preferred_provider=_preferred_from_kwargs(LEVEL2_DEFAULT.provider_kwargs),
+        preferred_provider=_preferred_from_kwargs(LEVEL3_DEFAULT.provider_kwargs),
     ),
 )
 

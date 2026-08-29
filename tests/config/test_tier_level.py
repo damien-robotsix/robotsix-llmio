@@ -31,13 +31,19 @@ def test_tier_level_str_comparison():
 def test_tier_level_distinct_members():
     """Different members have different names and values."""
     members = list(TierLevel)
-    assert len(members) == 4
+    assert len(members) == 5
     # All values are distinct.
     values = {m.value for m in members}
-    assert len(values) == 4
+    assert len(values) == 5
 
 
 def test_tier_level_members():
-    """Only the four members exist — no extras."""
-    assert {m.name for m in TierLevel} == {"LEVEL1", "LEVEL2", "LEVEL3", "LEVEL4"}
-    assert len(list(TierLevel)) == 4
+    """Only the five members exist — no extras."""
+    assert {m.name for m in TierLevel} == {
+        "LEVEL1",
+        "LEVEL2",
+        "LEVEL3",
+        "LEVEL4",
+        "LEVEL5",
+    }
+    assert len(list(TierLevel)) == 5

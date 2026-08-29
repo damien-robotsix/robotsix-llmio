@@ -115,10 +115,11 @@ def default_tier_config() -> TierConfig:
     """Return a :class:`TierConfig` built from the baked per-level defaults.
 
     This is the single source of the baked per-level *(provider, model)*
-    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash-latest``,
-    level 2 → ``openrouter-xiaomi/mimo-v2.5-pro``,
-    level 3 → ``claudeSDK-opus``,
-    level 4 → ``claudeSDK-claude-fable-5``.
+    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash-20260731``,
+    level 2 → ``claudeSDK-haiku``,
+    level 3 → ``openrouter-xiaomi/mimo-v2.5-pro``,
+    level 4 → ``claudeSDK-opus``,
+    level 5 → ``claudeSDK-claude-fable-5``.
 
     The no-arg ``TierConfig()`` constructor uses ``default_factory``
     lambdas that produce independent deep copies of the module-level
@@ -126,7 +127,7 @@ def default_tier_config() -> TierConfig:
     do not alias the singletons or each other.
 
     Returns:
-        TierConfig: A config whose four slots hold fresh copies of the
+        TierConfig: A config whose five slots hold fresh copies of the
             baked defaults.
 
     """
@@ -165,7 +166,7 @@ def get_provider_for_level(
             backend.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, or 4 (via
+        ValueError: If *level* is not 1, 2, 3, 4, or 5 (via
             :meth:`TierConfig.for_level`), or if the level's identifier
             names an unknown provider prefix.
         MalformedIdentifierError: If the level's identifier cannot be
@@ -233,7 +234,7 @@ def build_agent_for_level(
             when done.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, or 4 (via
+        ValueError: If *level* is not 1, 2, 3, 4, or 5 (via
             :meth:`TierConfig.for_level`), or if the level's identifier
             names an unknown provider prefix.
         MalformedIdentifierError: If the level's identifier cannot be

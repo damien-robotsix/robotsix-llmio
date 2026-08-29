@@ -126,7 +126,7 @@ class LLMProvider(ABC):
         model:
             The concrete model name (e.g. ``"deepseek/deepseek-v4-flash-latest"``).
         level:
-            Capability level (1, 2, 3, or 4) for per-level policy hooks.
+            Capability level (1, 2, 3, 4, or 5) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``
             call" — providers should apply a safe default.
 

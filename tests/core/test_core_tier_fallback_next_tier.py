@@ -32,7 +32,9 @@ def test_next_unvisited_from_level1_all_higher_visited_returns_lower_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL1,
-            frozenset({TierLevel.LEVEL2, TierLevel.LEVEL3, TierLevel.LEVEL4}),
+            frozenset(
+                {TierLevel.LEVEL2, TierLevel.LEVEL3, TierLevel.LEVEL4, TierLevel.LEVEL5}
+            ),
         )
         is None
     )
@@ -53,7 +55,8 @@ def test_next_unvisited_from_level2_level3_visited_returns_level4():
 def test_next_unvisited_from_level2_higher_visited_returns_lower():
     assert (
         _next_unvisited_tier(
-            TierLevel.LEVEL2, frozenset({TierLevel.LEVEL3, TierLevel.LEVEL4})
+            TierLevel.LEVEL2,
+            frozenset({TierLevel.LEVEL3, TierLevel.LEVEL4, TierLevel.LEVEL5}),
         )
         == TierLevel.LEVEL1
     )
@@ -63,7 +66,9 @@ def test_next_unvisited_from_level2_all_others_visited_returns_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL2,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL3, TierLevel.LEVEL4}),
+            frozenset(
+                {TierLevel.LEVEL1, TierLevel.LEVEL3, TierLevel.LEVEL4, TierLevel.LEVEL5}
+            ),
         )
         is None
     )
@@ -76,7 +81,9 @@ def test_next_unvisited_from_level3_prefers_higher_level4():
 
 def test_next_unvisited_from_level3_level4_visited_returns_level2():
     assert (
-        _next_unvisited_tier(TierLevel.LEVEL3, frozenset({TierLevel.LEVEL4}))
+        _next_unvisited_tier(
+            TierLevel.LEVEL3, frozenset({TierLevel.LEVEL4, TierLevel.LEVEL5})
+        )
         == TierLevel.LEVEL2
     )
 
@@ -84,7 +91,8 @@ def test_next_unvisited_from_level3_level4_visited_returns_level2():
 def test_next_unvisited_from_level3_higher_and_level2_visited_returns_level1():
     assert (
         _next_unvisited_tier(
-            TierLevel.LEVEL3, frozenset({TierLevel.LEVEL2, TierLevel.LEVEL4})
+            TierLevel.LEVEL3,
+            frozenset({TierLevel.LEVEL2, TierLevel.LEVEL4, TierLevel.LEVEL5}),
         )
         == TierLevel.LEVEL1
     )
@@ -94,22 +102,38 @@ def test_next_unvisited_from_level3_all_visited_returns_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL3,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL4}),
+            frozenset(
+                {TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL4, TierLevel.LEVEL5}
+            ),
         )
         is None
     )
 
 
-def test_next_unvisited_from_level4_only_lower():
-    # LEVEL4 → LEVEL3 (nearest lower), then LEVEL2, then LEVEL1
-    assert _next_unvisited_tier(TierLevel.LEVEL4, frozenset()) == TierLevel.LEVEL3
+def test_next_unvisited_from_level4_prefers_higher_level5():
+    # LEVEL4 → LEVEL5 first (higher), then LEVEL3, LEVEL2, LEVEL1
+    assert _next_unvisited_tier(TierLevel.LEVEL4, frozenset()) == TierLevel.LEVEL5
+
+
+def test_next_unvisited_from_level4_level5_visited_returns_level3():
+    assert (
+        _next_unvisited_tier(TierLevel.LEVEL4, frozenset({TierLevel.LEVEL5}))
+        == TierLevel.LEVEL3
+    )
+
+
+def test_next_unvisited_from_level5_only_lower():
+    # LEVEL5 → LEVEL4 (nearest lower), then LEVEL3, LEVEL2, LEVEL1
+    assert _next_unvisited_tier(TierLevel.LEVEL5, frozenset()) == TierLevel.LEVEL4
 
 
 def test_next_unvisited_from_level4_all_visited_returns_none():
     assert (
         _next_unvisited_tier(
             TierLevel.LEVEL4,
-            frozenset({TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL3}),
+            frozenset(
+                {TierLevel.LEVEL1, TierLevel.LEVEL2, TierLevel.LEVEL3, TierLevel.LEVEL5}
+            ),
         )
         is None
     )

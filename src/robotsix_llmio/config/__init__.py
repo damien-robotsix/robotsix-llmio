@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         LEVEL2_DEFAULT,
         LEVEL3_DEFAULT,
         LEVEL4_DEFAULT,
+        LEVEL5_DEFAULT,
         TierConfig,
         TierLevel,
         TierLevelConfig,
@@ -44,6 +45,7 @@ __all__ = [
     "LEVEL2_DEFAULT",
     "LEVEL3_DEFAULT",
     "LEVEL4_DEFAULT",
+    "LEVEL5_DEFAULT",
     "MalformedIdentifierError",
     "ParsedIdentifier",
     "TierConfig",
@@ -70,6 +72,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import tier
 
         return tier.LEVEL3_DEFAULT
+    if name == "LEVEL5_DEFAULT":
+        from . import tier
+
+        return tier.LEVEL5_DEFAULT
     if name == "LEVEL4_DEFAULT":
         from . import tier
 

@@ -32,9 +32,10 @@ agent = provider.build_agent(
   ) -> LLMProvider:
   ```
 
-  - **`level`** (1, 2, 3, or 4) — selects the capability tier.  Level 1 picks the
-    cheap/fast default; levels 2–4 pick progressively more capable defaults
-    (level 4 is the frontier tier, `claudeSDK-claude-fable-5` by default).
+  - **`level`** (1, 2, 3, 4, or 5) — selects the capability tier.  Level 1 picks the
+    cheap/fast default; level 2 is the cheap flat-rate tier (`claudeSDK-haiku`);
+    levels 3–5 pick progressively more capable defaults
+    (level 5 is the frontier tier, `claudeSDK-claude-fable-5` by default).
     Defaults to 1.
   - **`tier_config`** — optional `TierConfig` instance supplying custom
     per-level defaults.  When `None`, a default is built from the baked
@@ -60,7 +61,7 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 
 ### Schema & loader (tier configuration)
 
-- `TierConfig` — pydantic model for four-tier provider+model configuration
+- `TierConfig` — pydantic model for five-tier provider+model configuration
 - `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3`, `LEVEL4` tier-selector values
 - `TierLevelConfig` — pydantic model binding a single tier to a provider-model identifier.
   Each config carries:

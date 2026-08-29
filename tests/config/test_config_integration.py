@@ -54,22 +54,22 @@ class TestLoaderToFactoryChain:
         )
         assert result is mock_get_provider_for_identifier.return_value
 
-    def test_level3_loaded_config_resolves_to_claude_sdk(
+    def test_level4_loaded_config_resolves_to_claude_sdk(
         self, mock_get_provider_for_identifier: MagicMock
     ) -> None:
-        """A loaded level3 ``claudeSDK-opus`` config resolves correctly."""
+        """A loaded level4 ``claudeSDK-opus`` config resolves correctly."""
         cfg = load_tier_config(
             {
                 "level1": {
                     "model": "openrouter-deepseek/deepseek-v4-flash-latest",
                 },
-                "level3": {"model": "claudeSDK-opus"},
+                "level4": {"model": "claudeSDK-opus"},
             }
         )
 
-        create_model(level=3, tier_config=cfg)
+        create_model(level=4, tier_config=cfg)
 
-        # No max_tokens: LEVEL3_DEFAULT carries none (see tier.py).
+        # No max_tokens: LEVEL4_DEFAULT carries none (see tier.py).
         mock_get_provider_for_identifier.assert_called_once_with(
             "claudeSDK-opus",
         )

@@ -10,6 +10,7 @@ from robotsix_llmio.config.tier import (
     LEVEL2_DEFAULT,
     LEVEL3_DEFAULT,
     LEVEL4_DEFAULT,
+    LEVEL5_DEFAULT,
     TierLevelConfig,
 )
 from robotsix_llmio.core.identifier import MalformedIdentifierError
@@ -132,21 +133,27 @@ def test_level1_default():
 
 
 def test_level2_default():
-    assert LEVEL2_DEFAULT.model == "openrouter-xiaomi/mimo-v2.5-pro"
-    assert LEVEL2_DEFAULT.provider == "openrouter"
-    assert LEVEL2_DEFAULT.model_name == "xiaomi/mimo-v2.5-pro"
+    assert LEVEL2_DEFAULT.model == "claudeSDK-haiku"
+    assert LEVEL2_DEFAULT.provider == "claudeSDK"
+    assert LEVEL2_DEFAULT.model_name == "haiku"
 
 
 def test_level3_default():
-    assert LEVEL3_DEFAULT.model == "claudeSDK-opus"
-    assert LEVEL3_DEFAULT.provider == "claudeSDK"
-    assert LEVEL3_DEFAULT.model_name == "opus"
+    assert LEVEL3_DEFAULT.model == "openrouter-xiaomi/mimo-v2.5-pro"
+    assert LEVEL3_DEFAULT.provider == "openrouter"
+    assert LEVEL3_DEFAULT.model_name == "xiaomi/mimo-v2.5-pro"
 
 
 def test_level4_default():
-    assert LEVEL4_DEFAULT.model == "claudeSDK-claude-fable-5"
+    assert LEVEL4_DEFAULT.model == "claudeSDK-opus"
     assert LEVEL4_DEFAULT.provider == "claudeSDK"
-    assert LEVEL4_DEFAULT.model_name == "claude-fable-5"
+    assert LEVEL4_DEFAULT.model_name == "opus"
+
+
+def test_level5_default():
+    assert LEVEL5_DEFAULT.model == "claudeSDK-claude-fable-5"
+    assert LEVEL5_DEFAULT.provider == "claudeSDK"
+    assert LEVEL5_DEFAULT.model_name == "claude-fable-5"
 
 
 # ========================================================================== #

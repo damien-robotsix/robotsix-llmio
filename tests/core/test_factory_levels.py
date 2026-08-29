@@ -56,9 +56,10 @@ def test_default_tier_config_bakes_per_level_defaults() -> None:
     cfg = default_tier_config()
 
     assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
-    assert cfg.for_level(2).model == "openrouter-xiaomi/mimo-v2.5-pro"
-    assert cfg.for_level(3).model == "claudeSDK-opus"
-    assert cfg.for_level(4).model == "claudeSDK-claude-fable-5"
+    assert cfg.for_level(2).model == "claudeSDK-haiku"
+    assert cfg.for_level(3).model == "openrouter-xiaomi/mimo-v2.5-pro"
+    assert cfg.for_level(4).model == "claudeSDK-opus"
+    assert cfg.for_level(5).model == "claudeSDK-claude-fable-5"
 
 
 # -- get_provider_for_level -------------------------------------------------
@@ -70,9 +71,9 @@ def test_get_provider_for_level_resolves_per_level_identifier(
     calls, provider = _patch_factory(monkeypatch)
 
     assert get_provider_for_level(1) is provider
-    assert get_provider_for_level(3) is provider
+    assert get_provider_for_level(4) is provider
 
-    # Level 1 -> openrouter prefix; level 3 -> claudeSDK prefix.
+    # Level 1 -> openrouter prefix; level 4 -> claudeSDK prefix.
     assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert calls[1][0] == "claudeSDK-opus"
 
@@ -102,7 +103,7 @@ def test_get_provider_for_level_invalid_level_raises(
 ) -> None:
     _patch_factory(monkeypatch)
     with pytest.raises(ValueError):
-        get_provider_for_level(5)
+        get_provider_for_level(6)
 
 
 # -- build_agent_for_level --------------------------------------------------
@@ -128,31 +129,31 @@ def test_build_agent_for_level_default_level1(
     assert call["name"] == "lvl1"
 
 
-def test_build_agent_for_level_default_level3(
+def test_build_agent_for_level_default_level4_opus(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls, provider = _patch_factory(monkeypatch)
 
-    build_agent_for_level(3, system_prompt="planning", tools=[], output_type=str)
+    build_agent_for_level(4, system_prompt="planning", tools=[], output_type=str)
 
-    # ClaudeSDK provider resolved from the level-3 identifier.
+    # ClaudeSDK provider resolved from the level-4 identifier.
     assert calls[0][0] == "claudeSDK-opus"
     call = provider.build_agent_calls[0]
-    assert call["level"] == 3
+    assert call["level"] == 4
     assert call["model"] == "opus"
 
 
-def test_build_agent_for_level_default_level4(
+def test_build_agent_for_level_default_level5(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls, provider = _patch_factory(monkeypatch)
 
-    build_agent_for_level(4, system_prompt="frontier task", output_type=str)
+    build_agent_for_level(5, system_prompt="frontier task", output_type=str)
 
-    # ClaudeSDK provider resolved from the level-4 identifier.
+    # ClaudeSDK provider resolved from the level-5 identifier.
     assert calls[0][0] == "claudeSDK-claude-fable-5"
     call = provider.build_agent_calls[0]
-    assert call["level"] == 4
+    assert call["level"] == 5
     assert call["model"] == "claude-fable-5"
 
 
@@ -220,7 +221,7 @@ def test_build_agent_for_level_invalid_level_raises(
 ) -> None:
     _patch_factory(monkeypatch)
     with pytest.raises(ValueError):
-        build_agent_for_level(5, system_prompt="x")
+        build_agent_for_level(6, system_prompt="x")
 
 
 # -- exports ----------------------------------------------------------------
