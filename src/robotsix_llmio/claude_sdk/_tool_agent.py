@@ -517,13 +517,66 @@ class _SdkToolAgentHandle:
             if root is not None:
                 root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
             self._record_generation_span(system_prompt, prompt, text, result, reasoning)
+            try:
+                output = _parse_output(text, self._output_type)
+            except ValueError as parse_exc:
+                # The model did the work but signed off in prose ("Summary:
+                # ... Files: ...") instead of the JSON object. Throwing the
+                # whole run away — every tool call, every edit — to retry from
+                # scratch is the most expensive possible reaction to a
+                # formatting slip. Ask the SAME session (resume=session_id)
+                # for the JSON object only; the context is still there and the
+                # follow-up costs one short turn.
+                text, result = await self._reprompt_for_json(options, result, parse_exc)
+                output = _parse_output(text, self._output_type)
+                if root is not None:
+                    root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
         from pydantic_ai.messages import ModelResponse, TextPart
 
         return _SdkToolResult(
-            output=_parse_output(text, self._output_type),
+            output=output,
             _messages=[ModelResponse(parts=[TextPart(content=text)])],
             _usage=_best_usage_dict(result),
         )
+
+    async def _reprompt_for_json(
+        self, options: ClaudeAgentOptions, result: Any, parse_exc: ValueError
+    ) -> tuple[str, Any]:
+        """One follow-up turn in the finished session asking for JSON only.
+
+        Re-raises *parse_exc* unchanged when the session cannot be resumed
+        (no ``session_id`` on the result), so callers see the original
+        diagnosis. The follow-up runs with tools denied and a single turn:
+        it must format, not keep working.
+        """
+        import copy
+
+        from ._output import _build_schema_json
+
+        session_id = getattr(result, "session_id", None)
+        if not session_id:
+            raise parse_exc
+        log.warning(
+            "%s: final reply was not the structured output (%s) — asking the "
+            "same session (%s) for the JSON object only",
+            self._name,
+            str(parse_exc)[:120],
+            session_id,
+        )
+        follow_up = copy.copy(options)
+        follow_up.resume = session_id
+        follow_up.max_turns = 1
+        follow_up.allowed_tools = []
+        follow_up.disallowed_tools = ["*"]
+        prompt = (
+            "Your previous reply was not the required structured output. "
+            "Do not run any tools and do not do any further work. Reply with "
+            "ONLY the JSON object describing what you already did, matching "
+            "this schema exactly (no prose, no markdown fence):\n"
+            + _build_schema_json(self._output_type)
+        )
+        text, new_result, _reasoning = await self._invoke_query(prompt, follow_up)
+        return text, new_result
 
     def close(self) -> None:
         """No-op — no HTTP client to close."""

@@ -421,3 +421,80 @@ def test_span_output_summarises_image_blocks():
     ]
 
     assert _span_output(blocks) == "900x1200 px\n[image: image/png, 4 base64 chars]"
+
+
+def test_tool_agent_prose_final_reply_is_reprompted_in_the_same_session(monkeypatch):
+    """A structured-output agent whose final reply is prose gets ONE follow-up
+    turn in the same SDK session (``resume=session_id``, no tools) asking for
+    the JSON object — the run is not discarded (three mill implement passes
+    were thrown away this way on 2026-08-29)."""
+    from pydantic import BaseModel
+
+    class Outcome(BaseModel):
+        summary: str
+        files: list[str]
+
+    fake = _install_fake_sdk(monkeypatch)
+    calls: list[tuple[object, object]] = []
+
+    async def _fake_query(*, prompt, options):
+        calls.append((prompt, options))
+        if len(calls) == 1:
+            yield fake.AssistantMessage(
+                "No Python files were touched. Outcome:\n\nSummary: added labels"
+            )
+        else:
+            yield fake.AssistantMessage(
+                '{"summary": "added labels", "files": ["compose.yaml"]}'
+            )
+        yield fake.ResultMessage({"input_tokens": 10, "output_tokens": 5})
+
+    fake.query = _fake_query
+
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="You are a tester.",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        output_type=Outcome,
+    )
+    result = handle.run_sync("do the work")
+
+    assert result.output == Outcome(summary="added labels", files=["compose.yaml"])
+    assert len(calls) == 2
+    follow_prompt, follow_options = calls[1]
+    assert follow_options.resume == "fake-session"
+    assert follow_options.max_turns == 1
+    assert follow_options.disallowed_tools == ["*"]
+    assert "ONLY the JSON object" in follow_prompt
+    assert '"summary"' in follow_prompt  # schema embedded
+    # The first call was a normal run (no resume).
+    assert getattr(calls[0][1], "resume", None) is None
+
+
+def test_tool_agent_prose_final_reply_without_session_reraises(monkeypatch):
+    """Without a session id there is nothing to resume: the original
+    ``_parse_output`` diagnosis surfaces unchanged."""
+    from pydantic import BaseModel
+
+    class Outcome(BaseModel):
+        summary: str
+
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _fake_query(*, prompt, options):
+        yield fake.AssistantMessage("just prose")
+        msg = fake.ResultMessage({"input_tokens": 1, "output_tokens": 1})
+        msg.session_id = None
+        yield msg
+
+    fake.query = _fake_query
+    handle = ClaudeSDKProvider().build_agent(
+        level=1,
+        tier_config=_HAIKU_AT_LEVEL1,
+        system_prompt="You are a tester.",
+        tools=[PydanticTool(_echo_sync, name="echo_sync")],
+        output_type=Outcome,
+    )
+    with pytest.raises(ValueError, match="no JSON object found"):
+        handle.run_sync("do the work")
