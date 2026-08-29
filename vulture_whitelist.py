@@ -143,6 +143,7 @@ conversation_store
 TierLevel.LEVEL2
 TierLevel.LEVEL3
 TierLevel.LEVEL4
+TierLevel.LEVEL5
 
 # Pydantic model fields accessed by pydantic's metaclass machinery, not by
 # direct Python name access that vulture would detect. (@model_validator /
