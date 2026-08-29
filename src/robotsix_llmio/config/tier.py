@@ -137,7 +137,8 @@ class TierLevelConfig(BaseModel):
 # content token is emitted — so a cap sized for the visible answer alone is
 # really a cap on the thinking. Observed 2026-08-27: mill's implement stage
 # blew the 32768 cap on ``xiaomi/mimo-v2.5-pro`` (then level 2, now level 3)
-# before generating any output, on every attempt, deterministically. Size these against the tier's
+# before generating any output, on every attempt, deterministically. Size
+# these against the tier's
 # *reasoning + answer*, not the answer.
 #
 # Keep the value at or below the smallest ``max_completion_tokens`` among the

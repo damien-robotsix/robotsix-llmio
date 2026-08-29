@@ -188,16 +188,16 @@ planner = build_agent_for_level(
     4, system_prompt="Plan this epic.", tools=[], name="plan"
 )
 
-# Level 4 → Claude SDK (claude-fable-5): frontier tier for the hardest
+# Level 5 → Claude SDK (claude-fable-5): frontier tier for the hardest
 # reasoning and long-horizon work. Requires the `claude_sdk` extra.
 architect = build_agent_for_level(
-    4, system_prompt="Design the migration strategy.", name="architect"
+    5, system_prompt="Design the migration strategy.", name="architect"
 )
 ```
 
 With everything left at its default the baked per-level defaults apply
-(level 1 → `deepseek/deepseek-v4-flash-latest`, level 2 → `xiaomi/mimo-v2.5-pro`,
-level 3 → `opus`, level 4 → `claude-fable-5`) — each on its **own** provider, so a DeepSeek model never runs
+(level 1 → `deepseek/deepseek-v4-flash-20260731`, level 2 → `haiku`, level 3 → `xiaomi/mimo-v2.5-pro`,
+level 4 → `opus`, level 5 → `claude-fable-5`) — each on its **own** provider, so a DeepSeek model never runs
 on the Claude transport. `model=` overrides only the model name (the provider
 stays the one bound to the level); pass a custom `tier_config=` to override the
 bindings, and `provider_kwargs=` for provider-constructor arguments. Two related
