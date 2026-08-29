@@ -1,6 +1,6 @@
-"""Tier-escalation loop for four-tier provider+model fallback.
+"""Tier-escalation loop for five-tier provider+model fallback.
 
-This module provides a dispatch helper that iterates through the four
+This module provides a dispatch helper that iterates through the five
 configured tiers in :class:`~robotsix_llmio.config.tier.TierConfig`
 automatically, catching failures at one level and promoting to the next.
 
@@ -26,7 +26,7 @@ LEVEL4    LEVEL4 → LEVEL3 → LEVEL2 → stop
 ========  ==================================================
 
 (The default ``max_fallback_depth=2`` allows two promotions, so at most
-three of the four tiers are visited per call.)
+three of the five tiers are visited per call.)
 
 Fallback is **on by default** (``fallback_enabled=True``). A tier binding can
 fail for reasons that have nothing to do with the request — a provider outage,

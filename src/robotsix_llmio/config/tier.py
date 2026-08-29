@@ -1,4 +1,4 @@
-"""Tier configuration schema — four configurable provider+model bindings.
+"""Tier configuration schema — five configurable provider+model bindings.
 
 The canonical path for tier resolution is :meth:`TierConfig.for_level`.
 """
@@ -11,25 +11,30 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 # --------------------------------------------------------------------------- #
-#  TierLevel — four configuration tiers                                       #
+#  TierLevel — five configuration tiers                                       #
 # --------------------------------------------------------------------------- #
 
 
 class TierLevel(StrEnum):
-    """Four-tier configuration selector.
+    """Five-tier configuration selector.
 
-    | Member   | Value      | Purpose                                        |
-    |----------|------------|------------------------------------------------|
-    | LEVEL1   | ``level1`` | Cheap, obvious, repetitive tasks               |
-    | LEVEL2   | ``level2`` | Intermediate (e.g. implementing code)          |
-    | LEVEL3   | ``level3`` | High-level organisation and planning           |
-    | LEVEL4   | ``level4`` | Frontier — hardest reasoning and long-horizon  |
+    | Member   | Value      | Purpose                                                  |
+    |----------|------------|----------------------------------------------------------|
+    | LEVEL1   | ``level1`` | Cheap, obvious, repetitive tasks (pay-per-token)         |
+    | LEVEL2   | ``level2`` | Cheap flat-rate: monitors, retrospects, classification   |
+    | LEVEL3   | ``level3`` | Intermediate (e.g. implementing code)                    |
+    | LEVEL4   | ``level4`` | High-level organisation and planning                     |
+    | LEVEL5   | ``level5`` | Frontier — hardest reasoning and long-horizon            |
+
+    Level 2 was inserted on 2026-08-29 (Claude haiku on the flat-rate
+    subscription); the former levels 2-4 shifted to 3-5.
     """
 
     LEVEL1 = "level1"
     LEVEL2 = "level2"
     LEVEL3 = "level3"
     LEVEL4 = "level4"
+    LEVEL5 = "level5"
 
 
 # --------------------------------------------------------------------------- #
@@ -131,13 +136,14 @@ class TierLevelConfig(BaseModel):
 # those tokens are billed and counted against ``max_tokens`` before a single
 # content token is emitted — so a cap sized for the visible answer alone is
 # really a cap on the thinking. Observed 2026-08-27: mill's implement stage
-# blew the 32768 level-2 cap on ``xiaomi/mimo-v2.5-pro`` before generating any
-# output, on every attempt, deterministically. Size these against the tier's
+# blew the 32768 cap on ``xiaomi/mimo-v2.5-pro`` (then level 2, now level 3)
+# before generating any output, on every attempt, deterministically. Size
+# these against the tier's
 # *reasoning + answer*, not the answer.
 #
 # Keep the value at or below the smallest ``max_completion_tokens`` among the
 # endpoints the tier's price ceiling admits, or OpenRouter rejects the request
-# outright. For level 2 today that floor is StreamLake's 128000.
+# outright. For level 3 (mimo) today that floor is StreamLake's 128000.
 # Level 1 pins the dated snapshot rather than OpenRouter's
 # "~deepseek/deepseek-v4-flash-latest" alias: the un-prefixed "-latest" slug
 # is not a routable model id, and a floating alias would drift out of the
@@ -147,7 +153,15 @@ LEVEL1_DEFAULT = TierLevelConfig(
     max_tokens=16384,
 )
 
+# Level 2 is the cheap FLAT-RATE tier (Claude haiku on the subscription):
+# monitors, retrospects, classifiers — work that is too frequent for a
+# pay-per-token model but does not need opus. Inserted 2026-08-29; the
+# former levels 2-4 became 3-5.
 LEVEL2_DEFAULT = TierLevelConfig(
+    model="claudeSDK-haiku",
+)
+
+LEVEL3_DEFAULT = TierLevelConfig(
     model="openrouter-xiaomi/mimo-v2.5-pro",
     max_tokens=65536,
     provider_kwargs={
@@ -169,11 +183,11 @@ LEVEL2_DEFAULT = TierLevelConfig(
 # that reject the parameter outright, a hard 400 that killed the caller's stage.
 # The OpenRouter levels above keep ``max_tokens`` — there it IS a real enforced
 # per-response cap, which is what the field means.
-LEVEL3_DEFAULT = TierLevelConfig(
+LEVEL4_DEFAULT = TierLevelConfig(
     model="claudeSDK-opus",
 )
 
-LEVEL4_DEFAULT = TierLevelConfig(
+LEVEL5_DEFAULT = TierLevelConfig(
     model="claudeSDK-claude-fable-5",
 )
 
@@ -184,14 +198,13 @@ LEVEL4_DEFAULT = TierLevelConfig(
 
 
 class TierConfig(BaseModel):
-    """Four-tier provider+model configuration.
+    """Five-tier provider+model configuration.
 
-    All four slots are optional: each falls back to its module-level baked
-    default (:data:`LEVEL1_DEFAULT`, :data:`LEVEL2_DEFAULT`,
-    :data:`LEVEL3_DEFAULT`, :data:`LEVEL4_DEFAULT`) when omitted, so
-    ``TierConfig()`` yields the fully baked default configuration.
+    All five slots are optional: each falls back to its module-level baked
+    default (:data:`LEVEL1_DEFAULT` … :data:`LEVEL5_DEFAULT`) when omitted,
+    so ``TierConfig()`` yields the fully baked default configuration.
 
-    Example YAML/JSON (override level 1 only; levels 2-4 stay default)::
+    Example YAML/JSON (override level 1 only; levels 2-5 stay default)::
 
         {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash-latest"}}
 
@@ -205,15 +218,19 @@ class TierConfig(BaseModel):
     )
     level2: TierLevelConfig = Field(
         default_factory=lambda: LEVEL2_DEFAULT.model_copy(deep=True),
-        description="Level 2 — intermediate tasks (e.g. implementing code).",
+        description="Level 2 — cheap flat-rate: monitors, retrospects, classification.",
     )
     level3: TierLevelConfig = Field(
         default_factory=lambda: LEVEL3_DEFAULT.model_copy(deep=True),
-        description="Level 3 — high-level organisation and planning.",
+        description="Level 3 — intermediate tasks (e.g. implementing code).",
     )
     level4: TierLevelConfig = Field(
         default_factory=lambda: LEVEL4_DEFAULT.model_copy(deep=True),
-        description="Level 4 — frontier: hardest reasoning and long-horizon work.",
+        description="Level 4 — high-level organisation and planning.",
+    )
+    level5: TierLevelConfig = Field(
+        default_factory=lambda: LEVEL5_DEFAULT.model_copy(deep=True),
+        description="Level 5 — frontier: hardest reasoning and long-horizon work.",
     )
 
     def for_level(self, level: int) -> TierLevelConfig:
@@ -225,9 +242,10 @@ class TierConfig(BaseModel):
         | 2         | ``self.level2`` |
         | 3         | ``self.level3`` |
         | 4         | ``self.level4`` |
+        | 5         | ``self.level5`` |
 
         Raises:
-            ValueError: If *level* is not 1, 2, 3, or 4.
+            ValueError: If *level* is not 1, 2, 3, 4, or 5.
 
         """
         if level == 1:
@@ -238,4 +256,6 @@ class TierConfig(BaseModel):
             return self.level3
         if level == 4:
             return self.level4
-        raise ValueError(f"`level` must be 1, 2, 3, or 4, got {level!r}")
+        if level == 5:
+            return self.level5
+        raise ValueError(f"`level` must be 1, 2, 3, 4, or 5, got {level!r}")

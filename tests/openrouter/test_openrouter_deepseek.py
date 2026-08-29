@@ -564,23 +564,23 @@ def test_deepseek_model_default_preference_still_deepseek():
     assert ms["extra_body"]["provider"]["order"] == ["DeepSeek"]
 
 
-def test_level2_default_tier_routing_reaches_the_request():
-    """End-to-end through the factory: the baked level-2 ``provider_kwargs``
+def test_level3_default_tier_routing_reaches_the_request():
+    """End-to-end through the factory: the baked level-3 ``provider_kwargs``
     (Xiaomi preferred, ceiling, ignore list) must land in the request body.
     This is the path mill and chat use — the one that was silently dropping
     them."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
 
-    from robotsix_llmio.config.tier import LEVEL2_DEFAULT
+    from robotsix_llmio.config.tier import LEVEL3_DEFAULT
     from robotsix_llmio.core.factory import get_provider_for_level
 
-    provider = get_provider_for_level(2, api_key="x")
-    model, http_client = provider.new_model(model=LEVEL2_DEFAULT.model_name, level=2)
+    provider = get_provider_for_level(3, api_key="x")
+    model, http_client = provider.new_model(model=LEVEL3_DEFAULT.model_name, level=3)
     try:
         ms: dict = {}
         model._inject_pin((), {"model_settings": ms})
         routing = ms["extra_body"]["provider"]
-        expected = LEVEL2_DEFAULT.provider_kwargs
+        expected = LEVEL3_DEFAULT.provider_kwargs
         assert routing["order"] == [expected["preferred_provider"]]
         assert routing["max_price"] == {
             "prompt": expected["max_price_prompt"],

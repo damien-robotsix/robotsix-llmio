@@ -17,7 +17,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `LEVEL2_DEFAULT` — default `TierLevelConfig` for level 2 (capable)
 - `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)
 - `LEVEL4_DEFAULT` — default `TierLevelConfig` for level 4 (frontier, Claude Fable 5)
-- `TierConfig` — pydantic model for four-tier provider+model configuration
+- `TierConfig` — pydantic model for five-tier provider+model configuration
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
 - `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`), `LEVEL4` (→ `level=4`) tier-selector values
 - `TierLevelConfig` — pydantic model binding a single tier's transport and model

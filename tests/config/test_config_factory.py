@@ -15,7 +15,7 @@ class TestCreateModelValidation:
     """Input validation before delegation to ``get_provider``."""
 
     def test_invalid_level_raises_valueerror(self):
-        for bad_level in (0, 5, -1, 99):
+        for bad_level in (0, 6, -1, 99):
             with pytest.raises(ValueError) as excinfo:
                 create_model(level=bad_level)
             message = str(excinfo.value)
@@ -45,8 +45,17 @@ class TestCreateModelHappyPath:
         self, mock_get_provider_for_identifier: MagicMock
     ):
         """``create_model(level=2)`` derives provider from LEVEL2_DEFAULT's
-        identifier (MiMo v2.5-pro via Xiaomi)."""
+        identifier (``"claudeSDK-haiku"``, the cheap flat-rate tier)."""
         result = create_model(level=2)
+        mock_get_provider_for_identifier.assert_called_once_with("claudeSDK-haiku")
+        assert result is mock_get_provider_for_identifier.return_value
+
+    def test_level_3_mimo_resolves_from_tier_config(
+        self, mock_get_provider_for_identifier: MagicMock
+    ):
+        """``create_model(level=3)`` derives provider from LEVEL3_DEFAULT's
+        identifier (MiMo v2.5-pro via Xiaomi)."""
+        result = create_model(level=3)
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-xiaomi/mimo-v2.5-pro",
             preferred_provider="Xiaomi",
@@ -57,12 +66,12 @@ class TestCreateModelHappyPath:
         )
         assert result is mock_get_provider_for_identifier.return_value
 
-    def test_level_3_no_transport_resolves_from_tier_config(
+    def test_level_4_no_transport_resolves_from_tier_config(
         self, mock_get_provider_for_identifier: MagicMock
     ):
-        """``create_model(level=3)`` derives provider from LEVEL3_DEFAULT's
+        """``create_model(level=4)`` derives provider from LEVEL4_DEFAULT's
         identifier (``"claudeSDK-opus"``)."""
-        result = create_model(level=3)
+        result = create_model(level=4)
         # No max_tokens: the Claude SDK levels carry none, because the SDK has
         # no per-response cap and the value could only become an advisory
         # task_budget (see tier.py). The OpenRouter levels above still do.

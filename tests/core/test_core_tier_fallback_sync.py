@@ -160,9 +160,9 @@ def test_fallback_level2_to_level3_to_level4():
     assert tracking["factory_calls"] == ["haiku", "sonnet", "claude-fable-5"]
 
 
-def test_fallback_level3_to_level4_to_level2():
-    """Start at level3: level3 fails → level4 (higher) fails → level2
-    (nearest lower) succeeds. Demonstrates bidirectional fallback."""
+def test_fallback_level3_to_level4_to_level5():
+    """Start at level3: level3 fails → level4 (higher) fails → level5
+    (next higher) succeeds. Escalation walks up first."""
     tracking: dict = {}
     counter = {"remaining": 2}
 
@@ -186,12 +186,12 @@ def test_fallback_level3_to_level4_to_level2():
         sleep=_noop_sleep,
     )
     assert out == "l2-ok"
-    assert tracking["factory_calls"] == ["sonnet", "claude-fable-5", "haiku"]
+    assert tracking["factory_calls"] == ["sonnet", "claude-fable-5", "frontier"]
 
 
-def test_fallback_level4_to_level3_to_level2():
-    """Start at level4: no higher tier exists, so fallback walks down —
-    level4 fails → level3 fails → level2 succeeds."""
+def test_fallback_level4_to_level5_to_level3():
+    """Start at level4: level4 fails → level5 (the only higher tier) fails →
+    level3 (nearest lower) succeeds. Demonstrates bidirectional fallback."""
     tracking: dict = {}
     counter = {"remaining": 2}
 
@@ -215,7 +215,7 @@ def test_fallback_level4_to_level3_to_level2():
         sleep=_noop_sleep,
     )
     assert out == "l2-ok"
-    assert tracking["factory_calls"] == ["claude-fable-5", "sonnet", "haiku"]
+    assert tracking["factory_calls"] == ["claude-fable-5", "frontier", "sonnet"]
 
 
 def test_exhausted_all_levels_reraises_last_error():

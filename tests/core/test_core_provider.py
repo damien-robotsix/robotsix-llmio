@@ -156,9 +156,10 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
     ("level", "expected_model"),
     [
         (1, "deepseek/deepseek-v4-flash-20260731"),
-        (2, "xiaomi/mimo-v2.5-pro"),
-        (3, "opus"),
-        (4, "claude-fable-5"),
+        (2, "haiku"),
+        (3, "xiaomi/mimo-v2.5-pro"),
+        (4, "opus"),
+        (5, "claude-fable-5"),
     ],
 )
 def test_build_agent_level_uses_default(mock_build_agent, level, expected_model):
@@ -169,10 +170,10 @@ def test_build_agent_level_uses_default(mock_build_agent, level, expected_model)
 
 def test_build_agent_level_out_of_range_raises(mock_build_agent):
     p = _MockProvider()
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 0"):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 0"):
         p.build_agent(level=0, system_prompt="sys")
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 5"):
-        p.build_agent(level=5, system_prompt="sys")
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 6"):
+        p.build_agent(level=6, system_prompt="sys")
 
 
 def test_build_agent_threads_kwargs(monkeypatch):

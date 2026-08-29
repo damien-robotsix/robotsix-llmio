@@ -193,15 +193,15 @@ def test_for_level_4_returns_level4():
 def test_for_level_0_raises():
     """``for_level(0)`` raises ValueError."""
     cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 0"):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 0"):
         cfg.for_level(0)
 
 
-def test_for_level_5_raises():
-    """``for_level(5)`` raises ValueError."""
+def test_for_level_6_raises():
+    """``for_level(6)`` raises ValueError."""
     cfg = TierConfig(level1=TierLevelConfig(model="claudeSDK-haiku"))
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, or 4, got 5"):
-        cfg.for_level(5)
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 6"):
+        cfg.for_level(6)
 
 
 def test_for_level_returns_default_level2_when_not_explicitly_set():
