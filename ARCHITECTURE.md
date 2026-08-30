@@ -329,6 +329,7 @@ sub-directory for modules that have their own test suite:
   - `test_core_tier_fallback.py` — tier-fallback unit tests.
   - `test_core_tier_fallback_async.py` — async tier-fallback unit tests.
   - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
+  - `test_core_tier_fallback_provider_exhaustion.py` — provider-exhaustion skip-same-provider unit tests.
   - `test_core_tier_fallback_sync.py` — sync tier-fallback unit tests.
   - `test_core_tier_fallback_tracing.py` — tier-fallback tracing unit tests.
   - `test_exceptions.py` — custom exception classes.

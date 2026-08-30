@@ -32,11 +32,17 @@ Fallback is **on by default** (``fallback_enabled=True``). A tier binding can
 fail for reasons that have nothing to do with the request — a provider outage,
 or a subscription whose usage credits are exhausted until they reset — and in
 those cases the work is better done by another tier than not done at all.
-Note that two tiers may share one backend (the baked defaults put LEVEL3 and
-LEVEL4 both on the Claude SDK), so a backend-wide failure is only escaped once
-the chain reaches a tier on a different provider. Pass ``fallback_enabled=False``
-where a caller depends on one specific tier's behaviour rather than on getting
-an answer.
+
+Two tiers may share one backend (the baked defaults put several tiers on the
+Claude SDK subscription). When a level fails with a **provider-wide
+exhaustion** — a :class:`~robotsix_llmio.exceptions.ProviderExhaustedError`
+such as ``ClaudeSDKUsageExhaustedError`` — every other level on that same
+provider is also spent, so the loop marks them all visited and skips past them
+in a single step (regardless of ``max_fallback_depth``) rather than wasting
+fallback hops walking sibling tiers that would only fail the same way. Ordinary
+failures (transient errors, per-run rate limits) still fall back one level at a
+time. Pass ``fallback_enabled=False`` where a caller depends on one specific
+tier's behaviour rather than on getting an answer.
 """
 
 from __future__ import annotations
@@ -48,10 +54,11 @@ from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from robotsix_llmio.config.tier import TierConfig, TierLevel, TierLevelConfig
+from robotsix_llmio.exceptions import ProviderExhaustedError
 
 from ._otel import get_recording_span, get_tracer, start_span
 from .cooldown import get_health_tracker
-from .retry import _drive_sync
+from .retry import _drive_sync, _walk_cause_chain
 
 log = logging.getLogger("robotsix_llmio.tier_fallback")
 
@@ -112,6 +119,30 @@ def _next_unvisited_tier(
             return candidate
 
     return None
+
+
+def _is_provider_exhausted(exc: BaseException) -> bool:
+    """True when *exc* signals a provider-wide exhaustion.
+
+    Matches :class:`~robotsix_llmio.exceptions.ProviderExhaustedError` (e.g.
+    ``ClaudeSDKUsageExhaustedError``) anywhere in the cause/context chain — a
+    backend out of capacity until a quota resets, shared by every tier level on
+    that provider. Deliberately excludes per-run rate-limits
+    (``UsageLimitExceeded``), which are not provider-wide and still fall back
+    level-by-level.
+    """
+    return any(
+        isinstance(cur, ProviderExhaustedError) for cur in _walk_cause_chain(exc)
+    )
+
+
+def _levels_on_provider(tier_config: TierConfig, provider: str) -> set[TierLevel]:
+    """Return every :class:`TierLevel` in *tier_config* backed by *provider*."""
+    return {
+        lvl
+        for lvl in _ALL_TIER_LEVELS
+        if getattr(tier_config, lvl.value).provider == provider
+    }
 
 
 async def _tier_fallback_loop(
@@ -204,6 +235,27 @@ async def _tier_fallback_loop(
 
                 # Record terminal failures for cooldown tracking.
                 health_tracker.record_failure(tlc.model, exc=exc)
+
+                # Provider-wide exhaustion: every remaining level backed by the
+                # SAME provider shares the exhausted capacity (e.g. sibling
+                # Claude tiers on one subscription), so mark them all visited
+                # and skip past them in one step — regardless of
+                # max_fallback_depth — instead of wasting fallback hops walking
+                # tiers that are already spent. Non-exhaustion failures
+                # (transient errors, rate limits) fall back level-by-level.
+                if _is_provider_exhausted(exc):
+                    exhausted_provider = tlc.provider
+                    skipped = _levels_on_provider(tier_config, exhausted_provider)
+                    visited |= skipped
+                    log.warning(
+                        "%s: %s exhausted provider %r — skipping all remaining "
+                        "%r-backed tiers (%s)",
+                        what,
+                        current_level.value,
+                        exhausted_provider,
+                        exhausted_provider,
+                        ", ".join(sorted(lvl.value for lvl in skipped)),
+                    )
 
                 next_level = _next_unvisited_tier(current_level, frozenset(visited))
 
