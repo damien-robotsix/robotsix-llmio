@@ -272,6 +272,8 @@ except RobotsixLLMIOError as e:
 ```
 
 Specific exceptions include:
+- `ProviderExhaustedError` — A provider-wide exhaustion: the backend is out of capacity until a quota resets, and every tier level on that provider shares the exhaustion. The tier-fallback loop treats this specially, skipping all remaining same-provider tiers in one step (e.g., on Claude subscription exhaustion, sibling Claude tiers are skipped together).
+- `ClaudeSDKUsageExhaustedError` — The Claude subscription has exhausted its usage credits. This is a provider-wide exhaustion (inherits from `ProviderExhaustedError`) because all Claude tiers draw on the one subscription.
 - `ClaudeSDKTurnLimitError` — Claude Agent SDK loop hit its turn cap without returning an answer.
 - `ClaudeSDKQueryTimeout` — A Claude Agent SDK query exceeded the per-call timeout (a stall, typically transient).
 

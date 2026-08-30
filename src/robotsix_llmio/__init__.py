@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .exceptions import RobotsixLLMIOError
+from .exceptions import ProviderExhaustedError, RobotsixLLMIOError
 
 # Static re-declaration of the lazily-exported names (see ``__getattr__``
 # below). These imports run ONLY under static analysis (``TYPE_CHECKING`` is
@@ -45,6 +45,7 @@ __all__ = [
     "KnowledgeClientError",
     "LangfuseClientError",
     "OpenRouterAPIError",
+    "ProviderExhaustedError",
     "RefdocsClientError",
     "RefdocsSettings",
     "RobotsixLLMIOError",

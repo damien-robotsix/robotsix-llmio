@@ -8,7 +8,7 @@ consumers catch a single base without importing SDK internals.
 
 from __future__ import annotations
 
-from ..exceptions import RobotsixLLMIOError
+from ..exceptions import ProviderExhaustedError, RobotsixLLMIOError
 
 
 class ClaudeSDKTurnLimitError(RobotsixLLMIOError):
@@ -32,9 +32,15 @@ class ClaudeSDKQueryTimeout(RobotsixLLMIOError):
     :data:`~robotsix_llmio.claude_sdk.transient._SDK_TRANSIENT_NAMES`)."""
 
 
-class ClaudeSDKUsageExhaustedError(RobotsixLLMIOError):
+class ClaudeSDKUsageExhaustedError(ProviderExhaustedError):
     """The Claude subscription has exhausted its usage credits for the
     ``ClaudeAgentOptions.model`` tier this call used.
+
+    Because every Claude tier draws on the one subscription, this is a
+    *provider-wide* exhaustion — hence the
+    :class:`~robotsix_llmio.exceptions.ProviderExhaustedError` base — and the
+    tier-fallback loop skips all sibling Claude levels in one step rather than
+    walking them one by one.
 
     The SDK reports this as a normal-looking ``ResultMessage`` (``is_error=True``,
     often ``subtype="success"``) carrying the assistant-visible text "You're out
