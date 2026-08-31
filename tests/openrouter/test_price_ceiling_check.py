@@ -154,6 +154,33 @@ def test_check_tier_flags_missing_preferred_provider_as_warning(check_module):
     assert any("has no endpoints" in warning for warning in report.warnings)
 
 
+def test_cheap_tier_prefers_deepinfra_and_guard_passes(check_module):
+    """The baked cheap tier must not prefer a provider that breaks its own
+    ceiling. DeepSeek repriced flash to ~$0.44/$1.32 (2026-08-31), above the
+    $0.10/$0.20 cheap ceiling, so ``LEVEL1_DEFAULT`` prefers a stable cheap
+    upstream (DeepInfra) — otherwise rule 1 of the guard fails on the repriced
+    DeepSeek endpoint."""
+    cheap = next(t for t in check_module._TIERS if "cheap" in t.label)
+    assert cheap.preferred_provider == "DeepInfra"
+
+    report = check_module.check_tier(
+        cheap,
+        [
+            _endpoint("DeepInfra", prompt=0.08, completion=0.18, cache_read=0.02),
+            _endpoint("OpenInference", prompt=0.03, completion=0.16, cache_read=0.01),
+            _endpoint("Makora", prompt=0.09, completion=0.195, cache_read=0.02),
+            # DeepSeek's own repriced endpoint is over the ceiling — not admitted,
+            # and (being non-preferred now) no longer a rule-1 failure.
+            _endpoint("DeepSeek", prompt=0.44, completion=1.32, cache_read=0.007),
+        ],
+    )
+
+    assert report.failures == []
+    assert report.preferred_admitted is True
+    # DeepSeek (index 3) is over the ceiling, so only the three cheap ones admit.
+    assert report.admitted_indices == {0, 1, 2}
+
+
 # --- fetch_endpoints (mocked httpx) -------------------------------------------
 
 

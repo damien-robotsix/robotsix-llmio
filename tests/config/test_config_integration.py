@@ -139,7 +139,10 @@ class TestYamlRoundTrip:
 
         create_model(level=1, tier_config=cfg)
 
+        # ``max_tokens`` and the cheap-tier ``preferred_provider`` default are
+        # inherited from ``LEVEL1_DEFAULT`` since the YAML omits them.
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-flash-latest",
+            preferred_provider="DeepInfra",
             max_tokens=16384,
         )

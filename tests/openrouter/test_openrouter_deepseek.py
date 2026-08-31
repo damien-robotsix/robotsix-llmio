@@ -61,6 +61,37 @@ def test_level1_disables_reasoning_and_uses_cheap_ceiling():
     assert ms["extra_body"]["reasoning"] == {"enabled": False}
 
 
+def test_level1_baked_default_prefers_cheap_deepinfra_not_deepseek():
+    """The baked cheap-tier binding (``LEVEL1_DEFAULT.provider_kwargs``) routes
+    to a stable cheap upstream (DeepInfra) under the cheap ceiling — not
+    DeepSeek, whose repriced flash endpoint (~$0.44/$1.32 on 2026-08-31) breaks
+    that ceiling and tripped the price-ceiling drift guard."""
+    pytest.importorskip("pydantic_ai.providers.openrouter")
+    from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
+
+    from robotsix_llmio.config.tier import LEVEL1_DEFAULT
+    from robotsix_llmio.openrouter._deepseek_model import (
+        DEFAULT_MAX_PRICE_CHEAP,
+        OpenRouterDeepseekModel,
+    )
+    from robotsix_llmio.openrouter._deepseek_provider import (
+        OpenRouterDeepseekProvider,
+    )
+
+    m = OpenRouterDeepseekModel(
+        "deepseek/deepseek-v4-flash-20260731", provider=_Pyd(api_key="x")
+    )
+    OpenRouterDeepseekProvider(
+        api_key="x", **LEVEL1_DEFAULT.provider_kwargs
+    )._post_build_model(m, 1)
+    ms: dict = {}
+    m._inject_pin((), {"model_settings": ms})
+    provider = ms["extra_body"]["provider"]
+    assert provider["order"] == ["DeepInfra"]
+    assert provider["max_price"] == DEFAULT_MAX_PRICE_CHEAP
+    assert provider["allow_fallbacks"] is True
+
+
 def test_routing_never_forbids_fallbacks_by_default():
     """The 2026-07-29 board-wide outage: ``allow_fallbacks: False`` meant one
     dry upstream account 402'd every request while ~17 providers were healthy.
