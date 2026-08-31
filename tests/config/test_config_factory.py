@@ -63,7 +63,7 @@ class TestCreateModelHappyPath:
             max_price_prompt=0.55,
             max_price_completion=1.10,
             ignore_providers=["DigitalOcean", "DeepInfra"],
-            max_tokens=65536,
+            max_tokens=131072,
         )
         assert result is mock_get_provider_for_identifier.return_value
 
