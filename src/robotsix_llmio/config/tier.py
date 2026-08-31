@@ -178,7 +178,13 @@ LEVEL2_DEFAULT = TierLevelConfig(
 
 LEVEL3_DEFAULT = TierLevelConfig(
     model="openrouter-xiaomi/mimo-v2.5-pro",
-    max_tokens=65536,
+    # mimo is a reasoning model: thinking tokens bill against max_tokens, and
+    # a large agentic prompt can burn the whole budget before ANY visible
+    # output ("Model token limit exceeded before any response was
+    # generated" — live incident d6ad6beb, 08-31). 131072 is the provider's
+    # max_completion cap; the model's context window is ~1M so this is
+    # purely the output ceiling.
+    max_tokens=131072,
     provider_kwargs={
         "preferred_provider": "Xiaomi",
         "max_price_prompt": 0.55,
