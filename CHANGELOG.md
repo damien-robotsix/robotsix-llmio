@@ -7,6 +7,34 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.6.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.5.0...v0.6.0) (2026-08-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **tiers:** every consumer's integer levels must shift by +1 for levels >= 2 (TierConfig.for_level accepts 1..5; TierLevel gains LEVEL5; LEVEL5_DEFAULT exported; LLMIO_LEVEL5_* env overrides). tier_fallback walks five tiers. check-price-ceilings now checks LEVEL3_DEFAULT for mimo.
+
+### Features
+
+* **tiers:** five capability levels — Claude haiku as level 2, former 2-4 shift to 3-5 ([#610](https://github.com/damien-robotsix/robotsix-llmio/issues/610)) ([f9f3e5c](https://github.com/damien-robotsix/robotsix-llmio/commit/f9f3e5c9fd4243462e428686bbde357ed2466407))
+
+
+### Bug Fixes
+
+* CI failure: Price ceiling drift check on main (20260831T062341Z-ci-failure-price-ceiling-drift-check-on-1c9f) ([#616](https://github.com/damien-robotsix/robotsix-llmio/issues/616)) ([8f919a5](https://github.com/damien-robotsix/robotsix-llmio/commit/8f919a5e066e01b73cf94afec8f7f421ac71accb))
+* **ci:** use the $/ self-repository syntax for the local composite action ([#617](https://github.com/damien-robotsix/robotsix-llmio/issues/617)) ([ff0f7d6](https://github.com/damien-robotsix/robotsix-llmio/commit/ff0f7d6354b1552aabe1cf3bc0fb2e825fc5ef7e))
+* **claude_sdk:** re-prompt the same session for JSON when a tool agent signs off in prose ([#611](https://github.com/damien-robotsix/robotsix-llmio/issues/611)) ([4954852](https://github.com/damien-robotsix/robotsix-llmio/commit/49548529b8f87b184274dc4594cc8994146d723d))
+* **claude_sdk:** recognise "You've hit your limit" as usage exhaustion ([#612](https://github.com/damien-robotsix/robotsix-llmio/issues/612)) ([d051ac1](https://github.com/damien-robotsix/robotsix-llmio/commit/d051ac13b6878855385920c7f5f7a8c767821d56))
+* **claude_sdk:** ship tool-returned images as MCP image blocks, not byte reprs ([#606](https://github.com/damien-robotsix/robotsix-llmio/issues/606)) ([90c7c4f](https://github.com/damien-robotsix/robotsix-llmio/commit/90c7c4f963e71074ea709c4b8d5982f6b6c9f497))
+* **claude_sdk:** treat a spent session window as usage exhaustion ([#605](https://github.com/damien-robotsix/robotsix-llmio/issues/605)) ([f369b36](https://github.com/damien-robotsix/robotsix-llmio/commit/f369b361dc5f5df1ee060f97004979e335abeed9))
+* **config:** raise the level-2 output cap to 65536 (xhigh reasoning eats it) ([#603](https://github.com/damien-robotsix/robotsix-llmio/issues/603)) ([40ba3fc](https://github.com/damien-robotsix/robotsix-llmio/commit/40ba3fc09efdc5651680f5956468410e20c3c79e))
+* **core:** import robotsix-http's public compute_backoff, and bump the pin ([#607](https://github.com/damien-robotsix/robotsix-llmio/issues/607)) ([13a53e4](https://github.com/damien-robotsix/robotsix-llmio/commit/13a53e48f2df7944c7bf565bbf4b1ecd3cefc7e1))
+* **deps:** bump mcp to 1.28.1 — WebSocket Host/Origin validation advisory ([#618](https://github.com/damien-robotsix/robotsix-llmio/issues/618)) ([a18e324](https://github.com/damien-robotsix/robotsix-llmio/commit/a18e3243a718b5f3aa3e6ea9a4f72a09a7ffcdd0))
+* Fix _tier_fallback_loop to skip same-provider levels on exhaustion (20260829T220859Z-fix-tier-fallback-loop-to-skip-same-prov-9026) ([#613](https://github.com/damien-robotsix/robotsix-llmio/issues/613)) ([e7ae5cd](https://github.com/damien-robotsix/robotsix-llmio/commit/e7ae5cd82e6130949371833491b2650d0a84cd03))
+* **openrouter:** apply explicit provider routing to non-DeepSeek models too ([#608](https://github.com/damien-robotsix/robotsix-llmio/issues/608)) ([e660cb8](https://github.com/damien-robotsix/robotsix-llmio/commit/e660cb8b8180718f8b160f3fd3e9d32eb05f744f))
+* **tier:** level-3 max_tokens 65536 → 131072 — reasoning burn hit the cap ([#621](https://github.com/damien-robotsix/robotsix-llmio/issues/621)) ([ce5931d](https://github.com/damien-robotsix/robotsix-llmio/commit/ce5931dafb83bf4475b003a21bbfda825b20352f))
+* tighten cheap-tier max_price to $0.10/$0.20 and pin flash snapshot 20260731 ([#601](https://github.com/damien-robotsix/robotsix-llmio/issues/601)) ([211f229](https://github.com/damien-robotsix/robotsix-llmio/commit/211f2293faf7b2ea6f6cde02f24ae813a0875e07))
+
 ## [0.5.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.4.2...v0.5.0) (2026-08-24)
 
 
