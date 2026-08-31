@@ -148,9 +148,24 @@ class TierLevelConfig(BaseModel):
 # "~deepseek/deepseek-v4-flash-latest" alias: the un-prefixed "-latest" slug
 # is not a routable model id, and a floating alias would drift out of the
 # measured cheap-tier price ceiling anyway.
+#
+# ``preferred_provider`` is pinned to a stable *cheap* upstream (DeepInfra)
+# rather than DeepSeek. On 2026-08-31 DeepSeek repriced its own flash serving
+# to ~$0.44/$1.32 per 1M — 4.4x above the baked cheap-tier ceiling
+# ($0.10/$0.20) — so DeepSeek no longer satisfies its own ceiling and the
+# price-ceiling drift guard (scripts/check-price-ceilings.py, rule 1) failed.
+# DeepInfra ($0.08/$0.18, cache-read <= $0.02/1M) sits under the ceiling and is
+# one of several healthy endpoints serving the same snapshot, so preferring it
+# keeps routing stable and cheap while ``allow_fallbacks`` still lets
+# OpenRouter route past it under the same ceiling. The ceiling itself is
+# unchanged (still ``DEFAULT_MAX_PRICE_CHEAP``): the guard did its job and the
+# fix is the *preference*, not a relaxed cap. This mirrors how ``LEVEL3_DEFAULT``
+# carries its routing (``preferred_provider``/``max_price``/``ignore``) in
+# ``provider_kwargs``.
 LEVEL1_DEFAULT = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-flash-20260731",
     max_tokens=16384,
+    provider_kwargs={"preferred_provider": "DeepInfra"},
 )
 
 # Level 2 is the cheap FLAT-RATE tier (Claude haiku on the subscription):

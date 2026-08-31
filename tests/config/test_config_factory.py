@@ -37,6 +37,7 @@ class TestCreateModelHappyPath:
         result = create_model(level=1)
         mock_get_provider_for_identifier.assert_called_once_with(
             "openrouter-deepseek/deepseek-v4-flash-20260731",
+            preferred_provider="DeepInfra",
             max_tokens=16384,
         )
         assert result is mock_get_provider_for_identifier.return_value

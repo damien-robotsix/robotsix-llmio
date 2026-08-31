@@ -130,6 +130,9 @@ def test_level1_default():
     assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert LEVEL1_DEFAULT.provider == "openrouter"
     assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash-20260731"
+    # Cheap tier prefers a stable *cheap* upstream (DeepInfra), not DeepSeek,
+    # whose repriced flash endpoint no longer satisfies the cheap-tier ceiling.
+    assert LEVEL1_DEFAULT.provider_kwargs == {"preferred_provider": "DeepInfra"}
 
 
 def test_level2_default():
