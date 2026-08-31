@@ -26,7 +26,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-repo
+      # zizmor's self-repository audit recommends '$/...' here, but that is
+      # not valid GitHub Actions syntax (confirmed by review); the local
+      # './...' composite-action reference is correct. Suppress the finding
+      # following the repo's inline-ignore convention.
+      - uses: ./.github/actions/setup-repo  # zizmor: ignore[self-repository]
         with:
           python-version: '3.14'
       # The guard imports the openrouter layer (openai, pydantic-ai-slim
