@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
 from pydantic_ai import UsageLimitExceeded
 
+from robotsix_llmio.claude_sdk._errors import ClaudeSDKUsageExhaustedError
 from robotsix_llmio.config.tier import (
     LEVEL1_DEFAULT,
     LEVEL2_DEFAULT,
@@ -16,6 +18,7 @@ from robotsix_llmio.config.tier import (
 )
 from robotsix_llmio.core.cooldown import (
     ModelHealthTracker,
+    _parse_reset_delay,
     get_health_tracker,
     reset_health_tracker,
 )
@@ -203,12 +206,16 @@ class TestTierFallbackWithCooldown:
         """Ensure a clean tracker for every test."""
         reset_health_tracker()
 
-    def _tier_config(self, level1_model: str = "claudeSDK-level1-test") -> TierConfig:
+    def _tier_config(self, level1_model: str = "openrouter-level1-test") -> TierConfig:
         """Build a TierConfig with custom models for isolation."""
         return TierConfig(
             level1=LEVEL1_DEFAULT.model_copy(update={"model": level1_model}),
-            level2=LEVEL2_DEFAULT.model_copy(update={"model": "claudeSDK-level2-test"}),
-            level3=LEVEL3_DEFAULT.model_copy(update={"model": "claudeSDK-level3-test"}),
+            level2=LEVEL2_DEFAULT.model_copy(
+                update={"model": "openrouter-level2-test"}
+            ),
+            level3=LEVEL3_DEFAULT.model_copy(
+                update={"model": "openrouter-level3-test"}
+            ),
         )
 
     def test_skips_model_in_cooldown(self):
@@ -218,10 +225,10 @@ class TestTierFallbackWithCooldown:
         # cooldown_until is in the future.
         for _ in range(tracker.failure_threshold):
             tracker.record_failure(
-                "claudeSDK-level1-test", exc=UsageLimitExceeded("cap")
+                "openrouter-level1-test", exc=UsageLimitExceeded("cap")
             )
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
         call_order: list[str] = []
 
         def factory(tlc):
@@ -241,9 +248,9 @@ class TestTierFallbackWithCooldown:
             max_fallback_depth=2,
         )
         # level1 is in cooldown → skipped, level2 tried and succeeds
-        assert result == "result-claudeSDK-level2-test"
-        assert "claudeSDK-level1-test" not in call_order
-        assert "claudeSDK-level2-test" in call_order
+        assert result == "result-openrouter-level2-test"
+        assert "openrouter-level1-test" not in call_order
+        assert "openrouter-level2-test" in call_order
 
     def test_records_terminal_failure_and_skips_on_next_call(self):
         """After a terminal failure, subsequent calls skip the model."""
@@ -251,7 +258,7 @@ class TestTierFallbackWithCooldown:
         # Override threshold to 1 so a single failure triggers cooldown
         tracker.failure_threshold = 1
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
 
         # First call: level1 fails terminally → fallback to level2
         call_count = 0
@@ -262,7 +269,7 @@ class TestTierFallbackWithCooldown:
             def call():
                 nonlocal call_count
                 call_count += 1
-                if tlc.model == "claudeSDK-level1-test":
+                if tlc.model == "openrouter-level1-test":
                     raise UsageLimitExceeded("cap exceeded")
                 return "ok"
 
@@ -296,7 +303,7 @@ class TestTierFallbackWithCooldown:
             level=TierLevel.LEVEL1,
             fallback_enabled=True,
         )
-        assert result == "result-claudeSDK-level2-test"
+        assert result == "result-openrouter-level2-test"
         assert call_count == 1  # only level2 was called
 
     def test_clears_cooldown_on_success(self):
@@ -304,12 +311,12 @@ class TestTierFallbackWithCooldown:
         tracker = get_health_tracker()
         tracker.failure_threshold = 1
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
 
         # First call: level1 fails → cooldown
         def factory_fail(tlc):
             def call():
-                if tlc.model == "claudeSDK-level1-test":
+                if tlc.model == "openrouter-level1-test":
                     raise UsageLimitExceeded("cap")
                 return "ok"
 
@@ -322,7 +329,7 @@ class TestTierFallbackWithCooldown:
             fallback_enabled=True,
         )
         # Model is in cooldown (no now= arg — uses real monotonic time)
-        assert tracker.is_in_cooldown("claudeSDK-level1-test")
+        assert tracker.is_in_cooldown("openrouter-level1-test")
 
         # Simulate cooldown expiry by resetting the tracker
         tracker.reset()
@@ -340,7 +347,7 @@ class TestTierFallbackWithCooldown:
             level=TierLevel.LEVEL1,
             fallback_enabled=True,
         )
-        assert not tracker.is_in_cooldown("claudeSDK-level1-test")
+        assert not tracker.is_in_cooldown("openrouter-level1-test")
 
     @patch("robotsix_llmio.core.cooldown.time.monotonic")
     def test_allows_probe_after_cooldown_expiry(self, mock_monotonic):
@@ -349,14 +356,14 @@ class TestTierFallbackWithCooldown:
         tracker.failure_threshold = 1
         tracker.cooldown_duration = 600.0
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
 
         # Set time and make level1 fail
         mock_monotonic.return_value = 100.0
 
         def factory_fail(tlc):
             def call():
-                if tlc.model == "claudeSDK-level1-test":
+                if tlc.model == "openrouter-level1-test":
                     raise UsageLimitExceeded("cap")
                 return "ok"
 
@@ -368,8 +375,8 @@ class TestTierFallbackWithCooldown:
             level=TierLevel.LEVEL1,
             fallback_enabled=True,
         )
-        assert tracker.is_in_cooldown("claudeSDK-level1-test", now=100.0)
-        assert not tracker.is_in_cooldown("claudeSDK-level1-test", now=701.0)
+        assert tracker.is_in_cooldown("openrouter-level1-test", now=100.0)
+        assert not tracker.is_in_cooldown("openrouter-level1-test", now=701.0)
 
         # Advance time past cooldown
         mock_monotonic.return_value = 701.0
@@ -390,20 +397,20 @@ class TestTierFallbackWithCooldown:
             fallback_enabled=True,
         )
         # level1 is probed and succeeds
-        assert result == "result-claudeSDK-level1-test"
-        assert "claudeSDK-level1-test" in call_order
+        assert result == "result-openrouter-level1-test"
+        assert "openrouter-level1-test" in call_order
 
     def test_raises_when_all_tiers_in_cooldown(self):
         """When all available tiers are in cooldown, a RuntimeError is raised."""
         tracker = get_health_tracker()
         tracker.failure_threshold = 1
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
 
         # Put all three tiers in cooldown.
-        tracker.record_failure("claudeSDK-level1-test", exc=UsageLimitExceeded("cap"))
-        tracker.record_failure("claudeSDK-level2-test", exc=UsageLimitExceeded("cap"))
-        tracker.record_failure("claudeSDK-level3-test", exc=UsageLimitExceeded("cap"))
+        tracker.record_failure("openrouter-level1-test", exc=UsageLimitExceeded("cap"))
+        tracker.record_failure("openrouter-level2-test", exc=UsageLimitExceeded("cap"))
+        tracker.record_failure("openrouter-level3-test", exc=UsageLimitExceeded("cap"))
 
         def factory(tlc):
             def call():
@@ -424,8 +431,8 @@ class TestTierFallbackWithCooldown:
         tracker = get_health_tracker()
         tracker.failure_threshold = 1
 
-        cfg = self._tier_config(level1_model="claudeSDK-level1-test")
-        tracker.record_failure("claudeSDK-level1-test", exc=UsageLimitExceeded("cap"))
+        cfg = self._tier_config(level1_model="openrouter-level1-test")
+        tracker.record_failure("openrouter-level1-test", exc=UsageLimitExceeded("cap"))
 
         def factory(tlc):
             def call():
@@ -441,3 +448,194 @@ class TestTierFallbackWithCooldown:
                 fallback_enabled=True,
                 max_fallback_depth=0,
             )
+
+
+# ---------------------------------------------------------------------------
+# Reset-hint parsing
+# ---------------------------------------------------------------------------
+
+
+class TestParseResetDelay:
+    """Unit tests for ``_parse_reset_delay`` — the ``resets H[:MM]am|pm (UTC)``
+    hint the Claude CLI carries on exhaustion."""
+
+    def test_pm_with_minutes(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        # 1:10pm -> 13:10, 70 minutes ahead
+        assert _parse_reset_delay("resets 1:10pm (UTC)", wall) == 70 * 60
+
+    def test_am_with_minutes(self):
+        wall = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
+        # 11:10am -> 11:10, 70 minutes ahead
+        assert _parse_reset_delay("resets 11:10am (UTC)", wall) == 70 * 60
+
+    def test_pm_without_minutes(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        # 8pm -> 20:00, 8 hours ahead
+        assert _parse_reset_delay("resets 8pm (UTC)", wall) == 8 * 3600
+
+    def test_am_without_minutes(self):
+        wall = datetime(2026, 1, 1, 6, 0, tzinfo=UTC)
+        # 9am -> 09:00, 3 hours ahead
+        assert _parse_reset_delay("resets 9am (UTC)", wall) == 3 * 3600
+
+    def test_rollover_to_next_day(self):
+        wall = datetime(2026, 1, 1, 14, 0, tzinfo=UTC)
+        # 1pm already passed today -> next day 13:00 = 23 hours ahead
+        assert _parse_reset_delay("resets 1pm (UTC)", wall) == 23 * 3600
+
+    def test_noon_is_twelve_pm(self):
+        wall = datetime(2026, 1, 1, 6, 0, tzinfo=UTC)
+        # 12pm -> noon, 6 hours ahead
+        assert _parse_reset_delay("resets 12pm (UTC)", wall) == 6 * 3600
+
+    def test_midnight_is_twelve_am_rolls_over(self):
+        wall = datetime(2026, 1, 1, 6, 0, tzinfo=UTC)
+        # 12am -> midnight already passed -> next day 00:00 = 18 hours ahead
+        assert _parse_reset_delay("resets 12am (UTC)", wall) == 18 * 3600
+
+    def test_case_insensitive_and_embedded_in_message(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        text = "You've hit your session limit · RESETS 1:00PM (utc). Try later."
+        assert _parse_reset_delay(text, wall) == 3600
+
+    def test_no_hint_returns_none(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        assert _parse_reset_delay("out of usage credits", wall) is None
+
+    def test_invalid_hour_returns_none(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        assert _parse_reset_delay("resets 13pm (UTC)", wall) is None
+
+
+# ---------------------------------------------------------------------------
+# Claude SDK provider-family latch
+# ---------------------------------------------------------------------------
+
+
+class TestClaudeSDKFamilyLatch:
+    """Unit tests for the shared ``claudeSDK-*`` subscription latch."""
+
+    def test_first_exhaustion_arms_whole_family_at_threshold_one(self):
+        """A single exhaustion arms cooldown despite a threshold of 3."""
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=3)
+        exc = ClaudeSDKUsageExhaustedError("out of usage credits")
+        tracker.record_failure("claudeSDK-haiku", now=0.0, exc=exc)
+        assert tracker.is_in_cooldown("claudeSDK-haiku", now=0.0)
+
+    def test_arming_one_model_skips_all_family_models(self):
+        """Sibling tiers on the same subscription are skipped too."""
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=3)
+        exc = ClaudeSDKUsageExhaustedError("out of usage credits")
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=exc)
+        assert tracker.is_in_cooldown("claudeSDK-haiku", now=0.0)
+        assert tracker.is_in_cooldown("claudeSDK-claude-fable-5", now=0.0)
+
+    def test_openrouter_models_unaffected(self):
+        """Models outside the family use the ordinary per-model threshold."""
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=3)
+        exc = ClaudeSDKUsageExhaustedError("out of usage credits")
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=exc)
+        assert not tracker.is_in_cooldown(
+            "openrouter-deepseek/deepseek-v4-flash-latest", now=0.0
+        )
+
+    def test_success_on_any_family_model_clears_latch(self):
+        """A success means the quota reset arrived — clear the whole family."""
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=3)
+        exc = ClaudeSDKUsageExhaustedError("out of usage credits")
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=exc)
+        assert tracker.is_in_cooldown("claudeSDK-haiku", now=0.0)
+
+        tracker.record_success("claudeSDK-haiku")
+        assert not tracker.is_in_cooldown("claudeSDK-opus", now=0.0)
+
+    def test_latch_uses_parsed_reset_deadline(self):
+        wall = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=1)
+        exc = ClaudeSDKUsageExhaustedError(
+            "You've hit your session limit · resets 1:00pm (UTC)"
+        )
+        tracker.record_failure("claudeSDK-opus", now=100.0, exc=exc, wall_now=wall)
+        # 1pm - 12pm = 3600s; monotonic deadline = 100 + 3600
+        assert tracker.is_in_cooldown("claudeSDK-opus", now=3699.0)
+        assert not tracker.is_in_cooldown("claudeSDK-opus", now=3701.0)
+
+    def test_unparseable_reset_falls_back_to_fixed_duration(self):
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=1)
+        exc = ClaudeSDKUsageExhaustedError("out of usage credits")
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=exc)
+        assert tracker.is_in_cooldown("claudeSDK-opus", now=599.0)
+        assert not tracker.is_in_cooldown("claudeSDK-opus", now=601.0)
+
+    def test_reset_deadline_clamped_to_six_hours(self):
+        wall = datetime(2026, 1, 1, 1, 0, tzinfo=UTC)
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=1)
+        # "resets 12am (UTC)" from 1am is ~23h away — clamp to the 6h max.
+        exc = ClaudeSDKUsageExhaustedError("resets 12am (UTC)")
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=exc, wall_now=wall)
+        assert tracker.is_in_cooldown("claudeSDK-opus", now=21599.0)
+        assert not tracker.is_in_cooldown("claudeSDK-opus", now=21601.0)
+
+    def test_non_exhaustion_failure_does_not_arm_family(self):
+        """A non-usage-exhausted failure uses per-model tracking, not the latch."""
+        tracker = ModelHealthTracker(cooldown_duration=600.0, failure_threshold=2)
+        tracker.record_failure("claudeSDK-opus", now=0.0, exc=ValueError("boom"))
+        assert not tracker.is_in_cooldown("claudeSDK-opus", now=0.0)
+        assert not tracker.is_in_cooldown("claudeSDK-haiku", now=0.0)
+
+
+class TestFamilyLatchTierFallback:
+    """Acceptance: a fallback walk makes ZERO claudeSDK calls after the first
+    exhaustion, and consumers need no code change."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_tracker(self):
+        reset_health_tracker()
+
+    def _mixed_config(self) -> TierConfig:
+        # level1/level2 on the shared Claude subscription; level3 elsewhere.
+        return TierConfig(
+            level1=LEVEL1_DEFAULT.model_copy(update={"model": "claudeSDK-l1"}),
+            level2=LEVEL2_DEFAULT.model_copy(update={"model": "claudeSDK-l2"}),
+            level3=LEVEL3_DEFAULT.model_copy(update={"model": "openrouter-l3"}),
+        )
+
+    def test_zero_claudesdk_calls_after_first_failure(self):
+        cfg = self._mixed_config()
+        call_order: list[str] = []
+
+        def factory(tlc):
+            def call():
+                call_order.append(tlc.model)
+                if tlc.model.startswith("claudeSDK-"):
+                    raise UsageLimitExceeded(
+                        "You've hit your session limit · resets 8pm (UTC)"
+                    )
+                return f"result-{tlc.model}"
+
+            return call
+
+        # First walk: level1 fails, level2 (same family) is NEVER probed.
+        result = call_with_tier_fallback(
+            factory,
+            tier_config=cfg,
+            level=TierLevel.LEVEL1,
+            fallback_enabled=True,
+            max_fallback_depth=2,
+        )
+        assert result == "result-openrouter-l3"
+        assert call_order.count("claudeSDK-l1") == 1
+        assert "claudeSDK-l2" not in call_order
+
+        # Second walk: ZERO claudeSDK calls at all — the family stays latched.
+        call_order.clear()
+        result2 = call_with_tier_fallback(
+            factory,
+            tier_config=cfg,
+            level=TierLevel.LEVEL1,
+            fallback_enabled=True,
+            max_fallback_depth=2,
+        )
+        assert result2 == "result-openrouter-l3"
+        assert not any(m.startswith("claudeSDK-") for m in call_order)
