@@ -411,6 +411,8 @@ def test_is_auth_error_text_matches_the_cli_wording_case_insensitively():
     )
     assert is_auth_error_text("api error: 401") is True
     assert is_auth_error_text("OAUTH ACCESS TOKEN HAS EXPIRED") is True
+    # The CLI's no-credential wording (missing/empty ~/.claude mount).
+    assert is_auth_error_text("Not logged in \u00b7 Please run /login") is True
     assert is_auth_error_text("all good here") is False
 
 

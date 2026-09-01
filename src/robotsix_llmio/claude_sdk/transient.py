@@ -98,6 +98,13 @@ _AUTH_ERROR_SIGNATURES = (
     "api error: 401",
     "oauth access token has expired",
     "failed to authenticate",
+    # The CLI's no-credential wording ("Not logged in \u00b7 Please run /login"):
+    # emitted when ~/.claude carries no credential at all — e.g. the
+    # claude-auth volume mount is missing or points at an empty directory
+    # (live incident 2026-09-01: a contract refresh dropped mill's mount and
+    # every call laundered into a "transient" degenerate-success instead of
+    # arming provider failover).
+    "not logged in",
 )
 
 
