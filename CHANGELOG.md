@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.0...v0.7.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **claude_sdk:** tell tool agents their tools' real mcp__milltools__ names ([#631](https://github.com/damien-robotsix/robotsix-llmio/issues/631)) ([f5e1791](https://github.com/damien-robotsix/robotsix-llmio/commit/f5e1791d26e394d63a7f369a315bebb33a59b692))
+* **deps:** refresh first-party pins + ghwf workflow pins to $/-tolerant main ([#633](https://github.com/damien-robotsix/robotsix-llmio/issues/633)) ([7eee4cf](https://github.com/damien-robotsix/robotsix-llmio/commit/7eee4cf3726daadab6870bf5acbfede81675ce86))
+
 ## [0.7.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.6.0...v0.7.0) (2026-09-01)
 
 
