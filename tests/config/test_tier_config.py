@@ -39,11 +39,14 @@ def test_no_args_yields_baked_slots():
 def test_fallback_slot_is_openrouter_deepseek():
     cfg = TierConfig()
     assert cfg.fallback.level1.provider == "openrouter"
-    # Levels 1 and 2 deliberately bind the SAME flash snapshot — level 2
-    # differs only in reasoning policy and output cap.
-    assert cfg.fallback.level1.model_name == cfg.fallback.level2.model_name
-    assert cfg.fallback.level2.max_tokens > cfg.fallback.level1.max_tokens
+    # Level 1 is flash (short prompts, no reasoning). Levels 2 and 3 both
+    # bind PRO: flash under xhigh reasoning degenerates on long agentic
+    # contexts (live word-salad incident, 2026-09-01), so the workhorse
+    # fallback is the pro snapshot.
+    assert cfg.fallback.level1.model_name == "deepseek/deepseek-v4-flash-20260731"
+    assert cfg.fallback.level2.model_name == "deepseek/deepseek-v4-pro-0813"
     assert cfg.fallback.level3.model_name == "deepseek/deepseek-v4-pro-0813"
+    assert cfg.fallback.level2.max_tokens > cfg.fallback.level1.max_tokens
 
 
 def test_default_factories_do_not_alias():

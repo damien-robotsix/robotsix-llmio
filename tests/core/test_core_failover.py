@@ -220,5 +220,112 @@ def test_tier_config_for_level_follows_active_slot():
     assert cfg.for_level(2).model == "claudeSDK-opus"
     get_failover_tracker().configure(cfg.failover)
     get_failover_tracker().record_failure("default", _Exhausted("out"))
-    assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
+    assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-pro-0813"
     assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
+
+
+# --------------------------------------------------------------------------- #
+#  Reset-hint windows                                                         #
+# --------------------------------------------------------------------------- #
+
+
+def test_weekly_reset_hint_arms_until_the_named_date():
+    """'resets Sep 5, 7pm (UTC)' arms the window until then (+slack), so the
+    fleet does not probe a capped subscription every 15 minutes for days."""
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    tracker.record_failure(
+        "default",
+        _Exhausted("You've hit your weekly limit · resets Sep 5, 7pm (UTC)"),
+        now=0.0,
+        wall_now=wall,
+    )
+    status = tracker.status(now=1.0)
+    expected = (datetime(2026, 9, 5, 19, 2, tzinfo=UTC) - wall).total_seconds()
+    assert status.seconds_remaining == pytest.approx(expected - 1.0, abs=2.0)
+    # Still armed three days in; expired after the hinted reset.
+    assert tracker.active_slot(now=3 * 24 * 3600.0) == "fallback"
+    assert tracker.active_slot(now=expected + 10.0) == "default"
+
+
+def test_time_only_reset_hint_rolls_to_next_occurrence():
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    tracker.record_failure(
+        "default",
+        _Exhausted("You've hit your session limit · resets 1:10pm (UTC)"),
+        now=0.0,
+        wall_now=wall,
+    )
+    # 13:10 today is in the past relative to 13:00? No — 13:10 > 13:00, so
+    # ten minutes out, floored to the configured window (never shorter).
+    status = tracker.status(now=0.0)
+    assert status.seconds_remaining == pytest.approx(900.0, abs=2.0)
+
+
+def test_reset_hint_never_arms_shorter_than_the_window():
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    tracker.record_failure(
+        "default",
+        _Exhausted("resets 1:05pm (UTC)"),  # five minutes out
+        now=0.0,
+        wall_now=wall,
+    )
+    assert tracker.status(now=0.0).seconds_remaining == pytest.approx(900.0, abs=2.0)
+
+
+def test_date_hint_in_the_past_rolls_to_next_year():
+    from robotsix_llmio.core.failover import _parse_reset_delay
+
+    wall = datetime(2026, 12, 30, 13, 0, tzinfo=UTC)
+    delay = _parse_reset_delay("resets Jan 2, 7pm (UTC)", wall)
+    assert delay is not None
+    assert 2.5 * 24 * 3600 < delay < 4 * 24 * 3600
+
+
+def test_unparseable_hint_falls_back_to_the_fixed_window():
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    tracker.record_failure(
+        "default", _Exhausted("out of credits, no hint here"), now=0.0, wall_now=wall
+    )
+    assert tracker.status(now=0.0).seconds_remaining == pytest.approx(900.0, abs=2.0)
+
+
+def test_hostile_hint_is_clamped():
+    from robotsix_llmio.core.failover import (
+        _MAX_RESET_WINDOW_SECONDS,
+        _parse_reset_delay,
+    )
+
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    # A date ~11 months out parses fine but the tracker clamps the window.
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    tracker.record_failure(
+        "default",
+        _Exhausted("resets Aug 30, 7pm (UTC)"),
+        now=0.0,
+        wall_now=wall,
+    )
+    remaining = tracker.status(now=0.0).seconds_remaining
+    assert remaining == pytest.approx(_MAX_RESET_WINDOW_SECONDS, abs=2.0)
+    assert (
+        _parse_reset_delay("resets Aug 30, 7pm (UTC)", wall) > _MAX_RESET_WINDOW_SECONDS
+    )
+
+
+def test_default_success_still_clears_a_hinted_window():
+    """A successful default-slot call (e.g. an explicit slot='default' probe
+    after the operator fixed things) clears even a days-long hinted window."""
+    tracker = ProviderFailoverTracker(FailoverConfig(window_seconds=900.0))
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    tracker.record_failure(
+        "default",
+        _Exhausted("resets Sep 5, 7pm (UTC)"),
+        now=0.0,
+        wall_now=wall,
+    )
+    assert tracker.active_slot(now=1.0) == "fallback"
+    tracker.record_success("default")
+    assert tracker.active_slot(now=2.0) == "default"
