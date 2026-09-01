@@ -72,12 +72,13 @@ _TOOL_CALLS_KEY = "tool_calls"
 #: plus headroom, so ``order: ["DeepSeek"]`` and ``max_price`` can never
 #: contradict each other. Measured 2026-08-21:
 #:
-#: * capable tier (``deepseek-v4-pro``) — DeepSeek lists $0.660/$1.980, so
-#:   $1.15/$2.30 (2026-09-01: DeepSeek delisted v4-pro) admits StreamLake, GMICloud, Ionstream
-#:   ($0.792/$2.376) and DigitalOcean ($0.870/$1.740) — 5 healthy endpoints,
-#:   the preferred one included — while still excluding the $1.13+/$2.26+ tail
-#:   (Ionstream, CoreWeave, DeepInfra, Together, Fireworks, Azure, …) the cap
-#:   exists to keep out.
+#: * capable tier (``deepseek-v4-pro``) — measured 2026-09-01: DeepSeek no
+#:   longer serves v4-pro on OpenRouter, and the cheapest HEALTHY endpoints
+#:   are StreamLake ($1.042/$2.085) and GMICloud ($1.044/$2.088), with
+#:   Ionstream third ($1.131/$2.262). $1.15/$2.30 admits exactly those three
+#:   (the guard's min-healthy) while excluding the $1.30+/$2.55+ tail
+#:   (CoreWeave, Novita, Baidu, Fireworks, Azure, …) the cap exists to keep
+#:   out. DigitalOcean is cheaper on paper but unhealthy and ignored below.
 #: * cheap tier (``deepseek-v4-flash-20260731``) — measured 2026-08-26:
 #:   DeepSeek repriced its own endpoint to $0.22/$0.66 (only its $0.007/1M
 #:   cache-read rate stayed cheap), while OpenInference ($0.03/$0.075),
