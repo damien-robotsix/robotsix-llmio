@@ -190,3 +190,26 @@ def test_collect_latest_user_images_only_newest_turn():
         )
         == []
     )
+
+
+def test_prepare_prompt_tool_naming_note_with_tools():
+    """With bridged tools, the system prompt states the mcp__milltools__ prefix
+    rule (2026-09-01: haiku called bare `component_request`/`complete_subsession`
+    from skill text and burned tool-error turns)."""
+    from .conftest import _make_minimal_handle
+
+    handle = _make_minimal_handle(
+        allowed_tools=["mcp__milltools__ticket_poll"],
+    )
+    _, system_prompt, _ = handle._prepare_prompt("hello", None)
+    assert "mcp__milltools__" in system_prompt
+    assert "bare name" in system_prompt
+
+
+def test_prepare_prompt_no_naming_note_without_tools():
+    """No injected tools → no naming note polluting the system prompt."""
+    from .conftest import _make_minimal_handle
+
+    handle = _make_minimal_handle()
+    _, system_prompt, _ = handle._prepare_prompt("hello", None)
+    assert "mcp__milltools__" not in system_prompt
