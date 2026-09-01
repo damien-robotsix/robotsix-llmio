@@ -56,6 +56,21 @@ _JSON_OUTPUT_INSTRUCTION = (
     "Do NOT wrap your response in XML/DSML markup or tool-call tags."
 )
 
+# Injected-tool naming rule. The bridged tools are registered on an MCP server
+# named "milltools", so their callable names carry the ``mcp__milltools__``
+# prefix — but caller-side instructions (skill files, task prompts) refer to
+# them by bare name. Larger models map the names on their own; smaller ones
+# (haiku) call the bare name verbatim, burn a tool-error turn, then guess
+# prefixes (observed 2026-09-01: ``component_request``, ``complete_subsession``,
+# ``mcp__milltools__ticket_poll`` passed to the skill reader). One explicit
+# rule in the system prompt removes the guessing.
+_TOOL_NAMING_INSTRUCTION = (
+    "Tool naming: the task tools provided to you are registered with the "
+    "'mcp__milltools__' prefix (a tool documented as `ticket_poll` is callable "
+    "only as `mcp__milltools__ticket_poll`). When instructions refer to a tool "
+    "by its bare name, call the prefixed name — the bare name does not exist."
+)
+
 # How many times to (re-)drive the SDK query for one agent run, retrying only
 # transient failures (e.g. the degenerate-success frame). Small: a re-run
 # clears the flaky case; a persistent error fails after the last attempt.
@@ -288,6 +303,11 @@ class _SdkToolAgentHandle:
             history_text = render_prompt(message_history)
             if history_text:
                 prompt = f"{history_text}\n\nUser: {prompt}"
+
+        # Tell the model the real (MCP-prefixed) names of its injected tools —
+        # instructions written against bare names otherwise cost error turns.
+        if self._allowed_tools:
+            system_prompt = f"{system_prompt}\n\n{_TOOL_NAMING_INSTRUCTION}"
 
         # Augment system prompt with JSON schema for structured output.
         if self._output_type is not str:
