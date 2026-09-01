@@ -228,6 +228,22 @@ FALLBACK_LEVEL3 = TierLevelConfig(
 
 
 # --------------------------------------------------------------------------- #
+#  Baked default — vision binding (image questions for text-only models)     #
+# --------------------------------------------------------------------------- #
+
+# The model that answers ``ask_image`` tool calls (see
+# ``core/image_tool.py``): the text-only OpenRouter models (DeepSeek) hand
+# the agent a tool that interrogates attached images through this binding.
+# Claude models read images natively and never use it.
+# Always resolved directly — no slot membership, no failover indirection:
+# it is the fleet's one image-reading model.
+VISION_DEFAULT = TierLevelConfig(
+    model="openrouter-deepseek/deepseek-v4-flash-vision-exp",
+    max_tokens=8192,
+)
+
+
+# --------------------------------------------------------------------------- #
 #  ProviderSlotConfig — one provider's binding of all three levels            #
 # --------------------------------------------------------------------------- #
 
@@ -369,6 +385,14 @@ class TierConfig(BaseModel):
     failover: FailoverConfig = Field(
         default_factory=FailoverConfig,
         description="Automatic provider-failover policy (threshold + window).",
+    )
+    vision: TierLevelConfig = Field(
+        default_factory=lambda: VISION_DEFAULT.model_copy(deep=True),
+        description=(
+            "Binding for the ask_image tool — the model that answers image "
+            "questions on behalf of text-only transports. Resolved directly, "
+            "never through the provider slots or failover."
+        ),
     )
 
     def slot(self, name: ProviderSlotName) -> ProviderSlotConfig:

@@ -217,6 +217,15 @@ short rationale grounded in the source.
     slot for `window_seconds` (default 15 minutes), then automatically
     returns to the default. `get_failover_status()` snapshots the state
     for consumer status endpoints and UIs.
+- **Images: native on Anthropic, the ask_image tool on OpenRouter
+    (`core/image_tool.py`).** `build_agent(images=[...])` keeps the caller's
+    prompt text-only. The Claude SDK transport delivers the attachments as
+    native SDK image blocks (appended to whatever the prompt itself
+    carries). The baked OpenRouter models are text-only, so the generic path
+    injects an async `ask_image` tool answered by the tier config's
+    `vision` binding through a one-shot OpenRouter call (cost-stamped and
+    retried like any other); tool failures return explanatory strings to
+    the model rather than raising into the agent loop.
 - **Hook-based extension on `OpenRouterProvider`.** The two
     overridable hooks — `_model_class()`, `_post_build_model()` —
     are the contract a per-family derived layer fills in.

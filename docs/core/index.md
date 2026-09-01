@@ -48,6 +48,10 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `acall_with_retry` — async mirror of `call_with_retry`
 - `acall_with_retry_and_fallback` — async mirror of `call_with_retry_and_fallback`
 
+### Image questions
+
+- `build_image_question_tool` — builds the async `ask_image(image_index, question)` tool over attached `(media_type, bytes)` images, answered by the tier config's `vision` binding; wired automatically by `build_agent(images=...)` on the OpenRouter (text-only) path; the Claude SDK transport serves images natively instead
+
 ### Provider failover
 
 - `call_with_failover` — runs a callable at a fixed capability level with automatic provider-slot failover: a provider-shaped failure on the active slot retries the SAME level on the other slot; after `failure_threshold` consecutive default-slot failures (exhaustion immediately) all calls route to the fallback slot for `window_seconds`, then return to the default

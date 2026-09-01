@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         FALLBACK_LEVEL1,
         FALLBACK_LEVEL2,
         FALLBACK_LEVEL3,
+        VISION_DEFAULT,
         FailoverConfig,
         ProviderSlotConfig,
         TierConfig,
@@ -50,6 +51,7 @@ __all__ = [
     "FALLBACK_LEVEL1",
     "FALLBACK_LEVEL2",
     "FALLBACK_LEVEL3",
+    "VISION_DEFAULT",
     "FailoverConfig",
     "MalformedIdentifierError",
     "ParsedIdentifier",
@@ -77,6 +79,7 @@ _TIER_NAMES = frozenset(
         "TierConfig",
         "TierLevel",
         "TierLevelConfig",
+        "VISION_DEFAULT",
     }
 )
 
