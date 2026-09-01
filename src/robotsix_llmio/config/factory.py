@@ -17,13 +17,14 @@ from ..core.factory import get_provider_for_identifier
 
 if TYPE_CHECKING:
     from ..core.provider import LLMProvider
-    from .tier import TierConfig
+    from .tier import ProviderSlotName, TierConfig
 
 
 def create_model(
     *,
     level: int = 1,
     tier_config: TierConfig | None = None,
+    slot: ProviderSlotName | None = None,
     **provider_kwargs: Any,
 ) -> LLMProvider:
     """Create a provider instance for the given capability *level*.
@@ -42,6 +43,9 @@ def create_model(
             provider + model.  When ``None``, a default ``TierConfig()``
             is built; its ``default_factory`` lambdas produce independent
             deep copies of the baked defaults.
+        slot: Explicit provider slot (``"default"`` or ``"fallback"``) to
+            resolve against; ``None`` follows the failover tracker's
+            active slot.
         **provider_kwargs: Forwarded to the provider constructor (e.g.
             ``api_key=...`` for the OpenRouter provider).  These override
             any ``provider_kwargs`` from the tier config.
@@ -74,7 +78,7 @@ def create_model(
 
         tier_config = TierConfig()
 
-    tlc = tier_config.for_level(level)
+    tlc = tier_config.for_level(level, slot=slot)
 
     # Merge: tier-config provider_kwargs as base, explicit kwargs override.
     merged_kwargs: dict[str, Any] = {**tlc.provider_kwargs, **provider_kwargs}

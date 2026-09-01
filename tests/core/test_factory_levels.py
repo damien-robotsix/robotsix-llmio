@@ -307,3 +307,33 @@ def test_level_helpers_exported_top_level() -> None:
     assert llmio.build_agent_for_level is build_agent_for_level
     assert llmio.get_provider_for_level is get_provider_for_level
     assert llmio.default_tier_config is default_tier_config
+
+
+def test_get_provider_for_level_explicit_slot(monkeypatch):
+    """``slot="fallback"`` resolves the fallback binding even while the
+    tracker's active slot is ``default`` — the seam a consumer's failover
+    loop uses for its cross-slot attempt."""
+    from unittest.mock import MagicMock
+
+    from robotsix_llmio.core import factory as core_factory
+
+    mock = MagicMock()
+    monkeypatch.setattr(core_factory, "get_provider_for_identifier", mock)
+
+    core_factory.get_provider_for_level(2, slot="fallback")
+
+    identifier = mock.call_args.args[0]
+    assert identifier == FALLBACK_LEVEL2.model
+
+
+def test_create_model_explicit_slot(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from robotsix_llmio.config import factory as config_factory
+
+    mock = MagicMock()
+    monkeypatch.setattr(config_factory, "get_provider_for_identifier", mock)
+
+    config_factory.create_model(level=3, slot="fallback")
+
+    assert mock.call_args.args[0] == FALLBACK_LEVEL3.model
