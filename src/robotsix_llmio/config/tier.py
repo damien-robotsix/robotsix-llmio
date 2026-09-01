@@ -176,19 +176,20 @@ LEVEL2_DEFAULT = TierLevelConfig(
     model="claudeSDK-haiku",
 )
 
-# Level 3 returned to ``deepseek-v4-pro`` on 2026-09-01 (operator decision:
+# Level 3 returned to DeepSeek v4 pro on 2026-09-01 (operator decision:
 # mimo-v2.5-pro output quality was not holding up as the workhorse fallback
-# tier). Routing measured 2026-09-01: DeepSeek itself no longer serves
-# ``deepseek-v4-pro`` on OpenRouter, and the cheapest HEALTHY endpoints are
-# StreamLake ($1.042/$2.085 per 1M, cache-read $0.087) and GMICloud
-# ($1.044/$2.088), with Ionstream third ($1.131/$2.262). The ceiling below is
-# aligned tight to that band — it admits exactly those three healthy
-# endpoints (the price-ceiling guard requires >= 3) and nothing pricier.
-# DigitalOcean is cheaper on paper ($0.87/$1.74) but currently unhealthy and
-# on the capable-tier ignore list (cache-read outlier), so it neither serves
-# nor widens the ceiling.
+# tier), pinned to the DATED ``-0813`` snapshot the operator designated —
+# same lesson as level 1: dated snapshots route deterministically while
+# undated slugs point at whatever pool OpenRouter aliases them to.
+# Routing measured 2026-09-01 on ``deepseek-v4-pro-0813``: cheapest HEALTHY
+# endpoints are StreamLake ($1.1154/$3.3462 per 1M, cache-read $0.0372),
+# GMICloud ($1.122/$3.366) and Alibaba ($1.122/$3.366, cache-read $0.1122 =
+# 3.0x StreamLake, inside the guard's 4x cache factor). The ceiling below is
+# aligned tight to that band — it admits exactly those three (the guard
+# requires >= 3 healthy) and excludes the $1.30+/$3.96 tail, DeepSeek's own
+# endpoint included ($1.32/$3.96).
 LEVEL3_DEFAULT = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-pro",
+    model="openrouter-deepseek/deepseek-v4-pro-0813",
     # Reasoning model: thinking tokens bill against max_tokens, and a large
     # agentic prompt can burn the whole budget before ANY visible output
     # ("Model token limit exceeded before any response was generated" — live
@@ -198,8 +199,8 @@ LEVEL3_DEFAULT = TierLevelConfig(
     max_tokens=131072,
     provider_kwargs={
         "preferred_provider": "StreamLake",
-        "max_price_prompt": 1.15,
-        "max_price_completion": 2.30,
+        "max_price_prompt": 1.16,
+        "max_price_completion": 3.40,
     },
 )
 
