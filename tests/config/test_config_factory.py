@@ -51,18 +51,17 @@ class TestCreateModelHappyPath:
         mock_get_provider_for_identifier.assert_called_once_with("claudeSDK-haiku")
         assert result is mock_get_provider_for_identifier.return_value
 
-    def test_level_3_mimo_resolves_from_tier_config(
+    def test_level_3_deepseek_pro_resolves_from_tier_config(
         self, mock_get_provider_for_identifier: MagicMock
     ):
         """``create_model(level=3)`` derives provider from LEVEL3_DEFAULT's
-        identifier (MiMo v2.5-pro via Xiaomi)."""
+        identifier (DeepSeek v4-pro, StreamLake-preferred)."""
         result = create_model(level=3)
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter-xiaomi/mimo-v2.5-pro",
-            preferred_provider="Xiaomi",
-            max_price_prompt=0.55,
-            max_price_completion=1.10,
-            ignore_providers=["DigitalOcean", "DeepInfra"],
+            "openrouter-deepseek/deepseek-v4-pro",
+            preferred_provider="StreamLake",
+            max_price_prompt=1.15,
+            max_price_completion=2.30,
             max_tokens=131072,
         )
         assert result is mock_get_provider_for_identifier.return_value

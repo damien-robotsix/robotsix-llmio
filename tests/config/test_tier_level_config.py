@@ -142,9 +142,9 @@ def test_level2_default():
 
 
 def test_level3_default():
-    assert LEVEL3_DEFAULT.model == "openrouter-xiaomi/mimo-v2.5-pro"
+    assert LEVEL3_DEFAULT.model == "openrouter-deepseek/deepseek-v4-pro"
     assert LEVEL3_DEFAULT.provider == "openrouter"
-    assert LEVEL3_DEFAULT.model_name == "xiaomi/mimo-v2.5-pro"
+    assert LEVEL3_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
 
 
 def test_level4_default():

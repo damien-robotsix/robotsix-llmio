@@ -597,9 +597,9 @@ def test_deepseek_model_default_preference_still_deepseek():
 
 def test_level3_default_tier_routing_reaches_the_request():
     """End-to-end through the factory: the baked level-3 ``provider_kwargs``
-    (Xiaomi preferred, ceiling, ignore list) must land in the request body.
-    This is the path mill and chat use — the one that was silently dropping
-    them."""
+    (StreamLake preferred, tight ceiling) must land in the request body, with
+    the capable-tier ignore list applied from the family defaults. This is
+    the path mill and chat use — the one that was silently dropping them."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
 
     from robotsix_llmio.config.tier import LEVEL3_DEFAULT
@@ -617,7 +617,9 @@ def test_level3_default_tier_routing_reaches_the_request():
             "prompt": expected["max_price_prompt"],
             "completion": expected["max_price_completion"],
         }
-        assert routing["ignore"] == expected["ignore_providers"]
+        from robotsix_llmio.openrouter._deepseek_model import DEFAULT_IGNORE_CAPABLE
+
+        assert routing["ignore"] == list(DEFAULT_IGNORE_CAPABLE)
         assert routing["allow_fallbacks"] is True
     finally:
         import asyncio
