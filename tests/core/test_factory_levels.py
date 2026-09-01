@@ -57,7 +57,7 @@ def test_default_tier_config_bakes_per_level_defaults() -> None:
 
     assert cfg.for_level(1).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert cfg.for_level(2).model == "claudeSDK-haiku"
-    assert cfg.for_level(3).model == "openrouter-deepseek/deepseek-v4-pro"
+    assert cfg.for_level(3).model == "openrouter-deepseek/deepseek-v4-pro-0813"
     assert cfg.for_level(4).model == "claudeSDK-opus"
     assert cfg.for_level(5).model == "claudeSDK-claude-fable-5"
 
@@ -162,12 +162,12 @@ def test_build_agent_for_level_model_override_keeps_provider(
 ) -> None:
     calls, provider = _patch_factory(monkeypatch)
 
-    build_agent_for_level(1, model="deepseek/deepseek-v4-pro", system_prompt="x")
+    build_agent_for_level(1, model="deepseek/deepseek-v4-pro-0813", system_prompt="x")
 
     # Provider still resolved from the level's identifier (openrouter).
     assert calls[0][0] == "openrouter-deepseek/deepseek-v4-flash-20260731"
     # Only the model name is overridden.
-    assert provider.build_agent_calls[0]["model"] == "deepseek/deepseek-v4-pro"
+    assert provider.build_agent_calls[0]["model"] == "deepseek/deepseek-v4-pro-0813"
 
 
 def test_build_agent_for_level_custom_tier_config(

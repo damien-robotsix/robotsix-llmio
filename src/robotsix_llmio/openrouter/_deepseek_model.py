@@ -72,13 +72,12 @@ _TOOL_CALLS_KEY = "tool_calls"
 #: plus headroom, so ``order: ["DeepSeek"]`` and ``max_price`` can never
 #: contradict each other. Measured 2026-08-21:
 #:
-#: * capable tier (``deepseek-v4-pro``) — measured 2026-09-01: DeepSeek no
-#:   longer serves v4-pro on OpenRouter, and the cheapest HEALTHY endpoints
-#:   are StreamLake ($1.042/$2.085) and GMICloud ($1.044/$2.088), with
-#:   Ionstream third ($1.131/$2.262). $1.15/$2.30 admits exactly those three
-#:   (the guard's min-healthy) while excluding the $1.30+/$2.55+ tail
-#:   (CoreWeave, Novita, Baidu, Fireworks, Azure, …) the cap exists to keep
-#:   out. DigitalOcean is cheaper on paper but unhealthy and ignored below.
+#: * capable tier (``deepseek-v4-pro-0813``) — measured 2026-09-01 on the
+#:   dated snapshot: cheapest HEALTHY endpoints are StreamLake
+#:   ($1.1154/$3.3462), GMICloud and Alibaba ($1.122/$3.366). $1.16/$3.40
+#:   admits exactly those three (the guard's min-healthy) while excluding
+#:   the $1.30+/$3.96 tail (DeepInfra, CoreWeave, Sail Research, NextBit,
+#:   DeepSeek's own endpoint, …) the cap exists to keep out.
 #: * cheap tier (``deepseek-v4-flash-20260731``) — measured 2026-08-26:
 #:   DeepSeek repriced its own endpoint to $0.22/$0.66 (only its $0.007/1M
 #:   cache-read rate stayed cheap), while OpenInference ($0.03/$0.075),
@@ -88,7 +87,7 @@ _TOOL_CALLS_KEY = "tool_calls"
 #:   endpoint: the old $0.25/$0.70 ceiling that admitted it also admitted a
 #:   fallback tail whose cache-read rates are 2-10x, which doubled the
 #:   fleet's effective flash cost on 2026-08-25.
-DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 1.15, "completion": 2.30}
+DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 1.16, "completion": 3.40}
 DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.10, "completion": 0.20}
 
 #: Upstream providers barred from capable-tier fallback routing. Their

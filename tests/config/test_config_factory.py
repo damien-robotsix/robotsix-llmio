@@ -58,10 +58,10 @@ class TestCreateModelHappyPath:
         identifier (DeepSeek v4-pro, StreamLake-preferred)."""
         result = create_model(level=3)
         mock_get_provider_for_identifier.assert_called_once_with(
-            "openrouter-deepseek/deepseek-v4-pro",
+            "openrouter-deepseek/deepseek-v4-pro-0813",
             preferred_provider="StreamLake",
-            max_price_prompt=1.15,
-            max_price_completion=2.30,
+            max_price_prompt=1.16,
+            max_price_completion=3.40,
             max_tokens=131072,
         )
         assert result is mock_get_provider_for_identifier.return_value

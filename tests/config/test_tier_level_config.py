@@ -31,9 +31,9 @@ def test_tier_level_config_minimal_construction():
 
 def test_tier_level_config_openrouter_identifier():
     """An OpenRouter identifier constructs and parses cleanly."""
-    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro")
+    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro-0813")
     assert cfg.provider == "openrouter"
-    assert cfg.model_name == "deepseek/deepseek-v4-pro"
+    assert cfg.model_name == "deepseek/deepseek-v4-pro-0813"
 
 
 def test_tier_level_config_with_provider_kwargs():
@@ -142,9 +142,9 @@ def test_level2_default():
 
 
 def test_level3_default():
-    assert LEVEL3_DEFAULT.model == "openrouter-deepseek/deepseek-v4-pro"
+    assert LEVEL3_DEFAULT.model == "openrouter-deepseek/deepseek-v4-pro-0813"
     assert LEVEL3_DEFAULT.provider == "openrouter"
-    assert LEVEL3_DEFAULT.model_name == "deepseek/deepseek-v4-pro"
+    assert LEVEL3_DEFAULT.model_name == "deepseek/deepseek-v4-pro-0813"
 
 
 def test_level4_default():
@@ -174,9 +174,9 @@ def test_tier_level_config_parsed_accessors_simple():
 def test_tier_level_config_parsed_accessors_openrouter():
     """Parsed accessors work for an OpenRouter identifier whose model name
     contains a slash."""
-    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro")
+    cfg = TierLevelConfig(model="openrouter-deepseek/deepseek-v4-pro-0813")
     assert cfg.provider == "openrouter"
-    assert cfg.model_name == "deepseek/deepseek-v4-pro"
+    assert cfg.model_name == "deepseek/deepseek-v4-pro-0813"
 
 
 def test_tier_level_config_parsed_accessors_dash_in_model_name():
