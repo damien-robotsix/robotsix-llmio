@@ -46,8 +46,8 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
    `effort: xhigh`). pydantic-ai round-trips reasoning natively, so this layer
    neither remaps reasoning nor adds a DeepSeek-specific transient signature
    (it inherits OpenRouter's). These are the models of the baked **fallback**
-   slot: levels 1 and 2 bind `deepseek/deepseek-v4-flash-20260731` (level 2
-   adds reasoning), level 3 binds `deepseek/deepseek-v4-pro-0813`.
+   slot: level 1 binds `deepseek/deepseek-v4-flash-20260731` (no reasoning),
+   levels 2 and 3 bind `deepseek/deepseek-v4-pro-0813` (xhigh reasoning).
 
 ### Alternative transport — Claude Agent SDK (subscription auth)
 
@@ -161,7 +161,7 @@ Model selection has two independent axes:
 | Level | Intended use                                    | `default` slot (Claude SDK) | `fallback` slot (OpenRouter)          |
 |-------|-------------------------------------------------|-----------------------------|---------------------------------------|
 | 1     | Cheap, frequent: monitors, classifiers, summaries | `haiku`                   | `deepseek-v4-flash` (no reasoning)    |
-| 2     | Workhorse: implementing code, main assistant turns | `opus`                   | `deepseek-v4-flash` (xhigh reasoning) |
+| 2     | Workhorse: implementing code, main assistant turns | `opus`                   | `deepseek-v4-pro` (xhigh reasoning)   |
 | 3     | Frontier: hardest reasoning, long-horizon work  | `claude-fable-5`            | `deepseek-v4-pro`                     |
 
 Both slots and the failover policy are configurable via `load_tier_config`:

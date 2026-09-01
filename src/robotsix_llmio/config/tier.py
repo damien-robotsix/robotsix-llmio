@@ -7,7 +7,7 @@ Two *provider slots* each bind all three capability levels:
 - ``default`` — the provider used in normal operation (baked: Anthropic via
   the Claude SDK subscription — haiku / opus / claude-fable-5).
 - ``fallback`` — the provider used while automatic failover is active
-  (baked: DeepSeek via OpenRouter — flash / flash-with-reasoning / pro).
+  (baked: DeepSeek via OpenRouter — flash / pro / pro).
 
 Capability levels never fall back to one another: a level-2 task is a
 level-2 task on whichever provider slot is active. Failover switches the
@@ -186,21 +186,22 @@ FALLBACK_LEVEL1 = TierLevelConfig(
     provider_kwargs={"preferred_provider": "DeepInfra"},
 )
 
-# Level 2 is the SAME flash snapshot as level 1 — deliberately. What differs
-# is the per-level DeepSeek policy: at level 2 reasoning runs at xhigh effort
-# (see ``OpenRouterDeepseekProvider._post_build_model``), which is what makes
-# flash a viable workhorse. The price ceiling is stated EXPLICITLY because the
-# per-level defaults would otherwise apply the capable-tier ceiling
-# ($1.16/$3.40) to a flash-priced model and admit endpoints 10x the intended
-# rate. The output cap is larger than level 1's because xhigh reasoning bills
-# against it.
+# Level 2 binds the PRO snapshot, same as level 3 — deliberately. The original
+# rework bound flash here (cheap workhorse), but flash under xhigh reasoning
+# degenerates into token loops on long agentic contexts (observed live
+# 2026-09-01, an hour into the first failover window: a 90-turn chat session
+# collapsed into word salad — the same failure the pre-rework fleet guarded
+# against, and the reason the old workhorse fallback moved to pro that same
+# week). A workhorse that cannot carry the fleet's real contexts is not a
+# fallback. Flash remains the level-1 binding, where prompts are short and
+# reasoning is off.
 FALLBACK_LEVEL2 = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-flash-20260731",
-    max_tokens=65536,
+    model="openrouter-deepseek/deepseek-v4-pro-0813",
+    max_tokens=131072,
     provider_kwargs={
-        "preferred_provider": "DeepInfra",
-        "max_price_prompt": 0.10,
-        "max_price_completion": 0.20,
+        "preferred_provider": "StreamLake",
+        "max_price_prompt": 1.16,
+        "max_price_completion": 3.40,
     },
 )
 
@@ -362,7 +363,7 @@ class TierConfig(BaseModel):
         default_factory=_fallback_slot,
         description=(
             "Provider slot used while failover is active. Baked: DeepSeek "
-            "via OpenRouter — flash / flash-with-reasoning / pro."
+            "via OpenRouter — flash / pro / pro."
         ),
     )
     failover: FailoverConfig = Field(

@@ -119,8 +119,8 @@ def default_tier_config() -> TierConfig:
     - ``default`` (Anthropic via the Claude SDK): level 1 →
       ``claudeSDK-haiku``, level 2 → ``claudeSDK-opus``, level 3 →
       ``claudeSDK-claude-fable-5``.
-    - ``fallback`` (DeepSeek via OpenRouter): level 1 → flash, level 2 →
-      flash with xhigh reasoning, level 3 → pro.
+    - ``fallback`` (DeepSeek via OpenRouter): level 1 → flash, levels 2
+      and 3 → pro with xhigh reasoning.
 
     The no-arg ``TierConfig()`` constructor uses ``default_factory``
     functions that produce independent deep copies of the baked defaults,

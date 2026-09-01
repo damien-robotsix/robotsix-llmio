@@ -13,7 +13,10 @@ provider-shaped way, calls run the *same level* on the ``fallback`` slot
   immediately), the tracker routes *all* calls straight to ``fallback`` for
   ``window_seconds`` (default 15 minutes), skipping the doomed default
   attempt. When the window expires the next call probes ``default`` again; a
-  still-broken default re-arms a fresh window.
+  still-broken default re-arms a fresh window. When an exhaustion error
+  names its quota reset ("resets 1:10pm (UTC)", "resets Sep 5, 7pm (UTC)"),
+  the window arms until that time instead (clamped, with a little slack) —
+  no probing a provider that said when it comes back.
 
 The process-wide :class:`ProviderFailoverTracker` singleton holds this state,
 and :func:`get_failover_status` exposes it for consumer UIs (which provider
@@ -29,6 +32,7 @@ however many internal retries it spent — counts as one provider failure.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from collections.abc import Awaitable, Callable
@@ -113,6 +117,101 @@ def _is_exhaustion(exc: BaseException) -> bool:
         if type(cur).__name__ in _PROVIDER_DEAD_NAMES:
             return True
     return is_usage_exhausted(exc)
+
+
+# --------------------------------------------------------------------------- #
+#  Reset-hint parsing                                                         #
+# --------------------------------------------------------------------------- #
+
+# The Claude CLI names the quota reset inside the exhaustion text, in two
+# shapes: the rolling cap ("resets 1:10pm (UTC)", same day or tomorrow) and
+# the weekly cap ("resets Sep 5, 7pm (UTC)"). When a hint parses, the
+# failover window arms until that time instead of the fixed
+# ``window_seconds`` — probing a provider that TOLD us when it comes back
+# just burns a failed CLI spawn every window and makes status UIs blink.
+_RESET_HINT_RE = re.compile(
+    r"resets\s+(?:(?P<month>[a-z]{3,9})\s+(?P<day>\d{1,2}),?\s+)?"
+    r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*(?P<meridiem>am|pm)\s*\(utc\)",
+    re.IGNORECASE,
+)
+
+_MONTHS = {
+    m: i
+    for i, names in enumerate(
+        (
+            ("jan", "january"),
+            ("feb", "february"),
+            ("mar", "march"),
+            ("apr", "april"),
+            ("may",),
+            ("jun", "june"),
+            ("jul", "july"),
+            ("aug", "august"),
+            ("sep", "september"),
+            ("oct", "october"),
+            ("nov", "november"),
+            ("dec", "december"),
+        ),
+        start=1,
+    )
+    for m in names
+}
+
+#: Defensive ceiling on a hint-derived window: a mis-parsed or hostile
+#: "resets" value can never park the fleet on the paid slot for more than a
+#: worst-case weekly cycle (+ slack).
+_MAX_RESET_WINDOW_SECONDS: float = 8 * 24 * 3600.0
+
+#: Armed windows end this long AFTER the hinted reset, so the first probe
+#: lands when the quota is actually back rather than seconds before.
+_RESET_SLACK_SECONDS: float = 120.0
+
+
+def _parse_reset_delay(text: str, wall_now: datetime) -> float | None:
+    """Seconds from *wall_now* until the reset named in *text*, or ``None``.
+
+    Handles both CLI shapes: time-only rolls forward to the next occurrence
+    (today or tomorrow); a month+day form pins that calendar date (rolling to
+    next year when it already passed, e.g. "resets Jan 2" seen in late Dec).
+    All times are interpreted as UTC per the ``(UTC)`` marker.
+    """
+    match = _RESET_HINT_RE.search(text)
+    if match is None:
+        return None
+
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute") or 0)
+    if not (1 <= hour <= 12) or minute > 59:
+        return None
+    hour24 = hour % 12
+    if match.group("meridiem").lower() == "pm":
+        hour24 += 12
+
+    month_name = match.group("month")
+    if month_name is not None:
+        month = _MONTHS.get(month_name.lower())
+        day = int(match.group("day"))
+        if month is None:
+            return None
+        try:
+            target = wall_now.replace(
+                month=month,
+                day=day,
+                hour=hour24,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+        except ValueError:
+            return None
+        if target <= wall_now:
+            target = target.replace(year=target.year + 1)
+    else:
+        target = wall_now.replace(hour=hour24, minute=minute, second=0, microsecond=0)
+        if target <= wall_now:
+            target += timedelta(days=1)
+
+    return (target - wall_now).total_seconds()
 
 
 # --------------------------------------------------------------------------- #
@@ -208,10 +307,22 @@ class ProviderFailoverTracker:
                 return
 
             if _is_exhaustion(exc):
-                self._arm_locked(now, wall_now)
+                hinted = _parse_reset_delay(str(exc), wall_now)
+                if hinted is not None:
+                    window = min(
+                        hinted + _RESET_SLACK_SECONDS, _MAX_RESET_WINDOW_SECONDS
+                    )
+                    # Never arm SHORTER than the configured window off a hint —
+                    # a stale "resets 2 minutes from now" would turn failover
+                    # into a tight probe loop.
+                    window = max(window, self._config.window_seconds)
+                else:
+                    window = self._config.window_seconds
+                self._arm_locked(now, wall_now, window=window)
                 log.warning(
-                    "default provider slot exhausted — failover armed for %.0fs: %s",
-                    self._config.window_seconds,
+                    "default provider slot exhausted — failover armed for %.0fs%s: %s",
+                    window,
+                    " (until the hinted quota reset)" if hinted is not None else "",
                     reason,
                 )
                 return
@@ -242,9 +353,12 @@ class ProviderFailoverTracker:
             self._failover_until_monotonic = 0.0
             self._failover_until_wall = None
 
-    def _arm_locked(self, now: float, wall_now: datetime) -> None:
+    def _arm_locked(
+        self, now: float, wall_now: datetime, window: float | None = None
+    ) -> None:
         """Arm the failover window. Caller holds the lock."""
-        window = self._config.window_seconds
+        if window is None:
+            window = self._config.window_seconds
         self._failover_until_monotonic = now + window
         self._failover_until_wall = wall_now + timedelta(seconds=window)
         self._consecutive_failures = 0

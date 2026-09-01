@@ -76,14 +76,14 @@ def test_default_tier_config_bakes_per_level_defaults() -> None:
     assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
     assert cfg.for_level(3, slot="default").model == "claudeSDK-claude-fable-5"
 
-    # Fallback slot: DeepSeek via OpenRouter (flash / flash / pro).
+    # Fallback slot: DeepSeek via OpenRouter (flash / pro / pro).
     assert (
         cfg.for_level(1, slot="fallback").model
         == "openrouter-deepseek/deepseek-v4-flash-20260731"
     )
     assert (
         cfg.for_level(2, slot="fallback").model
-        == "openrouter-deepseek/deepseek-v4-flash-20260731"
+        == "openrouter-deepseek/deepseek-v4-pro-0813"
     )
     assert (
         cfg.for_level(3, slot="fallback").model
