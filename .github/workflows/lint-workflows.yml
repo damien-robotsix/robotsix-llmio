@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: read
       security-events: write  # zizmor SARIF upload
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@daa74f7c13e04bc77109021922e3fcaa9644b75c # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
     with:
       run-actionlint: true
       run-zizmor: true

@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
       security-events: write  # upload SARIF from the scan
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@daa74f7c13e04bc77109021922e3fcaa9644b75c # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
     with:
       python-version: "3.14"
       install-extras: "openrouter claude_sdk tracing"
@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: read
       security-events: write  # upload SARIF from the scan
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@daa74f7c13e04bc77109021922e3fcaa9644b75c # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
     with:
       install-extras: "openrouter claude_sdk"
       trufflehog-pr-diff: true

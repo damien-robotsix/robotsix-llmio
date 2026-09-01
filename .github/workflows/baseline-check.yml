@@ -11,6 +11,6 @@ jobs:
   baseline:
     permissions:
       contents: read
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/baseline-check.yml@daa74f7c13e04bc77109021922e3fcaa9644b75c # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/baseline-check.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
     with:
       has-docker: false
