@@ -7,6 +7,32 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.6.0...v0.7.0) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* TierLevel has three members; TierConfig has a new shape; LEVEL{1..5}_DEFAULT, call/acall_with_tier_fallback, ModelHealthTracker and the LLMIO_* env vars are gone.
+
+### Features
+
+* arm failover until the hinted quota reset; workhorse fallback moves to pro ([#628](https://github.com/damien-robotsix/robotsix-llmio/issues/628)) ([3f51f20](https://github.com/damien-robotsix/robotsix-llmio/commit/3f51f20ea21df3e824c3bd2da8aab98e3c2e0dea))
+* ask_image tool — image questions for text-only models via the vision binding ([#629](https://github.com/damien-robotsix/robotsix-llmio/issues/629)) ([f06700a](https://github.com/damien-robotsix/robotsix-llmio/commit/f06700a6ba8d6411e3da0d09eccd2b5cd60508ac))
+* collapse 5 levels to 3 across two provider slots with automatic failover ([#625](https://github.com/damien-robotsix/robotsix-llmio/issues/625)) ([3f9127a](https://github.com/damien-robotsix/robotsix-llmio/commit/3f9127ad9cc45d52da76c411d7d1dc2faa903046))
+* explicit slot resolution for consumers; dead credential arms failover ([#626](https://github.com/damien-robotsix/robotsix-llmio/issues/626)) ([4b3f2ae](https://github.com/damien-robotsix/robotsix-llmio/commit/4b3f2aebf1eecd7a858c86acded4ad2bc0b1388b))
+* level 3 back to deepseek-v4-pro, ceiling aligned to cheapest healthy band ([#622](https://github.com/damien-robotsix/robotsix-llmio/issues/622)) ([0d2429a](https://github.com/damien-robotsix/robotsix-llmio/commit/0d2429a133ed7284f964f89042ad549317565b65))
+
+
+### Bug Fixes
+
+* classify the CLI "Not logged in" wording as an auth error ([#627](https://github.com/damien-robotsix/robotsix-llmio/issues/627)) ([ab978be](https://github.com/damien-robotsix/robotsix-llmio/commit/ab978be8891d0df3025851c76d6ed005fde83366))
+* pin level 3 to the dated deepseek-v4-pro-0813 snapshot ([#624](https://github.com/damien-robotsix/robotsix-llmio/issues/624)) ([f45db0a](https://github.com/damien-robotsix/robotsix-llmio/commit/f45db0af019712f257e2622a8a4e5e20ce297951))
+
+
+### Reverts
+
+* fallback level 2 back to flash — operator design decision ([#630](https://github.com/damien-robotsix/robotsix-llmio/issues/630)) ([c560664](https://github.com/damien-robotsix/robotsix-llmio/commit/c560664922fb5b40d8427eafaf8d0da8a21a62d8))
+
 ## [0.6.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.5.0...v0.6.0) (2026-08-31)
 
 
