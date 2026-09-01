@@ -12,12 +12,28 @@ import uuid
 
 import pytest
 
-from robotsix_llmio.config.tier import LEVEL1_DEFAULT, TierConfig
+from robotsix_llmio.config.tier import (
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
+    ProviderSlotConfig,
+    TierConfig,
+)
 from tests.core.conftest import (
     _langfuse_creds,
     _langfuse_get,
     _langfuse_traces,
     _require,
+)
+
+# OpenRouter bindings in the DEFAULT slot: these live tests exercise the
+# OpenRouter transport directly, with no failover machinery involved.
+_OPENROUTER_TIERS = TierConfig(
+    default=ProviderSlotConfig(
+        level1=FALLBACK_LEVEL1,
+        level2=FALLBACK_LEVEL2,
+        level3=FALLBACK_LEVEL3,
+    ),
 )
 
 
@@ -42,7 +58,7 @@ def test_langfuse_trace_roundtrip_has_cost() -> None:
     provider = OpenRouterDeepseekProvider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are concise. Answer with just the number.",
         name="tracing-livetest",
     )
@@ -101,7 +117,7 @@ def test_langfuse_trace_tool_and_subagent() -> None:
     provider = OpenRouterDeepseekProvider()
     subagent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a physics expert. Answer in one short sentence.",
         name="subagent-physics",
     )
@@ -117,7 +133,7 @@ def test_langfuse_trace_tool_and_subagent() -> None:
 
     outer = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt=(
             "You coordinate. Use the add tool for arithmetic and the "
             "consult_expert tool for science questions."
@@ -211,7 +227,7 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
     provider = OpenRouterDeepseekProvider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="Concise.",
         name="url-test",
     )
@@ -267,7 +283,7 @@ def test_langfuse_cost_log_source_reads_back_logged_cost() -> None:
     provider = OpenRouterDeepseekProvider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are concise. Answer with just the number.",
         name="costlog-livetest",
     )

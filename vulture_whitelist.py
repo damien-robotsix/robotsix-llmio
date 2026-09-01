@@ -140,18 +140,30 @@ conversation_store
 # ---------------------------------------------------------------------------
 
 # StrEnum members referenced via TierLevel.LEVEL{N} externally.
+TierLevel.LEVEL1
 TierLevel.LEVEL2
 TierLevel.LEVEL3
-TierLevel.LEVEL4
-TierLevel.LEVEL5
+
+# ``model_config = ConfigDict(extra="forbid")`` is read by pydantic's
+# metaclass, never by name.
+TierLevelConfig.model_config
+
+# FailoverStatus fields are read by consumers (status endpoints/UIs) and by
+# pydantic serialisation, not by direct attribute access in this package.
+FailoverStatus.failover_active
+FailoverStatus.failover_until
+FailoverStatus.seconds_remaining
+FailoverStatus.consecutive_failures
+FailoverStatus.last_failure_at
+FailoverStatus.last_failure_reason
 
 # Pydantic model fields accessed by pydantic's metaclass machinery, not by
 # direct Python name access that vulture would detect. (@model_validator /
 # @field_validator methods are handled by ignore_decorators in pyproject.toml.)
 TierLevelConfig.provider_kwargs
-TierConfig.level1
-TierConfig.level2
-TierConfig.level3
+ProviderSlotConfig.level1
+ProviderSlotConfig.level2
+ProviderSlotConfig.level3
 
 # ``_SdkToolAgentHandle._reprompt_for_json`` sets these on a copied
 # ``ClaudeAgentOptions`` for the same-session JSON-only follow-up; the SDK

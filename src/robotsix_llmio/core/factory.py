@@ -112,23 +112,22 @@ def get_provider_for_identifier(identifier: str, **kwargs: Any) -> LLMProvider:
 
 
 def default_tier_config() -> TierConfig:
-    """Return a :class:`TierConfig` built from the baked per-level defaults.
+    """Return a :class:`TierConfig` built from the baked defaults.
 
-    This is the single source of the baked per-level *(provider, model)*
-    binding: level 1 → ``openrouter-deepseek/deepseek-v4-flash-20260731``,
-    level 2 → ``claudeSDK-haiku``,
-    level 3 → ``openrouter-xiaomi/mimo-v2.5-pro``,
-    level 4 → ``claudeSDK-opus``,
-    level 5 → ``claudeSDK-claude-fable-5``.
+    The baked binding is two provider slots of three levels each:
+
+    - ``default`` (Anthropic via the Claude SDK): level 1 →
+      ``claudeSDK-haiku``, level 2 → ``claudeSDK-opus``, level 3 →
+      ``claudeSDK-claude-fable-5``.
+    - ``fallback`` (DeepSeek via OpenRouter): level 1 → flash, level 2 →
+      flash with xhigh reasoning, level 3 → pro.
 
     The no-arg ``TierConfig()`` constructor uses ``default_factory``
-    lambdas that produce independent deep copies of the module-level
-    default singletons, so each call returns a fresh config whose slots
-    do not alias the singletons or each other.
+    functions that produce independent deep copies of the baked defaults,
+    so each call returns a fresh config that aliases nothing.
 
     Returns:
-        TierConfig: A config whose five slots hold fresh copies of the
-            baked defaults.
+        TierConfig: A config holding fresh copies of the baked defaults.
 
     """
     from robotsix_llmio.config.tier import TierConfig
@@ -145,15 +144,16 @@ def get_provider_for_level(
     """Resolve and instantiate the provider bound to a capability *level*.
 
     The *(provider, model)* binding for *level* is read from *tier_config*
-    (or :func:`default_tier_config` when ``None``); the level's combined
-    identifier drives the provider lazy-import, exactly as
+    (or :func:`default_tier_config` when ``None``), resolved against the
+    provider slot the failover tracker currently designates as active; the
+    level's combined identifier drives the provider lazy-import, exactly as
     :func:`get_provider_for_identifier`.  The tier level's
     ``provider_kwargs`` are merged with ``**kwargs`` (caller ``**kwargs``
     win on conflict) and forwarded to the provider constructor.
 
     Args:
-        level: Capability level — ``1`` (cheap), ``2`` (intermediate),
-            ``3`` (high-level planning), or ``4`` (frontier).
+        level: Capability level — ``1`` (cheap/frequent), ``2``
+            (workhorse), or ``3`` (frontier).
         tier_config: Per-level *(provider, model)* binding to resolve
             against.  When ``None``, the baked defaults from
             :func:`default_tier_config` are used.
@@ -166,14 +166,13 @@ def get_provider_for_level(
             backend.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, 4, or 5 (via
+        ValueError: If *level* is not 1, 2, or 3 (via
             :meth:`TierConfig.for_level`), or if the level's identifier
             names an unknown provider prefix.
         MalformedIdentifierError: If the level's identifier cannot be
             parsed.
         ImportError: If the resolved provider's optional extra is not
-            installed (e.g. ``claude_sdk`` for ``level=3`` or
-            ``level=4``).
+            installed (``claude_sdk`` for the default slot's levels).
 
     """
     tlc = (tier_config or default_tier_config()).for_level(level)
@@ -206,15 +205,16 @@ def build_agent_for_level(
 
     With everything left at its default a consumer calls
     ``build_agent_for_level(1, system_prompt=..., output_type=str,
-    name=...)`` for a cheap DeepSeek agent,
-    ``build_agent_for_level(3, system_prompt=..., tools=...,
-    output_type=str, name=...)`` for a Claude-opus agent, and
-    ``build_agent_for_level(4, system_prompt=..., name=...)`` for a
-    Claude-Fable-5 frontier agent.
+    name=...)`` for a cheap Claude-haiku agent,
+    ``build_agent_for_level(2, system_prompt=..., tools=...,
+    output_type=str, name=...)`` for a Claude-opus workhorse agent, and
+    ``build_agent_for_level(3, system_prompt=..., name=...)`` for a
+    Claude-Fable-5 frontier agent — or the DeepSeek equivalents while
+    provider failover is active.
 
     Args:
-        level: Capability level — ``1`` (cheap), ``2`` (intermediate),
-            ``3`` (high-level planning), or ``4`` (frontier).
+        level: Capability level — ``1`` (cheap/frequent), ``2``
+            (workhorse), or ``3`` (frontier).
         tier_config: Per-level *(provider, model)* binding to resolve
             against.  When ``None``, the baked defaults from
             :func:`default_tier_config` are used (i.e. omitting
@@ -234,15 +234,14 @@ def build_agent_for_level(
             when done.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, 4, or 5 (via
+        ValueError: If *level* is not 1, 2, or 3 (via
             :meth:`TierConfig.for_level`), or if the level's identifier
             names an unknown provider prefix.
         MalformedIdentifierError: If the level's identifier cannot be
             parsed.
         ImportError: If the resolved provider's optional extra is not
-            installed (``build_agent_for_level(3)`` and
-            ``build_agent_for_level(4)`` require the ``claude_sdk``
-            extra).
+            installed (the default slot's levels require the
+            ``claude_sdk`` extra).
 
     """
     tlc = (tier_config or default_tier_config()).for_level(level)

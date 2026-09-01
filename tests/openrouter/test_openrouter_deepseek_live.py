@@ -12,11 +12,24 @@ import os
 import pytest
 
 from robotsix_llmio.config.tier import (
-    LEVEL1_DEFAULT,
-    LEVEL2_DEFAULT,
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
+    ProviderSlotConfig,
     TierConfig,
 )
 from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
+
+# OpenRouter bindings in the DEFAULT slot: these live tests exercise the
+# OpenRouter transport directly, with no failover machinery involved.
+# Level 1 = flash (no reasoning), level 3 = pro (xhigh reasoning).
+_OPENROUTER_TIERS = TierConfig(
+    default=ProviderSlotConfig(
+        level1=FALLBACK_LEVEL1,
+        level2=FALLBACK_LEVEL2,
+        level3=FALLBACK_LEVEL3,
+    ),
+)
 
 
 def _require_key() -> None:
@@ -46,11 +59,8 @@ def test_pro_basic_text() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        level=2,
-        tier_config=TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-        ),
+        level=3,
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     try:
@@ -71,11 +81,8 @@ def test_pro_tool_usage() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        level=2,
-        tier_config=TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-        ),
+        level=3,
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Use tools when asked.",
         tools=[_echo],
     )
@@ -117,11 +124,8 @@ def test_pro_thinking_tool_mix() -> None:
     _require_key()
     provider = _make_provider()
     agent = provider.build_agent(
-        level=2,
-        tier_config=TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-        ),
+        level=3,
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Use tools when helpful.",
         tools=[_echo],
     )
@@ -164,7 +168,7 @@ def test_flash_basic_text() -> None:
     provider = _make_provider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     try:
@@ -191,7 +195,7 @@ def test_flash_tool_usage() -> None:
     provider = _make_provider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Use tools when asked.",
         tools=[_echo],
     )
@@ -255,11 +259,8 @@ def test_pro_resume_from_pending_tool_return_does_not_400() -> None:
 
     provider = _make_provider()
     agent = provider.build_agent(
-        level=2,
-        tier_config=TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-        ),
+        level=3,
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="Use the echo tool when asked.",
         tools=[_echo],
     )
@@ -309,11 +310,8 @@ def test_pro_thinking_only_assistant_turn_does_not_400() -> None:
 
     provider = _make_provider()
     agent = provider.build_agent(
-        level=2,
-        tier_config=TierConfig(
-            level1=LEVEL1_DEFAULT,
-            level2=LEVEL2_DEFAULT,
-        ),
+        level=3,
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are a helpful assistant. Answer concisely.",
     )
     history = [

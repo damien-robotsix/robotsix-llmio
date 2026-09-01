@@ -23,17 +23,20 @@ if TYPE_CHECKING:
     from robotsix_llmio.config.factory import create_model
     from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
     from robotsix_llmio.config.tier import (
-        LEVEL1_DEFAULT,
-        LEVEL2_DEFAULT,
-        LEVEL3_DEFAULT,
-        LEVEL4_DEFAULT,
+        DEFAULT_LEVEL1,
+        DEFAULT_LEVEL2,
+        DEFAULT_LEVEL3,
+        FALLBACK_LEVEL1,
+        FALLBACK_LEVEL2,
+        FALLBACK_LEVEL3,
+        FailoverConfig,
+        ProviderSlotConfig,
         TierConfig,
         TierLevel,
         TierLevelConfig,
     )
 
     from .agent import AgentHandle, build_agent
-    from .cooldown import ModelHealthTracker, get_health_tracker, reset_health_tracker
     from .cost import flush_current_provider, record_cost
     from .cost_log import CostLogSource, CostRecord, CostWindow, LoggedCost
     from .factory import (
@@ -41,6 +44,16 @@ if TYPE_CHECKING:
         default_tier_config,
         get_provider_for_identifier,
         get_provider_for_level,
+    )
+    from .failover import (
+        FailoverStatus,
+        ProviderFailoverTracker,
+        acall_with_failover,
+        call_with_failover,
+        get_failover_status,
+        get_failover_tracker,
+        is_provider_shaped,
+        reset_failover_tracker,
     )
     from .http import timeout_http_client
     from .identifier import (
@@ -75,7 +88,6 @@ if TYPE_CHECKING:
         run_multi_table_migrations,
     )
     from .text_utils import html_to_text
-    from .tier_fallback import acall_with_tier_fallback, call_with_tier_fallback
     from .tracing import (
         TraceSpan,
         active_routing_key,
@@ -94,55 +106,62 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "DEFAULT_LEVEL1",
+    "DEFAULT_LEVEL2",
+    "DEFAULT_LEVEL3",
     "DEFAULT_TOLERANCE",
-    "LEVEL1_DEFAULT",
-    "LEVEL2_DEFAULT",
-    "LEVEL3_DEFAULT",
-    "LEVEL4_DEFAULT",
+    "FALLBACK_LEVEL1",
+    "FALLBACK_LEVEL2",
+    "FALLBACK_LEVEL3",
     "AgentHandle",
     "AsyncLangfuseReadClient",
     "CostLogSource",
     "CostRecord",
     "CostWindow",
     "Discrepancy",
+    "FailoverConfig",
+    "FailoverStatus",
     "LLMProvider",
     "LangfuseClientError",
     "LangfuseCostLogSource",
     "LangfuseReadClient",
     "LoggedCost",
     "MalformedIdentifierError",
-    "ModelHealthTracker",
     "ParsedIdentifier",
     "ProviderCost",
     "ProviderCostSource",
+    "ProviderFailoverTracker",
+    "ProviderSlotConfig",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
     "TierLevelConfig",
     "TraceSpan",
+    "acall_with_failover",
     "acall_with_retry",
     "acall_with_retry_and_fallback",
-    "acall_with_tier_fallback",
     "active_routing_key",
     "add_column_if_missing",
     "arun_agent",
     "build_agent",
     "build_agent_for_level",
+    "call_with_failover",
     "call_with_retry",
     "call_with_retry_and_fallback",
-    "call_with_tier_fallback",
     "create_model",
     "current_session",
     "default_tier_config",
     "flush_current_provider",
     "flush_tracing",
-    "get_health_tracker",
+    "get_failover_status",
+    "get_failover_tracker",
     "get_provider_for_identifier",
     "get_provider_for_level",
     "get_recording_span",
     "get_tracer",
     "html_to_text",
     "install_signal_handlers",
+    "is_provider_shaped",
     "is_rate_limited",
     "is_transient",
     "is_usage_exhausted",
@@ -154,7 +173,7 @@ __all__ = [
     "parse_model_identifier",
     "reconcile",
     "record_cost",
-    "reset_health_tracker",
+    "reset_failover_tracker",
     "run_additive_migrations",
     "run_agent",
     "run_multi_table_migrations",
@@ -172,10 +191,15 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     # -- agent
     "AgentHandle": (".agent", "AgentHandle"),
     "build_agent": (".agent", "build_agent"),
-    # -- cooldown
-    "ModelHealthTracker": (".cooldown", "ModelHealthTracker"),
-    "get_health_tracker": (".cooldown", "get_health_tracker"),
-    "reset_health_tracker": (".cooldown", "reset_health_tracker"),
+    # -- failover
+    "FailoverStatus": (".failover", "FailoverStatus"),
+    "ProviderFailoverTracker": (".failover", "ProviderFailoverTracker"),
+    "acall_with_failover": (".failover", "acall_with_failover"),
+    "call_with_failover": (".failover", "call_with_failover"),
+    "get_failover_status": (".failover", "get_failover_status"),
+    "get_failover_tracker": (".failover", "get_failover_tracker"),
+    "is_provider_shaped": (".failover", "is_provider_shaped"),
+    "reset_failover_tracker": (".failover", "reset_failover_tracker"),
     # -- cost_log
     "CostLogSource": (".cost_log", "CostLogSource"),
     "CostRecord": (".cost_log", "CostRecord"),
@@ -218,9 +242,6 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "is_rate_limited": (".retry", "is_rate_limited"),
     "is_transient": (".retry", "is_transient"),
     "is_usage_exhausted": (".retry", "is_usage_exhausted"),
-    # -- tier_fallback
-    "acall_with_tier_fallback": (".tier_fallback", "acall_with_tier_fallback"),
-    "call_with_tier_fallback": (".tier_fallback", "call_with_tier_fallback"),
     # -- sqlite_utils
     "add_column_if_missing": (".sqlite_utils", "add_column_if_missing"),
     "run_additive_migrations": (".sqlite_utils", "run_additive_migrations"),
@@ -246,10 +267,14 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "start_span": (".tracing", "start_span"),
     "start_trace": (".tracing", "start_trace"),
     # -- robotsix_llmio.config (full dotted paths)
-    "LEVEL1_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL1_DEFAULT"),
-    "LEVEL2_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL2_DEFAULT"),
-    "LEVEL3_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL3_DEFAULT"),
-    "LEVEL4_DEFAULT": ("robotsix_llmio.config.tier", "LEVEL4_DEFAULT"),
+    "DEFAULT_LEVEL1": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL1"),
+    "DEFAULT_LEVEL2": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL2"),
+    "DEFAULT_LEVEL3": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL3"),
+    "FALLBACK_LEVEL1": ("robotsix_llmio.config.tier", "FALLBACK_LEVEL1"),
+    "FALLBACK_LEVEL2": ("robotsix_llmio.config.tier", "FALLBACK_LEVEL2"),
+    "FALLBACK_LEVEL3": ("robotsix_llmio.config.tier", "FALLBACK_LEVEL3"),
+    "FailoverConfig": ("robotsix_llmio.config.tier", "FailoverConfig"),
+    "ProviderSlotConfig": ("robotsix_llmio.config.tier", "ProviderSlotConfig"),
     "TierConfig": ("robotsix_llmio.config.tier", "TierConfig"),
     "TierLevel": ("robotsix_llmio.config.tier", "TierLevel"),
     "TierLevelConfig": ("robotsix_llmio.config.tier", "TierLevelConfig"),

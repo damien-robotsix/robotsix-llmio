@@ -12,19 +12,26 @@ from pydantic_ai.tools import Tool as PydanticTool
 
 from robotsix_llmio.claude_sdk._tool_agent import _SdkToolAgentHandle
 from robotsix_llmio.claude_sdk.provider import ClaudeSDKProvider
-from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+from robotsix_llmio.config.tier import (
+    ProviderSlotConfig,
+    TierConfig,
+    TierLevelConfig,
+)
 
 # ---------------------------------------------------------------------------
 # Shared TierConfig constants
 # ---------------------------------------------------------------------------
 
-_HAIKU_AT_LEVEL1 = TierConfig(
-    level1=TierLevelConfig(model="claudeSDK-haiku"),
-)
-_OPUS_AT_LEVEL2 = TierConfig(
+# All three levels are required by ProviderSlotConfig; the levels a test does
+# not exercise are filled with the same claudeSDK models the baked default
+# slot uses.
+_CLAUDE_SLOT = ProviderSlotConfig(
     level1=TierLevelConfig(model="claudeSDK-haiku"),
     level2=TierLevelConfig(model="claudeSDK-opus"),
+    level3=TierLevelConfig(model="claudeSDK-claude-fable-5"),
 )
+_HAIKU_AT_LEVEL1 = TierConfig(default=_CLAUDE_SLOT)
+_OPUS_AT_LEVEL2 = TierConfig(default=_CLAUDE_SLOT)
 
 
 # ---------------------------------------------------------------------------

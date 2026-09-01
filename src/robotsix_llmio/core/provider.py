@@ -96,7 +96,8 @@ def _resolve_model_name(
 
     When *tier_config* is ``None``, a default :class:`TierConfig` is built
     via the no-arg constructor, which produces independent deep copies of
-    the module-level baked defaults.
+    the module-level baked defaults. Resolution honours the provider slot
+    the failover tracker currently designates as active.
     """
     if tier_config is None:
         from robotsix_llmio.config.tier import TierConfig
@@ -126,7 +127,7 @@ class LLMProvider(ABC):
         model:
             The concrete model name (e.g. ``"deepseek/deepseek-v4-flash-latest"``).
         level:
-            Capability level (1, 2, 3, 4, or 5) for per-level policy hooks.
+            Capability level (1, 2, or 3) for per-level policy hooks.
             ``0`` is the sentinel for "unknown / direct ``new_model()``
             call" — providers should apply a safe default.
 
@@ -162,12 +163,11 @@ class LLMProvider(ABC):
         Parameters
         ----------
         level:
-            Integer 1-4 selecting the capability tier:
+            Integer 1-3 selecting the capability level:
 
-            - ``1`` — cheap, fast, repetitive tasks
-            - ``2`` — intermediate, e.g. implementing code
-            - ``3`` — high-level planning / refine
-            - ``4`` — frontier: hardest reasoning and long-horizon work
+            - ``1`` — cheap, frequent: monitors, classifiers, summaries
+            - ``2`` — workhorse: implementing code, main assistant turns
+            - ``3`` — frontier: hardest reasoning and long-horizon work
 
         tier_config:
             When provided, resolution is::

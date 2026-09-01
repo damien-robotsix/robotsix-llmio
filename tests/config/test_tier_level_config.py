@@ -6,11 +6,12 @@ from __future__ import annotations
 import pytest
 
 from robotsix_llmio.config.tier import (
-    LEVEL1_DEFAULT,
-    LEVEL2_DEFAULT,
-    LEVEL3_DEFAULT,
-    LEVEL4_DEFAULT,
-    LEVEL5_DEFAULT,
+    DEFAULT_LEVEL1,
+    DEFAULT_LEVEL2,
+    DEFAULT_LEVEL3,
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
     TierLevelConfig,
 )
 from robotsix_llmio.core.identifier import MalformedIdentifierError
@@ -126,37 +127,44 @@ def test_tier_level_config_malformed_identifier_raises():
 # ========================================================================== #
 
 
-def test_level1_default():
-    assert LEVEL1_DEFAULT.model == "openrouter-deepseek/deepseek-v4-flash-20260731"
-    assert LEVEL1_DEFAULT.provider == "openrouter"
-    assert LEVEL1_DEFAULT.model_name == "deepseek/deepseek-v4-flash-20260731"
+def test_default_slot_levels():
+    """The default (Anthropic / Claude SDK) slot: haiku, opus, fable."""
+    assert DEFAULT_LEVEL1.model == "claudeSDK-haiku"
+    assert DEFAULT_LEVEL2.model == "claudeSDK-opus"
+    assert DEFAULT_LEVEL3.model == "claudeSDK-claude-fable-5"
+    for tlc in (DEFAULT_LEVEL1, DEFAULT_LEVEL2, DEFAULT_LEVEL3):
+        assert tlc.provider == "claudeSDK"
+        # No max_tokens on Claude SDK levels — task_budget is advisory only.
+        assert tlc.max_tokens is None
+
+
+def test_fallback_level1():
+    assert FALLBACK_LEVEL1.model == "openrouter-deepseek/deepseek-v4-flash-20260731"
+    assert FALLBACK_LEVEL1.provider == "openrouter"
+    assert FALLBACK_LEVEL1.model_name == "deepseek/deepseek-v4-flash-20260731"
     # Cheap tier prefers a stable *cheap* upstream (DeepInfra), not DeepSeek,
     # whose repriced flash endpoint no longer satisfies the cheap-tier ceiling.
-    assert LEVEL1_DEFAULT.provider_kwargs == {"preferred_provider": "DeepInfra"}
+    assert FALLBACK_LEVEL1.provider_kwargs == {"preferred_provider": "DeepInfra"}
+    assert FALLBACK_LEVEL1.max_tokens == 16384
 
 
-def test_level2_default():
-    assert LEVEL2_DEFAULT.model == "claudeSDK-haiku"
-    assert LEVEL2_DEFAULT.provider == "claudeSDK"
-    assert LEVEL2_DEFAULT.model_name == "haiku"
+def test_fallback_level2_same_flash_with_reasoning_headroom():
+    """Level 2 binds the SAME flash snapshot as level 1 — the difference is
+    the level>=2 reasoning policy, a larger output cap (reasoning bills
+    against it) and an explicit cheap price ceiling (the implicit per-level
+    default would apply the capable ceiling)."""
+    assert FALLBACK_LEVEL2.model_name == FALLBACK_LEVEL1.model_name
+    assert FALLBACK_LEVEL2.max_tokens == 65536
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 0.10
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 0.20
+    assert FALLBACK_LEVEL2.provider_kwargs["preferred_provider"] == "DeepInfra"
 
 
-def test_level3_default():
-    assert LEVEL3_DEFAULT.model == "openrouter-deepseek/deepseek-v4-pro-0813"
-    assert LEVEL3_DEFAULT.provider == "openrouter"
-    assert LEVEL3_DEFAULT.model_name == "deepseek/deepseek-v4-pro-0813"
-
-
-def test_level4_default():
-    assert LEVEL4_DEFAULT.model == "claudeSDK-opus"
-    assert LEVEL4_DEFAULT.provider == "claudeSDK"
-    assert LEVEL4_DEFAULT.model_name == "opus"
-
-
-def test_level5_default():
-    assert LEVEL5_DEFAULT.model == "claudeSDK-claude-fable-5"
-    assert LEVEL5_DEFAULT.provider == "claudeSDK"
-    assert LEVEL5_DEFAULT.model_name == "claude-fable-5"
+def test_fallback_level3():
+    assert FALLBACK_LEVEL3.model == "openrouter-deepseek/deepseek-v4-pro-0813"
+    assert FALLBACK_LEVEL3.provider == "openrouter"
+    assert FALLBACK_LEVEL3.provider_kwargs["preferred_provider"] == "StreamLake"
+    assert FALLBACK_LEVEL3.max_tokens == 131072
 
 
 # ========================================================================== #

@@ -1,66 +1,81 @@
-"""Tier configuration schema — five configurable provider+model bindings.
+"""Tier configuration schema — three capability levels across two provider slots.
 
 The canonical path for tier resolution is :meth:`TierConfig.for_level`.
+
+Two *provider slots* each bind all three capability levels:
+
+- ``default`` — the provider used in normal operation (baked: Anthropic via
+  the Claude SDK subscription — haiku / opus / claude-fable-5).
+- ``fallback`` — the provider used while automatic failover is active
+  (baked: DeepSeek via OpenRouter — flash / flash-with-reasoning / pro).
+
+Capability levels never fall back to one another: a level-2 task is a
+level-2 task on whichever provider slot is active. Failover switches the
+*provider slot*, per :class:`FailoverConfig`, and is driven by
+:mod:`robotsix_llmio.core.failover`.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # --------------------------------------------------------------------------- #
-#  TierLevel — five configuration tiers                                       #
+#  TierLevel — three capability levels                                        #
 # --------------------------------------------------------------------------- #
 
 
 class TierLevel(StrEnum):
-    """Five-tier configuration selector.
+    """Three-level capability selector.
 
-    | Member   | Value      | Purpose                                                  |
-    |----------|------------|----------------------------------------------------------|
-    | LEVEL1   | ``level1`` | Cheap, obvious, repetitive tasks (pay-per-token)         |
-    | LEVEL2   | ``level2`` | Cheap flat-rate: monitors, retrospects, classification   |
-    | LEVEL3   | ``level3`` | Intermediate (e.g. implementing code)                    |
-    | LEVEL4   | ``level4`` | High-level organisation and planning                     |
-    | LEVEL5   | ``level5`` | Frontier — hardest reasoning and long-horizon            |
+    | Member   | Value      | Purpose                                              |
+    |----------|------------|------------------------------------------------------|
+    | LEVEL1   | ``level1`` | Cheap, frequent: monitors, classifiers, summaries    |
+    | LEVEL2   | ``level2`` | Workhorse: implementing code, main assistant turns   |
+    | LEVEL3   | ``level3`` | Frontier: hardest reasoning and long-horizon work    |
 
-    Level 2 was inserted on 2026-08-29 (Claude haiku on the flat-rate
-    subscription); the former levels 2-4 shifted to 3-5.
+    Collapsed from five levels on 2026-09-01: equivalent-capability models on
+    other providers are no longer separate levels — they live in the
+    ``fallback`` provider slot of :class:`TierConfig` at the *same* level.
     """
 
     LEVEL1 = "level1"
     LEVEL2 = "level2"
     LEVEL3 = "level3"
-    LEVEL4 = "level4"
-    LEVEL5 = "level5"
+
+
+#: Slot names accepted by :meth:`TierConfig.for_level`.
+ProviderSlotName = Literal["default", "fallback"]
 
 
 # --------------------------------------------------------------------------- #
-#  TierLevelConfig — a single tier's provider+model binding                   #
+#  TierLevelConfig — a single level's provider+model binding                  #
 # --------------------------------------------------------------------------- #
 
 
 class TierLevelConfig(BaseModel):
-    """A single tier's provider-model binding.
+    """A single level's provider-model binding.
 
     Describes which combined *provider-model* identifier to use for a given
     :class:`TierLevel`.  The identifier is ``<provider>-<model-name>``: the
     provider prefix (before the first hyphen) and the concrete model name —
     e.g. ``"claudeSDK-opus"`` or
-    ``"openrouter-deepseek/deepseek-v4-flash-latest"``.
+    ``"openrouter-deepseek/deepseek-v4-flash-20260731"``.
 
     A :func:`~pydantic.model_validator` parses the identifier and confirms
     the provider prefix is a known backend; the concrete model name is the
     backend's concern (no upfront registry check).
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     model: str = Field(
         description=(
             "Combined provider-model identifier — e.g. "
             "``'claudeSDK-opus'`` or "
-            "``'openrouter-deepseek/deepseek-v4-flash-latest'``. "
+            "``'openrouter-deepseek/deepseek-v4-flash-20260731'``. "
             "The provider prefix (before the first hyphen) "
             "drives lazy backend import; the remainder is the concrete "
             "model name fed to the backend."
@@ -118,84 +133,90 @@ class TierLevelConfig(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-#  Baked defaults                                                             #
+#  Baked defaults — default slot (Anthropic via the Claude SDK)               #
 # --------------------------------------------------------------------------- #
 
-# ``max_tokens`` on the OpenRouter levels is a hard per-response output cap.
-# Set it too low and a long generation does not degrade — it fails outright,
-# raising "Model token limit (N) exceeded before any response was generated"
-# and, once the retries and the fallback tier are spent, BLOCKing the caller.
-# Observed 2026-08-20: implement agents asked to write a large file (splitting
-# a ~1200-line module, cloning a workflow) blew the 8192 cap before emitting
-# a single token, on models that serve 384k completion tokens. The values
-# below leave generous headroom while still bounding a runaway response to a
-# few cents at the capable tier's ~$2/M completion rate.
+# No ``max_tokens`` on the Claude SDK levels, deliberately. ``ClaudeAgentOptions``
+# has no per-response cap at all, so the value can only be forwarded as a
+# ``task_budget`` — an *advisory* whole-loop allowance the model is shown as a
+# countdown, not a ceiling anything enforces. Values below the API's 20,000
+# floor are clamped UP, so they cap nothing and simply tell the model it has a
+# small allowance for the entire agentic task. Observed 2026-08-06: agents
+# abandoning work before starting it ("I'm out of token budget for this task
+# before I could load the required tools"), and, on models that reject the
+# parameter outright, a hard 400 that killed the caller's stage. The OpenRouter
+# levels below keep ``max_tokens`` — there it IS a real enforced per-response
+# cap, which is what the field means.
+DEFAULT_LEVEL1 = TierLevelConfig(model="claudeSDK-haiku")
+
+DEFAULT_LEVEL2 = TierLevelConfig(model="claudeSDK-opus")
+
+DEFAULT_LEVEL3 = TierLevelConfig(model="claudeSDK-claude-fable-5")
+
+
+# --------------------------------------------------------------------------- #
+#  Baked defaults — fallback slot (DeepSeek via OpenRouter)                   #
+# --------------------------------------------------------------------------- #
+
+# ``max_tokens`` on the OpenRouter levels is a hard per-response output cap,
+# and it covers REASONING tokens too: at level >= 2 the DeepSeek layer runs
+# with ``reasoning_setting={"effort": "xhigh"}`` and those tokens are billed
+# and counted against ``max_tokens`` before a single content token is emitted.
+# Size the cap against *reasoning + answer*, not the answer (observed
+# 2026-08-27: a 32768 cap blew deterministically before any output on an
+# agentic prompt). Set it too low and a long generation does not degrade — it
+# fails outright ("Model token limit (N) exceeded before any response was
+# generated"). Keep the value at or below the smallest
+# ``max_completion_tokens`` among the endpoints the level's price ceiling
+# admits, or OpenRouter rejects the request outright.
 #
-# The cap covers REASONING tokens too. Every tier above level 1 runs with
-# ``reasoning_setting={"effort": "xhigh"}`` (see ``_deepseek_provider``), and
-# those tokens are billed and counted against ``max_tokens`` before a single
-# content token is emitted — so a cap sized for the visible answer alone is
-# really a cap on the thinking. Observed 2026-08-27: mill's implement stage
-# blew the 32768 cap on ``xiaomi/mimo-v2.5-pro`` (then level 2, now level 3)
-# before generating any output, on every attempt, deterministically. Size
-# these against the tier's
-# *reasoning + answer*, not the answer.
-#
-# Keep the value at or below the smallest ``max_completion_tokens`` among the
-# endpoints the tier's price ceiling admits, or OpenRouter rejects the request
-# outright. For level 3 (mimo) today that floor is StreamLake's 128000.
-# Level 1 pins the dated snapshot rather than OpenRouter's
-# "~deepseek/deepseek-v4-flash-latest" alias: the un-prefixed "-latest" slug
-# is not a routable model id, and a floating alias would drift out of the
-# measured cheap-tier price ceiling anyway.
-#
-# ``preferred_provider`` is pinned to a stable *cheap* upstream (DeepInfra)
-# rather than DeepSeek. On 2026-08-31 DeepSeek repriced its own flash serving
-# to ~$0.44/$1.32 per 1M — 4.4x above the baked cheap-tier ceiling
-# ($0.10/$0.20) — so DeepSeek no longer satisfies its own ceiling and the
-# price-ceiling drift guard (scripts/check-price-ceilings.py, rule 1) failed.
-# DeepInfra ($0.08/$0.18, cache-read <= $0.02/1M) sits under the ceiling and is
-# one of several healthy endpoints serving the same snapshot, so preferring it
-# keeps routing stable and cheap while ``allow_fallbacks`` still lets
-# OpenRouter route past it under the same ceiling. The ceiling itself is
-# unchanged (still ``DEFAULT_MAX_PRICE_CHEAP``): the guard did its job and the
-# fix is the *preference*, not a relaxed cap. This mirrors how ``LEVEL3_DEFAULT``
-# carries its routing (``preferred_provider``/``max_price``/``ignore``) in
-# ``provider_kwargs``.
-LEVEL1_DEFAULT = TierLevelConfig(
+# Level 1 pins the dated flash snapshot rather than OpenRouter's
+# "-latest" alias: the un-prefixed "-latest" slug is not a routable model id,
+# and a floating alias would drift out of the measured cheap-tier price
+# ceiling anyway. ``preferred_provider`` is pinned to a stable *cheap*
+# upstream (DeepInfra, $0.08/$0.18, cache-read <= $0.02/1M) rather than
+# DeepSeek: on 2026-08-31 DeepSeek repriced its own flash serving to
+# ~$0.44/$1.32 per 1M — 4.4x above the baked cheap-tier ceiling — so DeepSeek
+# no longer satisfies its own ceiling (scripts/check-price-ceilings.py,
+# rule 1). ``allow_fallbacks`` still lets OpenRouter route past DeepInfra
+# under the same ceiling.
+FALLBACK_LEVEL1 = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-flash-20260731",
     max_tokens=16384,
     provider_kwargs={"preferred_provider": "DeepInfra"},
 )
 
-# Level 2 is the cheap FLAT-RATE tier (Claude haiku on the subscription):
-# monitors, retrospects, classifiers — work that is too frequent for a
-# pay-per-token model but does not need opus. Inserted 2026-08-29; the
-# former levels 2-4 became 3-5.
-LEVEL2_DEFAULT = TierLevelConfig(
-    model="claudeSDK-haiku",
+# Level 2 is the SAME flash snapshot as level 1 — deliberately. What differs
+# is the per-level DeepSeek policy: at level 2 reasoning runs at xhigh effort
+# (see ``OpenRouterDeepseekProvider._post_build_model``), which is what makes
+# flash a viable workhorse. The price ceiling is stated EXPLICITLY because the
+# per-level defaults would otherwise apply the capable-tier ceiling
+# ($1.16/$3.40) to a flash-priced model and admit endpoints 10x the intended
+# rate. The output cap is larger than level 1's because xhigh reasoning bills
+# against it.
+FALLBACK_LEVEL2 = TierLevelConfig(
+    model="openrouter-deepseek/deepseek-v4-flash-20260731",
+    max_tokens=65536,
+    provider_kwargs={
+        "preferred_provider": "DeepInfra",
+        "max_price_prompt": 0.10,
+        "max_price_completion": 0.20,
+    },
 )
 
-# Level 3 returned to DeepSeek v4 pro on 2026-09-01 (operator decision:
-# mimo-v2.5-pro output quality was not holding up as the workhorse fallback
-# tier), pinned to the DATED ``-0813`` snapshot the operator designated —
-# same lesson as level 1: dated snapshots route deterministically while
-# undated slugs point at whatever pool OpenRouter aliases them to.
-# Routing measured 2026-09-01 on ``deepseek-v4-pro-0813``: cheapest HEALTHY
-# endpoints are StreamLake ($1.1154/$3.3462 per 1M, cache-read $0.0372),
-# GMICloud ($1.122/$3.366) and Alibaba ($1.122/$3.366, cache-read $0.1122 =
-# 3.0x StreamLake, inside the guard's 4x cache factor). The ceiling below is
-# aligned tight to that band — it admits exactly those three (the guard
-# requires >= 3 healthy) and excludes the $1.30+/$3.96 tail, DeepSeek's own
-# endpoint included ($1.32/$3.96).
-LEVEL3_DEFAULT = TierLevelConfig(
+# Level 3 pins the DATED ``-0813`` pro snapshot — same lesson as level 1:
+# dated snapshots route deterministically while undated slugs point at
+# whatever pool OpenRouter aliases them to. Routing measured 2026-09-01 on
+# ``deepseek-v4-pro-0813``: cheapest HEALTHY endpoints are StreamLake
+# ($1.1154/$3.3462 per 1M, cache-read $0.0372), GMICloud ($1.122/$3.366) and
+# Alibaba ($1.122/$3.366). The ceiling below is aligned tight to that band —
+# it admits exactly those three (the price-ceiling guard requires >= 3
+# healthy) and excludes the $1.30+/$3.96 tail, DeepSeek's own endpoint
+# included ($1.32/$3.96). Admitted endpoints all serve
+# max_completion >= 384000, so 131072 keeps ample reasoning + answer headroom
+# while bounding a runaway response.
+FALLBACK_LEVEL3 = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-pro-0813",
-    # Reasoning model: thinking tokens bill against max_tokens, and a large
-    # agentic prompt can burn the whole budget before ANY visible output
-    # ("Model token limit exceeded before any response was generated" — live
-    # incident d6ad6beb, 08-31, on the previous level-3 model). Admitted
-    # endpoints all serve max_completion >= 384000, so 131072 keeps ample
-    # reasoning + answer headroom while bounding a runaway response.
     max_tokens=131072,
     provider_kwargs={
         "preferred_provider": "StreamLake",
@@ -204,80 +225,39 @@ LEVEL3_DEFAULT = TierLevelConfig(
     },
 )
 
-# No ``max_tokens`` on the Claude SDK levels, deliberately. ``ClaudeAgentOptions``
-# has no per-response cap at all, so the value can only be forwarded as a
-# ``task_budget`` — an *advisory* whole-loop allowance the model is shown as a
-# countdown, not a ceiling anything enforces. Both defaults sat below the API's
-# 20,000 floor and were clamped UP, so they capped nothing and simply told the
-# model it had a small allowance for the entire agentic task. Observed
-# 2026-08-06: agents abandoning work before starting it ("I'm out of token
-# budget for this task before I could load the required tools"), and, on models
-# that reject the parameter outright, a hard 400 that killed the caller's stage.
-# The OpenRouter levels above keep ``max_tokens`` — there it IS a real enforced
-# per-response cap, which is what the field means.
-LEVEL4_DEFAULT = TierLevelConfig(
-    model="claudeSDK-opus",
-)
-
-LEVEL5_DEFAULT = TierLevelConfig(
-    model="claudeSDK-claude-fable-5",
-)
-
 
 # --------------------------------------------------------------------------- #
-#  TierConfig — aggregates four TierLevelConfig slots                         #
+#  ProviderSlotConfig — one provider's binding of all three levels            #
 # --------------------------------------------------------------------------- #
 
 
-class TierConfig(BaseModel):
-    """Five-tier provider+model configuration.
+class ProviderSlotConfig(BaseModel):
+    """One provider slot's binding of all three capability levels.
 
-    All five slots are optional: each falls back to its module-level baked
-    default (:data:`LEVEL1_DEFAULT` … :data:`LEVEL5_DEFAULT`) when omitted,
-    so ``TierConfig()`` yields the fully baked default configuration.
-
-    Example YAML/JSON (override level 1 only; levels 2-5 stay default)::
-
-        {"level1": {"model": "openrouter-deepseek/deepseek-v4-flash-latest"}}
-
-    Use :meth:`for_level` to resolve an integer level to the corresponding
-    :class:`TierLevelConfig`.
+    A slot is a *role* (``default`` or ``fallback`` in :class:`TierConfig`),
+    not a provider name: each level entry carries its own combined
+    provider-model identifier, so a slot can technically mix backends. The
+    baked configuration keeps each slot on one provider — that is what makes
+    provider-level failover meaningful.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     level1: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL1_DEFAULT.model_copy(deep=True),
-        description="Level 1 — cheap, obvious, repetitive tasks.",
+        description="Level 1 — cheap, frequent: monitors, classifiers, summaries.",
     )
     level2: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL2_DEFAULT.model_copy(deep=True),
-        description="Level 2 — cheap flat-rate: monitors, retrospects, classification.",
+        description="Level 2 — workhorse: implementing code, main assistant turns.",
     )
     level3: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL3_DEFAULT.model_copy(deep=True),
-        description="Level 3 — intermediate tasks (e.g. implementing code).",
-    )
-    level4: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL4_DEFAULT.model_copy(deep=True),
-        description="Level 4 — high-level organisation and planning.",
-    )
-    level5: TierLevelConfig = Field(
-        default_factory=lambda: LEVEL5_DEFAULT.model_copy(deep=True),
-        description="Level 5 — frontier: hardest reasoning and long-horizon work.",
+        description="Level 3 — frontier: hardest reasoning and long-horizon work.",
     )
 
     def for_level(self, level: int) -> TierLevelConfig:
-        """Return the :class:`TierLevelConfig` for the given integer *level*.
-
-        | ``level`` | Attribute |
-        |-----------|-----------|
-        | 1         | ``self.level1`` |
-        | 2         | ``self.level2`` |
-        | 3         | ``self.level3`` |
-        | 4         | ``self.level4`` |
-        | 5         | ``self.level5`` |
+        """Return the :class:`TierLevelConfig` for integer *level* (1, 2, or 3).
 
         Raises:
-            ValueError: If *level* is not 1, 2, 3, 4, or 5.
+            ValueError: If *level* is not 1, 2, or 3.
 
         """
         if level == 1:
@@ -286,8 +266,141 @@ class TierConfig(BaseModel):
             return self.level2
         if level == 3:
             return self.level3
-        if level == 4:
-            return self.level4
-        if level == 5:
-            return self.level5
-        raise ValueError(f"`level` must be 1, 2, 3, 4, or 5, got {level!r}")
+        raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
+
+
+def _default_slot() -> ProviderSlotConfig:
+    """Fresh copy of the baked default (Anthropic / Claude SDK) slot."""
+    return ProviderSlotConfig(
+        level1=DEFAULT_LEVEL1.model_copy(deep=True),
+        level2=DEFAULT_LEVEL2.model_copy(deep=True),
+        level3=DEFAULT_LEVEL3.model_copy(deep=True),
+    )
+
+
+def _fallback_slot() -> ProviderSlotConfig:
+    """Fresh copy of the baked fallback (DeepSeek / OpenRouter) slot."""
+    return ProviderSlotConfig(
+        level1=FALLBACK_LEVEL1.model_copy(deep=True),
+        level2=FALLBACK_LEVEL2.model_copy(deep=True),
+        level3=FALLBACK_LEVEL3.model_copy(deep=True),
+    )
+
+
+# --------------------------------------------------------------------------- #
+#  FailoverConfig — when to switch slots, and for how long                    #
+# --------------------------------------------------------------------------- #
+
+
+class FailoverConfig(BaseModel):
+    """Automatic provider-failover policy.
+
+    After :attr:`failure_threshold` consecutive provider-shaped failures on
+    the ``default`` slot (a provider-wide exhaustion arms failover
+    immediately), calls route to the ``fallback`` slot for
+    :attr:`window_seconds`, then automatically return to ``default``. See
+    :mod:`robotsix_llmio.core.failover`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    failure_threshold: int = Field(
+        default=3,
+        ge=1,
+        description=(
+            "Consecutive provider-shaped failures on the default slot before "
+            "failover arms. A provider-wide exhaustion (e.g. the Claude "
+            "subscription out of usage credits) arms failover immediately, "
+            "regardless of this threshold."
+        ),
+    )
+    window_seconds: float = Field(
+        default=900.0,
+        gt=0,
+        description=(
+            "How long calls stay on the fallback slot once failover arms, in "
+            "seconds (default 900 = 15 minutes). After the window expires the "
+            "next call probes the default slot again; a still-broken default "
+            "re-arms a fresh window."
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
+#  TierConfig — two provider slots + failover policy                          #
+# --------------------------------------------------------------------------- #
+
+
+class TierConfig(BaseModel):
+    """Two-slot, three-level provider+model configuration.
+
+    All fields are optional: each slot falls back to its baked default
+    (Anthropic via the Claude SDK for ``default``, DeepSeek via OpenRouter
+    for ``fallback``), so ``TierConfig()`` yields the fully baked
+    configuration.
+
+    Example YAML/JSON (override the default slot's level 2 only; everything
+    else stays baked)::
+
+        {"default": {"level2": {"model": "claudeSDK-sonnet"}}}
+
+    Use :meth:`for_level` to resolve an integer level to the corresponding
+    :class:`TierLevelConfig`; by default it resolves against the slot the
+    failover tracker currently designates as active.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    default: ProviderSlotConfig = Field(
+        default_factory=_default_slot,
+        description=(
+            "Provider slot used in normal operation. Baked: Anthropic via "
+            "the Claude SDK — haiku / opus / claude-fable-5."
+        ),
+    )
+    fallback: ProviderSlotConfig = Field(
+        default_factory=_fallback_slot,
+        description=(
+            "Provider slot used while failover is active. Baked: DeepSeek "
+            "via OpenRouter — flash / flash-with-reasoning / pro."
+        ),
+    )
+    failover: FailoverConfig = Field(
+        default_factory=FailoverConfig,
+        description="Automatic provider-failover policy (threshold + window).",
+    )
+
+    def slot(self, name: ProviderSlotName) -> ProviderSlotConfig:
+        """Return the :class:`ProviderSlotConfig` named *name*."""
+        if name == "default":
+            return self.default
+        if name == "fallback":
+            return self.fallback
+        raise ValueError(f"`slot` must be 'default' or 'fallback', got {name!r}")
+
+    def for_level(
+        self,
+        level: int,
+        slot: ProviderSlotName | None = None,
+    ) -> TierLevelConfig:
+        """Resolve integer *level* (1, 2, or 3) to a :class:`TierLevelConfig`.
+
+        Args:
+            level: Capability level — 1, 2, or 3.
+            slot: Which provider slot to resolve against.  ``None`` (the
+                default) resolves against the slot the process-wide failover
+                tracker currently designates as active — ``default`` in
+                normal operation, ``fallback`` while a failover window is
+                open.  Pass an explicit slot name for pure config access
+                (e.g. to display both bindings in a UI).
+
+        Raises:
+            ValueError: If *level* is not 1, 2, or 3, or *slot* is not a
+                valid slot name.
+
+        """
+        if slot is None:
+            from robotsix_llmio.core.failover import get_failover_tracker
+
+            slot = get_failover_tracker().active_slot()
+        return self.slot(slot).for_level(level)

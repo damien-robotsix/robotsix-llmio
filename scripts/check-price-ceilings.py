@@ -35,7 +35,11 @@ from typing import Any
 
 import httpx
 
-from robotsix_llmio.config.tier import LEVEL1_DEFAULT, LEVEL3_DEFAULT
+from robotsix_llmio.config.tier import (
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
+)
 from robotsix_llmio.core.constants import HTTP_CLIENT_TIMEOUT
 from robotsix_llmio.openrouter._base import _DEFAULT_BASE_URL
 from robotsix_llmio.openrouter._deepseek_model import (
@@ -127,20 +131,28 @@ def _preferred_from_kwargs(kwargs: dict[str, Any]) -> str:
 _TIERS: tuple[TierCheck, ...] = (
     TierCheck(
         label="cheap (level 1)",
-        model=LEVEL1_DEFAULT.model_name,
-        ceiling=_ceiling_from_kwargs(LEVEL1_DEFAULT.provider_kwargs)
+        model=FALLBACK_LEVEL1.model_name,
+        ceiling=_ceiling_from_kwargs(FALLBACK_LEVEL1.provider_kwargs)
         or DEFAULT_MAX_PRICE_CHEAP,
-        ignore=_ignore_from_kwargs(LEVEL1_DEFAULT.provider_kwargs) or (),
-        preferred_provider=_preferred_from_kwargs(LEVEL1_DEFAULT.provider_kwargs),
+        ignore=_ignore_from_kwargs(FALLBACK_LEVEL1.provider_kwargs) or (),
+        preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL1.provider_kwargs),
+    ),
+    TierCheck(
+        label="cheap-reasoning (level 2)",
+        model=FALLBACK_LEVEL2.model_name,
+        ceiling=_ceiling_from_kwargs(FALLBACK_LEVEL2.provider_kwargs)
+        or DEFAULT_MAX_PRICE_CHEAP,
+        ignore=_ignore_from_kwargs(FALLBACK_LEVEL2.provider_kwargs) or (),
+        preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL2.provider_kwargs),
     ),
     TierCheck(
         label="capable (level 3)",
-        model=LEVEL3_DEFAULT.model_name,
-        ceiling=_ceiling_from_kwargs(LEVEL3_DEFAULT.provider_kwargs)
+        model=FALLBACK_LEVEL3.model_name,
+        ceiling=_ceiling_from_kwargs(FALLBACK_LEVEL3.provider_kwargs)
         or DEFAULT_MAX_PRICE_CAPABLE,
-        ignore=_ignore_from_kwargs(LEVEL3_DEFAULT.provider_kwargs)
+        ignore=_ignore_from_kwargs(FALLBACK_LEVEL3.provider_kwargs)
         or DEFAULT_IGNORE_CAPABLE,
-        preferred_provider=_preferred_from_kwargs(LEVEL3_DEFAULT.provider_kwargs),
+        preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL3.provider_kwargs),
     ),
 )
 
