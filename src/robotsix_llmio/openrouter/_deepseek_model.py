@@ -73,7 +73,7 @@ _TOOL_CALLS_KEY = "tool_calls"
 #: contradict each other. Measured 2026-08-21:
 #:
 #: * capable tier (``deepseek-v4-pro``) — DeepSeek lists $0.660/$1.980, so
-#:   $0.90/$2.40 admits DeepSeek plus StreamLake, Baidu, GMICloud
+#:   $1.15/$2.30 (2026-09-01: DeepSeek delisted v4-pro) admits StreamLake, GMICloud, Ionstream
 #:   ($0.792/$2.376) and DigitalOcean ($0.870/$1.740) — 5 healthy endpoints,
 #:   the preferred one included — while still excluding the $1.13+/$2.26+ tail
 #:   (Ionstream, CoreWeave, DeepInfra, Together, Fireworks, Azure, …) the cap
@@ -87,7 +87,7 @@ _TOOL_CALLS_KEY = "tool_calls"
 #:   endpoint: the old $0.25/$0.70 ceiling that admitted it also admitted a
 #:   fallback tail whose cache-read rates are 2-10x, which doubled the
 #:   fleet's effective flash cost on 2026-08-25.
-DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 0.90, "completion": 2.40}
+DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 1.15, "completion": 2.30}
 DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.10, "completion": 0.20}
 
 #: Upstream providers barred from capable-tier fallback routing. Their

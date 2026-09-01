@@ -176,20 +176,30 @@ LEVEL2_DEFAULT = TierLevelConfig(
     model="claudeSDK-haiku",
 )
 
+# Level 3 returned to ``deepseek-v4-pro`` on 2026-09-01 (operator decision:
+# mimo-v2.5-pro output quality was not holding up as the workhorse fallback
+# tier). Routing measured 2026-09-01: DeepSeek itself no longer serves
+# ``deepseek-v4-pro`` on OpenRouter, and the cheapest HEALTHY endpoints are
+# StreamLake ($1.042/$2.085 per 1M, cache-read $0.087) and GMICloud
+# ($1.044/$2.088), with Ionstream third ($1.131/$2.262). The ceiling below is
+# aligned tight to that band — it admits exactly those three healthy
+# endpoints (the price-ceiling guard requires >= 3) and nothing pricier.
+# DigitalOcean is cheaper on paper ($0.87/$1.74) but currently unhealthy and
+# on the capable-tier ignore list (cache-read outlier), so it neither serves
+# nor widens the ceiling.
 LEVEL3_DEFAULT = TierLevelConfig(
-    model="openrouter-xiaomi/mimo-v2.5-pro",
-    # mimo is a reasoning model: thinking tokens bill against max_tokens, and
-    # a large agentic prompt can burn the whole budget before ANY visible
-    # output ("Model token limit exceeded before any response was
-    # generated" — live incident d6ad6beb, 08-31). 131072 is the provider's
-    # max_completion cap; the model's context window is ~1M so this is
-    # purely the output ceiling.
+    model="openrouter-deepseek/deepseek-v4-pro",
+    # Reasoning model: thinking tokens bill against max_tokens, and a large
+    # agentic prompt can burn the whole budget before ANY visible output
+    # ("Model token limit exceeded before any response was generated" — live
+    # incident d6ad6beb, 08-31, on the previous level-3 model). Admitted
+    # endpoints all serve max_completion >= 384000, so 131072 keeps ample
+    # reasoning + answer headroom while bounding a runaway response.
     max_tokens=131072,
     provider_kwargs={
-        "preferred_provider": "Xiaomi",
-        "max_price_prompt": 0.55,
-        "max_price_completion": 1.10,
-        "ignore_providers": ["DigitalOcean", "DeepInfra"],
+        "preferred_provider": "StreamLake",
+        "max_price_prompt": 1.15,
+        "max_price_completion": 2.30,
     },
 )
 
