@@ -7,7 +7,7 @@ Two *provider slots* each bind all three capability levels:
 - ``default`` — the provider used in normal operation (baked: Anthropic via
   the Claude SDK subscription — haiku / opus / claude-fable-5).
 - ``fallback`` — the provider used while automatic failover is active
-  (baked: DeepSeek via OpenRouter — flash / pro / pro).
+  (baked: DeepSeek via OpenRouter — flash / flash / pro).
 
 Capability levels never fall back to one another: a level-2 task is a
 level-2 task on whichever provider slot is active. Failover switches the
@@ -186,24 +186,27 @@ FALLBACK_LEVEL1 = TierLevelConfig(
     provider_kwargs={"preferred_provider": "DeepInfra"},
 )
 
-# Level 2 binds the PRO snapshot, same as level 3 — deliberately. The original
-# rework bound flash here (cheap workhorse), but flash under xhigh reasoning
-# degenerates into token loops on long agentic contexts (observed live
-# 2026-09-01, an hour into the first failover window: a 90-turn chat session
-# collapsed into word salad — the same failure the pre-rework fleet guarded
-# against, and the reason the old workhorse fallback moved to pro that same
-# week). A workhorse that cannot carry the fleet's real contexts is not a
-# fallback. Flash remains the level-1 binding, where prompts are short and
-# reasoning is off.
+# Level 2 binds the SAME flash snapshot as level 1 — the operator's explicit
+# design decision (re-confirmed 2026-09-01 after a day on the fallback slot):
+# L1/L2 flash, L3 pro. KNOWN RISK, accepted: flash under the level>=2 xhigh
+# reasoning policy degenerated into token loops on one long (90-turn) chat
+# session earlier the same day; the operator chose the ~14x cost saving over
+# switching the workhorse to pro. If loops recur, the recorded alternatives
+# are pro at L2 or a capped reasoning effort for flash — change only with an
+# operator decision. The price ceiling is stated EXPLICITLY because the
+# per-level defaults would otherwise apply the capable-tier ceiling
+# ($1.16/$3.40) to a flash-priced model; the output cap exceeds level 1's
+# because reasoning tokens bill against it.
 FALLBACK_LEVEL2 = TierLevelConfig(
-    model="openrouter-deepseek/deepseek-v4-pro-0813",
-    max_tokens=131072,
+    model="openrouter-deepseek/deepseek-v4-flash-20260731",
+    max_tokens=65536,
     provider_kwargs={
-        "preferred_provider": "StreamLake",
-        "max_price_prompt": 1.16,
-        "max_price_completion": 3.40,
+        "preferred_provider": "DeepInfra",
+        "max_price_prompt": 0.10,
+        "max_price_completion": 0.20,
     },
 )
+
 
 # Level 3 pins the DATED ``-0813`` pro snapshot — same lesson as level 1:
 # dated snapshots route deterministically while undated slugs point at
@@ -379,7 +382,7 @@ class TierConfig(BaseModel):
         default_factory=_fallback_slot,
         description=(
             "Provider slot used while failover is active. Baked: DeepSeek "
-            "via OpenRouter — flash / pro / pro."
+            "via OpenRouter — flash / flash / pro."
         ),
     )
     failover: FailoverConfig = Field(

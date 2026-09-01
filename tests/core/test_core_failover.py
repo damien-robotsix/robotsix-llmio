@@ -220,7 +220,7 @@ def test_tier_config_for_level_follows_active_slot():
     assert cfg.for_level(2).model == "claudeSDK-opus"
     get_failover_tracker().configure(cfg.failover)
     get_failover_tracker().record_failure("default", _Exhausted("out"))
-    assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-pro-0813"
+    assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
     assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
 
 

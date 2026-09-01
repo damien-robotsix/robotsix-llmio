@@ -110,7 +110,7 @@ Two provider slots, three levels each; level 1 works out of the box:
 | `default.level2` | `claudeSDK-opus` | — |
 | `default.level3` | `claudeSDK-claude-fable-5` | — |
 | `fallback.level1` | `openrouter-deepseek/deepseek-v4-flash-20260731` | 16 384 |
-| `fallback.level2` | `openrouter-deepseek/deepseek-v4-pro-0813` (xhigh reasoning) | 131 072 |
+| `fallback.level2` | `openrouter-deepseek/deepseek-v4-flash-20260731` (xhigh reasoning) | 65 536 |
 | `fallback.level3` | `openrouter-deepseek/deepseek-v4-pro-0813` | 131 072 |
 | `vision` | `openrouter-deepseek/deepseek-v4-flash-vision-exp` | 8 192 |
 

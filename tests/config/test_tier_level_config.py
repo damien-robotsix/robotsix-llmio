@@ -148,16 +148,16 @@ def test_fallback_level1():
     assert FALLBACK_LEVEL1.max_tokens == 16384
 
 
-def test_fallback_level2_is_pro_with_reasoning_headroom():
-    """Level 2 binds the PRO snapshot (same as level 3): flash under xhigh
-    reasoning degenerates into token loops on long agentic contexts (live
-    incident 2026-09-01), so the workhorse fallback pays for pro. The output
-    cap covers reasoning + answer."""
-    assert FALLBACK_LEVEL2.model_name == FALLBACK_LEVEL3.model_name
-    assert FALLBACK_LEVEL2.max_tokens == 131072
-    assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 1.16
-    assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 3.40
-    assert FALLBACK_LEVEL2.provider_kwargs["preferred_provider"] == "StreamLake"
+def test_fallback_level2_is_flash_with_reasoning_headroom():
+    """Operator design: level 2 binds the SAME flash snapshot as level 1 —
+    the level>=2 xhigh reasoning policy and a larger output cap are the
+    difference. Explicit cheap price ceiling (the implicit per-level default
+    would apply the capable ceiling to a flash-priced model)."""
+    assert FALLBACK_LEVEL2.model_name == FALLBACK_LEVEL1.model_name
+    assert FALLBACK_LEVEL2.max_tokens == 65536
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 0.10
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 0.20
+    assert FALLBACK_LEVEL2.provider_kwargs["preferred_provider"] == "DeepInfra"
 
 
 def test_fallback_level3():
