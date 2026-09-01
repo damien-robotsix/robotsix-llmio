@@ -202,6 +202,36 @@ print(status.active_slot, status.failover_active, status.failover_until)
 their own status endpoints so operators can see which provider is serving
 calls and, during failover, when the default returns.
 
+### Images across the two transports
+
+Pass attachments to `build_agent` and keep the prompt TEXT-ONLY:
+
+```python
+handle = provider.build_agent(
+    level=2,
+    system_prompt="Help the user.",
+    images=[("image/png", png_bytes)],   # prompt stays TEXT-ONLY
+)
+```
+
+The transport decides how they arrive:
+
+- **Anthropic (Claude SDK)** — Claude models read images natively; the
+  attachments join the transport's native image-block flow. Nothing else
+  is injected.
+- **OpenRouter (DeepSeek — text-only)** — the agent gets an
+  `ask_image(image_index, question)` tool plus a system-prompt note: it
+  asks natural-language questions about an attachment and the answer is
+  produced by the tier config's `vision` binding (baked:
+  `openrouter-deepseek/deepseek-v4-flash-vision-exp`, configurable via
+  `load_tier_config({"vision": {"model": ...}})`). The vision call reuses
+  the provider's own OpenRouter key; `vision_api_key` overrides. Tool
+  failures come back to the model as explanatory text, never as a crashed
+  turn.
+
+The tool factory is also exported directly as `build_image_question_tool`
+for consumers that assemble their own agents.
+
 ### One-liner: pick a level, get an agent
 
 For new code, the consumer never needs provider knowledge — just pick a level.

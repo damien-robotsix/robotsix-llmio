@@ -165,6 +165,7 @@ class _SdkToolAgentHandle:
         builtin_tools: bool = True,
         web_tools: bool = False,
         max_tokens: int | None = None,
+        extra_images: list[tuple[str, bytes]] | None = None,
     ) -> None:
         self._sdk_model = sdk_model
         self._system_prompt = system_prompt
@@ -179,6 +180,10 @@ class _SdkToolAgentHandle:
                 "Wrap the types in PromptedOutput([TypeA, TypeB]) explicitly."
             )
         self._name = name or "claude_sdk agent"
+        # Build-time attachments appended to whatever images the prompt
+        # carries — the ``build_agent(images=...)`` seam for text-only
+        # caller prompts.
+        self._extra_images = list(extra_images or [])
         self._workspace_root = str(workspace_root) if workspace_root else None
         # When False, restrict the agent to ONLY the injected MCP tools — the
         # SDK's built-in tools (Bash/Read/Edit/Monitor/...) are denied. Use for
@@ -486,6 +491,7 @@ class _SdkToolAgentHandle:
         prompt, system_prompt, images = self._prepare_prompt(
             user_prompt, message_history
         )
+        images = images + self._extra_images
         options = self._build_options(system_prompt)
         if images:
             log.info(

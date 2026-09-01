@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         default_tier_config,
         get_provider_for_level,
     )
+    from .core.image_tool import build_image_question_tool
     from .core.langfuse_client import LangfuseClientError
     from .logging import setup_logging
     from .openrouter import OpenRouterAPIError
@@ -52,6 +53,7 @@ __all__ = [
     "SelfReviewClient",
     "SelfReviewClientError",
     "build_agent_for_level",
+    "build_image_question_tool",
     "build_knowledge_tools",
     "build_recent_activity_tools",
     "build_refdocs_tools",
@@ -74,6 +76,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from .core import factory
 
         return factory.default_tier_config
+    if name == "build_image_question_tool":
+        from .core import image_tool
+
+        return image_tool.build_image_question_tool
     if name in ("KnowledgeClient", "build_knowledge_tools", "KnowledgeClientError"):
         from .clients import knowledge
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from . import retry as _retry
@@ -152,6 +152,8 @@ class LLMProvider(ABC):
         retries: int = 2,
         builtin_tools: bool = True,
         web_tools: bool = False,
+        images: Sequence[tuple[str, bytes]] | None = None,
+        vision_api_key: str | None = None,
     ) -> AgentHandle:
         """Build a ready-to-run agent for the requested capability *level*.
 
@@ -218,6 +220,20 @@ class LLMProvider(ABC):
             up. Default ``False`` — an agent that never needs the web should
             not carry the capability. Also only honored by the claude-sdk
             provider.
+        images:
+            Attached images as ``(media_type, bytes)`` pairs. Transport-
+            dependent: the Claude SDK provider overrides this to deliver
+            them NATIVELY (Claude models read images). Here — the generic
+            path serving OpenRouter's text-only models — the agent instead
+            gets an ``ask_image`` tool answered by the tier config's
+            ``vision`` binding, plus a system-prompt note pointing at it.
+            Either way the caller's prompt stays TEXT-ONLY: do not embed
+            ``BinaryContent`` when passing ``images=``.
+        vision_api_key:
+            API key for the vision binding's provider. Precedence: this
+            argument, else the provider's own OpenRouter key (when this IS
+            an OpenRouter-family provider), else the vision provider's
+            environment fallback (``OPENROUTER_API_KEY``).
 
         Returns
         -------
@@ -226,6 +242,17 @@ class LLMProvider(ABC):
             and its ``httpx`` client.  Call ``.close()`` when done.
 
         """
+        if images:
+            from .image_tool import _augment_with_image_tool
+
+            system_prompt, tools = _augment_with_image_tool(
+                system_prompt,
+                tools,
+                images,
+                tier_config,
+                vision_api_key or getattr(self, "_api_key", None),
+            )
+
         resolved_output_type = _resolve_output_type(output_type, level)
 
         # When using PromptedOutput, harden the system prompt against models

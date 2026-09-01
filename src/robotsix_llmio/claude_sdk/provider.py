@@ -12,6 +12,7 @@ directly to :meth:`new_model`.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -77,6 +78,8 @@ class ClaudeSDKProvider(LLMProvider):
         workspace_root: str | Path | None = None,
         builtin_tools: bool = True,
         web_tools: bool = False,
+        images: Sequence[tuple[str, bytes]] | None = None,
+        vision_api_key: str | None = None,
     ) -> Any:
         """Build a ready-to-run agent for the requested capability *level*.
 
@@ -110,7 +113,18 @@ class ClaudeSDKProvider(LLMProvider):
                 paths outside the workspace. Ignored on the no-tools
                 path (no tools → nothing to confine).
 
+            images: attached ``(media_type, bytes)`` pairs. Claude models
+                read images NATIVELY — attachments join the existing native
+                image flow (appended to whatever images the prompt itself
+                carries, delivered as SDK image blocks). No ``ask_image``
+                tool and no prompt note are injected on this transport;
+                *vision_api_key* is accepted for signature compatibility and
+                unused here.
+
         """
+        extra_images = list(images or [])
+        del vision_api_key  # native transport — the vision binding is not used
+
         if not tools:
             # _resolve_output_type's level < 2 early-return is a DeepSeek-specific
             # rule and does not apply to ClaudeSDKModel, which requires PromptedOutput
@@ -122,7 +136,7 @@ class ClaudeSDKProvider(LLMProvider):
 
                 if not _is_output_type_marked(output_type):
                     output_type = PromptedOutput(output_type)
-            return super().build_agent(
+            handle = super().build_agent(
                 level=level,
                 tier_config=tier_config,
                 model=model,
@@ -132,6 +146,11 @@ class ClaudeSDKProvider(LLMProvider):
                 name=name,
                 retries=retries,
             )
+            if extra_images:
+                # The ClaudeSDKModel consumes these in request() — appended
+                # to the newest user turn's own images as native SDK blocks.
+                handle.model.extra_images = extra_images
+            return handle
 
         # Tool path: use explicit model override, or resolve from tier_config
         # (falling back to baked defaults).
@@ -156,4 +175,5 @@ class ClaudeSDKProvider(LLMProvider):
             builtin_tools=builtin_tools,
             web_tools=web_tools,
             max_tokens=self._max_tokens,
+            extra_images=extra_images,
         )

@@ -119,3 +119,10 @@ def test_reexport_from_core_package():
 def test_default_level2_is_opus():
     """The loader and the schema agree on the baked workhorse binding."""
     assert load_tier_config({}).default.level2 == DEFAULT_LEVEL2
+
+
+def test_vision_merges_field_by_field():
+    cfg = load_tier_config({"vision": {"model": "openrouter-google/gemini-2-flash"}})
+    assert cfg.vision.model == "openrouter-google/gemini-2-flash"
+    # max_tokens inherits the baked vision default.
+    assert cfg.vision.max_tokens == 8192

@@ -153,3 +153,20 @@ def test_failover_defaults_are_three_failures_fifteen_minutes():
 def test_failover_bounds_enforced(kwargs: dict):
     with pytest.raises(ValidationError):
         FailoverConfig(**kwargs)
+
+
+# --------------------------------------------------------------------------- #
+#  Vision binding                                                             #
+# --------------------------------------------------------------------------- #
+
+
+def test_vision_binding_baked_default():
+    cfg = TierConfig()
+    assert cfg.vision.model == "openrouter-deepseek/deepseek-v4-flash-vision-exp"
+    assert cfg.vision.max_tokens == 8192
+    assert cfg.vision.provider == "openrouter"
+
+
+def test_vision_binding_override():
+    cfg = TierConfig(vision=TierLevelConfig(model="openrouter-google/gemini-2-flash"))
+    assert cfg.vision.model == "openrouter-google/gemini-2-flash"

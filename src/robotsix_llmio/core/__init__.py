@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         FALLBACK_LEVEL1,
         FALLBACK_LEVEL2,
         FALLBACK_LEVEL3,
+        VISION_DEFAULT,
         FailoverConfig,
         ProviderSlotConfig,
         TierConfig,
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
         ParsedIdentifier,
         parse_model_identifier,
     )
+    from .image_tool import build_image_question_tool
     from .langfuse_async_client import AsyncLangfuseReadClient
     from .langfuse_client import LangfuseClientError, LangfuseReadClient
     from .langfuse_cost import LangfuseCostLogSource
@@ -113,6 +115,7 @@ __all__ = [
     "FALLBACK_LEVEL1",
     "FALLBACK_LEVEL2",
     "FALLBACK_LEVEL3",
+    "VISION_DEFAULT",
     "AgentHandle",
     "AsyncLangfuseReadClient",
     "CostLogSource",
@@ -145,6 +148,7 @@ __all__ = [
     "arun_agent",
     "build_agent",
     "build_agent_for_level",
+    "build_image_question_tool",
     "call_with_failover",
     "call_with_retry",
     "call_with_retry_and_fallback",
@@ -219,6 +223,8 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "parse_model_identifier": (".identifier", "parse_model_identifier"),
     # -- http
     "timeout_http_client": (".http", "timeout_http_client"),
+    # -- image_tool
+    "build_image_question_tool": (".image_tool", "build_image_question_tool"),
     # -- langfuse_async_client
     "AsyncLangfuseReadClient": (".langfuse_async_client", "AsyncLangfuseReadClient"),
     # -- langfuse_client
@@ -274,6 +280,7 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "FALLBACK_LEVEL2": ("robotsix_llmio.config.tier", "FALLBACK_LEVEL2"),
     "FALLBACK_LEVEL3": ("robotsix_llmio.config.tier", "FALLBACK_LEVEL3"),
     "FailoverConfig": ("robotsix_llmio.config.tier", "FailoverConfig"),
+    "VISION_DEFAULT": ("robotsix_llmio.config.tier", "VISION_DEFAULT"),
     "ProviderSlotConfig": ("robotsix_llmio.config.tier", "ProviderSlotConfig"),
     "TierConfig": ("robotsix_llmio.config.tier", "TierConfig"),
     "TierLevel": ("robotsix_llmio.config.tier", "TierLevel"),

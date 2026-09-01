@@ -59,7 +59,8 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 ### Schema & loader (tier configuration)
 
 - `TierConfig` — pydantic model holding two provider slots (`default`,
-  `fallback`) and the `failover` policy
+  `fallback`), the `failover` policy, and the `vision` binding (the model
+  answering `ask_image` questions for text-only transports)
 - `ProviderSlotConfig` — one slot's binding of all three levels
   (`level1`, `level2`, `level3`)
 - `FailoverConfig` — provider-failover policy (`failure_threshold`,
@@ -90,6 +91,7 @@ cfg = load_tier_config(
         "default": {"level2": {"model": "claudeSDK-sonnet"}},
         "fallback": {"level3": {"model": "openrouter-deepseek/deepseek-v4-pro"}},
         "failover": {"failure_threshold": 3, "window_seconds": 900},
+        "vision": {"model": "openrouter-google/gemini-2-flash"},
     }
 )
 provider = create_model(level=2, tier_config=cfg)
@@ -110,6 +112,7 @@ Two provider slots, three levels each; level 1 works out of the box:
 | `fallback.level1` | `openrouter-deepseek/deepseek-v4-flash-20260731` | 16 384 |
 | `fallback.level2` | `openrouter-deepseek/deepseek-v4-pro-0813` (xhigh reasoning) | 131 072 |
 | `fallback.level3` | `openrouter-deepseek/deepseek-v4-pro-0813` | 131 072 |
+| `vision` | `openrouter-deepseek/deepseek-v4-flash-vision-exp` | 8 192 |
 
 The Claude SDK levels deliberately carry no `max_tokens` (the SDK has no
 per-response cap; the value could only become an advisory `task_budget`).

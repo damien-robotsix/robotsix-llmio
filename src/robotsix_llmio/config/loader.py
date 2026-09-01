@@ -12,7 +12,8 @@ The dict shape mirrors :class:`~robotsix_llmio.config.tier.TierConfig`::
     {
       "default":  {"level1": {...}, "level2": {...}, "level3": {...}},
       "fallback": {"level1": {...}, "level2": {...}, "level3": {...}},
-      "failover": {"failure_threshold": 3, "window_seconds": 900}
+      "failover": {"failure_threshold": 3, "window_seconds": 900},
+      "vision": {"model": "openrouter-<vision-model>"}
     }
 
 Every key is optional; each per-level dict is merged field-by-field over the
@@ -75,11 +76,11 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
     if not config_dict:
         return TierConfig()
 
-    unknown = set(config_dict) - {*_SLOT_KEYS, "failover"}
+    unknown = set(config_dict) - {*_SLOT_KEYS, "failover", "vision"}
     if unknown:
         raise TierConfigLoadError(
             f"Unknown top-level key(s) {sorted(unknown)!r} in tier config. "
-            f"Expected 'default', 'fallback', and/or 'failover' "
+            f"Expected 'default', 'fallback', 'failover', and/or 'vision' "
             f"(the flat level1..level5 shape was removed in the "
             f"provider-failover rework)."
         )
@@ -97,6 +98,8 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
                     merged[slot][tier].update(_to_dict(slot_val[tier]))
         if "failover" in config_dict:
             merged["failover"].update(_to_dict(config_dict["failover"]))
+        if "vision" in config_dict:
+            merged["vision"].update(_to_dict(config_dict["vision"]))
         return TierConfig.model_validate(merged)
     except (ValidationError, RobotsixLLMIOError) as exc:
         raise TierConfigLoadError(str(exc)) from exc

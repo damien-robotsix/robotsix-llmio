@@ -85,6 +85,11 @@ class ClaudeSDKModel(Model):
         self._sdk_model = sdk_model
         self._model_name = model_name or sdk_model
         self._max_tokens = max_tokens
+        #: Build-time attachments (``(media_type, bytes)`` pairs) appended to
+        #: whatever images the newest user turn carries — the seam
+        #: ``ClaudeSDKProvider.build_agent(images=...)`` uses so a caller
+        #: with a text-only prompt still delivers native image blocks.
+        self.extra_images: list[tuple[str, bytes]] = []
 
     @property
     def model_name(self) -> str:
@@ -208,7 +213,8 @@ class ClaudeSDKModel(Model):
         system_text = self._system_text(messages, model_request_parameters)
         # Images from the newest user turn ride along as native SDK image
         # blocks (streaming-input mode); the transcript stays text.
-        images = collect_latest_user_images(messages)
+        # Build-time attachments (``extra_images``) are appended after them.
+        images = collect_latest_user_images(messages) + list(self.extra_images)
         prompt = build_sdk_prompt(render_prompt(messages), images)
         text, result, reasoning = await self._invoke(prompt, system_text)
         # Stamp the SDK's (estimated) cost onto the active span so the claude_sdk
