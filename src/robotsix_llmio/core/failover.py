@@ -92,15 +92,26 @@ def is_provider_shaped(exc: BaseException) -> bool:
     return is_transient(exc) or is_rate_limited(exc) or is_usage_exhausted(exc)
 
 
-def _is_exhaustion(exc: BaseException) -> bool:
-    """True when *exc* signals provider-wide or usage exhaustion.
+#: Exception class names that doom every future call on the provider until an
+#: external fix, matched by name so the lightweight core does not import the
+#: claude_sdk package. ``ClaudeSDKAuthError``: a dead OAuth credential fails
+#: every call on the subscription exactly like exhaustion does — waiting for
+#: the consecutive-failure threshold just burns doomed attempts.
+_PROVIDER_DEAD_NAMES: frozenset[str] = frozenset({"ClaudeSDKAuthError"})
 
-    Exhaustion means every future call on the same provider is also doomed
-    until a quota resets, so failover arms immediately instead of waiting
-    for the consecutive-failure threshold.
+
+def _is_exhaustion(exc: BaseException) -> bool:
+    """True when *exc* signals provider-wide exhaustion or a dead credential.
+
+    Either way every future call on the same provider is also doomed until an
+    external fix (quota reset, credential refresh), so failover arms
+    immediately instead of waiting for the consecutive-failure threshold.
     """
-    if any(isinstance(cur, ProviderExhaustedError) for cur in _walk_cause_chain(exc)):
-        return True
+    for cur in _walk_cause_chain(exc):
+        if isinstance(cur, ProviderExhaustedError):
+            return True
+        if type(cur).__name__ in _PROVIDER_DEAD_NAMES:
+            return True
     return is_usage_exhausted(exc)
 
 

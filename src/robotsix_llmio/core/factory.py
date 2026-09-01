@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from .provider import LLMProvider
 
 if TYPE_CHECKING:
-    from robotsix_llmio.config.tier import TierConfig
+    from robotsix_llmio.config.tier import ProviderSlotName, TierConfig
 
 
 @dataclass(frozen=True)
@@ -139,6 +139,7 @@ def get_provider_for_level(
     level: int,
     *,
     tier_config: TierConfig | None = None,
+    slot: ProviderSlotName | None = None,
     **kwargs: Any,
 ) -> LLMProvider:
     """Resolve and instantiate the provider bound to a capability *level*.
@@ -157,6 +158,11 @@ def get_provider_for_level(
         tier_config: Per-level *(provider, model)* binding to resolve
             against.  When ``None``, the baked defaults from
             :func:`default_tier_config` are used.
+        slot: Explicit provider slot (``"default"`` or ``"fallback"``) to
+            resolve against.  ``None`` (the default) follows the failover
+            tracker's active slot.  Pass an explicit slot to build a
+            provider for the *other* slot — e.g. a failover loop's
+            cross-slot attempt, or a status UI showing both bindings.
         **kwargs: Forwarded to the resolved provider class constructor,
             merged over the tier level's ``provider_kwargs`` (caller
             values win).
@@ -175,7 +181,7 @@ def get_provider_for_level(
             installed (``claude_sdk`` for the default slot's levels).
 
     """
-    tlc = (tier_config or default_tier_config()).for_level(level)
+    tlc = (tier_config or default_tier_config()).for_level(level, slot=slot)
     merged = {**tlc.provider_kwargs, **kwargs}
     if tlc.max_tokens is not None:
         merged.setdefault("max_tokens", tlc.max_tokens)
@@ -186,6 +192,7 @@ def build_agent_for_level(
     level: int,
     *,
     tier_config: TierConfig | None = None,
+    slot: ProviderSlotName | None = None,
     model: str | None = None,
     provider_kwargs: dict[str, Any] | None = None,
     **build_kwargs: Any,
@@ -219,6 +226,9 @@ def build_agent_for_level(
             against.  When ``None``, the baked defaults from
             :func:`default_tier_config` are used (i.e. omitting
             everything uses the baked defaults).
+        slot: Explicit provider slot (``"default"`` or ``"fallback"``) to
+            resolve against; ``None`` follows the failover tracker's
+            active slot.
         model: Optional **bare** model-name override.  It overrides
             *only* the model name; the provider stays the one bound to
             *level*.  When ``None`` (default), the level's baked model
@@ -244,7 +254,7 @@ def build_agent_for_level(
             ``claude_sdk`` extra).
 
     """
-    tlc = (tier_config or default_tier_config()).for_level(level)
+    tlc = (tier_config or default_tier_config()).for_level(level, slot=slot)
     kwargs = provider_kwargs if provider_kwargs is not None else tlc.provider_kwargs
     merged = dict(kwargs) if kwargs else {}
     if tlc.max_tokens is not None:

@@ -91,6 +91,19 @@ def test_exhaustion_arms_failover_immediately():
     assert tracker.active_slot(now=1.0) == "fallback"
 
 
+def test_dead_credential_arms_failover_immediately():
+    """A ClaudeSDKAuthError (name-matched, no claude_sdk import in core)
+    dooms every subscription call until the credential is refreshed —
+    exactly like exhaustion, so it must not wait for the threshold."""
+
+    class ClaudeSDKAuthError(Exception):
+        pass
+
+    tracker = ProviderFailoverTracker(FailoverConfig(failure_threshold=3))
+    tracker.record_failure("default", ClaudeSDKAuthError("401"), now=0.0)
+    assert tracker.active_slot(now=1.0) == "fallback"
+
+
 def test_exhaustion_in_cause_chain_arms_immediately():
     outer = RuntimeError("agent run failed")
     outer.__cause__ = _Exhausted("out of credits")
