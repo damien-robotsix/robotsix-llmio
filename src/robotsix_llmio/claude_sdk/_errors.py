@@ -51,7 +51,7 @@ class ClaudeSDKUsageExhaustedError(ProviderExhaustedError):
     :func:`~robotsix_llmio.claude_sdk.transient.is_claude_sdk_transient`) —
     callers should catch it and fall back to a different capability tier
     instead (e.g. via
-    :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)."""
+    :func:`~robotsix_llmio.core.failover.acall_with_failover`)."""
 
 
 class ClaudeSDKPermanentAPIError(RobotsixLLMIOError):
@@ -90,7 +90,7 @@ class ClaudeSDKAuthError(RobotsixLLMIOError):
     Because the credential is per-provider rather than per-request, callers
     should treat it like usage exhaustion and fall back to a *different*
     capability tier (e.g. via
-    :func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`), which
+    :func:`~robotsix_llmio.core.failover.acall_with_failover`), which
     keeps a keyed provider serving while the Claude credential is dead."""
 
 

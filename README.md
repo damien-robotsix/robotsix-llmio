@@ -5,7 +5,10 @@
 LLM provider abstraction — capability levels, cost tracking, tracing.
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
-consumer only ever picks a **level** (1, 2, 3, 4, or 5).
+consumer only ever picks a **level** (1, 2, or 3). Provider redundancy is a
+separate axis: a **default** provider slot (Anthropic via the Claude SDK) and a
+**fallback** slot (DeepSeek via OpenRouter) each bind all three levels, with
+automatic failover between them.
 
 This repo is a **library** — imported by other stack packages, no runnable
 service — and follows the
@@ -38,13 +41,13 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
    markers. Model-family agnostic.
 3. **`robotsix_llmio.openrouter`** — the derived layer most consumers
    plug in. Extends the OpenRouter layer with DeepSeek specifics: pin the
-   upstream provider to DeepSeek (warm prompt cache) and a level→reasoning
-   policy (level 3→`effort: xhigh`; level 1→`reasoning disabled`).
-   pydantic-ai round-trips reasoning natively, so this layer neither remaps
-   reasoning nor adds a DeepSeek-specific transient signature (it inherits
-   OpenRouter's). The models are **baked**:
-   `level 3 = xiaomi/mimo-v2.5-pro`,
-   `level 1 = deepseek/deepseek-v4-flash-20260731`.
+   upstream provider to a stable cheap endpoint (warm prompt cache) and a
+   level→reasoning policy (level 1 → `reasoning disabled`; level ≥ 2 →
+   `effort: xhigh`). pydantic-ai round-trips reasoning natively, so this layer
+   neither remaps reasoning nor adds a DeepSeek-specific transient signature
+   (it inherits OpenRouter's). These are the models of the baked **fallback**
+   slot: levels 1 and 2 bind `deepseek/deepseek-v4-flash-20260731` (level 2
+   adds reasoning), level 3 binds `deepseek/deepseek-v4-pro-0813`.
 
 ### Alternative transport — Claude Agent SDK (subscription auth)
 
@@ -52,9 +55,9 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
 from `core.LLMProvider`) that needs **no API key**: it drives the local `claude`
 CLI through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk),
 so it authenticates with your `claude login` (Claude Code subscription / OAuth)
-credentials. Models are resolved from the tier configuration: the baked
-defaults bind `level 2` to `claudeSDK-haiku` (cheap flat-rate: monitors,
-retrospects, classification), `level 4` to `claudeSDK-opus` and `level 5` to
+credentials. This transport is the baked **default** provider slot:
+`level 1` → `claudeSDK-haiku` (cheap, frequent: monitors, classification),
+`level 2` → `claudeSDK-opus` (workhorse) and `level 3` →
 `claudeSDK-claude-fable-5` (Claude Fable 5, the frontier tier).
 
 Because the SDK runs its own agent loop and executes tools internally — returning
@@ -79,11 +82,11 @@ class City(BaseModel):
 
 
 agent = provider.build_agent(
-    level=4,
+    level=2,
     system_prompt="Extract the city.",
     output_type=PromptedOutput(City),
     name="extract",
-)  # level 5 resolves to claude-fable-5 via the baked tier defaults
+)  # level 3 resolves to claude-fable-5 via the baked tier defaults
 result = provider.call_with_retry(lambda: agent.run_sync("Tell me about Kyoto."))
 print(result.output)  # name='Kyoto' country='Japan'
 agent.close()
@@ -128,10 +131,6 @@ shell or deployment platform as needed:
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable Langfuse trace/cost export when **both** are set | unset → tracing off |
 | `LANGFUSE_BASE_URL` | Langfuse endpoint | `https://cloud.langfuse.com` |
 | `LANGFUSE_PROJECT_ID` | Optional Langfuse project id | — |
-| `LLMIO_LEVEL{1,2,3,4,5}_MODEL` | Override the baked tier model (see [Five-tier configuration](#five-tier-configuration)) | baked defaults |
-| `LLMIO_LEVEL{1,2,3,4}_PROVIDER_KWARGS` | JSON object of provider kwargs for that tier | `{}` |
-| `LLMIO_COOLDOWN_DURATION_SECONDS` | Cooldown window in seconds before re-probing a terminally-failing model | `21600` (6 hours) |
-| `LLMIO_COOLDOWN_FAILURE_THRESHOLD` | Consecutive terminal failures before a model enters cooldown | `3` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Logging format | `console` |
 
@@ -149,26 +148,59 @@ provider = get_provider_for_level(
 
 The default endpoint is `https://openrouter.ai/api/v1`.
 
-## Five-tier configuration
+## Levels × provider slots
 
-The library uses a five-tier model selection system exposed through the
-`level` parameter on `LLMProvider.build_agent()`.  Each level is backed by a
-`TierLevelConfig` holding a combined `provider-model` identifier:
+Model selection has two independent axes:
 
-| Level | Intended use                           | Example env var (combined identifier)                    |
-|-------|----------------------------------------|----------------------------------------------------------|
-| 1     | Cheap, obvious, repetitive tasks (pay-per-token) | `LLMIO_LEVEL1_MODEL=openrouter-deepseek/deepseek-v4-flash-20260731` |
-| 2     | Cheap flat-rate: monitors, retrospects, classification | `LLMIO_LEVEL2_MODEL=claudeSDK-haiku` |
-| 3     | Intermediate (e.g. implementing code)  | `LLMIO_LEVEL3_MODEL=openrouter-xiaomi/mimo-v2.5-pro`   |
-| 4     | High-level planning and refinement     | `LLMIO_LEVEL4_MODEL=claudeSDK-opus`                        |
-| 5     | Frontier — hardest reasoning and long-horizon work | `LLMIO_LEVEL5_MODEL=claudeSDK-claude-fable-5`   |
+- **Capability level** (`level` on `build_agent()` etc.) — what the task
+  needs. Levels never fall back to one another.
+- **Provider slot** — which provider serves it. The `default` slot handles
+  normal operation; the `fallback` slot takes over automatically while the
+  default provider is unhealthy.
 
-Level 1 is the default — cheap and fast is the safe default.  The
-configuration system (`TierConfig` / `load_tier_config` / `call_with_tier_fallback`)
-supports all five levels end-to-end.
+| Level | Intended use                                    | `default` slot (Claude SDK) | `fallback` slot (OpenRouter)          |
+|-------|-------------------------------------------------|-----------------------------|---------------------------------------|
+| 1     | Cheap, frequent: monitors, classifiers, summaries | `haiku`                   | `deepseek-v4-flash` (no reasoning)    |
+| 2     | Workhorse: implementing code, main assistant turns | `opus`                   | `deepseek-v4-flash` (xhigh reasoning) |
+| 3     | Frontier: hardest reasoning, long-horizon work  | `claude-fable-5`            | `deepseek-v4-pro`                     |
 
-You can also set `LLMIO_LEVEL<N>_PROVIDER_KWARGS` as a JSON object for extra
-constructor arguments (e.g. `{"base_url": "https://proxy.example/api/v1"}`).
+Both slots and the failover policy are configurable via `load_tier_config`:
+
+```python
+from robotsix_llmio.config import load_tier_config
+
+cfg = load_tier_config({
+    "default": {"level2": {"model": "claudeSDK-sonnet"}},
+    "failover": {"failure_threshold": 3, "window_seconds": 900},
+})
+```
+
+### Provider failover
+
+Run calls through `call_with_failover` / `acall_with_failover`: a
+provider-shaped failure (transient outage, rate limit, usage exhaustion) on
+the default slot retries the **same level** on the fallback slot, and after
+`failure_threshold` consecutive default-slot failures (exhaustion arms
+immediately) all calls route straight to the fallback for `window_seconds`
+(default 15 minutes) before automatically returning to the default.
+
+```python
+from robotsix_llmio.core import call_with_failover, get_failover_status
+
+result = call_with_failover(
+    lambda tlc: (lambda: run_on(tlc)),  # called per attempted slot
+    tier_config=cfg,
+    level=2,
+    what="review",
+)
+
+status = get_failover_status()  # expose this from your service's status API
+print(status.active_slot, status.failover_active, status.failover_until)
+```
+
+`get_failover_status()` is the consumer-UI surface: services expose it from
+their own status endpoints so operators can see which provider is serving
+calls and, during failover, when the default returns.
 
 ### One-liner: pick a level, get an agent
 
@@ -179,26 +211,24 @@ binding, lazy-imports the right backend, and returns a ready-to-run agent:
 ```python
 from robotsix_llmio import build_agent_for_level
 
-# Level 1 → OpenRouter DeepSeek (deepseek-v4-flash-20260731): cheap and fast.
+# Level 1 → Claude SDK (haiku): cheap and frequent.
 cheap = build_agent_for_level(1, system_prompt="Classify this.", name="classify")
 
-# Level 4 → Claude SDK (opus): high-level planning. Requires the
-# `claude_sdk` extra.
-planner = build_agent_for_level(
-    4, system_prompt="Plan this epic.", tools=[], name="plan"
+# Level 2 → Claude SDK (opus): the workhorse.
+worker = build_agent_for_level(
+    2, system_prompt="Implement this.", tools=[], name="implement"
 )
 
-# Level 5 → Claude SDK (claude-fable-5): frontier tier for the hardest
-# reasoning and long-horizon work. Requires the `claude_sdk` extra.
+# Level 3 → Claude SDK (claude-fable-5): frontier tier for the hardest
+# reasoning and long-horizon work.
 architect = build_agent_for_level(
-    5, system_prompt="Design the migration strategy.", name="architect"
+    3, system_prompt="Design the migration strategy.", name="architect"
 )
 ```
 
-With everything left at its default the baked per-level defaults apply
-(level 1 → `deepseek/deepseek-v4-flash-20260731`, level 2 → `haiku`, level 3 → `xiaomi/mimo-v2.5-pro`,
-level 4 → `opus`, level 5 → `claude-fable-5`) — each on its **own** provider, so a DeepSeek model never runs
-on the Claude transport. `model=` overrides only the model name (the provider
+Resolution honours the provider slot the failover tracker currently
+designates as active — while failover is armed the same calls build DeepSeek
+agents instead. `model=` overrides only the model name (the provider
 stays the one bound to the level); pass a custom `tier_config=` to override the
 bindings, and `provider_kwargs=` for provider-constructor arguments. Two related
 helpers are exported alongside it: `get_provider_for_level(level)` (just the
@@ -210,8 +240,8 @@ schema and `create_model` factory API.
 
 ## Use
 
-Obtain a provider through `get_provider_for_level` and pick a **level** (1, 2, 3, or 4).
-Level 1 is the default — cheap and fast.
+Obtain a provider through `get_provider_for_level` and pick a **level**
+(1, 2, or 3). Level 1 is the default — cheap and fast.
 
 For new code, prefer `create_model` — it resolves the provider from your
 tier configuration without naming a concrete backend:
@@ -240,22 +270,16 @@ result = provider.call_with_retry(lambda: agent.run_sync("Review this diff: ..."
 agent.close()
 ```
 
-The backend is resolved from config — no consumer code change is needed to swap
-it. By default `get_provider_for_level` resolves the provider bound to the
-level in `TierConfig`. To override those bindings via environment variables
-(`LLMIO_LEVEL<N>_PROVIDER` / `LLMIO_LEVEL<N>_MODEL`), pass
-`tier_config=load_tier_config()` explicitly — the level factories do not read
-the environment on their own. `get_provider_for_level`
-forwards any extra keyword arguments to the chosen backend's constructor, so
-pass the kwargs that backend accepts (e.g. `api_key=` for `openrouter-deepseek`,
-nothing for `claude-sdk`).
-
-The level-based `TierConfig` system eliminates the need for runtime provider
-registration — add a new provider by contributing a `TierLevelConfig` and
-setting the corresponding `LLMIO_LEVEL<N>_PROVIDER` variable. Importing a
-concrete provider class directly still works (e.g.
-`from robotsix_llmio.openrouter import OpenRouterDeepseekProvider`),
-but `get_provider_for_level` is the preferred entry point.
+The backend is resolved from config — no consumer code change is needed to
+swap it. `get_provider_for_level` resolves the binding of the currently
+active provider slot; pass `tier_config=load_tier_config({...})` to override
+the bindings (there is no environment-variable overlay). It forwards any
+extra keyword arguments to the chosen backend's constructor, so pass the
+kwargs that backend accepts (e.g. `api_key=` for the OpenRouter slot,
+nothing for `claude-sdk`). Importing a concrete provider class directly
+still works (e.g. `from robotsix_llmio.openrouter import
+OpenRouterDeepseekProvider`), but `get_provider_for_level` is the preferred
+entry point.
 
 ## Error handling
 
@@ -272,8 +296,8 @@ except RobotsixLLMIOError as e:
 ```
 
 Specific exceptions include:
-- `ProviderExhaustedError` — A provider-wide exhaustion: the backend is out of capacity until a quota resets, and every tier level on that provider shares the exhaustion. The tier-fallback loop treats this specially, skipping all remaining same-provider tiers in one step (e.g., on Claude subscription exhaustion, sibling Claude tiers are skipped together).
-- `ClaudeSDKUsageExhaustedError` — The Claude subscription has exhausted its usage credits. This is a provider-wide exhaustion (inherits from `ProviderExhaustedError`) because all Claude tiers draw on the one subscription.
+- `ProviderExhaustedError` — A provider-wide exhaustion: the backend is out of capacity until a quota resets. The failover loop treats this specially, arming the fallback window immediately instead of waiting for the consecutive-failure threshold.
+- `ClaudeSDKUsageExhaustedError` — The Claude subscription has exhausted its usage credits. This is a provider-wide exhaustion (inherits from `ProviderExhaustedError`) because all Claude levels draw on the one subscription.
 - `ClaudeSDKTurnLimitError` — Claude Agent SDK loop hit its turn cap without returning an answer.
 - `ClaudeSDKQueryTimeout` — A Claude Agent SDK query exceeded the per-call timeout (a stall, typically transient).
 

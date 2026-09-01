@@ -10,9 +10,9 @@ or pulling in `claude-agent-sdk` directly.
 ```python
 from robotsix_llmio.config import create_model
 
-provider = create_model(level=3)
+provider = create_model(level=2)
 agent = provider.build_agent(
-    level=3,
+    level=2,
     system_prompt="You are a helpful assistant.",
 )
 ```
@@ -32,15 +32,12 @@ agent = provider.build_agent(
   ) -> LLMProvider:
   ```
 
-  - **`level`** (1, 2, 3, 4, or 5) — selects the capability tier.  Level 1 picks the
-    cheap/fast default; level 2 is the cheap flat-rate tier (`claudeSDK-haiku`);
-    levels 3–5 pick progressively more capable defaults
-    (level 5 is the frontier tier, `claudeSDK-claude-fable-5` by default).
-    Defaults to 1.
+  - **`level`** (1, 2, or 3) — selects the capability level: 1 cheap/frequent,
+    2 workhorse, 3 frontier. Defaults to 1. Resolution honours the provider
+    slot the failover tracker currently designates as active.
   - **`tier_config`** — optional `TierConfig` instance supplying custom
-    per-level defaults.  When `None`, a default is built from the baked
-    module-level constants (`LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`,
-    `LEVEL3_DEFAULT`).
+    slot/level bindings.  When `None`, a default is built from the baked
+    constants.
   - **`**provider_kwargs`** — forwarded to the provider constructor (e.g.
     `api_key=...`).  These override any `provider_kwargs` from the tier
     config.
@@ -61,88 +58,66 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 
 ### Schema & loader (tier configuration)
 
-- `TierConfig` — pydantic model for five-tier provider+model configuration
-- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3`, `LEVEL4` tier-selector values
-- `TierLevelConfig` — pydantic model binding a single tier to a provider-model identifier.
-  Each config carries:
+- `TierConfig` — pydantic model holding two provider slots (`default`,
+  `fallback`) and the `failover` policy
+- `ProviderSlotConfig` — one slot's binding of all three levels
+  (`level1`, `level2`, `level3`)
+- `FailoverConfig` — provider-failover policy (`failure_threshold`,
+  `window_seconds`)
+- `TierLevel` — `StrEnum` with `LEVEL1`, `LEVEL2`, `LEVEL3` selector values
+- `TierLevelConfig` — pydantic model binding a single level to a
+  provider-model identifier.  Each config carries:
   - **`model`** — the combined `provider-model` identifier.
   - **`provider_kwargs`** — extra constructor arguments forwarded to the provider.
-  - **`max_tokens`** — optional output token cap (baked per-level; see table below).
-- `LEVEL1_DEFAULT`, `LEVEL2_DEFAULT`, `LEVEL3_DEFAULT`, `LEVEL4_DEFAULT` — default
-  `TierLevelConfig` instances per level
+  - **`max_tokens`** — optional output token cap (baked per level; see table below).
+- `DEFAULT_LEVEL1..3`, `FALLBACK_LEVEL1..3` — the baked `TierLevelConfig`
+  instances per slot and level
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
-- `load_tier_config` — loads and validates a `TierConfig` from environment overrides and defaults
+- `load_tier_config` — merges an explicit dict over the baked defaults into
+  a validated `TierConfig` (there is no environment-variable overlay)
 
 ## Consumer config shape
 
-Consumers can define tier configuration in two ways: programmatically with
-`TierConfig` / `TierLevelConfig` constructors, or via environment variables
-loaded through `load_tier_config`.
-
-### Programmatic (dict / constructor)
-
-```python
-from robotsix_llmio.config import TierConfig, TierLevelConfig, create_model
-
-cfg = TierConfig(
-    level1=TierLevelConfig(model="openrouter-deepseek/deepseek-v4-flash-latest"),
-    # level2 and level3 use baked defaults
-)
-
-provider = create_model(level=2, tier_config=cfg)
-```
-
-When `level2` and `level3` are omitted from the `TierConfig` constructor,
-the baked defaults (`LEVEL2_DEFAULT` and `LEVEL3_DEFAULT`) are used
-automatically.
-
-### Environment variables (via `load_tier_config`)
-
-Set per-level environment variables and call `load_tier_config` to merge
-them with baked defaults:
-
-```bash
-export LLMIO_LEVEL1_MODEL="openrouter-deepseek/deepseek-v4-flash"
-export LLMIO_LEVEL2_MODEL="openrouter-xiaomi/mimo-v2.5-pro"
-export LLMIO_LEVEL2_PROVIDER_KWARGS='{"api_key":"sk-or-..."}'
-```
+`load_tier_config` accepts a dict mirroring the `TierConfig` shape; every
+key is optional and per-level dicts merge field-by-field over the baked
+default for that slot+level:
 
 ```python
 from robotsix_llmio.config import load_tier_config, create_model
 
-cfg = load_tier_config()
+cfg = load_tier_config(
+    {
+        "default": {"level2": {"model": "claudeSDK-sonnet"}},
+        "fallback": {"level3": {"model": "openrouter-deepseek/deepseek-v4-pro"}},
+        "failover": {"failure_threshold": 3, "window_seconds": 900},
+    }
+)
 provider = create_model(level=2, tier_config=cfg)
 ```
 
-An explicit dict can override individual fields at highest precedence:
+Unknown keys fail validation loudly (`extra="forbid"`), including the
+pre-rework flat `level1..level5` shape.
 
-```python
-cfg = load_tier_config(
-    {
-        "level2": {"model": "openrouter-xiaomi/mimo-v2.5-pro"},
-    }
-)
-```
+## Baked defaults
 
-The loader merges three sources in order of increasing precedence:
-1. Baked defaults (`LEVEL1_DEFAULT` … `LEVEL4_DEFAULT`).
-2. Environment variables (`LLMIO_LEVEL{1,2,3,4}_*`).
-3. Explicit dict argument.
+Two provider slots, three levels each; level 1 works out of the box:
 
-## Default levels
+| Slot / level | Identifier | `max_tokens` |
+|--------------|------------|--------------|
+| `default.level1` | `claudeSDK-haiku` | — |
+| `default.level2` | `claudeSDK-opus` | — |
+| `default.level3` | `claudeSDK-claude-fable-5` | — |
+| `fallback.level1` | `openrouter-deepseek/deepseek-v4-flash-20260731` | 16 384 |
+| `fallback.level2` | `openrouter-deepseek/deepseek-v4-flash-20260731` (xhigh reasoning) | 65 536 |
+| `fallback.level3` | `openrouter-deepseek/deepseek-v4-pro-0813` | 131 072 |
 
-The library ships with the following baked defaults so **level 1** works
-out of the box and levels 2–4 have sensible fallbacks:
-
-| Constant | Identifier | `max_tokens` |
-|----------|------------|--------------|
-| `LEVEL1_DEFAULT` | `openrouter-deepseek/deepseek-v4-flash-latest` | 16 384 |
-| `LEVEL2_DEFAULT` | `openrouter-xiaomi/mimo-v2.5-pro` | 32 768 |
-| `LEVEL3_DEFAULT` | `claudeSDK-opus` | 8 192 |
-| `LEVEL4_DEFAULT` | `claudeSDK-claude-fable-5` | 16 384 |
-
-Level 1 is the default when no level is specified — cheap and fast is the
-safe default.
+The Claude SDK levels deliberately carry no `max_tokens` (the SDK has no
+per-response cap; the value could only become an advisory `task_budget`).
+Failover between the slots is handled by
+[`robotsix_llmio.core.failover`](../core/index.md) — after
+`failure_threshold` consecutive default-slot failures (exhaustion arms
+immediately) calls route to the fallback slot for `window_seconds`
+(default 15 minutes), then automatically return to the default.
 
 ## Extra dependencies
 

@@ -9,8 +9,19 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 
 from robotsix_llmio.core.cost_log import CostWindow
+
+
+@pytest.fixture(autouse=True)
+def _reset_failover_tracker():
+    """Isolate every test from the process-wide failover singleton."""
+    from robotsix_llmio.core.failover import reset_failover_tracker
+
+    reset_failover_tracker()
+    yield
+    reset_failover_tracker()
 
 
 def _window(start: str, end: str) -> CostWindow:

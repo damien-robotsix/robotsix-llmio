@@ -157,10 +157,10 @@ def test_check_tier_flags_missing_preferred_provider_as_warning(check_module):
 def test_cheap_tier_prefers_deepinfra_and_guard_passes(check_module):
     """The baked cheap tier must not prefer a provider that breaks its own
     ceiling. DeepSeek repriced flash to ~$0.44/$1.32 (2026-08-31), above the
-    $0.10/$0.20 cheap ceiling, so ``LEVEL1_DEFAULT`` prefers a stable cheap
+    $0.10/$0.20 cheap ceiling, so ``FALLBACK_LEVEL1`` prefers a stable cheap
     upstream (DeepInfra) — otherwise rule 1 of the guard fails on the repriced
     DeepSeek endpoint."""
-    cheap = next(t for t in check_module._TIERS if "cheap" in t.label)
+    cheap = next(t for t in check_module._TIERS if t.label == "cheap (level 1)")
     assert cheap.preferred_provider == "DeepInfra"
 
     report = check_module.check_tier(

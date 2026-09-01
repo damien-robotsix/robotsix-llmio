@@ -10,10 +10,25 @@ from typing import Any
 import httpx
 import pytest
 
-from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+from robotsix_llmio.config.tier import (
+    ProviderSlotConfig,
+    TierConfig,
+    TierLevelConfig,
+)
 from robotsix_llmio.core import provider as provider_module
 from robotsix_llmio.core import retry as retry_module
 from robotsix_llmio.core.provider import LLMProvider
+
+
+def _slot(**overrides: TierLevelConfig) -> ProviderSlotConfig:
+    """A default-slot config with claudeSDK fillers, overridable per level."""
+    levels: dict[str, TierLevelConfig] = {
+        "level1": TierLevelConfig(model="claudeSDK-haiku"),
+        "level2": TierLevelConfig(model="claudeSDK-opus"),
+        "level3": TierLevelConfig(model="claudeSDK-claude-fable-5"),
+    }
+    levels.update(overrides)
+    return ProviderSlotConfig(**levels)
 
 
 class _HTTPErr(Exception):
@@ -143,9 +158,9 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(system_prompt="sys")
-    # Default level=1 → LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash-20260731"
+    # Default level=1 → default slot's DEFAULT_LEVEL1.model = "claudeSDK-haiku"
     assert p.new_model_calls == [
-        {"model": "deepseek/deepseek-v4-flash-20260731", "level": 1},
+        {"model": "haiku", "level": 1},
     ]
     assert captured["model"] is p.model_obj
     assert captured["http_client"] is p.http_client_obj
@@ -155,11 +170,9 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 @pytest.mark.parametrize(
     ("level", "expected_model"),
     [
-        (1, "deepseek/deepseek-v4-flash-20260731"),
-        (2, "haiku"),
-        (3, "deepseek/deepseek-v4-pro-0813"),
-        (4, "opus"),
-        (5, "claude-fable-5"),
+        (1, "haiku"),
+        (2, "opus"),
+        (3, "claude-fable-5"),
     ],
 )
 def test_build_agent_level_uses_default(mock_build_agent, level, expected_model):
@@ -170,10 +183,10 @@ def test_build_agent_level_uses_default(mock_build_agent, level, expected_model)
 
 def test_build_agent_level_out_of_range_raises(mock_build_agent):
     p = _MockProvider()
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 0"):
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 0"):
         p.build_agent(level=0, system_prompt="sys")
-    with pytest.raises(ValueError, match=r"`level` must be 1, 2, 3, 4, or 5, got 6"):
-        p.build_agent(level=6, system_prompt="sys")
+    with pytest.raises(ValueError, match=r"`level` must be 1, 2, or 3, got 4"):
+        p.build_agent(level=4, system_prompt="sys")
 
 
 def test_build_agent_threads_kwargs(monkeypatch):
@@ -241,7 +254,7 @@ def test_build_agent_model_override_wins_over_tier_config(mock_build_agent):
     """Even when ``tier_config`` is provided, the explicit ``model`` takes
     precedence."""
     cfg = TierConfig(
-        level1=TierLevelConfig(model="claudeSDK-opus"),
+        default=_slot(level1=TierLevelConfig(model="claudeSDK-opus")),
     )
     p = _MockProvider()
     p.build_agent(
@@ -254,9 +267,9 @@ def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent
     """When ``model=None`` (the default), tier_config resolution works as before."""
     p = _MockProvider()
     p.build_agent(level=1, system_prompt="sys")
-    # LEVEL1_DEFAULT.model = "deepseek/deepseek-v4-flash-20260731"
+    # Default slot's DEFAULT_LEVEL1.model = "claudeSDK-haiku"
     assert p.new_model_calls == [
-        {"model": "deepseek/deepseek-v4-flash-20260731", "level": 1},
+        {"model": "haiku", "level": 1},
     ]
 
 
@@ -264,7 +277,7 @@ def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent
 
 
 @pytest.mark.parametrize(
-    ("level", "tier_config_kwargs", "expected_model"),
+    ("level", "slot_kwargs", "expected_model"),
     [
         (
             1,
@@ -273,28 +286,22 @@ def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent
         ),
         (
             2,
-            {
-                "level1": TierLevelConfig(model="claudeSDK-opus"),
-                "level2": TierLevelConfig(model="claudeSDK-haiku"),
-            },
+            {"level2": TierLevelConfig(model="claudeSDK-haiku")},
             "haiku",
         ),
         (
             3,
-            {
-                "level1": TierLevelConfig(model="claudeSDK-opus"),
-                "level3": TierLevelConfig(model="claudeSDK-sonnet"),
-            },
+            {"level3": TierLevelConfig(model="claudeSDK-sonnet")},
             "sonnet",
         ),
     ],
 )
 def test_build_agent_with_tier_config(
-    mock_build_agent, level, tier_config_kwargs, expected_model
+    mock_build_agent, level, slot_kwargs, expected_model
 ):
-    """Primary path: ``build_agent(level=N, tier_config=cfg)`` calls
-    ``new_model(model=cfg.levelN.model_name)``."""
-    cfg = TierConfig(**tier_config_kwargs)
+    """Primary path: ``build_agent(level=N, tier_config=cfg)`` resolves the
+    model from the default slot's levelN binding."""
+    cfg = TierConfig(default=_slot(**slot_kwargs))
     p = _MockProvider()
     p.build_agent(level=level, tier_config=cfg, system_prompt="sys")
     assert p.new_model_calls == [{"model": expected_model, "level": level}]

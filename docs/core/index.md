@@ -9,20 +9,20 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 - `LLMProvider` — abstract base for every LLM provider; subclasses implement `new_model(*, model=None, level=0)`
 - `AgentHandle` — wraps a pydantic-ai Agent with its httpx client, exposing `close()` for cleanup
-- `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type; on the provider the public entry-point is `LLMProvider.build_agent(level=..., system_prompt=...)` where `level` is an integer 1–4
+- `build_agent` — assembles a pydantic-ai Agent from model, http_client, system_prompt, tools, and output_type; on the provider the public entry-point is `LLMProvider.build_agent(level=..., system_prompt=...)` where `level` is an integer 1–3
 
 ### Config-tier re-exports
 
-- `LEVEL1_DEFAULT` — default `TierLevelConfig` for level 1 (fast/cheap)
-- `LEVEL2_DEFAULT` — default `TierLevelConfig` for level 2 (capable)
-- `LEVEL3_DEFAULT` — default `TierLevelConfig` for level 3 (premium)
-- `LEVEL4_DEFAULT` — default `TierLevelConfig` for level 4 (frontier, Claude Fable 5)
-- `TierConfig` — pydantic model for five-tier provider+model configuration
+- `DEFAULT_LEVEL1..3` — baked `TierLevelConfig` per level of the default slot (Claude SDK: haiku / opus / claude-fable-5)
+- `FALLBACK_LEVEL1..3` — baked `TierLevelConfig` per level of the fallback slot (OpenRouter DeepSeek: flash / flash-with-reasoning / pro)
+- `TierConfig` — pydantic model holding two provider slots (`default`, `fallback`) plus the `failover` policy
+- `ProviderSlotConfig` — one slot's binding of all three levels
+- `FailoverConfig` — provider-failover policy (`failure_threshold`, `window_seconds`)
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded
-- `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`), `LEVEL4` (→ `level=4`) tier-selector values
-- `TierLevelConfig` — pydantic model binding a single tier's transport and model
+- `TierLevel` — `StrEnum` with `LEVEL1` (→ `level=1`), `LEVEL2` (→ `level=2`), `LEVEL3` (→ `level=3`) selector values
+- `TierLevelConfig` — pydantic model binding a single level's transport and model
 - `create_model` — consumer-facing factory returning a configured `LLMProvider`
-- `load_tier_config` — loads and validates a `TierConfig` from environment overrides and defaults
+- `load_tier_config` — merges an explicit dict over the baked defaults into a validated `TierConfig`
 ### Agent runners
 
 - `run_agent` — runs an `AgentHandle` under a trace span with bounded retry, always closing the handle
@@ -48,10 +48,14 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `acall_with_retry` — async mirror of `call_with_retry`
 - `acall_with_retry_and_fallback` — async mirror of `call_with_retry_and_fallback`
 
-### Tier fallback
+### Provider failover
 
-- `call_with_tier_fallback` — runs a callable with tier escalation: starts at a given `TierLevel` and retries the next tier on failure. On by default (`fallback_enabled=True`); pass `fallback_enabled=False` to try only the starting tier
-- `acall_with_tier_fallback` — async mirror of `call_with_tier_fallback`
+- `call_with_failover` — runs a callable at a fixed capability level with automatic provider-slot failover: a provider-shaped failure on the active slot retries the SAME level on the other slot; after `failure_threshold` consecutive default-slot failures (exhaustion immediately) all calls route to the fallback slot for `window_seconds`, then return to the default
+- `acall_with_failover` — async mirror of `call_with_failover`
+- `ProviderFailoverTracker` — process-wide tracker holding failover state (singleton via `get_failover_tracker`)
+- `get_failover_status` / `FailoverStatus` — snapshot of the failover state, shaped for consumer status endpoints and UIs
+- `is_provider_shaped` — classifies whether an exception points at the provider (failover-eligible) or the task
+- `reset_failover_tracker` — resets the singleton (test teardown)
 
 ### Cost recording
 

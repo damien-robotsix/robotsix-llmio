@@ -19,7 +19,7 @@ class ProviderExhaustedError(RobotsixLLMIOError):
     (:class:`~robotsix_llmio.claude_sdk._errors.ClaudeSDKUsageExhaustedError`):
     the sibling Claude tiers all draw on the one subscription, so once one is
     exhausted the rest are too. The tier-fallback loop
-    (:func:`~robotsix_llmio.core.tier_fallback.acall_with_tier_fallback`)
+    (:func:`~robotsix_llmio.core.failover.acall_with_failover`)
     treats this specially: on such a failure it skips *all* remaining levels
     on the exhausted provider in one step, instead of wasting fallback hops
     walking sibling tiers that are already spent.

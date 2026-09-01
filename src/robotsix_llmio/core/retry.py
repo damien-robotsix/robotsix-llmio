@@ -77,7 +77,7 @@ def _drive_sync[R](coro: Coroutine[Any, Any, R]) -> R:
     """Drive *coro* to completion synchronously, without an event loop.
 
     The sync wrappers (:func:`call_with_retry`,
-    :func:`~robotsix_llmio.core.tier_fallback.call_with_tier_fallback`,
+    :func:`~robotsix_llmio.core.failover.call_with_failover`,
     :func:`~robotsix_llmio.core.run.run_agent`) reuse the shared async loops
     with adapters that never suspend — a sync ``invoke`` and a blocking
     ``sleep`` — so the coroutine finishes on the first ``send``.

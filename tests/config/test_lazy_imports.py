@@ -13,22 +13,25 @@ from robotsix_llmio.config import loader as _loader
 from robotsix_llmio.config import tier as _tier
 
 
-def test_re_export_level1_default():
-    from robotsix_llmio.config import LEVEL1_DEFAULT
+def test_re_export_baked_defaults():
+    from robotsix_llmio import config
 
-    assert LEVEL1_DEFAULT is _tier.LEVEL1_DEFAULT
+    for name in (
+        "DEFAULT_LEVEL1",
+        "DEFAULT_LEVEL2",
+        "DEFAULT_LEVEL3",
+        "FALLBACK_LEVEL1",
+        "FALLBACK_LEVEL2",
+        "FALLBACK_LEVEL3",
+    ):
+        assert getattr(config, name) is getattr(_tier, name)
 
 
-def test_re_export_level2_default():
-    from robotsix_llmio.config import LEVEL2_DEFAULT
+def test_re_export_slot_and_failover_schemas():
+    from robotsix_llmio.config import FailoverConfig, ProviderSlotConfig
 
-    assert LEVEL2_DEFAULT is _tier.LEVEL2_DEFAULT
-
-
-def test_re_export_level3_default():
-    from robotsix_llmio.config import LEVEL3_DEFAULT
-
-    assert LEVEL3_DEFAULT is _tier.LEVEL3_DEFAULT
+    assert FailoverConfig is _tier.FailoverConfig
+    assert ProviderSlotConfig is _tier.ProviderSlotConfig
 
 
 def test_re_export_tier_config():

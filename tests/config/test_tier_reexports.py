@@ -4,53 +4,67 @@ the canonical tier symbols."""
 from __future__ import annotations
 
 from robotsix_llmio.config.tier import (
-    LEVEL1_DEFAULT,
-    LEVEL2_DEFAULT,
-    LEVEL3_DEFAULT,
-    LEVEL4_DEFAULT,
+    DEFAULT_LEVEL1,
+    DEFAULT_LEVEL2,
+    DEFAULT_LEVEL3,
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
+    FailoverConfig,
+    ProviderSlotConfig,
     TierConfig,
     TierLevel,
     TierLevelConfig,
 )
 
 
-def test_core_reexports_tier_level():
-    """``TierLevel`` is importable from ``robotsix_llmio.core``."""
-    from robotsix_llmio.core import TierLevel as TL
-
-    assert TL is TierLevel
-
-
-def test_core_reexports_tier_config():
-    """``TierConfig`` is importable from ``robotsix_llmio.core``."""
-    from robotsix_llmio.core import TierConfig as TC
+def test_core_reexports_schema_types():
+    from robotsix_llmio.core import (
+        FailoverConfig as FC,
+    )
+    from robotsix_llmio.core import (
+        ProviderSlotConfig as PSC,
+    )
+    from robotsix_llmio.core import (
+        TierConfig as TC,
+    )
+    from robotsix_llmio.core import (
+        TierLevel as TL,
+    )
+    from robotsix_llmio.core import (
+        TierLevelConfig as TLC,
+    )
 
     assert TC is TierConfig
-
-
-def test_core_reexports_tier_level_config():
-    """``TierLevelConfig`` is importable from ``robotsix_llmio.core``."""
-    from robotsix_llmio.core import TierLevelConfig as TLC
-
+    assert TL is TierLevel
     assert TLC is TierLevelConfig
+    assert PSC is ProviderSlotConfig
+    assert FC is FailoverConfig
 
 
-def test_core_reexports_defaults():
-    """The four baked defaults are importable from ``robotsix_llmio.core``."""
-    from robotsix_llmio.core import (
-        LEVEL1_DEFAULT as L1D,
-    )
-    from robotsix_llmio.core import (
-        LEVEL2_DEFAULT as L2D,
-    )
-    from robotsix_llmio.core import (
-        LEVEL3_DEFAULT as L3D,
-    )
-    from robotsix_llmio.core import (
-        LEVEL4_DEFAULT as L4D,
-    )
+def test_core_reexports_baked_defaults():
+    from robotsix_llmio import core
 
-    assert L1D is LEVEL1_DEFAULT
-    assert L2D is LEVEL2_DEFAULT
-    assert L3D is LEVEL3_DEFAULT
-    assert L4D is LEVEL4_DEFAULT
+    assert core.DEFAULT_LEVEL1 is DEFAULT_LEVEL1
+    assert core.DEFAULT_LEVEL2 is DEFAULT_LEVEL2
+    assert core.DEFAULT_LEVEL3 is DEFAULT_LEVEL3
+    assert core.FALLBACK_LEVEL1 is FALLBACK_LEVEL1
+    assert core.FALLBACK_LEVEL2 is FALLBACK_LEVEL2
+    assert core.FALLBACK_LEVEL3 is FALLBACK_LEVEL3
+
+
+def test_core_reexports_failover_surface():
+    from robotsix_llmio.core import (
+        FailoverStatus,
+        acall_with_failover,
+        call_with_failover,
+        get_failover_status,
+        get_failover_tracker,
+    )
+    from robotsix_llmio.core import failover as failover_module
+
+    assert FailoverStatus is failover_module.FailoverStatus
+    assert call_with_failover is failover_module.call_with_failover
+    assert acall_with_failover is failover_module.acall_with_failover
+    assert get_failover_status is failover_module.get_failover_status
+    assert get_failover_tracker is failover_module.get_failover_tracker

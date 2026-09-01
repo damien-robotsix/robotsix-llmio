@@ -14,11 +14,25 @@ import uuid
 
 import pytest
 
-from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+from robotsix_llmio.config.tier import (
+    ProviderSlotConfig,
+    TierConfig,
+    TierLevelConfig,
+)
 from tests.core.conftest import (
     _langfuse_creds,
     _langfuse_get,
     _langfuse_traces,
+)
+
+# claudeSDK bindings, haiku at every level: the live tests pin the cheapest
+# Claude model regardless of which level they exercise.
+_CLAUDE_TIERS = TierConfig(
+    default=ProviderSlotConfig(
+        level1=TierLevelConfig(model="claudeSDK-haiku"),
+        level2=TierLevelConfig(model="claudeSDK-haiku"),
+        level3=TierLevelConfig(model="claudeSDK-haiku"),
+    ),
 )
 
 
@@ -58,9 +72,7 @@ def test_langfuse_trace_roundtrip_claude_sdk_has_cost() -> None:
     provider = ClaudeSDKProvider()
     agent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-        ),
+        tier_config=_CLAUDE_TIERS,
         system_prompt="You are concise. Answer with just the number.",
         output_type=str,
         name="tracing-livetest-claude",
@@ -114,9 +126,7 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     provider = ClaudeSDKProvider()
     subagent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-        ),
+        tier_config=_CLAUDE_TIERS,
         system_prompt="You are a physics expert. Answer in one short sentence.",
         output_type=str,
         name="subagent-physics",
@@ -137,8 +147,11 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
     outer = provider.build_agent(
         level=2,
         tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-            level2=TierLevelConfig(model="claudeSDK-opus"),
+            default=ProviderSlotConfig(
+                level1=TierLevelConfig(model="claudeSDK-haiku"),
+                level2=TierLevelConfig(model="claudeSDK-opus"),
+                level3=TierLevelConfig(model="claudeSDK-claude-fable-5"),
+            ),
         ),
         system_prompt=(
             "Use the add tool for arithmetic and the consult_expert tool for "
@@ -230,9 +243,7 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
 
     subagent = provider.build_agent(
         level=1,
-        tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-        ),
+        tier_config=_CLAUDE_TIERS,
         system_prompt="Use the lookup tool, then answer in one sentence.",
         tools=[lookup],
         name="subagent-with-tool",
@@ -245,9 +256,7 @@ def test_langfuse_trace_claude_sdk_nested_tool_agent() -> None:
 
     outer = provider.build_agent(
         level=1,
-        tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-        ),
+        tier_config=_CLAUDE_TIERS,
         system_prompt="Use the consult_expert tool for science questions.",
         tools=[consult_expert],
         name="coordinator",
@@ -325,9 +334,7 @@ def test_claude_sdk_workspace_confinement_blocks_out_of_scope_edit(tmp_path) -> 
 
     agent = ClaudeSDKProvider().build_agent(
         level=1,
-        tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
-        ),
+        tier_config=_CLAUDE_TIERS,
         system_prompt="You edit files with your built-in tools. Be terse.",
         tools=[note],
         name="confine-livetest",

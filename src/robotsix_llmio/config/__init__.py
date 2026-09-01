@@ -1,4 +1,4 @@
-"""Four-tier configuration schema for provider+model bindings.
+"""Two-slot, three-level configuration schema for provider+model bindings.
 
 Prefer importing from :mod:`robotsix_llmio.core` — the public types are
 re-exported there for discoverability.
@@ -24,11 +24,14 @@ if TYPE_CHECKING:
     from robotsix_llmio.config.factory import create_model
     from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
     from robotsix_llmio.config.tier import (
-        LEVEL1_DEFAULT,
-        LEVEL2_DEFAULT,
-        LEVEL3_DEFAULT,
-        LEVEL4_DEFAULT,
-        LEVEL5_DEFAULT,
+        DEFAULT_LEVEL1,
+        DEFAULT_LEVEL2,
+        DEFAULT_LEVEL3,
+        FALLBACK_LEVEL1,
+        FALLBACK_LEVEL2,
+        FALLBACK_LEVEL3,
+        FailoverConfig,
+        ProviderSlotConfig,
         TierConfig,
         TierLevel,
         TierLevelConfig,
@@ -41,13 +44,16 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
-    "LEVEL1_DEFAULT",
-    "LEVEL2_DEFAULT",
-    "LEVEL3_DEFAULT",
-    "LEVEL4_DEFAULT",
-    "LEVEL5_DEFAULT",
+    "DEFAULT_LEVEL1",
+    "DEFAULT_LEVEL2",
+    "DEFAULT_LEVEL3",
+    "FALLBACK_LEVEL1",
+    "FALLBACK_LEVEL2",
+    "FALLBACK_LEVEL3",
+    "FailoverConfig",
     "MalformedIdentifierError",
     "ParsedIdentifier",
+    "ProviderSlotConfig",
     "TierConfig",
     "TierConfigLoadError",
     "TierLevel",
@@ -58,48 +64,32 @@ __all__ = [
     "parse_model_identifier",
 ]
 
+_TIER_NAMES = frozenset(
+    {
+        "DEFAULT_LEVEL1",
+        "DEFAULT_LEVEL2",
+        "DEFAULT_LEVEL3",
+        "FALLBACK_LEVEL1",
+        "FALLBACK_LEVEL2",
+        "FALLBACK_LEVEL3",
+        "FailoverConfig",
+        "ProviderSlotConfig",
+        "TierConfig",
+        "TierLevel",
+        "TierLevelConfig",
+    }
+)
+
 
 def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
-    if name == "LEVEL1_DEFAULT":
+    if name in _TIER_NAMES:
         from . import tier
 
-        return tier.LEVEL1_DEFAULT
-    if name == "LEVEL2_DEFAULT":
-        from . import tier
-
-        return tier.LEVEL2_DEFAULT
-    if name == "LEVEL3_DEFAULT":
-        from . import tier
-
-        return tier.LEVEL3_DEFAULT
-    if name == "LEVEL5_DEFAULT":
-        from . import tier
-
-        return tier.LEVEL5_DEFAULT
-    if name == "LEVEL4_DEFAULT":
-        from . import tier
-
-        return tier.LEVEL4_DEFAULT
-    if name == "TierConfig":
-        from . import tier
-
-        return tier.TierConfig
-    if name == "TierLevel":
-        from . import tier
-
-        return tier.TierLevel
-    if name == "TierLevelConfig":
-        from . import tier
-
-        return tier.TierLevelConfig
-    if name == "TierConfigLoadError":
+        return getattr(tier, name)
+    if name in ("TierConfigLoadError", "load_tier_config"):
         from . import loader
 
-        return loader.TierConfigLoadError
-    if name == "load_tier_config":
-        from . import loader
-
-        return loader.load_tier_config
+        return getattr(loader, name)
     if name == "create_model":
         from . import factory
 
@@ -108,16 +98,12 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from robotsix_llmio.core import factory as _core_factory
 
         return _core_factory.get_provider_for_identifier
-    if name == "MalformedIdentifierError":
+    if name in (
+        "MalformedIdentifierError",
+        "ParsedIdentifier",
+        "parse_model_identifier",
+    ):
         from robotsix_llmio.core import identifier as _core_identifier
 
-        return _core_identifier.MalformedIdentifierError
-    if name == "ParsedIdentifier":
-        from robotsix_llmio.core import identifier as _core_identifier
-
-        return _core_identifier.ParsedIdentifier
-    if name == "parse_model_identifier":
-        from robotsix_llmio.core import identifier as _core_identifier
-
-        return _core_identifier.parse_model_identifier
+        return getattr(_core_identifier, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

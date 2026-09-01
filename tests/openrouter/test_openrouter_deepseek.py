@@ -62,14 +62,14 @@ def test_level1_disables_reasoning_and_uses_cheap_ceiling():
 
 
 def test_level1_baked_default_prefers_cheap_deepinfra_not_deepseek():
-    """The baked cheap-tier binding (``LEVEL1_DEFAULT.provider_kwargs``) routes
+    """The baked cheap-tier binding (``FALLBACK_LEVEL1.provider_kwargs``) routes
     to a stable cheap upstream (DeepInfra) under the cheap ceiling — not
     DeepSeek, whose repriced flash endpoint (~$0.44/$1.32 on 2026-08-31) breaks
     that ceiling and tripped the price-ceiling drift guard."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
     from pydantic_ai.providers.openrouter import OpenRouterProvider as _Pyd
 
-    from robotsix_llmio.config.tier import LEVEL1_DEFAULT
+    from robotsix_llmio.config.tier import FALLBACK_LEVEL1
     from robotsix_llmio.openrouter._deepseek_model import (
         DEFAULT_MAX_PRICE_CHEAP,
         OpenRouterDeepseekModel,
@@ -82,7 +82,7 @@ def test_level1_baked_default_prefers_cheap_deepinfra_not_deepseek():
         "deepseek/deepseek-v4-flash-20260731", provider=_Pyd(api_key="x")
     )
     OpenRouterDeepseekProvider(
-        api_key="x", **LEVEL1_DEFAULT.provider_kwargs
+        api_key="x", **FALLBACK_LEVEL1.provider_kwargs
     )._post_build_model(m, 1)
     ms: dict = {}
     m._inject_pin((), {"model_settings": ms})
@@ -602,16 +602,31 @@ def test_level3_default_tier_routing_reaches_the_request():
     the path mill and chat use — the one that was silently dropping them."""
     pytest.importorskip("pydantic_ai.providers.openrouter")
 
-    from robotsix_llmio.config.tier import LEVEL3_DEFAULT
+    from robotsix_llmio.config.tier import (
+        FALLBACK_LEVEL1,
+        FALLBACK_LEVEL2,
+        FALLBACK_LEVEL3,
+        ProviderSlotConfig,
+        TierConfig,
+    )
     from robotsix_llmio.core.factory import get_provider_for_level
 
-    provider = get_provider_for_level(3, api_key="x")
-    model, http_client = provider.new_model(model=LEVEL3_DEFAULT.model_name, level=3)
+    # The OpenRouter bindings sit in the DEFAULT slot here: the test exercises
+    # the factory path with no failover machinery involved.
+    tier_config = TierConfig(
+        default=ProviderSlotConfig(
+            level1=FALLBACK_LEVEL1,
+            level2=FALLBACK_LEVEL2,
+            level3=FALLBACK_LEVEL3,
+        ),
+    )
+    provider = get_provider_for_level(3, tier_config=tier_config, api_key="x")
+    model, http_client = provider.new_model(model=FALLBACK_LEVEL3.model_name, level=3)
     try:
         ms: dict = {}
         model._inject_pin((), {"model_settings": ms})
         routing = ms["extra_body"]["provider"]
-        expected = LEVEL3_DEFAULT.provider_kwargs
+        expected = FALLBACK_LEVEL3.provider_kwargs
         assert routing["order"] == [expected["preferred_provider"]]
         assert routing["max_price"] == {
             "prompt": expected["max_price_prompt"],

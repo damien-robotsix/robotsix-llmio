@@ -16,7 +16,23 @@ import uuid
 
 import pytest
 
-from robotsix_llmio.config.tier import LEVEL1_DEFAULT, TierConfig
+from robotsix_llmio.config.tier import (
+    FALLBACK_LEVEL1,
+    FALLBACK_LEVEL2,
+    FALLBACK_LEVEL3,
+    ProviderSlotConfig,
+    TierConfig,
+)
+
+# OpenRouter bindings in the DEFAULT slot: these live tests exercise the
+# OpenRouter transport directly, with no failover machinery involved.
+_OPENROUTER_TIERS = TierConfig(
+    default=ProviderSlotConfig(
+        level1=FALLBACK_LEVEL1,
+        level2=FALLBACK_LEVEL2,
+        level3=FALLBACK_LEVEL3,
+    ),
+)
 
 
 def _langfuse_traces_for_project(
@@ -96,7 +112,7 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     # Session A → project A
     agent_a = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are concise. Answer with just the number.",
         name="mt-agent-a",
     )
@@ -114,7 +130,7 @@ def test_multi_tenant_no_cross_project_leakage() -> None:
     # Session B → project B
     agent_b = provider.build_agent(
         level=1,
-        tier_config=TierConfig(level1=LEVEL1_DEFAULT),
+        tier_config=_OPENROUTER_TIERS,
         system_prompt="You are concise. Answer with just the number.",
         name="mt-agent-b",
     )

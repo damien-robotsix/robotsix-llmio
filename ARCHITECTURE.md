@@ -199,10 +199,24 @@ short rationale grounded in the source.
     Consumers pass a capability `level` (1, 2, or 3) to
     `LLMProvider.build_agent()` or `create_model()`. The
     level→(transport, model) resolution is handled by `TierConfig`
-    (schema in `config/tier.py`), which merges baked defaults,
-    environment variables, and explicit overrides. The caller never
-    types a raw model name unless bypassing tier config entirely
-    via `new_model(model=..., level=...)`.
+    (schema in `config/tier.py`): two provider *slots* (`default` —
+    Anthropic via the Claude SDK; `fallback` — DeepSeek via OpenRouter)
+    each bind all three levels, and `for_level()` resolves against the
+    slot the failover tracker currently designates as active.
+    `load_tier_config()` merges an explicit dict over the baked defaults
+    (there is no environment-variable overlay). The caller never types a
+    raw model name unless bypassing tier config entirely via
+    `new_model(model=..., level=...)`.
+- **Provider failover, never level fallback (`core/failover.py`).**
+    Capability levels never fall back to one another. A provider-shaped
+    failure (transient outage, rate limit, usage exhaustion) inside
+    `call_with_failover` / `acall_with_failover` retries the SAME level
+    on the other provider slot; after `failure_threshold` consecutive
+    default-slot failures (exhaustion arms immediately) the process-wide
+    `ProviderFailoverTracker` routes every call straight to the fallback
+    slot for `window_seconds` (default 15 minutes), then automatically
+    returns to the default. `get_failover_status()` snapshots the state
+    for consumer status endpoints and UIs.
 - **Hook-based extension on `OpenRouterProvider`.** The two
     overridable hooks — `_model_class()`, `_post_build_model()` —
     are the contract a per-family derived layer fills in.
@@ -326,12 +340,8 @@ sub-directory for modules that have their own test suite:
   - `test_core_retry_async_sync_wrappers.py` — async sync wrappers unit tests.
   - `test_core_retry_properties.py` — property tests.
   - `test_core_run.py` — top-level run loop unit tests.
-  - `test_core_tier_fallback.py` — tier-fallback unit tests.
-  - `test_core_tier_fallback_async.py` — async tier-fallback unit tests.
-  - `test_core_tier_fallback_next_tier.py` — next-tier fallback unit tests.
-  - `test_core_tier_fallback_provider_exhaustion.py` — provider-exhaustion skip-same-provider unit tests.
-  - `test_core_tier_fallback_sync.py` — sync tier-fallback unit tests.
-  - `test_core_tier_fallback_tracing.py` — tier-fallback tracing unit tests.
+  - `test_core_failover.py` — failover tracker + status unit tests.
+  - `test_core_failover_loop.py` — failover call-loop unit tests (sync + async).
   - `test_exceptions.py` — custom exception classes.
   - `test_factory.py` — agent factory unit tests.
   - `test_factory_levels.py` — capability-level factory tests.

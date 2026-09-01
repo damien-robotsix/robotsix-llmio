@@ -162,12 +162,20 @@ def test_build_agent_threads_workspace_root(tmp_path):
         """A trivial tool so build_agent takes the tool path."""
         return x
 
-    from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+    from robotsix_llmio.config.tier import (
+        ProviderSlotConfig,
+        TierConfig,
+        TierLevelConfig,
+    )
 
     handle = ClaudeSDKProvider().build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
+            default=ProviderSlotConfig(
+                level1=TierLevelConfig(model="claudeSDK-haiku"),
+                level2=TierLevelConfig(model="claudeSDK-opus"),
+                level3=TierLevelConfig(model="claudeSDK-claude-fable-5"),
+            ),
         ),
         system_prompt="p",
         tools=[noop_tool],
@@ -182,12 +190,20 @@ def test_build_agent_workspace_root_defaults_none(tmp_path):
         """trivial."""
         return x
 
-    from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
+    from robotsix_llmio.config.tier import (
+        ProviderSlotConfig,
+        TierConfig,
+        TierLevelConfig,
+    )
 
     handle = ClaudeSDKProvider().build_agent(
         level=1,
         tier_config=TierConfig(
-            level1=TierLevelConfig(model="claudeSDK-haiku"),
+            default=ProviderSlotConfig(
+                level1=TierLevelConfig(model="claudeSDK-haiku"),
+                level2=TierLevelConfig(model="claudeSDK-opus"),
+                level3=TierLevelConfig(model="claudeSDK-claude-fable-5"),
+            ),
         ),
         system_prompt="p",
         tools=[noop_tool],

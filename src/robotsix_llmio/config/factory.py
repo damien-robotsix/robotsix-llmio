@@ -33,10 +33,11 @@ def create_model(
     via :func:`~robotsix_llmio.core.factory.get_provider_for_identifier`.
 
     Args:
-        level: Capability level (1, 2, 3, 4, or 5).  Level 1 selects the
-            cheap/fast model; levels 2-5 select progressively more
-            capable defaults (level 4 is the frontier tier,
-            ``claudeSDK-claude-fable-5`` by default).
+        level: Capability level (1, 2, or 3).  Level 1 is the cheap
+            frequent tier, level 2 the workhorse, level 3 the frontier
+            (``claudeSDK-claude-fable-5`` by default).  Resolution honours
+            the provider slot the failover tracker currently designates as
+            active (see :mod:`robotsix_llmio.core.failover`).
         tier_config: Optional :class:`~.tier.TierConfig` to resolve the
             provider + model.  When ``None``, a default ``TierConfig()``
             is built; its ``default_factory`` lambdas produce independent
@@ -51,7 +52,7 @@ def create_model(
             :meth:`~LLMProvider.new_model` calls.
 
     Raises:
-        ValueError: If *level* is not 1, 2, 3, 4, or 5.
+        ValueError: If *level* is not 1, 2, or 3.
         ImportError: If the provider's optional extra is not installed.
 
     Example:
@@ -60,10 +61,10 @@ def create_model(
 
         from robotsix_llmio.config import create_model
 
-        # Level 3 → Claude SDK by default (identifier "claudeSDK-opus").
-        provider = create_model(level=3)
+        # Level 2 → Claude SDK by default (identifier "claudeSDK-opus").
+        provider = create_model(level=2)
         agent = provider.build_agent(
-            level=3,
+            level=2,
             system_prompt="You are a helpful assistant.",
         )
 
