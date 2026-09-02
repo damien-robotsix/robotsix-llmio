@@ -209,6 +209,11 @@ def test_prepare_prompt_tool_naming_note_with_tools():
     assert "`mcp__milltools__ticket_poll`" in system_prompt
     assert "`mcp__milltools__component_request`" in system_prompt
     assert "bare name" in system_prompt
+    # 2026-09-02: tools can be DEFERRED behind ToolSearch — the note must
+    # give the load step and forbid the Skill-tool detour haiku took
+    # ("Unknown skill: mcp__milltools__component_request").
+    assert 'ToolSearch(query="select:<exact name>")' in system_prompt
+    assert "never pass these names to the Skill tool" in system_prompt
 
 
 def test_prepare_prompt_no_naming_note_without_tools():
