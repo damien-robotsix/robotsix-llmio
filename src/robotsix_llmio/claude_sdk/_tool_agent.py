@@ -67,11 +67,22 @@ _JSON_OUTPUT_INSTRUCTION = (
 # led with bare ``component_request`` and burned the error turn (observed
 # 2026-09-02, chat ticket monitors). Enumerating the exact callable names
 # gives the model strings to copy instead of a mapping to apply.
+#
+# The CLI may also DEFER these tools behind ToolSearch: the exact name then
+# fails with "No such tool available" until a ToolSearch select loads it.
+# Observed 2026-09-02 (chat monitors, post-#634): haiku dispatched the exact
+# name through the Skill tool ("Unknown skill: mcp__milltools__…") or called
+# the bare name, burning 2 turns before finding ToolSearch on its own — so
+# the note must spell out the load step and forbid the Skill detour.
 _TOOL_NAMING_INSTRUCTION = (
     "Tool naming: your task tools are callable ONLY by these exact names: "
     "{names}. Instructions may refer to a tool by its bare name (e.g. "
     "`ticket_poll`) — always call the matching name from this list; the "
-    "bare name does not exist and will fail."
+    "bare name does not exist and will fail. These are tools, not skills — "
+    "never pass these names to the Skill tool. If a listed tool is deferred "
+    "(not yet loaded, or a call fails with 'No such tool available'), load "
+    'it first with ToolSearch(query="select:<exact name>") and then call '
+    "the exact name directly."
 )
 
 # How many times to (re-)drive the SDK query for one agent run, retrying only
