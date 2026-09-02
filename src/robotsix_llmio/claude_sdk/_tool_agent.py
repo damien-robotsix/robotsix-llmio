@@ -62,13 +62,16 @@ _JSON_OUTPUT_INSTRUCTION = (
 # them by bare name. Larger models map the names on their own; smaller ones
 # (haiku) call the bare name verbatim, burn a tool-error turn, then guess
 # prefixes (observed 2026-09-01: ``component_request``, ``complete_subsession``,
-# ``mcp__milltools__ticket_poll`` passed to the skill reader). One explicit
-# rule in the system prompt removes the guessing.
+# ``mcp__milltools__ticket_poll`` passed to the skill reader). The abstract
+# prefix rule alone was not enough — after it shipped, haiku sessions still
+# led with bare ``component_request`` and burned the error turn (observed
+# 2026-09-02, chat ticket monitors). Enumerating the exact callable names
+# gives the model strings to copy instead of a mapping to apply.
 _TOOL_NAMING_INSTRUCTION = (
-    "Tool naming: the task tools provided to you are registered with the "
-    "'mcp__milltools__' prefix (a tool documented as `ticket_poll` is callable "
-    "only as `mcp__milltools__ticket_poll`). When instructions refer to a tool "
-    "by its bare name, call the prefixed name — the bare name does not exist."
+    "Tool naming: your task tools are callable ONLY by these exact names: "
+    "{names}. Instructions may refer to a tool by its bare name (e.g. "
+    "`ticket_poll`) — always call the matching name from this list; the "
+    "bare name does not exist and will fail."
 )
 
 # How many times to (re-)drive the SDK query for one agent run, retrying only
@@ -307,7 +310,10 @@ class _SdkToolAgentHandle:
         # Tell the model the real (MCP-prefixed) names of its injected tools —
         # instructions written against bare names otherwise cost error turns.
         if self._allowed_tools:
-            system_prompt = f"{system_prompt}\n\n{_TOOL_NAMING_INSTRUCTION}"
+            naming = _TOOL_NAMING_INSTRUCTION.format(
+                names=", ".join(f"`{name}`" for name in self._allowed_tools)
+            )
+            system_prompt = f"{system_prompt}\n\n{naming}"
 
         # Augment system prompt with JSON schema for structured output.
         if self._output_type is not str:
