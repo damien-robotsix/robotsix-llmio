@@ -193,16 +193,21 @@ def test_collect_latest_user_images_only_newest_turn():
 
 
 def test_prepare_prompt_tool_naming_note_with_tools():
-    """With bridged tools, the system prompt states the mcp__milltools__ prefix
-    rule (2026-09-01: haiku called bare `component_request`/`complete_subsession`
-    from skill text and burned tool-error turns)."""
+    """With bridged tools, the system prompt enumerates the exact callable
+    names (2026-09-01: haiku called bare `component_request` from skill text;
+    2026-09-02: the abstract prefix rule alone still left haiku leading with
+    the bare name — concrete names give it strings to copy)."""
     from .conftest import _make_minimal_handle
 
     handle = _make_minimal_handle(
-        allowed_tools=["mcp__milltools__ticket_poll"],
+        allowed_tools=[
+            "mcp__milltools__ticket_poll",
+            "mcp__milltools__component_request",
+        ],
     )
     _, system_prompt, _ = handle._prepare_prompt("hello", None)
-    assert "mcp__milltools__" in system_prompt
+    assert "`mcp__milltools__ticket_poll`" in system_prompt
+    assert "`mcp__milltools__component_request`" in system_prompt
     assert "bare name" in system_prompt
 
 
