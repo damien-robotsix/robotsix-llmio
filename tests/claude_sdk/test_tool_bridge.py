@@ -206,6 +206,37 @@ def test_tool_definition_mapping_from_plain_callable(monkeypatch):
     assert reg["schema"]["properties"]["name"]["type"] == "string"
 
 
+def test_async_tool_wrapper_awaits_the_function(monkeypatch):
+    """An async pydantic-ai tool is detected (``is_async``) and its wrapper
+    awaits the underlying function — regression for the pydantic-ai 2.x
+    migration away from ``Tool.function_schema.is_async``."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    async def _echo_async(text: str) -> str:
+        return text.upper()
+
+    _convert_tools([PydanticTool(_echo_async, name="echo_async")])
+
+    wrapper = fake._server_calls[0]["tools"][0]
+    result = asyncio.run(wrapper({"text": "hi"}))
+    assert result == {"content": [{"type": "text", "text": "HI"}]}
+
+
+def test_sync_tool_wrapper_calls_the_function(monkeypatch):
+    """A plain (sync) tool is called directly, not awaited — regression for
+    the same ``is_async`` detection."""
+    fake = _install_fake_sdk(monkeypatch)
+
+    def _shout(text: str) -> str:
+        return text.upper()
+
+    _convert_tools([PydanticTool(_shout, name="shout")])
+
+    wrapper = fake._server_calls[0]["tools"][0]
+    result = asyncio.run(wrapper({"text": "hi"}))
+    assert result == {"content": [{"type": "text", "text": "HI"}]}
+
+
 def test_required_ctx_tool_raises_user_error_at_build_time(monkeypatch):
     """A tool whose ctx parameter has NO default raises ``UserError`` at
     conversion time — the Claude SDK cannot supply a RunContext."""

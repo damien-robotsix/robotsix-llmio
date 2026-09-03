@@ -1,6 +1,6 @@
 """Async refdocs REST client for searching and retrieving documentation.
 
-Self-contained: depends only on ``httpx`` and the public REST API — no
+Self-contained: depends only on ``httpx2`` and the public REST API — no
 pydantic-ai, no OTel. Direct HTTP access replaces the agent-comm broker.
 """
 
@@ -18,7 +18,7 @@ class AsyncRefdocsClient(BaseHttpClient):
     """Async refdocs REST client for searching and retrieving documentation.
 
     Hits the refdocs REST API directly (no agent-comm broker). Creates a
-    fresh, timeout-bounded ``httpx.AsyncClient`` per request (stateless
+    fresh, timeout-bounded ``httpx2.AsyncClient`` per request (stateless
     per-call pattern).
     """
 

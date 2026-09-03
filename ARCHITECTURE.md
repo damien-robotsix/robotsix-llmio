@@ -110,9 +110,9 @@ files are:
   plus the inherited `build_agent` / `call_with_retry` methods that
   derived providers reuse unchanged.
 - `agent.py` — `AgentHandle` (wraps a pydantic-ai `Agent` with its
-  httpx client for deterministic close, delegating attribute access so
+  httpx2 client for deterministic close, delegating attribute access so
   call sites stay unchanged) and the generic `build_agent` function.
-- `http.py` — `timeout_http_client()`: an httpx `AsyncClient` configured
+- `http.py` — `timeout_http_client()`: an httpx2 `AsyncClient` configured
   with `MODEL_REQUEST_TIMEOUT` + `CONNECT_TIMEOUT` plus a
   `weakref.finalize` backstop that calls `aclose()` in a fresh event
   loop if the client is garbage-collected without an explicit close.
@@ -233,10 +233,10 @@ short rationale grounded in the source.
     the model class and stamps per-level reasoning policy in
     `_post_build_model`.
 - **`AgentHandle` for deterministic cleanup.** `core/agent.py` wraps
-  the pydantic-ai `Agent` together with its httpx client; callers call
+  the pydantic-ai `Agent` together with its httpx2 client; callers call
   `.close()` to tear the client down explicitly. Attribute access
   delegates to the wrapped agent, so existing call sites stay unchanged.
-- **`weakref.finalize` backstop on the httpx client.** `core/http.py`
+- **`weakref.finalize` backstop on the httpx2 client.** `core/http.py`
   registers a finalizer that calls `aclose()` in a fresh event loop if
   the client is garbage-collected without explicit close. Belt-and-braces
   against a forgotten `agent.close()`.

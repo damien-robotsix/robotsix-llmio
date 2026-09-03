@@ -1,6 +1,6 @@
 """Async OpenRouter REST client for per-key usage and account credits.
 
-Self-contained: depends only on ``httpx`` and the public REST API — no
+Self-contained: depends only on ``httpx2`` and the public REST API — no
 pydantic-ai, no OTel. Provides the async counterpart to the sync
 ``OpenRouterKeyCostSource`` plus account-level credits.
 """
@@ -20,7 +20,7 @@ class AsyncOpenRouterClient:
     """Async OpenRouter REST client for per-key usage and account credits.
 
     Hits the OpenRouter public REST API with Bearer-auth. Creates a fresh,
-    timeout-bounded ``httpx.AsyncClient`` per request (stateless per-call
+    timeout-bounded ``httpx2.AsyncClient`` per request (stateless per-call
     pattern, matches the sync ``OpenRouterKeyCostSource``).
     """
 

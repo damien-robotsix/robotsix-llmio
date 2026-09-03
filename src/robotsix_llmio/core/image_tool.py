@@ -149,7 +149,7 @@ async def _ask_vision_model(
     """One-shot question to the vision binding; returns the text answer.
 
     Builds a fresh provider + agent per call (an image question is rare and
-    the httpx client must not outlive it), runs under the provider's own
+    the httpx2 client must not outlive it), runs under the provider's own
     transient retry, and closes the handle deterministically. Cost stamps
     onto the active OTel span exactly like every other OpenRouter call —
     under the tool span on the Claude SDK bridge, under the agent-run span

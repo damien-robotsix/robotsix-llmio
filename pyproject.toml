@@ -24,8 +24,13 @@ dependencies = [
     # SLIM, not the full meta-package: the meta pulls every provider SDK plus
     # logfire (which auto-imports opentelemetry via a pydantic plugin) — we
     # keep the dependency surface minimal and let extras add provider support.
-    "pydantic-ai-slim>=1.0",
+    "pydantic-ai-slim>=2.36",
     "httpx",
+    # HTTPX2 — pydantic-ai 2.x moved its provider SDK clients to the httpx2
+    # fork (``httpx.AsyncClient`` handed to a 2.x provider is deprecated and
+    # will be removed in v3). Imported directly in core/http.py to build the
+    # provider-facing timeout client, so declared explicitly (deptry DEP003).
+    "httpx2",
     # Imported directly (models/validators throughout) — declared explicitly
     # rather than relied on transitively via pydantic-ai-slim (deptry DEP003).
     "pydantic>=2",
@@ -48,7 +53,7 @@ Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
 # `openai` is imported directly (provider.py), so it is declared explicitly
 # rather than relied on transitively via the pydantic-ai-slim extra (DEP003).
-openrouter = ["pydantic-ai-slim[openrouter]>=1.0", "openai"]
+openrouter = ["pydantic-ai-slim[openrouter]>=2.36", "openai"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).

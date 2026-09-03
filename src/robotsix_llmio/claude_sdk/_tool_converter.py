@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import inspect
 import json
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.exceptions import UserError
@@ -157,7 +158,7 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
             t = pydantic_ai.Tool(t)
 
         if t.takes_ctx:
-            sig = inspect.signature(t.function_schema.function)
+            sig = inspect.signature(t.function)
             ctx_param = sig.parameters.get("ctx")
             if (
                 ctx_param is not None
@@ -180,8 +181,19 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
         # The SDK's @tool wants a str description; pydantic-ai's may be None.
         description: str = t.description or ""
         schema: dict[str, Any] = t.tool_def.parameters_json_schema
-        fn = t.function_schema.function
-        is_async: bool = t.function_schema.is_async
+        # ``Tool.function`` is the public callable (``Tool.function_schema``
+        # is internal in 2.x). ``ToolFuncEither`` is a RunContext-aware union;
+        # annotate as a plain ``Callable[..., Any]`` since the SDK calls it
+        # with only its JSON args.
+        fn: Callable[..., Any] = t.function
+        # pydantic-ai's ``Tool.function_schema.is_async`` is internal in 2.x;
+        # mirror its robust check (unwraps partials, honours an async
+        # ``__call__``) with stdlib ``inspect`` instead.
+        is_async: bool = inspect.iscoroutinefunction(fn) or (
+            # ``callable(fn)`` narrows fn to ``Callable[..., Any]``, whose
+            # ``__call__`` mypy reports as not-callable; access is runtime-safe.
+            callable(fn) and inspect.iscoroutinefunction(fn.__call__)  # type: ignore[operator]
+        )
 
         @sdk_tool(name, description, schema)  # type: ignore[untyped-decorator, unused-ignore]
         async def _wrapper(

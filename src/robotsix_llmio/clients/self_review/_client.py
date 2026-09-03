@@ -20,7 +20,7 @@ class SelfReviewClient(BaseHttpClient):
 
     Connects directly to the self-review HTTP API — no agent-comm
     broker intermediary. Creates a fresh, timeout-bounded
-    ``httpx.AsyncClient`` per request (stateless per-call pattern).
+    ``httpx2.AsyncClient`` per request (stateless per-call pattern).
 
     Parameters
     ----------

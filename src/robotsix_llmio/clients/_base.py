@@ -27,7 +27,7 @@ class BaseHttpClient:
             ``Authorization: Bearer <api_key>``.
         request_timeout: Optional per-request timeout in seconds. When
             ``None``, the default timeout of the underlying
-            ``httpx.AsyncClient`` is used.
+            ``httpx2.AsyncClient`` is used.
 
     """
 
@@ -86,9 +86,12 @@ class BaseHttpClient:
         try:
             async with timeout_http_client() as client:
                 if self._request_timeout is not None:
-                    import httpx
+                    # timeout_http_client() builds an httpx2.AsyncClient
+                    # (pydantic-ai 2.x's HTTP layer), so the override must be
+                    # an httpx2.Timeout to keep the same family.
+                    import httpx2
 
-                    client.timeout = httpx.Timeout(self._request_timeout)
+                    client.timeout = httpx2.Timeout(self._request_timeout)
                 resp = await client.get(url, headers=headers, params=params)
         except Exception as exc:
             raise self._error_type(
