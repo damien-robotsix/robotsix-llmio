@@ -9,11 +9,14 @@ from typing import TYPE_CHECKING, Any
 from . import constants
 
 if TYPE_CHECKING:
-    import httpx
+    # httpx2 is pydantic-ai 2.x's HTTP layer; a legacy ``httpx.AsyncClient``
+    # handed to a 2.x provider is deprecated (PydanticAIDeprecationWarning,
+    # removal in v3), so the provider-facing client uses the fork.
+    import httpx2
 
 
 def _close_async_client(client: Any) -> None:
-    """Close an httpx.AsyncClient from outside its original event loop.
+    """Close an httpx2.AsyncClient from outside its original event loop.
 
     Creates a temporary event loop to run aclose(), swallowing errors so
     cleanup never raises in a finally/__del__ context.
@@ -32,15 +35,20 @@ def _close_async_client(client: Any) -> None:
         pass
 
 
-def timeout_http_client() -> httpx.AsyncClient:
-    """A fresh ``httpx.AsyncClient`` with a hard per-request timeout, so a
+def timeout_http_client() -> httpx2.AsyncClient:
+    """A fresh ``httpx2.AsyncClient`` with a hard per-request timeout, so a
     hung/glacial provider connection raises instead of blocking forever.
     Pass to the provider as its ``http_client``.
-    """
-    import httpx
 
-    client = httpx.AsyncClient(
-        timeout=httpx.Timeout(
+    httpx2 is pydantic-ai 2.x's HTTP layer: a legacy ``httpx.AsyncClient``
+    handed to a 2.x provider emits ``PydanticAIDeprecationWarning`` (and is
+    slated for removal in v3), so the provider-facing client is built on the
+    fork.
+    """
+    import httpx2
+
+    client = httpx2.AsyncClient(
+        timeout=httpx2.Timeout(
             constants.MODEL_REQUEST_TIMEOUT, connect=constants.CONNECT_TIMEOUT
         )
     )

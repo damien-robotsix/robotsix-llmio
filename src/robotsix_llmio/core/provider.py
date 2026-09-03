@@ -239,7 +239,7 @@ class LLMProvider(ABC):
         -------
         AgentHandle
             A ready-to-run agent handle wrapping a pydantic-ai ``Agent``
-            and its ``httpx`` client.  Call ``.close()`` when done.
+            and its ``httpx2`` client.  Call ``.close()`` when done.
 
         """
         if images:

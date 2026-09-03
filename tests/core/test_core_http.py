@@ -1,4 +1,4 @@
-"""Core HTTP client factory — timeout-bounded ``httpx.AsyncClient`` plus the
+"""Core HTTP client factory — timeout-bounded ``httpx2.AsyncClient`` plus the
 ``weakref.finalize`` cleanup callback."""
 
 from __future__ import annotations
@@ -33,16 +33,21 @@ def _aclose_sync(client: Any) -> None:
 
 
 def test_timeout_http_client_returns_async_client():
+    """The provider-facing client is an httpx2.AsyncClient — pydantic-ai 2.x's
+    HTTP layer. A legacy ``httpx.AsyncClient`` passed to a 2.x provider would
+    trip ``PydanticAIDeprecationWarning`` (removal in v3)."""
+    import httpx2
+
     client = timeout_http_client()
     try:
-        assert isinstance(client, httpx.AsyncClient)
+        assert isinstance(client, httpx2.AsyncClient)
     finally:
         _aclose_sync(client)
 
 
 def test_timeout_http_client_uses_module_constants():
     """The returned client must carry the module-level timeout knobs
-    verbatim. ``httpx.Timeout(MODEL_REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)``
+    verbatim. ``httpx2.Timeout(MODEL_REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)``
     broadcasts the positional value to read/write/pool and the keyword
     overrides only connect — pin all four so a regression that silently
     drops one to a tighter default is caught."""

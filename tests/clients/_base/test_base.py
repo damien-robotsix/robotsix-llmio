@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 
 import httpx
+import httpx2
 import pytest
 
 from robotsix_llmio.clients import _base as _base_module
@@ -222,12 +223,17 @@ def test_get_raises_on_network_error(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_get_applies_request_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    captured_clients: list[httpx.AsyncClient] = []
+    # ``timeout_http_client()`` returns an httpx2.AsyncClient (pydantic-ai 2.x's
+    # HTTP layer), so the fake must be httpx2 too — the per-request timeout
+    # override in ``_get`` is an httpx2.Timeout.
+    captured_clients: list[httpx2.AsyncClient] = []
 
-    transport = httpx.MockTransport(lambda req: httpx.Response(200, json={"ok": True}))
+    transport = httpx2.MockTransport(
+        lambda req: httpx2.Response(200, json={"ok": True})
+    )
 
-    def _fake_timeout_client() -> httpx.AsyncClient:
-        client = httpx.AsyncClient(transport=transport)
+    def _fake_timeout_client() -> httpx2.AsyncClient:
+        client = httpx2.AsyncClient(transport=transport)
         captured_clients.append(client)
         return client
 
@@ -237,7 +243,7 @@ def test_get_applies_request_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     asyncio.run(client._get("/v1/test"))
 
     assert len(captured_clients) == 1
-    assert isinstance(captured_clients[0].timeout, httpx.Timeout)
+    assert isinstance(captured_clients[0].timeout, httpx2.Timeout)
     assert captured_clients[0].timeout.read == 5.0
 
 
@@ -245,12 +251,14 @@ def test_get_does_not_set_timeout_when_request_timeout_is_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When request_timeout is None, the client's default timeout is used."""
-    captured_clients: list[httpx.AsyncClient] = []
+    captured_clients: list[httpx2.AsyncClient] = []
 
-    transport = httpx.MockTransport(lambda req: httpx.Response(200, json={"ok": True}))
+    transport = httpx2.MockTransport(
+        lambda req: httpx2.Response(200, json={"ok": True})
+    )
 
-    def _fake_timeout_client() -> httpx.AsyncClient:
-        client = httpx.AsyncClient(transport=transport)
+    def _fake_timeout_client() -> httpx2.AsyncClient:
+        client = httpx2.AsyncClient(transport=transport)
         captured_clients.append(client)
         return client
 
@@ -261,4 +269,4 @@ def test_get_does_not_set_timeout_when_request_timeout_is_none(
 
     assert len(captured_clients) == 1
     # Default AsyncClient timeout is 5.0 seconds in all directions.
-    assert captured_clients[0].timeout == httpx.Timeout(5.0)
+    assert captured_clients[0].timeout == httpx2.Timeout(5.0)

@@ -8,7 +8,7 @@ from .http import _close_async_client
 
 
 class AgentHandle:
-    """Wraps a pydantic-ai Agent with its httpx client so callers can
+    """Wraps a pydantic-ai Agent with its HTTP (httpx2) client so callers can
     deterministically close the client after use. Delegates attribute access
     to the underlying agent so existing call sites (and test mocks) work
     unchanged."""
