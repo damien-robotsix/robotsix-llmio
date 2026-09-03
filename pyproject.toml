@@ -80,7 +80,7 @@ exclude-newer = false
 
 [tool.uv.sources]
 robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "0dfb8eccd60942cdcb401d78f054e388a9c84a9b" }
 
 [tool.uv.audit]
 # CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in mcp 1.27.2, transitively pulled
