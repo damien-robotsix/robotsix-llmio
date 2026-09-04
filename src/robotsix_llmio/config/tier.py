@@ -46,6 +46,14 @@ class TierLevel(StrEnum):
     LEVEL3 = "level3"
 
 
+#: Runtime-iterable provider slot names, in canonical order. The single
+#: source for slot names used by :func:`robotsix_llmio.config.loader.load_tier_config`
+#: (which iterates this tuple and builds its unknown-key error message from
+#: it) — the loader no longer re-declares the slot names.
+#: ``ProviderSlotName`` below mirrors these values as the static type callers
+#: use to pass a slot name as a plain string.
+PROVIDER_SLOTS: tuple[str, ...] = ("default", "fallback")
+
 #: Slot names accepted by :meth:`TierConfig.for_level`.
 ProviderSlotName = Literal["default", "fallback"]
 
