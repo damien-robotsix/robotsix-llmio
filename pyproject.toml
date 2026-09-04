@@ -53,7 +53,11 @@ Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
 # `openai` is imported directly (provider.py), so it is declared explicitly
 # rather than relied on transitively via the pydantic-ai-slim extra (DEP003).
-openrouter = ["pydantic-ai-slim[openrouter]>=2.36", "openai"]
+# Floored at >=3: the provider-facing client is an `httpx2.AsyncClient`
+# (core.timeout_http_client), which `AsyncOpenAI` only accepts from openai 3.0
+# onwards; openai 2.x raises "Invalid http_client argument; Expected an
+# instance of httpx.AsyncClient but got httpx2.AsyncClient".
+openrouter = ["pydantic-ai-slim[openrouter]>=2.36", "openai>=3"]
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
@@ -72,7 +76,8 @@ tracing = [
 # default via [tool.uv] default-groups.
 [dependency-groups]
 dev = ["deptry", "hypothesis", "mypy", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "pyyaml", "robotsix-modules", "ruff", "vulture"]
-docs = ["mkdocs", "mkdocs-include-markdown-plugin", "mkdocs-material", "mkdocstrings[python]"]
+# mkdocs-material floored at 9.7.7 to resolve GHSA-xvg9-69gf-fjrf (present in 9.7.6).
+docs = ["mkdocs", "mkdocs-include-markdown-plugin", "mkdocs-material>=9.7.7", "mkdocstrings[python]"]
 
 [tool.uv]
 default-groups = ["dev"]
