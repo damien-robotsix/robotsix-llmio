@@ -106,6 +106,29 @@ def test_close_async_client_closes_open_client():
     assert client.is_closed is True
 
 
+def test_close_async_client_inside_running_loop_schedules_on_it():
+    """Regression (live in chat 2026-09-04): GC finalizers fire inside the
+    service's RUNNING event loop, where ``run_until_complete`` on a fresh
+    loop raises RuntimeError — the old code swallowed it and dropped the
+    ``aclose()`` coroutine un-awaited (a RuntimeWarning per collected client
+    and a leaked transport). Inside a running loop the close must be
+    scheduled on that loop and actually complete."""
+    client = httpx.AsyncClient()
+
+    async def scenario() -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _close_async_client(client)
+            await asyncio.gather(*http_module._pending_closes)
+            gc.collect()
+        assert client.is_closed is True
+        assert not [w for w in caught if "never awaited" in str(w.message)], (
+            "aclose() coroutine was dropped un-awaited"
+        )
+
+    asyncio.run(scenario())
+
+
 # --- §3 _close_async_client exception handling -----------------------------
 
 
