@@ -29,7 +29,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from robotsix_llmio.config.tier import TierConfig, TierLevel
+from robotsix_llmio.config.tier import PROVIDER_SLOTS, TierConfig, TierLevel
 from robotsix_llmio.exceptions import RobotsixLLMIOError
 
 # --------------------------------------------------------------------------- #
@@ -48,8 +48,6 @@ class TierConfigLoadError(RobotsixLLMIOError):
 # --------------------------------------------------------------------------- #
 #  Public API
 # --------------------------------------------------------------------------- #
-
-_SLOT_KEYS = ("default", "fallback")
 
 
 def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
@@ -76,11 +74,12 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
     if not config_dict:
         return TierConfig()
 
-    unknown = set(config_dict) - {*_SLOT_KEYS, "failover", "vision"}
+    unknown = set(config_dict) - {*PROVIDER_SLOTS, "failover", "vision"}
     if unknown:
+        expected_slots = ", ".join(repr(slot) for slot in PROVIDER_SLOTS)
         raise TierConfigLoadError(
             f"Unknown top-level key(s) {sorted(unknown)!r} in tier config. "
-            f"Expected 'default', 'fallback', 'failover', and/or 'vision' "
+            f"Expected {expected_slots}, 'failover', and/or 'vision' "
             f"(the flat level1..level5 shape was removed in the "
             f"provider-failover rework)."
         )
@@ -89,7 +88,7 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
     merged: dict[str, Any] = baked.model_dump()
 
     try:
-        for slot in _SLOT_KEYS:
+        for slot in PROVIDER_SLOTS:
             if slot not in config_dict:
                 continue
             slot_val = _to_dict(config_dict[slot])
