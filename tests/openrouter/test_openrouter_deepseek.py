@@ -7,6 +7,14 @@ from typing import Any
 
 import pytest
 
+# The OpenRouter DeepSeek provider builds an ``AsyncOpenAI`` with the httpx2
+# client that only ``openai>=3`` accepts. Skip the whole module *visibly*
+# (N skipped with a reason) when the optional ``openai>=3`` extra is absent or
+# stale, instead of silently dropping the directory at collection time.
+pytest.importorskip(
+    "openai", minversion="3", reason="OpenRouter transport requires openai>=3"
+)
+
 
 def _model(level: int):
     """Build a DeepSeek model for a capability *level* with reasoning policy
