@@ -25,6 +25,12 @@ dependencies = [
     # logfire (which auto-imports opentelemetry via a pydantic plugin) — we
     # keep the dependency surface minimal and let extras add provider support.
     "pydantic-ai-slim>=2.36",
+    # OpenRouter transport — base, not an extra (see [project.optional-dependencies]).
+    # Floored at >=3: the provider-facing client is an `httpx2.AsyncClient`
+    # (core.timeout_http_client), which `AsyncOpenAI` only accepts from openai
+    # 3.0 onwards; openai 2.x raises "Invalid http_client argument".
+    "pydantic-ai-slim[openrouter]>=2.36",
+    "openai>=3",
     "httpx",
     # HTTPX2 — pydantic-ai 2.x moved its provider SDK clients to the httpx2
     # fork (``httpx.AsyncClient`` handed to a 2.x provider is deprecated and
@@ -53,11 +59,16 @@ Issues        = "https://github.com/damien-robotsix/robotsix-llmio/issues"
 # Layer 2 — OpenRouter transport (OpenAIChatModel over the OpenRouter provider).
 # `openai` is imported directly (provider.py), so it is declared explicitly
 # rather than relied on transitively via the pydantic-ai-slim extra (DEP003).
-# Floored at >=3: the provider-facing client is an `httpx2.AsyncClient`
-# (core.timeout_http_client), which `AsyncOpenAI` only accepts from openai 3.0
-# onwards; openai 2.x raises "Invalid http_client argument; Expected an
-# instance of httpx.AsyncClient but got httpx2.AsyncClient".
-openrouter = ["pydantic-ai-slim[openrouter]>=2.36", "openai>=3"]
+# The OpenRouter transport is deliberately a BASE dependency, not an extra:
+# every fleet consumer uses llmio's failover, whose fallback slots route to
+# OpenRouter models, so a consumer without this transport fails at RUNTIME
+# on its first fallback turn instead of at install time. That is not
+# hypothetical — 2026-09-04 every robotsix-chat deepseek turn died with
+# ModuleNotFoundError('openai') after an unrelated dependency stopped
+# supplying `openai` transitively; the image had never installed the extra.
+# The empty `openrouter` extra below is kept so existing
+# `robotsix-llmio[openrouter]` requirements keep resolving.
+openrouter = []
 # Layer 2 (sibling) — Claude Agent SDK transport. No API key: authenticates via
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
