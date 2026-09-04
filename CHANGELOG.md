@@ -7,6 +7,15 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.1...v0.7.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* **claude_sdk:** enumerate exact tool names in the naming note ([#634](https://github.com/damien-robotsix/robotsix-llmio/issues/634)) ([70c6ae9](https://github.com/damien-robotsix/robotsix-llmio/commit/70c6ae9a36a089c7e763d2ee0ce1ab14270bddf4))
+* **claude_sdk:** teach the naming note the ToolSearch load step for deferred tools ([#636](https://github.com/damien-robotsix/robotsix-llmio/issues/636)) ([60987bb](https://github.com/damien-robotsix/robotsix-llmio/commit/60987bbc5e6d4af5146afd88c557411dc396b0eb))
+* make the OpenRouter transport a base dependency, not an extra ([#643](https://github.com/damien-robotsix/robotsix-llmio/issues/643)) ([a02fbcd](https://github.com/damien-robotsix/robotsix-llmio/commit/a02fbcd6524bd5c7f8316f20cc41b35e87598592))
+
 ## [0.7.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.0...v0.7.1) (2026-09-01)
 
 
