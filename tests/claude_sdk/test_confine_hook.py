@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from robotsix_llmio.claude_sdk._confinement import (
     _is_within,
     _make_bash_confine_hook,
@@ -136,6 +138,28 @@ def test_bash_hook_denies_ln_hardlink_to_outside(tmp_path):
 
 def test_bash_hook_allows_relative_paths(tmp_path):
     assert _run_bash_hook(tmp_path, "sed -i 's/a/b/' src/a.py") == {}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "grep -r foo src/ 2>/dev/null",
+        "cat src/a.py > /dev/null",
+        "head -c 16 /dev/urandom | xxd",
+        "diff src/a.py /dev/stdin",
+        "cmd </dev/null >/dev/stdout 2>/dev/stderr",
+        "wc -l /dev/fd/3",
+    ],
+)
+def test_bash_hook_allows_safe_pseudo_devices(tmp_path, command):
+    """`2>/dev/null` and friends are ubiquitous, leak nothing, and must not
+    be refused (false refusals burned mill review/ci_fix turns, 2026-09-05)."""
+    assert _run_bash_hook(tmp_path, command) == {}
+
+
+def test_bash_hook_still_denies_other_dev_like_paths(tmp_path):
+    # The allowlist is exact — /dev/sda (raw device) stays denied.
+    assert _denied(_run_bash_hook(tmp_path, "dd if=/dev/sda of=x.img"))
 
 
 def test_bash_hook_allows_absolute_inside_workspace(tmp_path):

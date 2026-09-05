@@ -26,6 +26,22 @@ log = logging.getLogger("robotsix_llmio.claude_sdk")
 _EDIT_TOOLS = "Write|Edit|MultiEdit|NotebookEdit"
 _EDIT_PATH_KEYS = ("file_path", "notebook_path", "path")
 
+# Pseudo-devices that are safe to reference from a confined Bash command:
+# they neither read nor leak workspace-external data. `/dev/fd/N` (process
+# substitution) is allowed by prefix in the hook.
+_SAFE_PSEUDO_DEVICES = frozenset(
+    {
+        "/dev/null",
+        "/dev/stdin",
+        "/dev/stdout",
+        "/dev/stderr",
+        "/dev/tty",
+        "/dev/zero",
+        "/dev/urandom",
+        "/dev/random",
+    }
+)
+
 
 def _is_within(root: str, target: str) -> bool:
     """True if *target* (resolved, relative paths joined to *root*) is inside
@@ -107,6 +123,12 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
             command,
         ):
             candidate = match.group(1).rstrip("'\";)}")  # strip trailing punct
+            if candidate in _SAFE_PSEUDO_DEVICES or candidate.startswith("/dev/fd/"):
+                # `2>/dev/null` and friends are ubiquitous shell idioms that
+                # neither read nor leak anything outside the workspace;
+                # denying them burned review/ci_fix agent turns on false
+                # refusals (mill 2026-09-05).
+                continue
             if candidate and not _is_within(root, candidate):
                 log.warning(
                     "Bash: denied out-of-workspace path %s (confined to %s)",
