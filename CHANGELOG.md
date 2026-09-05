@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.3](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.2...v0.7.3) (2026-09-05)
+
+
+### Bug Fixes
+
+* **claude_sdk:** spill oversized system prompts to --system-prompt-file ([#651](https://github.com/damien-robotsix/robotsix-llmio/issues/651)) ([453bad9](https://github.com/damien-robotsix/robotsix-llmio/commit/453bad94f73695ac96d48ff5647e0a179e31630c))
+* schedule GC-finalizer aclose() on the running loop instead of dropping it ([#645](https://github.com/damien-robotsix/robotsix-llmio/issues/645)) ([787547d](https://github.com/damien-robotsix/robotsix-llmio/commit/787547d84445a127e2fbb8bc6f1a5464547ed4a2))
+
 ## [0.7.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.1...v0.7.2) (2026-09-04)
 
 
