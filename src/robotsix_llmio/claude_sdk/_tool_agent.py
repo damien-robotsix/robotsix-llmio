@@ -36,6 +36,7 @@ from ._confinement import (
     _make_confine_hook,
 )
 from ._output import _build_schema_json, _parse_output
+from ._system_prompt import spill_oversized_system_prompt
 from ._task_budget import build_task_budget, run_with_task_budget
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
@@ -530,6 +531,10 @@ class _SdkToolAgentHandle:
         )
         images = images + self._extra_images
         options = self._build_options(system_prompt)
+        # An argv-unsafe system prompt is spilled to a --system-prompt-file;
+        # the file must outlive the whole run (the JSON re-prompt resumes with
+        # a copy of the same options), so it is removed in the finally below.
+        cleanup_spill = spill_oversized_system_prompt(options)
         if images:
             log.info(
                 "%s: attaching %d image block(s) via streaming input",
@@ -545,35 +550,42 @@ class _SdkToolAgentHandle:
             # here too — system prompt then shows at the trace root, not just child.
             LANGFUSE_OBSERVATION_INPUT: _chat_messages_input(system_prompt, prompt),
         }
-        with start_span(get_tracer(_TRACER_NAME), self._name, root_attrs) as root:
-            log.info(
-                "%s: starting (model=%s, max_turns=%d)",
-                self._name,
-                self._sdk_model,
-                self._max_turns,
-            )
-            from ._prompt import build_sdk_prompt
+        try:
+            with start_span(get_tracer(_TRACER_NAME), self._name, root_attrs) as root:
+                log.info(
+                    "%s: starting (model=%s, max_turns=%d)",
+                    self._name,
+                    self._sdk_model,
+                    self._max_turns,
+                )
+                from ._prompt import build_sdk_prompt
 
-            text, result, reasoning = await self._invoke_query(
-                build_sdk_prompt(prompt, images), options
-            )
-            if root is not None:
-                root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
-            self._record_generation_span(system_prompt, prompt, text, result, reasoning)
-            try:
-                output = _parse_output(text, self._output_type)
-            except ValueError as parse_exc:
-                # The model did the work but signed off in prose ("Summary:
-                # ... Files: ...") instead of the JSON object. Throwing the
-                # whole run away — every tool call, every edit — to retry from
-                # scratch is the most expensive possible reaction to a
-                # formatting slip. Ask the SAME session (resume=session_id)
-                # for the JSON object only; the context is still there and the
-                # follow-up costs one short turn.
-                text, result = await self._reprompt_for_json(options, result, parse_exc)
-                output = _parse_output(text, self._output_type)
+                text, result, reasoning = await self._invoke_query(
+                    build_sdk_prompt(prompt, images), options
+                )
                 if root is not None:
                     root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
+                self._record_generation_span(
+                    system_prompt, prompt, text, result, reasoning
+                )
+                try:
+                    output = _parse_output(text, self._output_type)
+                except ValueError as parse_exc:
+                    # The model did the work but signed off in prose ("Summary:
+                    # ... Files: ...") instead of the JSON object. Throwing the
+                    # whole run away — every tool call, every edit — to retry from
+                    # scratch is the most expensive possible reaction to a
+                    # formatting slip. Ask the SAME session (resume=session_id)
+                    # for the JSON object only; the context is still there and the
+                    # follow-up costs one short turn.
+                    text, result = await self._reprompt_for_json(
+                        options, result, parse_exc
+                    )
+                    output = _parse_output(text, self._output_type)
+                    if root is not None:
+                        root.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, text)
+        finally:
+            cleanup_spill()
         from pydantic_ai.messages import ModelResponse, TextPart
 
         return _SdkToolResult(
