@@ -17,6 +17,18 @@ from typing import Any
 import httpx
 import pytest
 
+# The price-ceiling check module loads ``scripts/check-price-ceilings.py``,
+# which imports the OpenRouter DeepSeek transport layer (``_deepseek_model`` →
+# ``model.py`` → ``from openai import AsyncStream``). The tests themselves are
+# offline (mocked httpx), but that import chain makes the module uncollectable
+# when the optional ``openai>=3`` extra is absent or stale — it would ERROR at
+# fixture time. Skip the whole module *visibly* (N skipped with a reason)
+# instead, so the gate shows WHY these tests are absent and auditing stays
+# possible.
+pytest.importorskip(
+    "openai", minversion="3", reason="OpenRouter transport requires openai>=3"
+)
+
 _SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check-price-ceilings.py"
 _PER_MILLION = 1_000_000
 
