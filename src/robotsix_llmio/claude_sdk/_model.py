@@ -159,6 +159,7 @@ class ClaudeSDKModel(Model):
 
         from ._cli_stderr import record
         from ._stream import _stream_query
+        from ._system_prompt import spill_oversized_system_prompt
 
         options = ClaudeAgentOptions(
             # See _tool_agent._build_options: without a sink the SDK does not
@@ -183,18 +184,24 @@ class ClaudeSDKModel(Model):
             ),
         )
 
+        # An argv-unsafe system prompt is spilled to a --system-prompt-file;
+        # remove the file once the query completes.
+        cleanup_spill = spill_oversized_system_prompt(options)
         label = f"claude:{self._model_name}"
-        return await run_with_task_budget(
-            lambda opts: _stream_query(
-                prompt,
-                opts,
+        try:
+            return await run_with_task_budget(
+                lambda opts: _stream_query(
+                    prompt,
+                    opts,
+                    label,
+                    extra_transient=is_claude_sdk_turn_limit,
+                ),
+                options,
+                self._sdk_model,
                 label,
-                extra_transient=is_claude_sdk_turn_limit,
-            ),
-            options,
-            self._sdk_model,
-            label,
-        )
+            )
+        finally:
+            cleanup_spill()
 
     async def request(
         self,
