@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.4](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.3...v0.7.4) (2026-09-06)
+
+
+### Bug Fixes
+
+* allow safe pseudo-devices (/dev/null etc.) through the Bash confinement hook ([#652](https://github.com/damien-robotsix/robotsix-llmio/issues/652)) ([65e517e](https://github.com/damien-robotsix/robotsix-llmio/commit/65e517e32c0e9aece7a87aa19fcdc7bf527ba188))
+
 ## [0.7.3](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.2...v0.7.3) (2026-09-05)
 
 
