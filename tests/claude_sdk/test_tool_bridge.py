@@ -98,6 +98,12 @@ def test_restricted_tool_path_denies_builtins_not_mcp(monkeypatch):
     assert opts.disallowed_tools == list(_BUILTIN_TOOL_DENYLIST) + _WEB_TOOL_NAMES
     assert "Bash" in opts.disallowed_tools
     assert "*" not in opts.disallowed_tools
+    # 2026-09-07: haiku dispatched injected tool names through the Skill tool
+    # ("Unknown skill: mcp__milltools__…") despite the prompt rule — a
+    # restricted agent has no skills to invoke, so Skill is denied outright.
+    assert "Skill" in opts.disallowed_tools
+    # ToolSearch must stay callable: deferred MCP tools are loaded through it.
+    assert "ToolSearch" not in opts.disallowed_tools
     assert opts.permission_mode == "bypassPermissions"
     assert not hasattr(opts, "allowed_tools")
     restricted.close()
