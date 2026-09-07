@@ -58,7 +58,7 @@ class _StampProcessor(SpanProcessor):
                 name = span.name if (span.parent is None and span.name) else sid
                 if name:
                     span.set_attribute(LANGFUSE_TRACE_NAME, name)
-                    _t._trace_named.add(trace_id)
+                    _t._remember_trace_named(trace_id)
 
         # Three-tier routing key resolution:
 
@@ -92,12 +92,13 @@ class _StampProcessor(SpanProcessor):
 
     def on_end(self, span):  # type: ignore[no-untyped-def]
         # When a root span ends, remove its trace-level routing entry
-        # so the mapping doesn't grow unbounded.
+        # so the mapping doesn't grow unbounded. The trace-name guard is
+        # deliberately kept (bounded FIFO in tracing.py): spans started by
+        # background tasks after the root ended must not rename the trace.
         if span.parent is None:
             trace_id = span.get_span_context().trace_id
             with _t._trace_routing_lock:
                 _t._trace_routing.pop(trace_id, None)
-                _t._trace_named.discard(trace_id)
 
     def shutdown(self):  # type: ignore[no-untyped-def]
         pass

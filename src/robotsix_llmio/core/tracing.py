@@ -33,6 +33,7 @@ import os
 import threading
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -157,7 +158,31 @@ _trace_routing_lock = threading.Lock()
 # trace_id set: traces that have already had a Langfuse trace name stamped, so
 # the session-label fallback is applied at most once per trace and never
 # overwrites an explicit root-span name. Guarded by _trace_routing_lock.
+#
+# Entries are NOT dropped when the root span ends: a background task that
+# inherited the trace context (asyncio.create_task copies it) can start spans
+# after the root has ended, and with the guard cleared its first span carrying
+# a session would re-stamp ``langfuse.trace.name`` with the session id —
+# Langfuse honours that attribute from any span, so the whole trace was
+# renamed to a bare hex id (2026-09-07: chat subsession-reaction turns fired
+# after their subsession-turn root ended and renamed those traces to the
+# parent session id, which cost-monitor then listed as unknown agents).
+# Membership is bounded by an insertion-ordered FIFO instead.
 _trace_named: set[int] = set()
+_TRACE_NAMED_MAX = 8192
+_trace_named_order: deque[int] = deque()
+
+
+def _remember_trace_named(trace_id: int) -> None:
+    """Record that *trace_id* carries a Langfuse trace name (bounded FIFO).
+
+    Caller holds ``_trace_routing_lock``.
+    """
+    _trace_named.add(trace_id)
+    _trace_named_order.append(trace_id)
+    while len(_trace_named_order) > _TRACE_NAMED_MAX:
+        _trace_named.discard(_trace_named_order.popleft())
+
 
 # Throttled logging for unroutable spans — at most one message of each
 # level per 10 seconds to avoid log spam in multi-tenant hot paths.
