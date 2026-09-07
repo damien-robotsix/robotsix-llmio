@@ -127,6 +127,13 @@ _BUILTIN_TOOL_DENYLIST = [
     "Monitor",
     "TodoWrite",
     "SlashCommand",
+    # A restricted agent has no Claude Code skills to invoke (no .claude/
+    # commands in its CWD), so Skill is pure hazard there: haiku dispatched
+    # injected tool names through it ("Unknown skill: mcp__milltools__…",
+    # "Unknown skill: read_skill"), burning a turn each time — 5 occurrences
+    # in chat on 2026-09-07 despite the prompt rule in _TOOL_NAMING_INSTRUCTION.
+    # ToolSearch stays ALLOWED: deferred MCP tools are loaded through it.
+    "Skill",
     "AskUserQuestion",
     "ExitPlanMode",
     "EnterPlanMode",
