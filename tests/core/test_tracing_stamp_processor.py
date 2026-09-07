@@ -122,8 +122,8 @@ def test_stamp_processor_child_names_trace_when_root_lost_session(monkeypatch):
         tracing._current_session.reset(token)
     assert child.attributes[LANGFUSE_TRACE_NAME] == "robotsix-mill · ticket-7"
 
-    proc.on_end(root)  # root end clears the per-trace guard
-    assert 7 not in tracing._trace_named
+    proc.on_end(root)  # root end keeps the guard: trailing spans must not rename
+    assert 7 in tracing._trace_named
 
 
 def test_stamp_processor_root_unnamed_without_session(monkeypatch):
@@ -212,3 +212,53 @@ def test_stamp_processor_concurrent_trace_name_guard(monkeypatch):
         f"child must not set trace name, got {len(child_name_calls)}"
     )
     assert root_name_calls[0].args[1] == "implement"
+
+
+def test_stamp_processor_trailing_child_after_root_end_does_not_rename(monkeypatch):
+    """A background task that inherited the trace context starts spans after
+    the root ended (chat subsession-reaction, 2026-09-07). Its first span
+    carries the PARENT session id; it must not re-stamp the trace name."""
+    pytest.importorskip("opentelemetry.sdk.trace")
+    from collections import deque
+
+    from robotsix_llmio.core._tracing_processors import _StampProcessor
+
+    monkeypatch.setattr(tracing, "_projects", {"pk-x": {"base_url": "u"}})
+    monkeypatch.setattr(tracing, "_default_public_key", "pk-x")
+    monkeypatch.setattr(tracing, "_trace_routing", {})
+    monkeypatch.setattr(tracing, "_trace_named", set())
+    monkeypatch.setattr(tracing, "_trace_named_order", deque())
+
+    proc = _StampProcessor()
+
+    root = _FakeSpan(trace_id=444, name="subsession-turn")
+    sess_token = tracing._current_session.set("778800f7d643416a99d19cc6edca0670")
+    try:
+        proc.on_start(root)
+    finally:
+        tracing._current_session.reset(sess_token)
+    assert root.attributes[LANGFUSE_TRACE_NAME] == "subsession-turn"
+
+    proc.on_end(root)
+
+    # Trailing child under the (ended) root, now carrying the parent
+    # session id — the reaction turn of the parent conversation.
+    child = _FakeSpan(trace_id=444, parent=root, name="claude_sdk agent")
+    sess_token = tracing._current_session.set("4dc89dae736e46b5b762ac0f06d99a7f")
+    try:
+        proc.on_start(child)
+    finally:
+        tracing._current_session.reset(sess_token)
+    assert LANGFUSE_TRACE_NAME not in child.attributes
+    assert child.attributes[LANGFUSE_SESSION_ID] == "4dc89dae736e46b5b762ac0f06d99a7f"
+
+
+def test_remember_trace_named_is_bounded(monkeypatch):
+    from collections import deque
+
+    monkeypatch.setattr(tracing, "_trace_named", set())
+    monkeypatch.setattr(tracing, "_trace_named_order", deque())
+    monkeypatch.setattr(tracing, "_TRACE_NAMED_MAX", 3)
+    for tid in (1, 2, 3, 4):
+        tracing._remember_trace_named(tid)
+    assert tracing._trace_named == {2, 3, 4}
