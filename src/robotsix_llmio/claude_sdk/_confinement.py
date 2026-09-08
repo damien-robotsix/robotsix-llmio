@@ -51,6 +51,25 @@ def _is_within(root: str, target: str) -> bool:
     return rp == root or rp.startswith(root + os.sep)
 
 
+def _is_lexically_within(root: str, target: str) -> bool:
+    """True if *target* is inside *root* WITHOUT following symlinks (``..`` is
+    still collapsed). Used by the Bash hook only: a workspace-internal symlink
+    such as ``<repo>/.venv/bin/python -> /usr/local/bin/python3.14`` is the
+    checkout's own tooling, not an escape — ``realpath`` resolved it outside
+    the root and refused every ``.venv/bin/python -m pytest`` command (mill
+    2026-09-08, ticket 7064)."""
+    p = target if os.path.isabs(target) else os.path.join(root, target)
+    np = os.path.normpath(p)
+    return np == root or np.startswith(root + os.sep)
+
+
+# Characters that never appear in a real filesystem path an agent would type
+# into a command but are common right after a ``/`` in regexes and sed/awk
+# programs (``awk '/^Job:/'``, ``sed 's/^x/y/'``). A candidate containing one
+# is a pattern, not a path.
+_REGEX_METACHARS = frozenset("^$*+?[]")
+
+
 def _deny_hook_output(reason: str) -> dict[str, Any]:
     """Return a PreToolUse deny decision dict for the given *reason* string."""
     return {
@@ -123,13 +142,22 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
             command,
         ):
             candidate = match.group(1).rstrip("'\";)}")  # strip trailing punct
+            if _REGEX_METACHARS.intersection(candidate):
+                # `awk '/^### Job/'`, `sed 's/^a/b/'` — a regex fragment that
+                # happens to start with `/`, not a path (false refusal on
+                # `'/^'`, mill 2026-09-08).
+                continue
             if candidate in _SAFE_PSEUDO_DEVICES or candidate.startswith("/dev/fd/"):
                 # `2>/dev/null` and friends are ubiquitous shell idioms that
                 # neither read nor leak anything outside the workspace;
                 # denying them burned review/ci_fix agent turns on false
                 # refusals (mill 2026-09-05).
                 continue
-            if candidate and not _is_within(root, candidate):
+            if (
+                candidate
+                and not _is_within(root, candidate)
+                and not _is_lexically_within(root, candidate)
+            ):
                 log.warning(
                     "Bash: denied out-of-workspace path %s (confined to %s)",
                     candidate,

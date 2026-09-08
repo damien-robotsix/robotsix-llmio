@@ -234,3 +234,40 @@ def test_build_agent_workspace_root_defaults_none(tmp_path):
         name="t",
     )
     assert handle._workspace_root is None
+
+
+# --- false refusals seen in mill logs on 2026-09-08 (ticket 7064) ------------
+
+
+def test_bash_hook_allows_workspace_venv_symlink_interpreter(tmp_path):
+    """`<repo>/.venv/bin/python` is a symlink to the system interpreter; it is
+    the checkout's own tooling and must not be refused as an escape."""
+    venv_bin = tmp_path / "repo" / ".venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python").symlink_to("/usr/bin/env")  # exists on every CI box
+    root = tmp_path / "repo"
+    cmd = f"{root}/.venv/bin/python -m pytest tests/dev-tooling/test_check_sync.py -q"
+    assert _run_bash_hook(root, cmd) == {}
+
+
+def test_bash_hook_still_denies_absolute_outside_even_if_symlinked(tmp_path):
+    """The lexical allowance only applies to paths INSIDE the root."""
+    assert _denied(_run_bash_hook(tmp_path, "/usr/local/bin/python -c 'print(1)'"))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "awk '/^### Job:/{print}' out.log",
+        "grep -E '/[a-z]+$' -r src",
+    ],
+)
+def test_bash_hook_ignores_regex_fragments_after_slash(tmp_path, command):
+    """`/^…` in awk/sed/grep programs is a pattern, not a path."""
+    assert _run_bash_hook(tmp_path, command) == {}
+
+
+def test_bash_hook_dotdot_escape_still_denied_lexically(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    assert _denied(_run_bash_hook(root, f"cat {root}/../secret.txt"))
