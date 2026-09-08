@@ -72,6 +72,13 @@ _ATTR_ATTEMPT_INDEX = "llmio.failover.attempt_index"
 _ATTR_SUCCEEDED = "llmio.failover.succeeded"
 _ATTR_ACTIVATED = "llmio.failover.activated"
 
+# Per-attempt span names, chosen by slot so cost/observability reviews are not
+# misled: a primary-tier (``slot=default``) success is NOT a failover, so it
+# gets a span name without "failover" in it; the failover name is reserved for
+# genuine escalations (``slot=fallback``).
+_SPAN_PRIMARY_ATTEMPT = "llmio.attempt.primary"
+_SPAN_FAILOVER_ATTEMPT = "llmio.failover.attempt"
+
 T = TypeVar("T")
 
 
@@ -452,9 +459,12 @@ async def _failover_loop(
     for attempt_index, slot_name in enumerate(order):
         tlc = tier_config.for_level(level, slot=slot_name)
 
+        span_name = (
+            _SPAN_PRIMARY_ATTEMPT if slot_name == "default" else _SPAN_FAILOVER_ATTEMPT
+        )
         with start_span(
             get_tracer(_TRACER_NAME),
-            "llmio.failover.attempt",
+            span_name,
             attributes={
                 _ATTR_SLOT: slot_name,
                 _ATTR_LEVEL: level,

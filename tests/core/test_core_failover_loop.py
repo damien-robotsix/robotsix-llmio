@@ -7,6 +7,7 @@ import asyncio
 import httpx
 import pytest
 
+import robotsix_llmio.core.failover as failover_mod
 from robotsix_llmio.config.tier import (
     FailoverConfig,
     ProviderSlotConfig,
@@ -14,6 +15,9 @@ from robotsix_llmio.config.tier import (
     TierLevelConfig,
 )
 from robotsix_llmio.core.failover import (
+    _ATTR_SLOT,
+    _SPAN_FAILOVER_ATTEMPT,
+    _SPAN_PRIMARY_ATTEMPT,
     acall_with_failover,
     call_with_failover,
     get_failover_tracker,
@@ -246,3 +250,69 @@ def test_async_success_resets_streak():
         )
     )
     assert get_failover_tracker().status().consecutive_failures == 0
+
+
+class _RecordingSpan:
+    """Fake span accumulating ``set_attribute`` writes."""
+
+    def __init__(self, name: str, attributes: dict[str, object]) -> None:
+        self.name = name
+        self.attributes = dict(attributes)
+
+    def set_attribute(self, key: str, value: object) -> None:
+        self.attributes[key] = value
+
+
+def _install_span_recorder(monkeypatch) -> list[_RecordingSpan]:
+    """Patch ``start_span`` in the failover module to capture span name +
+    attributes, and return the list spans are appended to."""
+    recorded: list[_RecordingSpan] = []
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def _fake_start_span(tracer, name, attributes=None):
+        span = _RecordingSpan(name, attributes or {})
+        recorded.append(span)
+        yield span
+
+    monkeypatch.setattr(failover_mod, "start_span", _fake_start_span)
+    return recorded
+
+
+def test_default_slot_success_uses_non_failover_span_name(monkeypatch):
+    recorded = _install_span_recorder(monkeypatch)
+    calls: list[str] = []
+    call_with_failover(
+        _factory({"claudeSDK-opus": ["ok"]}, calls),
+        tier_config=_CFG,
+        level=2,
+    )
+    assert [s.name for s in recorded] == [_SPAN_PRIMARY_ATTEMPT]
+    assert "failover" not in _SPAN_PRIMARY_ATTEMPT
+    span = recorded[0]
+    assert span.attributes[_ATTR_SLOT] == "default"
+
+
+def test_fallback_slot_attempt_uses_failover_span_name(monkeypatch):
+    recorded = _install_span_recorder(monkeypatch)
+    calls: list[str] = []
+    call_with_failover(
+        _factory(
+            {
+                "claudeSDK-opus": [httpx.ReadTimeout("down")],
+                "openrouter-deepseek/flash": ["rescued"],
+            },
+            calls,
+        ),
+        tier_config=_CFG,
+        level=2,
+    )
+    # First attempt is the primary tier, the escalation is the failover span.
+    assert [s.name for s in recorded] == [
+        _SPAN_PRIMARY_ATTEMPT,
+        _SPAN_FAILOVER_ATTEMPT,
+    ]
+    # The two attempts land under DIFFERENT span names.
+    assert recorded[0].name != recorded[1].name
+    assert recorded[1].attributes[_ATTR_SLOT] == "fallback"

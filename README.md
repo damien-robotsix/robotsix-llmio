@@ -378,3 +378,33 @@ from robotsix_llmio.core import langfuse_project
 with langfuse_project("pk-projectB"):  # spans here ship to project B
     result = provider.call_with_retry(lambda: agent.run_sync("..."))
 ```
+
+**Failover span names for cost attribution** — When using `call_with_failover` /
+`acall_with_failover`, each attempt is emitted as a separate span with a name
+that reflects the provider slot:
+
+- `llmio.attempt.primary` — A primary-tier (default slot) attempt. This is
+  **not** a failover; it's normal healthy operation. Cost on these spans
+  belongs to your primary provider's usage.
+- `llmio.failover.attempt` — A fallback-tier (fallback slot) attempt, either
+  due to a provider-shaped failure on the primary slot, or because the
+  failover window is active (see the failover policy in the tier config).
+
+This distinction is critical for cost/observability reviews: the old uniform
+span name `llmio.failover.attempt` masked the fact that the vast majority of
+attempts are healthy primary-tier work, not failover escalations. Now you can
+group and filter by span name to avoid double-counting.
+
+Each span carries these attributes for filtering/grouping:
+
+- `llmio.failover.slot` — `"default"` or `"fallback"`, the provider slot attempted
+- `llmio.tier.level` — Capability level (1, 2, or 3)
+- `llmio.tier.provider` — Provider name (e.g. `claudeSDK`, `openrouter`)
+- `llmio.tier.model` — Model identifier (e.g. `haiku`, `deepseek-v4-flash`)
+- `llmio.failover.attempt_index` — Index of this attempt in the sequence (0 = first)
+- `llmio.failover.succeeded` — Boolean; whether the attempt succeeded
+
+Use these attributes in your Langfuse queries to isolate:
+- Primary-tier cost: `span.name == "llmio.attempt.primary"`
+- Actual failovers: `span.name == "llmio.failover.attempt"`
+- Fallback-only cost (when window is armed): `span.attributes["llmio.failover.slot"] == "fallback"`
