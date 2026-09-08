@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.5](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.4...v0.7.5) (2026-09-08)
+
+
+### Bug Fixes
+
+* **claude_sdk:** deny the Skill tool for restricted agents ([#660](https://github.com/damien-robotsix/robotsix-llmio/issues/660)) ([d948d4e](https://github.com/damien-robotsix/robotsix-llmio/commit/d948d4e58403940a3dc521137ecc6e9810e876a3))
+* **tracing:** keep the trace-name guard after the root span ends ([#657](https://github.com/damien-robotsix/robotsix-llmio/issues/657)) ([8e396ff](https://github.com/damien-robotsix/robotsix-llmio/commit/8e396ff729e3c2d039c2190abce7cc85cc812142))
+
 ## [0.7.4](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.3...v0.7.4) (2026-09-06)
 
 
