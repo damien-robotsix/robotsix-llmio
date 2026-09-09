@@ -271,3 +271,44 @@ def test_bash_hook_dotdot_escape_still_denied_lexically(tmp_path):
     root = tmp_path / "repo"
     root.mkdir()
     assert _denied(_run_bash_hook(root, f"cat {root}/../secret.txt"))
+
+
+def _cli_scratch(tmp_path, monkeypatch, cwd):
+    """Point tempfile at a private tmpdir and return the CLI scratch dir the
+    ``claude`` CLI would use for a session whose cwd is *cwd*."""
+    import os
+    import tempfile
+
+    tmpdir = tmp_path / "tmp"
+    tmpdir.mkdir(exist_ok=True)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmpdir))
+    uid = os.getuid() if hasattr(os, "getuid") else 0
+    return tmpdir / f"claude-{uid}" / str(cwd).replace(os.sep, "-")
+
+
+def test_bash_hook_allows_cli_scratch_area_of_this_workspace(tmp_path, monkeypatch):
+    """`/tmp/claude-<uid>/<cwd slug>/<session>/tasks/<id>.output` is the CLI's
+    own background-task output for this session — the agent must be able to
+    read it (mill 2026-09-08: `tail -20 /tmp/claude-1000/-data-robotsix-mill-
+    workspaces-<ticket>-repo/<session>/tasks/bd4ehoed2.output` was refused)."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    scratch = _cli_scratch(tmp_path, monkeypatch, root)
+    out = scratch / "f2ccd727-8fc5" / "tasks" / "bd4ehoed2.output"
+    assert _run_bash_hook(root, f"tail -20 {out}") == {}
+    assert _run_bash_hook(root, f"until [ -f {out} ]; do sleep 5; done") == {}
+    # The suggested scratchpad directory itself, written to and read back.
+    pad = scratch / "f2ccd727-8fc5" / "scratchpad" / "notes.md"
+    assert _run_bash_hook(root, f"echo x > {pad} && cat {pad}") == {}
+
+
+def test_bash_hook_denies_cli_scratch_area_of_another_workspace(tmp_path, monkeypatch):
+    """Only this workspace's slug is the agent's own; a sibling session's
+    scratch (another ticket's workspace) is still outside the confinement."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    other = _cli_scratch(tmp_path, monkeypatch, tmp_path / "other-repo")
+    out = other / "sess" / "tasks" / "x.output"
+    assert _denied(_run_bash_hook(root, f"cat {out}"))
+    # A plain /tmp path is still refused as before.
+    assert _denied(_run_bash_hook(root, f"cat {tmp_path / 'tmp' / 'x'}"))

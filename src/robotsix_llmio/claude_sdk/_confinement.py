@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import tempfile
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:  # pragma: no cover — types-only; runtime imports stay lazy
@@ -117,6 +118,26 @@ def _make_confine_hook(workspace_root: str) -> HookCallback:
     return cast("HookCallback", _hook)
 
 
+def _cli_scratch_roots(workspace_root: str, root: str) -> tuple[str, ...]:
+    """Absolute prefixes of the ``claude`` CLI's own per-session scratch area.
+
+    The CLI keeps background-task output and its suggested scratchpad under
+    ``<tmpdir>/claude-<uid>/<cwd slug>/<session>/…`` where the slug is the
+    session cwd with every path separator replaced by ``-``.  For a confined
+    agent that cwd is the workspace, so those files are the agent's own —
+    refusing them made every ``tail`` of a background job's output a wasted
+    turn (mill 2026-09-08: seven refusals of
+    ``/tmp/claude-1000/-data-robotsix-mill-workspaces-<ticket>-repo/…``,
+    including ``until [ -f … ]`` wait loops that could never complete).
+    Both the caller-supplied root and its realpath are slugged: the CLI slugs
+    the cwd string it was given, which may or may not be resolved.
+    """
+    tmp = os.path.realpath(tempfile.gettempdir())
+    uid = os.getuid() if hasattr(os, "getuid") else 0
+    slugs = sorted({p.replace(os.sep, "-") for p in (workspace_root, root)})
+    return tuple(os.path.join(tmp, f"claude-{uid}", slug) for slug in slugs)
+
+
 def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
     """PreToolUse hook that denies Bash commands naming absolute paths outside
     *workspace_root*.
@@ -126,6 +147,7 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
     subshells, ``eval``, or base64 encoding are NOT caught — this is
     documented by design."""
     root = os.path.realpath(workspace_root)
+    scratch_roots = _cli_scratch_roots(workspace_root, root)
 
     async def _hook(
         input: dict[str, Any], tool_use_id: str | None, context: Any
@@ -152,6 +174,11 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
                 # neither read nor leak anything outside the workspace;
                 # denying them burned review/ci_fix agent turns on false
                 # refusals (mill 2026-09-05).
+                continue
+            if any(_is_within(scratch, candidate) for scratch in scratch_roots):
+                # The CLI's own scratch area for THIS workspace's session
+                # (background-task output, suggested scratchpad) — see
+                # _cli_scratch_roots.  Another workspace's slug stays denied.
                 continue
             if (
                 candidate
