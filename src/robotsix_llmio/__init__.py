@@ -37,11 +37,13 @@ if TYPE_CHECKING:
     )
     from .core.image_tool import build_image_question_tool
     from .core.langfuse_client import LangfuseClientError
+    from .deepseek import DeepseekAPIError
     from .logging import setup_logging
     from .openrouter import OpenRouterAPIError
 
 __all__ = [
     "AsyncRefdocsClient",
+    "DeepseekAPIError",
     "KnowledgeClient",
     "KnowledgeClientError",
     "LangfuseClientError",
@@ -92,6 +94,10 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import openrouter
 
         return openrouter.OpenRouterAPIError
+    if name == "DeepseekAPIError":
+        from . import deepseek
+
+        return deepseek.DeepseekAPIError
     if name in (
         "AsyncRefdocsClient",
         "build_refdocs_tools",

@@ -54,6 +54,19 @@ def test_identifier_forward_kwargs(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(provider, OpenRouterDeepseekProvider)
 
 
+def test_identifier_deepseek_direct(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``deepseek`` prefix resolves to the direct-API DeepseekProvider."""
+    monkeypatch.delenv("LLMIO_PROVIDER", raising=False)
+    from robotsix_llmio.deepseek.provider import DeepseekProvider
+
+    provider = get_provider_for_identifier(
+        "deepseek-deepseek-reasoner",
+        api_key="test-key",
+    )
+
+    assert isinstance(provider, DeepseekProvider)
+
+
 def test_identifier_unknown_prefix_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
