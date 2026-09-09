@@ -24,7 +24,7 @@ provider), not on an OpenRouter ``reasoning`` request block.
 from __future__ import annotations
 
 import logging
-from typing import Any, ClassVar
+from typing import Any
 
 from openai import AsyncStream
 from openai.types.chat import ChatCompletionChunk
@@ -67,7 +67,7 @@ class DeepseekModel(OpenAIChatModel):
 
     #: Per-model sticker prices used to compute cost client-side. Stamped by the
     #: provider from its config; the default is used for direct construction.
-    pricing: ClassVar[DeepseekPricing] = DeepseekPricing()
+    pricing: DeepseekPricing = DeepseekPricing()
 
     @property
     def _echo_reasoning(self) -> bool:
@@ -95,7 +95,7 @@ class DeepseekModel(OpenAIChatModel):
         the non-thinking model carry no reasoning at all. The ``reasoning`` /
         ``reasoning_details`` variants are always dropped (DeepSeek rejects an
         array; only the string ``reasoning_content`` is accepted)."""
-        param = super()._map_model_response(message)
+        param: Any = super()._map_model_response(message)
         if not (isinstance(param, dict) and param.get("role") == "assistant"):
             return param
 
