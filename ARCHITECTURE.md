@@ -393,6 +393,13 @@ sub-directory for modules that have their own test suite:
   - `test_openrouter_provider.py` — ``OpenRouterProvider.__init__`` auth resolution
     unit tests.
   - `test_openrouter_provider_cost.py` — provider-cost read seam unit tests.
+- `tests/deepseek/`:
+  - `test_deepseek_provider.py` — direct-API DeepSeek provider/model unit
+    tests: auth resolution, base URL, per-level thinking policy (model-id
+    swap), absence of OpenRouter machinery, and the `reasoning_content`
+    round-trip.
+  - `test_deepseek_cost.py` — client-side cost computation + recording unit
+    tests (cache-hit/miss split, `record_cost` provider tag, unpriced model).
 - `tests/claude_sdk/`:
   - `test_confine_hook.py` — exercises the workspace-confinement
     `PreToolUse` hook used by the injected-MCP-tools path.

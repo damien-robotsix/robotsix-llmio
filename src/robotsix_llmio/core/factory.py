@@ -46,6 +46,11 @@ _PROVIDER_PREFIX_MAP: dict[str, _ProviderEntry] = {
         class_name="OpenRouterDeepseekProvider",
         extra="openrouter",
     ),
+    "deepseek": _ProviderEntry(
+        module="robotsix_llmio.deepseek.provider",
+        class_name="DeepseekProvider",
+        extra="openrouter",
+    ),
 }
 """Provider-prefix → lazy-import coordinates.
 
