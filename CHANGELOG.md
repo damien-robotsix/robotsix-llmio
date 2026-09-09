@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.6](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.5...v0.7.6) (2026-09-09)
+
+
+### Bug Fixes
+
+* **claude_sdk:** let the Bash confinement hook reach the CLI's own scratch area for the workspace session ([#664](https://github.com/damien-robotsix/robotsix-llmio/issues/664)) ([3595b3b](https://github.com/damien-robotsix/robotsix-llmio/commit/3595b3b485eb752688e2f96c3dce3abeaff595b7))
+* **claude_sdk:** stop the Bash confinement hook refusing the workspace's own .venv interpreter and regex fragments ([#662](https://github.com/damien-robotsix/robotsix-llmio/issues/662)) ([7a8aa21](https://github.com/damien-robotsix/robotsix-llmio/commit/7a8aa2155467bf0cb06c2a67b65e5b8fd5931d7e))
+
 ## [0.7.5](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.4...v0.7.5) (2026-09-08)
 
 
