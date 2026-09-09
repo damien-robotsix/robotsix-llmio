@@ -43,6 +43,15 @@ modules:
       - docs/openrouter/**
       - docs/reference/openrouter.md
 
+  - id: deepseek
+    description: >-
+      Direct DeepSeek provider — talks to the DeepSeek API natively
+      (bypassing OpenRouter) with its own model, provider, and pricing
+      layers.
+    paths:
+      - src/robotsix_llmio/deepseek/**
+      - tests/deepseek/**
+
   - id: claude-sdk
     description: >-
       Claude Agent SDK transport — a sibling of the OpenRouter layer that
