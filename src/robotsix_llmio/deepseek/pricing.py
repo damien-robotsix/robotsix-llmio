@@ -7,8 +7,9 @@ must be computed here from configurable per-1M-token sticker prices.
 Prices are config-driven — a provider can be handed a ``pricing`` mapping via
 its constructor (routed from a tier's ``provider_kwargs``), so the sticker
 prices are updatable without a code change. The baked defaults below are
-PLACEHOLDERS; confirm them against DeepSeek's published pricing before relying
-on the recorded cost for reconciliation.
+DeepSeek's published per-1M-token prices (source:
+https://api-docs.deepseek.com/quick_start/pricing); override them via provider
+config when a tariff changes.
 """
 
 from __future__ import annotations
@@ -44,9 +45,11 @@ class ModelPrices(BaseModel):
     cache_read: float
 
 
-# TODO: confirm current sticker prices against DeepSeek's published pricing
-# (https://api-docs.deepseek.com/quick_start/pricing). These are PLACEHOLDER
-# values (USD per 1M tokens) and must not be treated as authoritative.
+# Current sticker prices confirmed against DeepSeek's published pricing
+# (https://api-docs.deepseek.com/quick_start/pricing): USD per 1M tokens.
+# These are the published tariffs for these model ids at the time of writing;
+# they are baked defaults, so a provider may override them via config
+# (DeepseekPricing.from_mapping / provider_kwargs["pricing"]).
 def _default_prices() -> dict[str, ModelPrices]:
     return {
         "deepseek-chat": ModelPrices(input=0.27, output=1.10, cache_read=0.07),
