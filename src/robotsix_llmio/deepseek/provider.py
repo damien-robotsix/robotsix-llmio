@@ -102,10 +102,12 @@ class DeepseekProvider(LLMProvider):
         the sentinel for a direct ``new_model()`` call and keeps the configured
         model id unchanged (a safe default).
 
-        TODO: DeepSeek currently toggles thinking purely by model id
-        (``deepseek-chat`` vs ``deepseek-reasoner``); it exposes no request
-        parameter for it on the OpenAI-compatible endpoint. If a future API adds
-        one, set it here instead of swapping the model id.
+        Constraint (verified against api-docs.deepseek.com, 2026-09): the direct
+        OpenAI-compatible endpoint toggles thinking purely by model id
+        (``deepseek-chat`` vs ``deepseek-reasoner``); it exposes no request-level
+        thinking parameter for these models, so the policy resolves the model id
+        per level. If a future API adds a request-level thinking toggle, set it
+        here instead of swapping the model id.
         """
         model.pricing = self._pricing
         if level == 1:
