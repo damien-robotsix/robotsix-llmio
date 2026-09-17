@@ -13,9 +13,16 @@ import json
 import logging
 
 import pytest
+import structlog
 
 from robotsix_llmio import logging as llmio_logging
-from robotsix_llmio.logging import OTelTraceFilter, setup_logging
+from robotsix_llmio.logging import (
+    OTelTraceFilter,
+    add_otel_trace_id,
+    bind_correlation_id,
+    setup_logging,
+    setup_structlog,
+)
 
 
 @pytest.fixture
@@ -232,3 +239,158 @@ def test_trace_filter_tolerates_a_partial_span(monkeypatch):
     )
     assert OTelTraceFilter().filter(record) is True
     assert record.trace_id == "-"
+
+
+@pytest.fixture
+def structlog_reset():
+    """Restore global root-logger and structlog config after a structlog test."""
+    root = logging.getLogger()
+    saved_handlers = list(root.handlers)
+    saved_level = root.level
+    yield
+    structlog.contextvars.clear_contextvars()
+    structlog.reset_defaults()
+    for handler in list(root.handlers):
+        if handler not in saved_handlers:
+            root.removeHandler(handler)
+    root.setLevel(saved_level)
+
+
+def test_structlog_json_renders_stdlib_record(
+    logger_name, monkeypatch, structlog_reset
+):
+    """A foreign stdlib record renders as JSON through the root bridge."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    logging.getLogger(logger_name).info("hello structlog")
+    payload = json.loads(stream.getvalue().strip())
+    assert payload["event"] == "hello structlog"
+    assert payload["level"] == "info"
+    assert payload["logger"] == logger_name
+    assert payload["trace_id"] == "-"
+    assert "timestamp" in payload
+
+
+def test_structlog_json_renders_native_logger(
+    logger_name, monkeypatch, structlog_reset
+):
+    """A structlog-native logger renders through the same root bridge."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    structlog.get_logger(logger_name).info("native event", extra_key="v")
+    payload = json.loads(stream.getvalue().strip())
+    assert payload["event"] == "native event"
+    assert payload["extra_key"] == "v"
+    assert payload["trace_id"] == "-"
+
+
+def test_structlog_console_fmt_is_human_readable(
+    logger_name, monkeypatch, structlog_reset
+):
+    """``fmt='console'`` produces a non-JSON line containing the message."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="console", stream=stream)
+    logging.getLogger(logger_name).info("console structlog")
+    output = stream.getvalue()
+    assert "console structlog" in output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(output.strip())
+
+
+def test_structlog_trace_id_from_active_span(logger_name, monkeypatch, structlog_reset):
+    """An active span stamps the 32-hex trace id onto the JSON event."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: _FakeSpan(0xABCD))
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    logging.getLogger(logger_name).info("traced")
+    payload = json.loads(stream.getvalue().strip())
+    assert payload["trace_id"] == format(0xABCD, "032x")
+
+
+def test_structlog_correlation_id_disabled_by_default(
+    logger_name, monkeypatch, structlog_reset
+):
+    """Without ``correlation_id=True`` a bound id is not merged onto events."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    bind_correlation_id("req-123")
+    logging.getLogger(logger_name).info("no cid")
+    payload = json.loads(stream.getvalue().strip())
+    assert "correlation_id" not in payload
+
+
+def test_structlog_correlation_id_merged_when_enabled(
+    logger_name, monkeypatch, structlog_reset
+):
+    """``correlation_id=True`` merges the bound id, and ``None`` clears it."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(
+        loggers=(logger_name,), fmt="json", stream=stream, correlation_id=True
+    )
+    bind_correlation_id("req-456")
+    logging.getLogger(logger_name).info("with cid")
+    first = json.loads(stream.getvalue().strip().splitlines()[0])
+    assert first["correlation_id"] == "req-456"
+
+    bind_correlation_id(None)
+    stream.truncate(0)
+    stream.seek(0)
+    logging.getLogger(logger_name).info("cleared cid")
+    assert "correlation_id" not in json.loads(stream.getvalue().strip())
+
+
+def test_structlog_level_from_env(logger_name, monkeypatch, structlog_reset):
+    """``LOG_LEVEL`` drives both the root and the named logger level."""
+    monkeypatch.setenv("LOG_LEVEL", "WARNING")
+    setup_structlog(loggers=(logger_name,))
+    assert logging.getLogger().level == logging.WARNING
+    assert logging.getLogger(logger_name).level == logging.WARNING
+
+
+def test_structlog_is_idempotent(logger_name, monkeypatch, structlog_reset):
+    """Repeat calls reuse the single marked root handler."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    setup_structlog(loggers=(logger_name,), fmt="json")
+    root = logging.getLogger()
+    marked = [
+        h for h in root.handlers if getattr(h, "_robotsix_llmio_configured", False)
+    ]
+    assert len(marked) == 1
+    setup_structlog(loggers=(logger_name,), fmt="json")
+    marked_again = [
+        h for h in root.handlers if getattr(h, "_robotsix_llmio_configured", False)
+    ]
+    assert len(marked_again) == 1
+
+
+def test_structlog_replaces_stdlib_handler_on_named_logger(
+    logger_name, monkeypatch, structlog_reset
+):
+    """A prior ``setup_logging`` handler is dropped so records don't double-emit."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    setup_logging(loggers=(logger_name,))
+    assert len(logging.getLogger(logger_name).handlers) == 1
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    target = logging.getLogger(logger_name)
+    assert target.handlers == []
+    assert target.propagate is True
+    target.info("single line")
+    assert len(stream.getvalue().strip().splitlines()) == 1
+
+
+def test_add_otel_trace_id_processor_tolerates_partial_span(monkeypatch):
+    """The structlog trace-id processor degrades to ``-`` on a partial span."""
+
+    class PartialSpan:
+        def is_recording(self):
+            return True
+
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: PartialSpan())
+    event = add_otel_trace_id(None, "info", {"event": "x"})
+    assert event["trace_id"] == "-"

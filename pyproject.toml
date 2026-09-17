@@ -43,6 +43,12 @@ dependencies = [
     # Generic HTTP retry primitives (RetryConfig, backoff, cause-chain walk,
     # transient classification) sourced from robotsix-http.
     "robotsix-http",
+    # Structured logging. `logging.setup_structlog` is the shared structlog +
+    # stdlib ProcessorFormatter bridge that invest/chat/cost-monitor migrate
+    # onto, so structlog is a BASE dependency (imported at module import time in
+    # logging.py), not an extra: the stdlib-only `setup_logging` path is
+    # unaffected, but the shared home must always be able to build the chain.
+    "structlog",
     # Pin starlette to a version that resolves CVE-2026-54283 and
     # CVE-2026-54282 (transitively pulled via claude-agent-sdk -> mcp).
     "starlette>=1.3.1",

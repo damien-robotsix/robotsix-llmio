@@ -13,6 +13,12 @@ __getattr__
 # setup_logging is a public API entry point (called by library consumers).
 setup_logging
 
+# setup_structlog / bind_correlation_id are public API entry points for the
+# structlog-capable mode (called by invest/chat/cost-monitor consumers, not
+# from within this package).
+setup_structlog
+bind_correlation_id
+
 # ---------------------------------------------------------------------------
 # clients/_base.py
 # ---------------------------------------------------------------------------

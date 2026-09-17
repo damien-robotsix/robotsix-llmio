@@ -6,6 +6,13 @@ This module provides a small, idempotent :func:`setup_logging` helper that
 both ``robotsix_llmio`` and its downstream consumers can share instead of
 reinventing the same boilerplate.
 
+For consumers that emit structured logs, :func:`setup_structlog` offers a
+structlog-capable mode: it wires a stdlib ``ProcessorFormatter`` bridge onto
+the root logger (so structlog-native *and* foreign stdlib records share one
+processor chain and one JSON/console renderer), stamps the active OTel trace
+id via :func:`add_otel_trace_id`, and optionally merges a contextvars-scoped
+correlation id bound through :func:`bind_correlation_id`.
+
 The module imports cleanly even when the ``tracing`` extra (OpenTelemetry)
 is not installed: the trace id is obtained via
 :func:`robotsix_llmio.core.get_recording_span`, which guards its own
@@ -22,6 +29,9 @@ import os
 import sys
 from collections.abc import Sequence
 from typing import TextIO
+
+import structlog
+from structlog.typing import EventDict, Processor, WrappedLogger
 
 from robotsix_llmio.core import get_recording_span
 
@@ -40,6 +50,10 @@ _ENV_LOG_FORMAT = "LOG_FORMAT"
 
 #: Text format used for the ``"console"`` / ``"text"`` format.
 _CONSOLE_FORMAT = "%(asctime)s %(levelname)s %(name)s [%(trace_id)s] %(message)s"
+
+#: Key under which the correlation id is bound in the structlog context and
+#: rendered onto each structured log event.
+_CORRELATION_ID_KEY = "correlation_id"
 
 
 class OTelTraceFilter(logging.Filter):
@@ -145,6 +159,25 @@ def _resolve_formatter(fmt: str | None) -> logging.Formatter:
     return logging.Formatter(_CONSOLE_FORMAT)
 
 
+def _resolve_use_json(fmt: str | None) -> bool:
+    """Return whether the JSON renderer should be used for structlog output.
+
+    First non-``None`` wins: explicit *fmt* → ``LOG_FORMAT`` env → ``"console"``.
+    Only the exact (case-insensitive) value ``"json"`` selects JSON; every other
+    value — including ``"console"``/``"text"`` and unrecognized names — selects
+    the human-readable console renderer.
+
+    Args:
+        fmt: Explicit format name, or ``None`` to fall back to env/default.
+
+    Returns:
+        ``True`` for the JSON renderer, ``False`` for the console renderer.
+
+    """
+    name = fmt if fmt is not None else os.environ.get(_ENV_LOG_FORMAT, "console")
+    return name.lower() == "json"
+
+
 def setup_logging(
     *,
     level: int | str | None = None,
@@ -196,3 +229,173 @@ def setup_logging(
         handler.setLevel(resolved_level)
         setattr(handler, _CONFIGURED_MARKER, True)
         target.addHandler(handler)
+
+
+def add_otel_trace_id(
+    _logger: WrappedLogger, _method_name: str, event_dict: EventDict
+) -> EventDict:
+    """structlog processor that stamps the active OTel trace id onto the event.
+
+    Mirrors :class:`OTelTraceFilter` for the structlog pipeline: sets
+    ``event_dict["trace_id"]`` to the 32-hex-char id of the active recording
+    span, or to ``"-"`` when no span is active (or OpenTelemetry is absent). It
+    is duck-typed and never raises, so a partial span shim cannot break logging.
+
+    Args:
+        _logger: The wrapped logger (unused).
+        _method_name: The called log method name (unused).
+        event_dict: The structlog event dict to annotate.
+
+    Returns:
+        The same ``event_dict``, with ``trace_id`` set.
+
+    """
+    span = get_recording_span()
+    get_span_context = getattr(span, "get_span_context", None) if span else None
+    if get_span_context is not None:
+        tid = getattr(get_span_context(), "trace_id", 0)
+        event_dict["trace_id"] = format(tid, "032x") if tid else _NO_TRACE_ID
+    else:
+        event_dict["trace_id"] = _NO_TRACE_ID
+    return event_dict
+
+
+def bind_correlation_id(correlation_id: str | None) -> None:
+    """Bind (or clear) a correlation id on the current structlog context.
+
+    When ``setup_structlog(correlation_id=True)`` is active, the bound value is
+    merged onto every subsequent structured log event via
+    :func:`structlog.contextvars.merge_contextvars`. The binding is
+    contextvars-scoped, so it is safe under ``asyncio`` and threads.
+
+    Args:
+        correlation_id: The id to bind, or ``None`` to clear any bound value.
+
+    Returns:
+        ``None``.
+
+    """
+    if correlation_id is None:
+        structlog.contextvars.unbind_contextvars(_CORRELATION_ID_KEY)
+    else:
+        structlog.contextvars.bind_contextvars(**{_CORRELATION_ID_KEY: correlation_id})
+
+
+def _structlog_shared_processors(*, correlation_id: bool) -> list[Processor]:
+    """Build the processor chain shared by native and foreign (stdlib) records.
+
+    This is the reference chain ported from robotsix-invest's ``setup_logging``:
+    log level, logger name, an ISO timestamp, the OTel trace id, and standard
+    stack-info/exception rendering. When *correlation_id* is set,
+    :func:`structlog.contextvars.merge_contextvars` is prepended so any value
+    bound via :func:`bind_correlation_id` is merged onto the event.
+
+    Args:
+        correlation_id: Whether to include the contextvars merge processor.
+
+    Returns:
+        The ordered list of shared processors (no renderer, no formatter meta).
+
+    """
+    processors: list[Processor] = []
+    if correlation_id:
+        processors.append(structlog.contextvars.merge_contextvars)
+    processors += [
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="iso"),
+        add_otel_trace_id,
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+    ]
+    return processors
+
+
+def setup_structlog(
+    *,
+    level: int | str | None = None,
+    fmt: str | None = None,
+    loggers: Sequence[str] = ("robotsix_llmio",),
+    stream: TextIO | None = None,
+    correlation_id: bool = False,
+) -> None:
+    """Configure structlog + stdlib logging via a root ProcessorFormatter bridge.
+
+    This is the structlog-capable counterpart to :func:`setup_logging`. It wires
+    a single :class:`structlog.stdlib.ProcessorFormatter` handler onto the root
+    logger so that *both* structlog-native calls (``structlog.get_logger``) and
+    foreign stdlib ``logging`` records render through one shared processor chain
+    and one renderer. The call is idempotent: repeat calls reuse the root
+    handler instead of stacking duplicates.
+
+    Args:
+        level: Explicit level (name or int). Falls back to ``LOG_LEVEL`` env,
+            then ``"INFO"``.
+        fmt: ``"json"`` selects the JSON renderer; ``"console"``/``"text"`` (and
+            any unrecognized value) selects the human-readable console renderer.
+            Falls back to ``LOG_FORMAT`` env, then ``"console"``.
+        loggers: Logger names whose level is set and whose records are allowed to
+            propagate to the root bridge. Any handler previously attached by
+            :func:`setup_logging` on these names is removed to avoid double
+            emission. Defaults to llmio's own namespace.
+        stream: Target stream. Defaults to :data:`sys.stdout`.
+        correlation_id: When ``True``, include the contextvars merge processor so
+            values bound via :func:`bind_correlation_id` appear on each event.
+
+    Returns:
+        ``None``.
+
+    """
+    resolved_level = _resolve_level(level)
+    use_json = _resolve_use_json(fmt)
+    target_stream = stream if stream is not None else sys.stdout
+
+    shared = _structlog_shared_processors(correlation_id=correlation_id)
+
+    structlog.configure(
+        processors=[*shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    renderer: Processor = (
+        structlog.processors.JSONRenderer()
+        if use_json
+        else structlog.dev.ConsoleRenderer(colors=False)
+    )
+    formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=shared,
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            renderer,
+        ],
+    )
+
+    root = logging.getLogger()
+    root.setLevel(resolved_level)
+    existing = next(
+        (h for h in root.handlers if getattr(h, _CONFIGURED_MARKER, False)),
+        None,
+    )
+    if existing is not None:
+        if isinstance(existing, logging.StreamHandler):
+            existing.setStream(target_stream)
+        existing.setFormatter(formatter)
+        existing.setLevel(resolved_level)
+    else:
+        handler = logging.StreamHandler(target_stream)
+        handler.setFormatter(formatter)
+        handler.setLevel(resolved_level)
+        setattr(handler, _CONFIGURED_MARKER, True)
+        root.addHandler(handler)
+
+    for name in loggers:
+        target = logging.getLogger(name)
+        target.setLevel(resolved_level)
+        # Records must reach the root bridge; drop any stdlib setup_logging
+        # handler so a prior setup_logging() call does not double-emit.
+        for stale in list(target.handlers):
+            if getattr(stale, _CONFIGURED_MARKER, False):
+                target.removeHandler(stale)
+        target.propagate = True
