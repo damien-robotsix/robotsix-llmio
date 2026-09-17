@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from .core.image_tool import build_image_question_tool
     from .core.langfuse_client import LangfuseClientError
     from .deepseek import DeepseekAPIError
-    from .logging import setup_logging
+    from .logging import bind_correlation_id, setup_logging, setup_structlog
     from .openrouter import OpenRouterAPIError
 
 __all__ = [
@@ -54,6 +54,7 @@ __all__ = [
     "RobotsixLLMIOError",
     "SelfReviewClient",
     "SelfReviewClientError",
+    "bind_correlation_id",
     "build_agent_for_level",
     "build_image_question_tool",
     "build_knowledge_tools",
@@ -62,6 +63,7 @@ __all__ = [
     "default_tier_config",
     "get_provider_for_level",
     "setup_logging",
+    "setup_structlog",
 ]
 
 
@@ -119,4 +121,12 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from .logging import setup_logging
 
         return setup_logging
+    if name == "setup_structlog":
+        from .logging import setup_structlog
+
+        return setup_structlog
+    if name == "bind_correlation_id":
+        from .logging import bind_correlation_id
+
+        return bind_correlation_id
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
