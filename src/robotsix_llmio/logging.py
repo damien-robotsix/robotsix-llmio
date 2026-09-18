@@ -303,6 +303,7 @@ def _structlog_shared_processors(*, correlation_id: bool) -> list[Processor]:
     processors += [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
+        structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.TimeStamper(fmt="iso"),
         add_otel_trace_id,
         structlog.processors.StackInfoRenderer(),
