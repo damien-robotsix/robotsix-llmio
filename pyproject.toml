@@ -55,8 +55,11 @@ dependencies = [
     # Floor anyio to a version that resolves GHSA-5p39-cfhj-2xmp and
     # GHSA-82r6-8w77-94w6 (present in 4.13.0). anyio is a transitive
     # dependency (via httpx / pydantic-ai-slim), declared here only as a
-    # security version floor.
-    "anyio>=4.14.2",
+    # security version floor. Capped below 4.15.0: anyio >=4.15.0 requires
+    # typing-extensions>=4.16.0 on python<3.15, whose detected license
+    # composite trips the Dependency Review allow-list; 4.14.2 keeps the
+    # GHSA fix without forcing that version.
+    "anyio>=4.14.2,<4.15.0",
 ]
 
 [project.urls]
@@ -104,6 +107,13 @@ docs = ["mkdocs", "mkdocs-include-markdown-plugin", "mkdocs-material>=9.7.7", "m
 [tool.uv]
 default-groups = ["dev"]
 exclude-newer = false
+# Cap typing-extensions below 4.16.0: 4.16.0 is only pulled in via
+# anyio>=4.15.0 (which also bumps anyio out of its permissive 4.14.2 range
+# above), and its detected composite license (Python-2.0 AND GPL-1.0-or-later
+# AND BSD-3-Clause AND 0BSD — the real metadata license is PSF-2.0) is not in
+# the Dependency Review allow-list. 4.15.0 satisfies every transitive
+# requirement.
+constraint-dependencies = ["typing-extensions<4.16.0"]
 
 [tool.uv.sources]
 robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
