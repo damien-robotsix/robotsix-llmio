@@ -1378,9 +1378,10 @@ wheels = [
 
 [[package]]
 name = "robotsix-http"
-version = "0.4.0"
-source = { git = "https://github.com/damien-robotsix/robotsix-http.git?rev=791dcf356f35103dd8a22dec1ebeefbaeb2a5c00#791dcf356f35103dd8a22dec1ebeefbaeb2a5c00" }
+version = "0.6.0"
+source = { git = "https://github.com/damien-robotsix/robotsix-http.git?rev=3ab91ede1251a4e8990da5fdc5dbefbcdf9be0a1#3ab91ede1251a4e8990da5fdc5dbefbcdf9be0a1" }
 dependencies = [
+    { name = "httpcore" },
     { name = "httpx" },
 ]
 
@@ -1444,7 +1445,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-ai-slim", specifier = ">=2.36" },
     { name = "pydantic-ai-slim", extras = ["openrouter"], specifier = ">=2.36" },
-    { name = "robotsix-http", git = "https://github.com/damien-robotsix/robotsix-http.git?rev=791dcf356f35103dd8a22dec1ebeefbaeb2a5c00" },
+    { name = "robotsix-http", git = "https://github.com/damien-robotsix/robotsix-http.git?rev=3ab91ede1251a4e8990da5fdc5dbefbcdf9be0a1" },
     { name = "starlette", specifier = ">=1.3.1" },
     { name = "structlog", specifier = ">=26" },
 ]
