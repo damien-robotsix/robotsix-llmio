@@ -91,13 +91,26 @@ DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 1.16, "completion": 3.4
 DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.10, "completion": 0.20}
 
 #: Upstream providers barred from capable-tier fallback routing. Their
-#: cache-read rate is a large multiple of DeepSeek's — DigitalOcean ~$0.174/1M
-#: vs DeepSeek $0.022/1M on ``deepseek-v4-pro`` — and ``max_price`` cannot see
-#: cache reads (OpenRouter's ``max_price`` accepts only ``prompt``,
+#: cache-read rate is a large multiple of the preferred provider's — a cost
+#: ``max_price`` cannot see (OpenRouter's ``max_price`` accepts only ``prompt``,
 #: ``completion``, ``request`` and ``image``). A fallback to one of these is
-#: invisible to the ceiling yet ~4x the bill, so they are excluded via
-#: ``provider.ignore`` instead. Measured 2026-08-21.
-DEFAULT_IGNORE_CAPABLE: tuple[str, ...] = ("DigitalOcean", "CoreWeave")
+#: invisible to the ceiling yet several times the bill on a cache-dominated
+#: workload, so they are excluded via ``provider.ignore`` instead.
+#:
+#: * DigitalOcean, CoreWeave — cache-read a multiple of DeepSeek's
+#:   (DigitalOcean ~$0.174/1M vs DeepSeek $0.022/1M on ``deepseek-v4-pro``).
+#:   Measured 2026-08-21.
+#: * Ionstream ($0.088/1M), Alibaba ($0.112/1M) — added 2026-09-28 after the
+#:   price-ceiling drift guard flagged both as >4x StreamLake's $0.022/1M
+#:   cache-read rate (StreamLake is the capable tier's preferred provider).
+#:   Excluding them still leaves >= 3 healthy admitted endpoints (StreamLake,
+#:   GMICloud, NextBit, Novita).
+DEFAULT_IGNORE_CAPABLE: tuple[str, ...] = (
+    "DigitalOcean",
+    "CoreWeave",
+    "Ionstream",
+    "Alibaba",
+)
 
 
 def build_provider_routing(
