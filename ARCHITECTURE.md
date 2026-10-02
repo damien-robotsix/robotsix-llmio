@@ -11,7 +11,8 @@ back to [README.md](README.md).
 
 ## Layer model and inheritance graph
 
-The library is organised into three logical roles:
+The library is organised into three logical provider roles — plus an
+orthogonal REST-client layer (described in the final bullet):
 
 - **Core (`robotsix_llmio.core`)** — the provider-agnostic base. It
   defines the `LLMProvider` ABC (with `level`-based model construction),
@@ -37,6 +38,24 @@ The library is organised into three logical roles:
   quirks (pinned upstream provider, per-level reasoning policy, `reasoning_content`
   round-trip), pinning model names to `deepseek/deepseek-v4-pro` /
   `deepseek/deepseek-v4-flash-latest`.
+
+- **Clients layer (`robotsix_llmio.clients`)** — direct-HTTP REST tool
+  adapters for agents, replacing the former agent-comm broker. This layer
+  is **orthogonal to the `LLMProvider` inheritance graph above**: it does
+  *not* derive from `core.LLMProvider`. Its three concrete clients —
+  `AsyncRefdocsClient`, `KnowledgeClient`, and `SelfReviewClient` — all
+  extend the shared
+  [`clients/_base.py`](src/robotsix_llmio/clients/_base.py)
+  `BaseHttpClient`, whose contract is a single async `_get()` helper
+  (auth headers, timeout, status/shape validation) plus two abstract
+  properties, `_error_type` and `_error_label`, that each subclass fills
+  in with its own error class and human-readable label. On top of those
+  clients sit the pydantic-ai tool-adapter factories that expose them to
+  agents: `build_knowledge_tools`, `build_recent_activity_tools`, and the
+  refdocs
+  [`factory.py`](src/robotsix_llmio/clients/refdocs/factory.py)
+  (`build_refdocs_tools`). The layer is registered as its own `clients`
+  module in [`docs/modules.yaml`](docs/modules.yaml).
 
 ```mermaid
 classDiagram
