@@ -129,6 +129,18 @@ two scans stay in sync.
 `openrouter`); `claude_sdk` is
   a sibling of openrouter (see the [README](https://github.com/damien-robotsix/robotsix-llmio#readme) for the architectural narrative). Don't introduce new top-level tunable knobs — timeout, retry, and
   backoff values are baked constants by design.
+- **Subpackage file layout**: when adding a new transport or provider
+  subpackage, follow the **three-file layout** that `openrouter/` and
+  `claude_sdk/` use:
+  - `model.py` — the pydantic-ai `Model` subclass with cost recording and
+    any wire-level quirks.
+  - `provider.py` — the `LLMProvider` subclass exposing the construction
+    hooks (`_model_class()` / `_post_build_model()`) or concrete construction.
+  - `transient.py` — the provider-specific transient predicate layered on
+    `core.retry.is_transient`.
+
+  See ARCHITECTURE.md's "File conventions inside each subpackage" section for
+  the full rationale.
 
 ## 6. Pull request expectations
 
