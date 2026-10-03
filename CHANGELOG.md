@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.7](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.6...v0.7.7) (2026-10-02)
+
+
+### Documentation
+
+* Document the clients/ REST-client layer in ARCHITECTURE.md's "Layer model" section (20261002T131450Z-document-the-clients-rest-client-layer-i-0eef) ([#678](https://github.com/damien-robotsix/robotsix-llmio/issues/678)) ([52a8ba4](https://github.com/damien-robotsix/robotsix-llmio/commit/52a8ba455321c445fa3f9ea22be10b762fa4347a))
+
 ## [0.7.6](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.5...v0.7.6) (2026-09-09)
 
 
