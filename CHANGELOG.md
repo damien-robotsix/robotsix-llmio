@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.8](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.7...v0.7.8) (2026-10-05)
+
+
+### Bug Fixes
+
+* CI failure: Price ceiling drift check on main (20261005T065020Z-ci-failure-price-ceiling-drift-check-on-0c1e) ([#680](https://github.com/damien-robotsix/robotsix-llmio/issues/680)) ([31266fb](https://github.com/damien-robotsix/robotsix-llmio/commit/31266fb574936e4824a86808eac6c41f2072e8bf))
+
 ## [0.7.7](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.6...v0.7.7) (2026-10-02)
 
 
