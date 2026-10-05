@@ -210,8 +210,8 @@ FALLBACK_LEVEL2 = TierLevelConfig(
     max_tokens=65536,
     provider_kwargs={
         "preferred_provider": "DeepInfra",
-        "max_price_prompt": 0.10,
-        "max_price_completion": 0.20,
+        "max_price_prompt": 0.13,
+        "max_price_completion": 0.26,
     },
 )
 

@@ -78,17 +78,21 @@ _TOOL_CALLS_KEY = "tool_calls"
 #:   admits exactly those three (the guard's min-healthy) while excluding
 #:   the $1.30+/$3.96 tail (DeepInfra, CoreWeave, Sail Research, NextBit,
 #:   DeepSeek's own endpoint, …) the cap exists to keep out.
-#: * cheap tier (``deepseek-v4-flash-20260731``) — measured 2026-08-26:
-#:   DeepSeek repriced its own endpoint to $0.22/$0.66 (only its $0.007/1M
-#:   cache-read rate stayed cheap), while OpenInference ($0.03/$0.075),
-#:   Relace ($0.06/$0.12), DeepInfra ($0.08/$0.18) and Makora ($0.09/$0.195)
-#:   serve the same snapshot under $0.10/$0.20 with cache-read rates
-#:   ≤ $0.02/1M. The ceiling deliberately excludes DeepSeek's repriced
-#:   endpoint: the old $0.25/$0.70 ceiling that admitted it also admitted a
-#:   fallback tail whose cache-read rates are 2-10x, which doubled the
-#:   fleet's effective flash cost on 2026-08-25.
+#: * cheap tier (``deepseek-v4-flash-20260731``) — re-measured 2026-10-05
+#:   after the flash endpoints repriced: only StreamLake ($0.044/$0.132,
+#:   cache-read $0.001) and DeepInfra ($0.060/$0.180, cache-read $0.015)
+#:   still fit the old $0.10/$0.20 ceiling, dropping the admitted set below
+#:   the guard's 3-healthy floor. The next-cheapest healthy endpoint is
+#:   DigitalOcean ($0.119/$0.238, cache-read $0.024), so the ceiling is
+#:   raised to $0.13/$0.26 — admitting those three (plus BaseTen at
+#:   $0.130/$0.260) while still excluding the $0.280-completion tail
+#:   (CoreWeave/Cohere/Together), whose cache-read runs up to $0.070/1M —
+#:   several times DeepInfra's — the very fallback cost the ceiling exists
+#:   to keep out. Earlier snapshot (2026-08-26): DeepSeek repriced its own
+#:   flash endpoint to $0.22/$0.66; the ceiling has always deliberately
+#:   excluded it, and $0.13/$0.26 still sits below it.
 DEFAULT_MAX_PRICE_CAPABLE: dict[str, float] = {"prompt": 1.16, "completion": 3.40}
-DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.10, "completion": 0.20}
+DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.13, "completion": 0.26}
 
 #: Upstream providers barred from capable-tier fallback routing. Their
 #: cache-read rate is a large multiple of the preferred provider's — a cost
