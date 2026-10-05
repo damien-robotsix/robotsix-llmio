@@ -155,8 +155,8 @@ def test_fallback_level2_is_flash_with_reasoning_headroom():
     would apply the capable ceiling to a flash-priced model)."""
     assert FALLBACK_LEVEL2.model_name == FALLBACK_LEVEL1.model_name
     assert FALLBACK_LEVEL2.max_tokens == 65536
-    assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 0.10
-    assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 0.20
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 0.13
+    assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 0.26
     assert FALLBACK_LEVEL2.provider_kwargs["preferred_provider"] == "DeepInfra"
 
 
