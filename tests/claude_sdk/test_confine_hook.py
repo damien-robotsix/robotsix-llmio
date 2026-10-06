@@ -18,6 +18,7 @@ from robotsix_llmio.claude_sdk._confinement import (
     _is_within,
     _make_bash_confine_hook,
     _make_confine_hook,
+    _make_foreign_mcp_deny_hook,
 )
 from robotsix_llmio.claude_sdk.provider import (
     ClaudeSDKProvider,
@@ -312,3 +313,30 @@ def test_bash_hook_denies_cli_scratch_area_of_another_workspace(tmp_path, monkey
     assert _denied(_run_bash_hook(root, f"cat {out}"))
     # A plain /tmp path is still refused as before.
     assert _denied(_run_bash_hook(root, f"cat {tmp_path / 'tmp' / 'x'}"))
+
+
+def test_foreign_mcp_hook_denies_connectors_and_allows_injected():
+    """Any ``mcp__*`` tool outside the injected server prefix is denied; the
+    injected ``mcp__milltools__*`` tools and built-ins pass untouched."""
+    hook = _make_foreign_mcp_deny_hook()
+
+    def run(name):
+        return asyncio.run(hook({"tool_name": name, "tool_input": {}}, "tu", None))
+
+    assert _denied(run("mcp__claude_ai_Claude_Docs__batch"))
+    assert _denied(run("mcp__claude_ai_Asana__authenticate"))
+    assert _denied(run("mcp__some_other_server__tool"))
+    assert run("mcp__milltools__run_command") == {}
+    assert run("Bash") == {}
+    assert run("") == {}
+
+
+def test_foreign_mcp_hook_honours_custom_allowed_prefixes():
+    hook = _make_foreign_mcp_deny_hook(allowed_prefixes=("mcp__a__", "mcp__b__"))
+
+    def run(name):
+        return asyncio.run(hook({"tool_name": name, "tool_input": {}}, "tu", None))
+
+    assert run("mcp__a__x") == {}
+    assert run("mcp__b__y") == {}
+    assert _denied(run("mcp__milltools__run_command"))
