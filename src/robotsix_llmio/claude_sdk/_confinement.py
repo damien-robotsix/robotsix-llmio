@@ -82,6 +82,49 @@ def _deny_hook_output(reason: str) -> dict[str, Any]:
     }
 
 
+# Tool-name prefix of the MCP servers this library injects itself. Every other
+# ``mcp__*`` tool reaching a headless agent is a FOREIGN connector: the claude
+# CLI runs under the operator's claude.ai login (mill and chat share one
+# ``claude-auth`` volume), and that account's claude.ai connectors (Claude
+# Docs, Asana, Linear, …) are offered to the CLI session as deferred MCP tools
+# regardless of ``setting_sources=[]``. On 2026-10-03 a mill explore scout
+# (restricted, ``builtin_tools=False``) created and edited a Claude Doc in the
+# operator's account through ``mcp__claude_ai_Claude_Docs__batch``; a survey
+# run did the same on 2026-10-04. The by-name built-in denylist cannot cover a
+# dynamic connector roster, so the gate is a PreToolUse hook on ``mcp__.*``.
+_INJECTED_MCP_PREFIX = "mcp__milltools__"
+_MCP_TOOLS = "mcp__.*"
+
+
+def _make_foreign_mcp_deny_hook(
+    allowed_prefixes: tuple[str, ...] = (_INJECTED_MCP_PREFIX,),
+) -> HookCallback:
+    """Build a ``PreToolUse`` hook that denies every MCP tool not injected by
+    this library (any ``mcp__*`` name outside *allowed_prefixes*).
+
+    Applies to restricted AND unrestricted agents: the connectors arrive from
+    the operator's claude.ai account, not from the tool set the caller built,
+    so no agent has a legitimate use for them."""
+
+    async def _hook(
+        input: dict[str, Any], tool_use_id: str | None, context: Any
+    ) -> dict[str, Any]:
+        name = str(input.get("tool_name") or "")
+        if not name.startswith("mcp__") or name.startswith(allowed_prefixes):
+            return {}
+        log.warning(
+            "%s: denied foreign MCP connector tool (not injected by this agent)",
+            name,
+        )
+        return _deny_hook_output(
+            f"Refused: {name!r} is an external connector of the operator's "
+            "claude.ai account, not a tool of this agent. Use only the tools "
+            "listed in your system prompt."
+        )
+
+    return cast("HookCallback", _hook)
+
+
 def _make_confine_hook(workspace_root: str) -> HookCallback:
     """Build a ``PreToolUse`` hook that denies built-in edits outside
     *workspace_root*.
