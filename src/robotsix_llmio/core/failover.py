@@ -314,24 +314,7 @@ class ProviderFailoverTracker:
                 return
 
             if _is_exhaustion(exc):
-                hinted = _parse_reset_delay(str(exc), wall_now)
-                if hinted is not None:
-                    window = min(
-                        hinted + _RESET_SLACK_SECONDS, _MAX_RESET_WINDOW_SECONDS
-                    )
-                    # Never arm SHORTER than the configured window off a hint —
-                    # a stale "resets 2 minutes from now" would turn failover
-                    # into a tight probe loop.
-                    window = max(window, self._config.window_seconds)
-                else:
-                    window = self._config.window_seconds
-                self._arm_locked(now, wall_now, window=window)
-                log.warning(
-                    "default provider slot exhausted — failover armed for %.0fs%s: %s",
-                    window,
-                    " (until the hinted quota reset)" if hinted is not None else "",
-                    reason,
-                )
+                self._handle_exhaustion_locked(exc, now, wall_now, reason)
                 return
 
             self._consecutive_failures += 1
@@ -344,6 +327,37 @@ class ProviderFailoverTracker:
                     self._config.window_seconds,
                     reason,
                 )
+
+    def _handle_exhaustion_locked(
+        self,
+        exc: BaseException,
+        now: float,
+        wall_now: datetime,
+        reason: str,
+    ) -> None:
+        """Arm the failover window for a provider-wide exhaustion.
+
+        Caller holds the lock. A parsed quota-reset hint arms the window until
+        that time (plus slack, clamped to :data:`_MAX_RESET_WINDOW_SECONDS` and
+        floored at the configured window so a stale hint cannot shrink it into a
+        tight probe loop); otherwise the fixed ``window_seconds`` applies.
+        """
+        hinted = _parse_reset_delay(str(exc), wall_now)
+        if hinted is not None:
+            window = min(hinted + _RESET_SLACK_SECONDS, _MAX_RESET_WINDOW_SECONDS)
+            # Never arm SHORTER than the configured window off a hint — a stale
+            # "resets 2 minutes from now" would turn failover into a tight probe
+            # loop.
+            window = max(window, self._config.window_seconds)
+        else:
+            window = self._config.window_seconds
+        self._arm_locked(now, wall_now, window=window)
+        log.warning(
+            "default provider slot exhausted — failover armed for %.0fs%s: %s",
+            window,
+            " (until the hinted quota reset)" if hinted is not None else "",
+            reason,
+        )
 
     def record_success(self, slot: ProviderSlotName) -> None:
         """Record a success on *slot*.

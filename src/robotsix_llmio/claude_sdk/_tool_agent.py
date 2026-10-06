@@ -8,6 +8,7 @@ the single public class :class:`ClaudeSDKProvider`.
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -459,32 +460,47 @@ class _SdkToolAgentHandle:
         means the budget is dropped once and the loop then runs with its full
         allowance against a request that can actually succeed.
         """
+        return await run_with_task_budget(
+            functools.partial(self._drive_stream_with_retries, prompt),
+            options,
+            self._sdk_model,
+            self._name,
+        )
+
+    async def _drive_stream_with_retries(
+        self,
+        prompt: str | list[dict[str, Any]],
+        opts: ClaudeAgentOptions,
+    ) -> tuple[str, Any, str]:
+        """Drive the SDK streaming loop, retrying transient failures.
+
+        Retries up to :data:`_SDK_QUERY_ATTEMPTS` times on SDK-transient errors
+        (notably the degenerate ``is_error=True`` / ``subtype="success"`` frame
+        a re-run clears); any other error, or a transient one on the final
+        attempt, propagates. Extracted from :meth:`_invoke_query` so the retry
+        logic can be exercised independently of the task-budget wrapper.
+        """
         from ._stream import _stream_query
         from .transient import is_claude_sdk_transient
 
-        async def _run(opts: ClaudeAgentOptions) -> tuple[str, Any, str]:
-            last_exc: Exception | None = None
-            for attempt in range(_SDK_QUERY_ATTEMPTS):
-                try:
-                    return await _stream_query(prompt, opts, self._name)
-                except Exception as exc:
-                    last_exc = exc
-                    if attempt + 1 < _SDK_QUERY_ATTEMPTS and is_claude_sdk_transient(
-                        exc
-                    ):
-                        log.warning(
-                            "%s: transient SDK error on attempt %d/%d, retrying: %s",
-                            self._name,
-                            attempt + 1,
-                            _SDK_QUERY_ATTEMPTS,
-                            exc,
-                        )
-                        continue
-                    raise
-            assert last_exc is not None  # unreachable: loop returns or raises
-            raise last_exc
-
-        return await run_with_task_budget(_run, options, self._sdk_model, self._name)
+        last_exc: Exception | None = None
+        for attempt in range(_SDK_QUERY_ATTEMPTS):
+            try:
+                return await _stream_query(prompt, opts, self._name)
+            except Exception as exc:
+                last_exc = exc
+                if attempt + 1 < _SDK_QUERY_ATTEMPTS and is_claude_sdk_transient(exc):
+                    log.warning(
+                        "%s: transient SDK error on attempt %d/%d, retrying: %s",
+                        self._name,
+                        attempt + 1,
+                        _SDK_QUERY_ATTEMPTS,
+                        exc,
+                    )
+                    continue
+                raise
+        assert last_exc is not None  # unreachable: loop returns or raises
+        raise last_exc
 
     def _record_generation_span(
         self,
@@ -527,22 +543,31 @@ class _SdkToolAgentHandle:
             },
         ) as gen:
             if gen is not None:
-                if reasoning:
-                    gen.set_attribute(
-                        LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning
-                    )
-                if isinstance(usage_obj, dict):
-                    in_tok = usage_obj.get("input_tokens")
-                    out_tok = usage_obj.get("output_tokens")
-                    if in_tok is not None:
-                        gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
-                    if out_tok is not None:
-                        gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
+                self._record_tokens_on_span(gen, usage_obj, reasoning)
             record_cost(
                 result,
                 lambda r: getattr(r, "total_cost_usd", None),
                 provider=PROVIDER_NAME,
             )
+
+    @staticmethod
+    def _record_tokens_on_span(gen: Any, usage_obj: Any, reasoning: str) -> None:
+        """Stamp reasoning metadata and token-usage attributes on *gen*.
+
+        Decoupled from :meth:`_record_generation_span` so the span context
+        manager owns the observation lifecycle while this owns what is recorded
+        on it. *gen* is a live (non-``None``) span; *usage_obj* contributes
+        token counts only when it is a dict carrying them.
+        """
+        if reasoning:
+            gen.set_attribute(LANGFUSE_OBSERVATION_METADATA_REASONING, reasoning)
+        if isinstance(usage_obj, dict):
+            in_tok = usage_obj.get("input_tokens")
+            out_tok = usage_obj.get("output_tokens")
+            if in_tok is not None:
+                gen.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, int(in_tok))
+            if out_tok is not None:
+                gen.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, int(out_tok))
 
     async def _run(
         self, user_prompt: str | list[Any], message_history: list[Any] | None = None
