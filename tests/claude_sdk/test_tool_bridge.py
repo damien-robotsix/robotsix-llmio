@@ -116,9 +116,58 @@ def test_restricted_tool_path_denies_builtins_not_mcp(monkeypatch):
         builtin_tools=True,
     )
     opts2 = full._build_options("sys")  # type: ignore[attr-defined]
-    assert not hasattr(opts2, "disallowed_tools")
+    # Full access keeps the allow-list; only the interactive built-ins that a
+    # headless run can never satisfy are denied (AskUserQuestion stalled mill
+    # review/implement turns on 2026-10-02/04).
+    assert opts2.disallowed_tools == ["AskUserQuestion"]
     assert hasattr(opts2, "allowed_tools")
     full.close()
+
+
+def test_every_tool_agent_denies_foreign_mcp_connectors(monkeypatch):
+    """Both agent flavours install a PreToolUse hook on ``mcp__.*`` that denies
+    MCP tools the agent did not inject — the operator's claude.ai connectors
+    (``mcp__claude_ai_Claude_Docs__*`` …) reach the CLI session through the
+    shared login, and a mill scout wrote a Claude Doc through one on
+    2026-10-03. The injected ``mcp__milltools__*`` tools stay allowed."""
+    _install_fake_sdk(monkeypatch)
+    provider = ClaudeSDKProvider()
+    for builtin_tools in (False, True):
+        agent = provider.build_agent(
+            level=1,
+            tier_config=_HAIKU_AT_LEVEL1,
+            system_prompt="sys",
+            tools=[PydanticTool(_echo_sync, name="echo_sync")],
+            builtin_tools=builtin_tools,
+        )
+        opts = agent._build_options("sys")  # type: ignore[attr-defined]
+        matchers = opts.hooks["PreToolUse"]
+        mcp = [m for m in matchers if m.matcher == "mcp__.*"]
+        assert len(mcp) == 1, [m.matcher for m in matchers]
+        (hook,) = mcp[0].hooks
+        denied = asyncio.run(
+            hook(
+                {
+                    "tool_name": "mcp__claude_ai_Claude_Docs__batch",
+                    "tool_input": {"container": {}},
+                },
+                "tu_1",
+                None,
+            )
+        )
+        assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "claude.ai" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+        allowed = asyncio.run(
+            hook(
+                {"tool_name": "mcp__milltools__run_command", "tool_input": {}},
+                "tu_2",
+                None,
+            )
+        )
+        assert allowed == {}
+        # No workspace root → the edit/Bash confinement hooks are NOT installed.
+        assert [m.matcher for m in matchers] == ["mcp__.*"]
+        agent.close()
 
 
 def test_tool_agent_invokes_tool_and_returns_output(monkeypatch):

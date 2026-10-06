@@ -93,6 +93,15 @@ def _fake_sdk_module() -> SimpleNamespace:
     ns.AssistantMessage = _FakeAssistantMessage
     ns.ResultMessage = _FakeResultMessage
     ns.ClaudeAgentOptions = _FakeClaudeAgentOptions
+
+    class _FakeHookMatcher:
+        def __init__(
+            self, matcher: str | None = None, hooks: list | None = None
+        ) -> None:
+            self.matcher = matcher
+            self.hooks = list(hooks or [])
+
+    ns.HookMatcher = _FakeHookMatcher
     # Attach record-keeping
     ns._tool_regs = tool_regs
     ns._server_calls = server_calls

@@ -32,8 +32,10 @@ from ._chat_messages import _chat_messages_input
 from ._cli_stderr import record
 from ._confinement import (
     _EDIT_TOOLS,
+    _MCP_TOOLS,
     _make_bash_confine_hook,
     _make_confine_hook,
+    _make_foreign_mcp_deny_hook,
 )
 from ._output import _build_schema_json, _parse_output
 from ._system_prompt import spill_oversized_system_prompt
@@ -107,6 +109,11 @@ _SDK_QUERY_ATTEMPTS = 3
 # These read nothing local and mutate nothing, so they do not reopen the
 # sandbox the denylist exists to enforce.
 _WEB_TOOL_NAMES = ["WebFetch", "WebSearch"]
+
+# Interactive built-ins that can never complete without a human at the
+# terminal; denied on EVERY tool-bearing agent (the restricted denylist below
+# includes them too).
+_HEADLESS_TOOL_DENYLIST = ["AskUserQuestion"]
 
 _BUILTIN_TOOL_DENYLIST = [
     "Bash",
@@ -362,35 +369,45 @@ class _SdkToolAgentHandle:
         # SDK there (so relative paths + Bash default into it) and gate every
         # Write/Edit/MultiEdit/NotebookEdit through a PreToolUse hook.
         extra: dict[str, Any] = {}
-        if self._workspace_root:
-            try:
-                from claude_agent_sdk import HookMatcher
-            except ImportError as exc:  # pragma: no cover
-                raise ImportError(
-                    "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
-                    "Install with: pip install 'robotsix-llmio[claude_sdk]' "
-                    "(also needs Node.js and a logged-in `claude` CLI)."
-                ) from exc
+        try:
+            from claude_agent_sdk import HookMatcher
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "robotsix_llmio.claude_sdk requires the 'claude_sdk' extra. "
+                "Install with: pip install 'robotsix-llmio[claude_sdk]' "
+                "(also needs Node.js and a logged-in `claude` CLI)."
+            ) from exc
 
+        # Always on: deny every MCP tool this agent did not inject. The CLI
+        # session inherits the operator's claude.ai connectors (Claude Docs,
+        # Asana, …) as deferred ``mcp__claude_ai_*`` tools; a mill scout wrote
+        # a Claude Doc into the operator's account through one on 2026-10-03.
+        pre_tool_use: list[Any] = [
+            HookMatcher(matcher=_MCP_TOOLS, hooks=[_make_foreign_mcp_deny_hook()]),
+        ]
+        if self._workspace_root:
             extra["cwd"] = self._workspace_root
-            extra["hooks"] = {
-                "PreToolUse": [
-                    HookMatcher(
-                        matcher=_EDIT_TOOLS,
-                        hooks=[_make_confine_hook(self._workspace_root)],
-                    ),
-                    HookMatcher(
-                        matcher="Bash",
-                        hooks=[_make_bash_confine_hook(self._workspace_root)],
-                    ),
-                ]
-            }
+            pre_tool_use += [
+                HookMatcher(
+                    matcher=_EDIT_TOOLS,
+                    hooks=[_make_confine_hook(self._workspace_root)],
+                ),
+                HookMatcher(
+                    matcher="Bash",
+                    hooks=[_make_bash_confine_hook(self._workspace_root)],
+                ),
+            ]
+        extra["hooks"] = {"PreToolUse": pre_tool_use}
 
         # ``bypassPermissions`` auto-approves tool use (no headless approval
         # stall, which otherwise degenerates into a spurious "error result").
         extra["permission_mode"] = "bypassPermissions"
         if self._builtin_tools:
             extra["allowed_tools"] = self._allowed_tools
+            # A headless agent has nobody to answer: ``AskUserQuestion`` only
+            # burns a turn (mill review/implement runs on 2026-10-02/04 called
+            # it with an empty question list and got a validation error back).
+            extra["disallowed_tools"] = list(_HEADLESS_TOOL_DENYLIST)
         else:
             # Restricted: expose ONLY the injected MCP tools. ``disallowed_tools``
             # is the reliable lever (``allowed_tools`` / ``can_use_tool`` are not
