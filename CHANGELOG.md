@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.9](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.8...v0.7.9) (2026-10-06)
+
+
+### Bug Fixes
+
+* **claude_sdk:** deny the operator's claude.ai connector tools and AskUserQuestion in headless agents ([#682](https://github.com/damien-robotsix/robotsix-llmio/issues/682)) ([e17e8ef](https://github.com/damien-robotsix/robotsix-llmio/commit/e17e8ef877007d7674c5abcef51fbec9b0edcffa))
+
 ## [0.7.8](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.7...v0.7.8) (2026-10-05)
 
 
