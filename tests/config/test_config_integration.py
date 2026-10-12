@@ -143,5 +143,6 @@ class TestYamlRoundTrip:
         )
         assert cfg.fallback.level1.max_tokens == 16384
         assert cfg.fallback.level1.provider_kwargs == {
-            "preferred_provider": "DeepInfra"
+            "preferred_provider": "DeepInfra",
+            "ignore_providers": ["Wafer"],
         }

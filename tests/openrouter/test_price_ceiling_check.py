@@ -193,6 +193,32 @@ def test_cheap_tier_prefers_deepinfra_and_guard_passes(check_module):
     assert report.admitted_indices == {0, 1, 2}
 
 
+def test_cheap_tier_bars_wafer_cache_read_outlier(check_module):
+    """Regression for the 2026-10-12 drift failure: Wafer lists inside the
+    cheap ceiling ($0.130/$0.230) but its cache-read ($0.120/1M) is ~8x
+    DeepInfra's ($0.015/1M), a cost ``max_price`` cannot see. The baked cheap
+    tier now carries ``ignore_providers=["Wafer"]``, so the guard must not
+    admit it and must not flag a cache-read drift."""
+    cheap = next(t for t in check_module._TIERS if t.label == "cheap (level 1)")
+    assert "Wafer" in cheap.ignore
+
+    report = check_module.check_tier(
+        cheap,
+        [
+            _endpoint("DeepInfra", prompt=0.060, completion=0.180, cache_read=0.015),
+            _endpoint("DigitalOcean", prompt=0.119, completion=0.238, cache_read=0.024),
+            _endpoint("Wafer", prompt=0.130, completion=0.230, cache_read=0.120),
+            _endpoint("BaseTen", prompt=0.130, completion=0.260, cache_read=0.028),
+            _endpoint("Venice", prompt=0.130, completion=0.260, cache_read=0.028),
+        ],
+    )
+
+    assert report.failures == []
+    assert report.preferred_admitted is True
+    # Wafer (index 2) is ignored, so it must not be admitted.
+    assert report.admitted_indices == {0, 1, 3, 4}
+
+
 # --- fetch_endpoints (mocked httpx) -------------------------------------------
 
 
