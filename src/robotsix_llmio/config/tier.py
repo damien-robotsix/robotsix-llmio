@@ -188,10 +188,21 @@ DEFAULT_LEVEL3 = TierLevelConfig(model="claudeSDK-claude-fable-5")
 # no longer satisfies its own ceiling (scripts/check-price-ceilings.py,
 # rule 1). ``allow_fallbacks`` still lets OpenRouter route past DeepInfra
 # under the same ceiling.
+#
+# ``ignore_providers`` bars Wafer from cheap-tier fallback: it lists
+# $0.130/$0.230 (inside the $0.13/$0.26 ceiling, so ``max_price`` admits it)
+# but its cache-read runs $0.120/1M — ~8x DeepInfra's $0.015/1M, a cost
+# ``max_price`` cannot see. The drift guard flagged it 2026-10-12 as >4x the
+# preferred provider's cache-read rate; excluding it still leaves >= 3 healthy
+# admitted endpoints (DeepInfra, DigitalOcean, BaseTen, Venice). This mirrors
+# the capable tier's ``DEFAULT_IGNORE_CAPABLE`` list.
 FALLBACK_LEVEL1 = TierLevelConfig(
     model="openrouter-deepseek/deepseek-v4-flash-20260731",
     max_tokens=16384,
-    provider_kwargs={"preferred_provider": "DeepInfra"},
+    provider_kwargs={
+        "preferred_provider": "DeepInfra",
+        "ignore_providers": ["Wafer"],
+    },
 )
 
 # Level 2 binds the SAME flash snapshot as level 1 — the operator's explicit
@@ -212,6 +223,9 @@ FALLBACK_LEVEL2 = TierLevelConfig(
         "preferred_provider": "DeepInfra",
         "max_price_prompt": 0.13,
         "max_price_completion": 0.26,
+        # See FALLBACK_LEVEL1: Wafer's cache-read ($0.120/1M) is ~8x
+        # DeepInfra's, invisible to max_price — barred via provider.ignore.
+        "ignore_providers": ["Wafer"],
     },
 )
 

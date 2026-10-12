@@ -144,7 +144,11 @@ def test_fallback_level1():
     assert FALLBACK_LEVEL1.model_name == "deepseek/deepseek-v4-flash-20260731"
     # Cheap tier prefers a stable *cheap* upstream (DeepInfra), not DeepSeek,
     # whose repriced flash endpoint no longer satisfies the cheap-tier ceiling.
-    assert FALLBACK_LEVEL1.provider_kwargs == {"preferred_provider": "DeepInfra"}
+    # Wafer is barred (cache-read ~8x DeepInfra's — a cost max_price can't see).
+    assert FALLBACK_LEVEL1.provider_kwargs == {
+        "preferred_provider": "DeepInfra",
+        "ignore_providers": ["Wafer"],
+    }
     assert FALLBACK_LEVEL1.max_tokens == 16384
 
 
@@ -158,6 +162,7 @@ def test_fallback_level2_is_flash_with_reasoning_headroom():
     assert FALLBACK_LEVEL2.provider_kwargs["max_price_prompt"] == 0.13
     assert FALLBACK_LEVEL2.provider_kwargs["max_price_completion"] == 0.26
     assert FALLBACK_LEVEL2.provider_kwargs["preferred_provider"] == "DeepInfra"
+    assert FALLBACK_LEVEL2.provider_kwargs["ignore_providers"] == ["Wafer"]
 
 
 def test_fallback_level3():
