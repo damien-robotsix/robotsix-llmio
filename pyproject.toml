@@ -24,12 +24,16 @@ dependencies = [
     # SLIM, not the full meta-package: the meta pulls every provider SDK plus
     # logfire (which auto-imports opentelemetry via a pydantic plugin) — we
     # keep the dependency surface minimal and let extras add provider support.
-    "pydantic-ai-slim>=2.36",
+    # Floored at >=2.53: resolves GHSA-4x9p-g9wm-8q7f, GHSA-fpf4-vwcp-v4hp,
+    # GHSA-vmxc-h2x2-jmf3 (fixed 2.44.0), GHSA-v36g-jcw9-x7cw (fixed 2.52.0)
+    # and GHSA-6fqq-452j-qhrp (fixed 2.53.0) — all flagged by `uv audit` /
+    # `pip-audit` against 2.37.0.
+    "pydantic-ai-slim>=2.53",
     # OpenRouter transport — base, not an extra (see [project.optional-dependencies]).
     # Floored at >=3: the provider-facing client is an `httpx2.AsyncClient`
     # (core.timeout_http_client), which `AsyncOpenAI` only accepts from openai
     # 3.0 onwards; openai 2.x raises "Invalid http_client argument".
-    "pydantic-ai-slim[openrouter]>=2.36",
+    "pydantic-ai-slim[openrouter]>=2.53",
     "openai>=3",
     "httpx",
     # HTTPX2 — pydantic-ai 2.x moved its provider SDK clients to the httpx2
