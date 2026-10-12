@@ -24,7 +24,7 @@ jobs:
     # suppresses to prevent recursion on events it creates), runs
     # `uv lock --upgrade-package <packages>` per package, and opens the PR via
     # bump-commit-pr — so bump fixes propagate fleet-wide.
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/bump.yml@b8568722fa33fba3196a0364609b4c8bbb065a83  # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/bump.yml@22e105fb6a2aab771e25996b1b18fc5c3cd4dd17  # main
     with:
       bump-mode: deps
       packages: "robotsix-http robotsix-modules"
