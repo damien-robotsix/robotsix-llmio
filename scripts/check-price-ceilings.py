@@ -24,13 +24,27 @@ a scheduled run fails loudly. It is deliberately NOT a per-PR CI gate — an
 upstream price move must not block unrelated merges. Run it::
 
     python scripts/check-price-ceilings.py
+
+Rule 3 has a deterministic remedy — bar the outlier via the tier's ignore
+list — and third-party repricing trips it most weeks, so ``--fix`` applies
+that remedy directly to the library source (the ``ignore_providers`` list of
+``FALLBACK_LEVEL1``/``FALLBACK_LEVEL2`` in ``config/tier.py``, the
+``DEFAULT_IGNORE_CAPABLE`` tuple in ``openrouter/_deepseek_model.py``) and
+re-checks the tier with the extended list. The scheduled workflow runs it on a
+failure and opens a PR with the diff; rules 1 and 2 (a ceiling that no longer
+admits the preferred provider or fewer than three healthy endpoints) have no
+mechanical fix and still fail the run. ``--summary-file`` writes the Markdown
+report (tables + applied fixes) for the PR body.
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -81,6 +95,12 @@ class TierCheck:
     ceiling: dict[str, float]
     ignore: tuple[str, ...]
     preferred_provider: str = "DeepSeek"
+    #: Where ``--fix`` appends cache-read outliers: ``(relative source path,
+    #: anchor)``. The anchor is the ``FALLBACK_LEVELn`` block whose
+    #: ``provider_kwargs["ignore_providers"]`` list is extended, or the
+    #: module-level tuple name (``DEFAULT_IGNORE_CAPABLE``). ``None`` = not
+    #: auto-fixable.
+    ignore_source: tuple[str, str] | None = None
 
 
 @dataclass
@@ -98,6 +118,9 @@ class TierReport:
     warnings: list[str]
     preferred_admitted: bool = False
     reference_cache_read: float | None = None
+    #: Rule-3 offenders as ``(provider, cache_read $/M)``, deduplicated —
+    #: the input of ``--fix``.
+    cache_read_outliers: list[tuple[str, float]] = field(default_factory=list)
 
 
 def _ceiling_from_kwargs(kwargs: dict[str, Any]) -> dict[str, float] | None:
@@ -123,6 +146,10 @@ def _preferred_from_kwargs(kwargs: dict[str, Any]) -> str:
     return str(kwargs.get("preferred_provider", _PREFERRED_PROVIDER))
 
 
+#: Library files ``--fix`` edits, relative to the repository root.
+_TIER_SOURCE = "src/robotsix_llmio/config/tier.py"
+_DEEPSEEK_SOURCE = "src/robotsix_llmio/openrouter/_deepseek_model.py"
+
 #: The OpenRouter tiers from the baked tier defaults. Ceilings, ignore lists,
 #: and preferred providers come from each tier's ``provider_kwargs`` where
 #: present, falling back to the module-level DeepSeek defaults — so the guard
@@ -136,6 +163,7 @@ _TIERS: tuple[TierCheck, ...] = (
         or DEFAULT_MAX_PRICE_CHEAP,
         ignore=_ignore_from_kwargs(FALLBACK_LEVEL1.provider_kwargs) or (),
         preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL1.provider_kwargs),
+        ignore_source=(_TIER_SOURCE, "FALLBACK_LEVEL1"),
     ),
     TierCheck(
         label="cheap-reasoning (level 2)",
@@ -144,6 +172,7 @@ _TIERS: tuple[TierCheck, ...] = (
         or DEFAULT_MAX_PRICE_CHEAP,
         ignore=_ignore_from_kwargs(FALLBACK_LEVEL2.provider_kwargs) or (),
         preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL2.provider_kwargs),
+        ignore_source=(_TIER_SOURCE, "FALLBACK_LEVEL2"),
     ),
     TierCheck(
         label="capable (level 3)",
@@ -153,6 +182,11 @@ _TIERS: tuple[TierCheck, ...] = (
         ignore=_ignore_from_kwargs(FALLBACK_LEVEL3.provider_kwargs)
         or DEFAULT_IGNORE_CAPABLE,
         preferred_provider=_preferred_from_kwargs(FALLBACK_LEVEL3.provider_kwargs),
+        ignore_source=(
+            (_TIER_SOURCE, "FALLBACK_LEVEL3")
+            if _ignore_from_kwargs(FALLBACK_LEVEL3.provider_kwargs) is not None
+            else (_DEEPSEEK_SOURCE, "DEFAULT_IGNORE_CAPABLE")
+        ),
     ),
 )
 
@@ -264,6 +298,8 @@ def check_tier(
                     f"${report.reference_cache_read:.3f}/M by more than "
                     f"{max_cache_read_factor:g}x"
                 )
+                if s.provider not in {name for name, _ in report.cache_read_outliers}:
+                    report.cache_read_outliers.append((s.provider, s.cache_read))
 
     return report
 
@@ -286,6 +322,173 @@ def fetch_endpoints(
     data = payload.get("data") if isinstance(payload, dict) else None
     endpoints = data.get("endpoints") if isinstance(data, dict) else None
     return list(endpoints or [])
+
+
+def _ignore_entry_lines(
+    providers: Sequence[tuple[str, float]],
+    *,
+    indent: str,
+    preferred_provider: str,
+    reference_cache_read: float | None,
+    today: str,
+) -> list[str]:
+    """Render ``"Provider",`` entries, each preceded by a dated audit comment."""
+    lines: list[str] = []
+    for provider, cache_read in providers:
+        reference = (
+            f" vs {preferred_provider} ${reference_cache_read:.3f}/M"
+            if reference_cache_read
+            else ""
+        )
+        lines.append(
+            f"{indent}# {today} drift-fix: cache-read ${cache_read:.3f}/M{reference}"
+        )
+        lines.append(f'{indent}"{provider}",')
+    return lines
+
+
+def extend_ignore_list_in_block(
+    text: str,
+    block: str,
+    providers: Sequence[tuple[str, float]],
+    *,
+    preferred_provider: str,
+    reference_cache_read: float | None,
+    today: str,
+) -> str:
+    """Append *providers* to ``"ignore_providers": [...]`` inside the
+    ``<block> = TierLevelConfig(`` literal of ``config/tier.py``.
+
+    When the block has no ``ignore_providers`` key yet, one is inserted right
+    after its ``"preferred_provider"`` line. Raises :class:`ValueError` when
+    the block or the insertion point cannot be found — the source layout the
+    fixer relies on has changed and a human must look.
+    """
+    start_match = re.search(rf"^{re.escape(block)} = TierLevelConfig\(\n", text, re.M)
+    if start_match is None:
+        raise ValueError(f"{block} = TierLevelConfig( not found")
+    end = text.find("\n)\n", start_match.end())
+    if end == -1:
+        raise ValueError(f"{block}: closing paren not found")
+    body = text[start_match.end() : end]
+    list_match = re.search(
+        r'^(\s*)"ignore_providers": \[(.*?)\],?\n', body, re.S | re.M
+    )
+    if list_match is not None:
+        indent = list_match.group(1)
+        inner = list_match.group(2).strip()
+        existing = (
+            [e.strip().strip("\"'") for e in inner.split(",") if e.strip()]
+            if inner and "#" not in inner
+            else []
+        )
+        if not existing and inner:
+            existing = re.findall(r"[\"']([^\"']+)[\"']", inner)
+        new = [(p, c) for p, c in providers if p not in existing]
+        if not new:
+            return text
+        entry_indent = indent + "    "
+        entries = [f'{entry_indent}"{e}",' for e in existing] + _ignore_entry_lines(
+            new,
+            indent=entry_indent,
+            preferred_provider=preferred_provider,
+            reference_cache_read=reference_cache_read,
+            today=today,
+        )
+        replacement = (
+            f'{indent}"ignore_providers": [\n' + "\n".join(entries) + f"\n{indent}],\n"
+        )
+        new_body = body[: list_match.start()] + replacement + body[list_match.end() :]
+    else:
+        pref_match = re.search(r'^(\s*)"preferred_provider": .*\n', body, re.M)
+        if pref_match is None:
+            raise ValueError(f"{block}: no ignore_providers and no preferred_provider")
+        indent = pref_match.group(1)
+        entries = _ignore_entry_lines(
+            providers,
+            indent=indent + "    ",
+            preferred_provider=preferred_provider,
+            reference_cache_read=reference_cache_read,
+            today=today,
+        )
+        insertion = (
+            f'{indent}"ignore_providers": [\n' + "\n".join(entries) + f"\n{indent}],\n"
+        )
+        new_body = body[: pref_match.end()] + insertion + body[pref_match.end() :]
+    return text[: start_match.end()] + new_body + text[end:]
+
+
+def extend_ignore_tuple(
+    text: str,
+    name: str,
+    providers: Sequence[tuple[str, float]],
+    *,
+    preferred_provider: str,
+    reference_cache_read: float | None,
+    today: str,
+) -> str:
+    """Append *providers* to the module-level ``<name>: tuple[str, ...] = (``
+    literal (``DEFAULT_IGNORE_CAPABLE`` in ``_deepseek_model.py``)."""
+    match = re.search(
+        rf"^{re.escape(name)}: tuple\[str, \.\.\.\] = \(\n(.*?)^\)\n", text, re.S | re.M
+    )
+    if match is None:
+        raise ValueError(f"{name} tuple literal not found")
+    existing = re.findall(r"^\s*[\"']([^\"']+)[\"'],", match.group(1), re.M)
+    new = [(p, c) for p, c in providers if p not in existing]
+    if not new:
+        return text
+    entries = _ignore_entry_lines(
+        new,
+        indent="    ",
+        preferred_provider=preferred_provider,
+        reference_cache_read=reference_cache_read,
+        today=today,
+    )
+    body = match.group(1).rstrip("\n") + "\n" + "\n".join(entries) + "\n"
+    return text[: match.start(1)] + body + text[match.end(1) :]
+
+
+def apply_cache_read_fixes(
+    reports: Sequence[TierReport],
+    *,
+    repo_root: Path,
+    today: str | None = None,
+) -> list[str]:
+    """Bar every tier's rule-3 outliers in the library source.
+
+    Returns one human-readable line per applied edit (empty when nothing was
+    fixable). Tiers without an ``ignore_source`` are left alone; a source
+    layout the fixer does not recognise raises :class:`ValueError`.
+    """
+    today = today or datetime.now(UTC).date().isoformat()
+    applied: list[str] = []
+    for report in reports:
+        source = report.check.ignore_source
+        if not report.cache_read_outliers or source is None:
+            continue
+        rel_path, anchor = source
+        path = repo_root / rel_path
+        text = path.read_text(encoding="utf-8")
+        kwargs: dict[str, Any] = {
+            "preferred_provider": report.check.preferred_provider,
+            "reference_cache_read": report.reference_cache_read,
+            "today": today,
+        }
+        if anchor.startswith("FALLBACK_LEVEL"):
+            updated = extend_ignore_list_in_block(
+                text, anchor, report.cache_read_outliers, **kwargs
+            )
+        else:
+            updated = extend_ignore_tuple(
+                text, anchor, report.cache_read_outliers, **kwargs
+            )
+        if updated == text:
+            continue
+        path.write_text(updated, encoding="utf-8")
+        names = ", ".join(name for name, _ in report.cache_read_outliers)
+        applied.append(f"{report.check.label}: barred {names} in {rel_path} ({anchor})")
+    return applied
 
 
 def _render_tier(report: TierReport) -> str:
@@ -341,6 +544,26 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "(default: %(default)s).",
     )
     parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Bar cache-read outliers (rule 3) in the library source and "
+        "re-check with the extended ignore lists; exit non-zero only for "
+        "failures that have no mechanical remedy.",
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(__file__).resolve().parents[1],
+        help="Repository root whose src/ --fix edits (default: this checkout).",
+    )
+    parser.add_argument(
+        "--summary-file",
+        type=Path,
+        default=None,
+        help="Also write the Markdown report (tables, failures, applied fixes) "
+        "to this file, e.g. for a PR body.",
+    )
+    parser.add_argument(
         "--max-cache-read-factor",
         type=float,
         default=_CACHE_READ_MAX_FACTOR,
@@ -354,9 +577,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run the guard over every baked DeepSeek tier; return the exit code."""
     args = _parse_args(argv)
     reports: list[TierReport] = []
+    endpoints_by_tier: list[list[dict[str, Any]]] = []
     with httpx.Client(timeout=HTTP_CLIENT_TIMEOUT) as client:
         for check in _TIERS:
             endpoints = fetch_endpoints(client, check.model, base_url=args.base_url)
+            endpoints_by_tier.append(endpoints)
             reports.append(
                 check_tier(
                     check,
@@ -366,7 +591,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
 
-    print("\n\n".join(_render_tier(report) for report in reports))
+    sections = [_render_tier(report) for report in reports]
+    applied: list[str] = []
+    if args.fix and any(report.cache_read_outliers for report in reports):
+        applied = apply_cache_read_fixes(reports, repo_root=args.repo_root)
+        # Re-check every fixed tier with its extended ignore list so the exit
+        # code reflects what the PR would ship, not the pre-fix state.
+        rechecked: list[TierReport] = []
+        for report, endpoints in zip(reports, endpoints_by_tier, strict=True):
+            if not report.cache_read_outliers:
+                rechecked.append(report)
+                continue
+            extended = TierCheck(
+                label=report.check.label,
+                model=report.check.model,
+                ceiling=report.check.ceiling,
+                ignore=report.check.ignore
+                + tuple(name for name, _ in report.cache_read_outliers),
+                preferred_provider=report.check.preferred_provider,
+                ignore_source=report.check.ignore_source,
+            )
+            rechecked.append(
+                check_tier(
+                    extended,
+                    endpoints,
+                    min_healthy=args.min_healthy,
+                    max_cache_read_factor=args.max_cache_read_factor,
+                )
+            )
+        reports = rechecked
+        sections.append(
+            "## Applied fixes (--fix)\n\n"
+            + ("\n".join(f"- {line}" for line in applied) or "- none")
+            + "\n\n## After fix\n\n"
+            + "\n\n".join(_render_tier(report) for report in reports)
+        )
+
+    output = "\n\n".join(sections)
+    print(output)
     total_failures = sum(len(report.failures) for report in reports)
     total_warnings = sum(len(report.warnings) for report in reports)
     print()
@@ -374,16 +636,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         msg = f"PRICE CEILING DRIFT DETECTED: {total_failures} violation(s)."
         if total_warnings:
             msg += f" ({total_warnings} additional warning(s) — see above.)"
+        if applied:
+            msg += " Remaining after --fix — no mechanical remedy."
         print(msg)
-        return 1
-    if total_warnings:
-        print(
+        verdict = msg
+        code = 1
+    elif total_warnings:
+        verdict = (
             f"All DeepSeek price ceilings verified. "
             f"{total_warnings} warning(s) — see above."
         )
-        return 0
-    print("All DeepSeek price ceilings verified against the live endpoint list.")
-    return 0
+        print(verdict)
+        code = 0
+    else:
+        verdict = "All DeepSeek price ceilings verified against the live endpoint list."
+        print(verdict)
+        code = 0
+    if args.summary_file is not None:
+        args.summary_file.write_text(output + "\n\n" + verdict + "\n", encoding="utf-8")
+    return code
 
 
 if __name__ == "__main__":
