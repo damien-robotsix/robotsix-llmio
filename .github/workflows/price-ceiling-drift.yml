@@ -11,27 +11,62 @@ concurrency:
   group: price-ceiling-drift
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   drift-check:
     name: Check DeepSeek price ceilings
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write       # push the fix branch (App token)
+      pull-requests: write  # open the fix PR (App token)
     env:
       UV_MALWARE_CHECK: "1"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      # Mints the release App's installation token and checks the repo out
+      # with it so a fix branch can be pushed and a PR opened; same App as
+      # refresh-git-deps.yml.
+      - uses: damien-robotsix/robotsix-github-workflows/.github/actions/bump-setup@188518bece972d7d5f1c4e2a0f2226d2526dc0fa
+        id: setup
         with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup-repo
-        with:
-          python-version: '3.14'
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          uv-version: "0.12.19"
+          repositories: ${{ github.event.repository.name }}
       # The guard imports the openrouter layer (openai, pydantic-ai-slim
       # openrouter extra), so install that extra on top of the frozen lock.
       - name: Sync dependencies
         run: uv sync --frozen --extra openrouter
       - name: Verify DeepSeek price ceilings against OpenRouter
+        id: check
+        continue-on-error: true
         run: uv run python scripts/check-price-ceilings.py
+      # Rule 3 (an admitted provider whose cache-read rate is >4x the preferred
+      # provider's) has one mechanical remedy — bar it via the tier's ignore
+      # list — and third-party repricing trips it most weeks. Apply that
+      # remedy in source and re-check; a run that is green after the fix
+      # becomes a PR instead of a red workflow + CI-failure ticket + implement
+      # run. Rules 1 and 2 have no mechanical fix and keep failing the job.
+      - name: Apply cache-read ignore fixes
+        if: steps.check.outcome == 'failure'
+        id: fix
+        run: |
+          uv run python scripts/check-price-ceilings.py --fix --summary-file price-ceiling-summary.md
+          {
+            echo "pr-body<<EOF"
+            echo "Automated by the weekly price-ceiling drift check: an admitted OpenRouter provider's cache-read rate exceeds the preferred provider's by more than the allowed factor, so it is barred via the tier's ignore list. Report (before/after) below."
+            echo
+            cat price-ceiling-summary.md
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          rm -f price-ceiling-summary.md
+      - uses: damien-robotsix/robotsix-github-workflows/.github/actions/bump-commit-pr@188518bece972d7d5f1c4e2a0f2226d2526dc0fa
+        if: steps.check.outcome == 'failure'
+        with:
+          token: ${{ steps.setup.outputs.token }}
+          bump-branch: chore/price-ceiling-ignore
+          diff-files: src/robotsix_llmio/config/tier.py src/robotsix_llmio/openrouter/_deepseek_model.py
+          add-files: src/robotsix_llmio/config/tier.py src/robotsix_llmio/openrouter/_deepseek_model.py
+          commit-message: "fix(tiers): bar cache-read outlier providers flagged by the price-ceiling drift check"
+          pr-title: "fix(tiers): bar cache-read outlier providers flagged by the price-ceiling drift check"
+          pr-body: ${{ steps.fix.outputs.pr-body }}

@@ -256,3 +256,270 @@ def test_fetch_endpoints_hits_model_endpoints_path(check_module):
     result = check_module.fetch_endpoints(client, "deepseek/deepseek-v4-pro")
 
     assert result == [{"provider_name": "DeepSeek"}]
+
+
+# --- --fix: source rewriting ---------------------------------------------------
+
+_TIER_PY = """\
+FALLBACK_LEVEL1 = TierLevelConfig(
+    model="openrouter-deepseek/deepseek-v4-flash-20260731",
+    max_tokens=16384,
+    provider_kwargs={
+        "preferred_provider": "DeepInfra",
+        "ignore_providers": ["Wafer"],
+    },
+)
+
+FALLBACK_LEVEL2 = TierLevelConfig(
+    model="openrouter-deepseek/deepseek-v4-flash-20260731",
+    max_tokens=65536,
+    provider_kwargs={
+        "preferred_provider": "DeepInfra",
+        "max_price_prompt": 0.13,
+        "max_price_completion": 0.26,
+    },
+)
+
+FALLBACK_LEVEL3 = TierLevelConfig(
+    model="openrouter-deepseek/deepseek-v4-pro-0813",
+    max_tokens=131072,
+    provider_kwargs={
+        "preferred_provider": "StreamLake",
+        "max_price_prompt": 1.16,
+        "max_price_completion": 3.40,
+    },
+)
+"""
+
+_DEEPSEEK_PY = """\
+DEFAULT_MAX_PRICE_CHEAP: dict[str, float] = {"prompt": 0.13, "completion": 0.26}
+
+#: Upstream providers barred from capable-tier fallback routing.
+DEFAULT_IGNORE_CAPABLE: tuple[str, ...] = (
+    "DigitalOcean",
+    "CoreWeave",
+    "Ionstream",
+    "Alibaba",
+)
+
+
+def build_provider_routing() -> None:
+    pass
+"""
+
+
+def _fixed_source(check_module, tmp_path):
+    root = tmp_path / "repo"
+    (root / "src/robotsix_llmio/config").mkdir(parents=True)
+    (root / "src/robotsix_llmio/openrouter").mkdir(parents=True)
+    (root / check_module._TIER_SOURCE).write_text(_TIER_PY)
+    (root / check_module._DEEPSEEK_SOURCE).write_text(_DEEPSEEK_PY)
+    return root
+
+
+def test_extend_ignore_list_in_block_appends_to_existing_list(check_module):
+    out = check_module.extend_ignore_list_in_block(
+        _TIER_PY,
+        "FALLBACK_LEVEL1",
+        [("Sail Research", 0.1)],
+        preferred_provider="DeepInfra",
+        reference_cache_read=0.015,
+        today="2026-10-13",
+    )
+    block = out.split("FALLBACK_LEVEL2")[0]
+    assert '"ignore_providers": [' in block
+    assert '"Wafer",' in block and '"Sail Research",' in block
+    assert "# 2026-10-13 drift-fix: cache-read $0.100/M vs DeepInfra $0.015/M" in block
+    # Level 2 untouched, and the module still parses.
+    assert out.split("FALLBACK_LEVEL2")[1].count("ignore_providers") == 0
+    compile(out.replace("TierLevelConfig", "dict"), "tier.py", "exec")
+
+
+def test_extend_ignore_list_in_block_inserts_missing_key(check_module):
+    out = check_module.extend_ignore_list_in_block(
+        _TIER_PY,
+        "FALLBACK_LEVEL2",
+        [("Wafer", 0.12)],
+        preferred_provider="DeepInfra",
+        reference_cache_read=0.015,
+        today="2026-10-13",
+    )
+    block = out.split("FALLBACK_LEVEL2")[1].split("FALLBACK_LEVEL3")[0]
+    assert '"preferred_provider": "DeepInfra",\n        "ignore_providers": [' in block
+    assert '"Wafer",' in block
+    compile(out.replace("TierLevelConfig", "dict"), "tier.py", "exec")
+
+
+def test_extend_ignore_list_in_block_is_idempotent(check_module):
+    kwargs = {
+        "preferred_provider": "DeepInfra",
+        "reference_cache_read": 0.015,
+        "today": "d",
+    }
+    once = check_module.extend_ignore_list_in_block(
+        _TIER_PY, "FALLBACK_LEVEL1", [("Wafer", 0.12)], **kwargs
+    )
+    assert once == _TIER_PY
+
+
+def test_extend_ignore_list_in_block_rejects_unknown_block(check_module):
+    with pytest.raises(ValueError, match="FALLBACK_LEVEL9"):
+        check_module.extend_ignore_list_in_block(
+            _TIER_PY,
+            "FALLBACK_LEVEL9",
+            [("X", 1.0)],
+            preferred_provider="p",
+            reference_cache_read=None,
+            today="d",
+        )
+
+
+def test_extend_ignore_tuple_appends_with_audit_comment(check_module):
+    out = check_module.extend_ignore_tuple(
+        _DEEPSEEK_PY,
+        "DEFAULT_IGNORE_CAPABLE",
+        [("Sail Research", 0.1), ("Alibaba", 0.112)],
+        preferred_provider="StreamLake",
+        reference_cache_read=0.022,
+        today="2026-10-13",
+    )
+    assert out.count("Alibaba") == 1  # already present → not duplicated
+    assert (
+        '    "Alibaba",\n    # 2026-10-13 drift-fix: cache-read '
+        '$0.100/M vs StreamLake $0.022/M\n    "Sail Research",\n)\n' in out
+    )
+    namespace: dict[str, Any] = {}
+    exec(out, namespace)  # noqa: S102 - verifying the rewritten literal parses
+    assert namespace["DEFAULT_IGNORE_CAPABLE"][-1] == "Sail Research"
+
+
+def test_apply_cache_read_fixes_edits_the_right_file_per_tier(check_module, tmp_path):
+    root = _fixed_source(check_module, tmp_path)
+    cheap = check_module.TierCheck(
+        label="cheap (level 1)",
+        model="m",
+        ceiling={"prompt": 0.13, "completion": 0.26},
+        ignore=("Wafer",),
+        preferred_provider="DeepInfra",
+        ignore_source=(check_module._TIER_SOURCE, "FALLBACK_LEVEL1"),
+    )
+    capable = check_module.TierCheck(
+        label="capable (level 3)",
+        model="m3",
+        ceiling={"prompt": 1.16, "completion": 3.40},
+        ignore=("DigitalOcean", "CoreWeave", "Ionstream", "Alibaba"),
+        preferred_provider="StreamLake",
+        ignore_source=(check_module._DEEPSEEK_SOURCE, "DEFAULT_IGNORE_CAPABLE"),
+    )
+    # Real shape from run 38369768361 (2026-10-13): Sail Research admitted at
+    # $0.48/$1.98 with cache-read $0.100 vs StreamLake $0.022.
+    capable_eps = [
+        _endpoint("StreamLake", prompt=0.66, completion=1.98, cache_read=0.022),
+        _endpoint("Novita", prompt=0.99, completion=2.97, cache_read=0.033),
+        _endpoint("GMICloud", prompt=1.056, completion=3.168, cache_read=0.035),
+        _endpoint("Sail Research", prompt=0.48, completion=1.98, cache_read=0.100),
+        _endpoint("Sail Research", prompt=0.48, completion=1.98, cache_read=0.100),
+    ]
+    cheap_eps = [
+        _endpoint("DeepInfra", prompt=0.06, completion=0.18, cache_read=0.015),
+        _endpoint("DigitalOcean", prompt=0.119, completion=0.238, cache_read=0.024),
+        _endpoint("BaseTen", prompt=0.13, completion=0.26, cache_read=0.028),
+        _endpoint("Venice", prompt=0.13, completion=0.26, cache_read=0.028),
+    ]
+    reports = [
+        check_module.check_tier(cheap, cheap_eps),
+        check_module.check_tier(capable, capable_eps),
+    ]
+    assert reports[0].cache_read_outliers == []
+    assert reports[1].cache_read_outliers == [("Sail Research", pytest.approx(0.1))]
+
+    applied = check_module.apply_cache_read_fixes(
+        reports, repo_root=root, today="2026-10-13"
+    )
+
+    assert applied == [
+        "capable (level 3): barred Sail Research in "
+        f"{check_module._DEEPSEEK_SOURCE} (DEFAULT_IGNORE_CAPABLE)"
+    ]
+    assert (root / check_module._TIER_SOURCE).read_text() == _TIER_PY
+    deepseek = (root / check_module._DEEPSEEK_SOURCE).read_text()
+    assert '"Sail Research",' in deepseek
+    # The extended list makes the tier green again.
+    extended = check_module.TierCheck(
+        label=capable.label,
+        model=capable.model,
+        ceiling=capable.ceiling,
+        ignore=(*capable.ignore, "Sail Research"),
+        preferred_provider=capable.preferred_provider,
+    )
+    assert check_module.check_tier(extended, capable_eps).failures == []
+
+
+def test_main_fix_writes_summary_and_exits_zero_when_only_rule3_failed(
+    check_module, tmp_path, monkeypatch
+):
+    root = _fixed_source(check_module, tmp_path)
+    cheap_eps = [
+        _endpoint("DeepInfra", prompt=0.06, completion=0.18, cache_read=0.015),
+        _endpoint("DigitalOcean", prompt=0.119, completion=0.238, cache_read=0.024),
+        _endpoint("BaseTen", prompt=0.13, completion=0.26, cache_read=0.028),
+        _endpoint("Venice", prompt=0.13, completion=0.26, cache_read=0.028),
+    ]
+    capable_eps = [
+        _endpoint("StreamLake", prompt=0.66, completion=1.98, cache_read=0.022),
+        _endpoint("Novita", prompt=0.99, completion=2.97, cache_read=0.033),
+        _endpoint("GMICloud", prompt=1.056, completion=3.168, cache_read=0.035),
+        _endpoint("Sail Research", prompt=0.48, completion=1.98, cache_read=0.100),
+    ]
+    by_model = {
+        check_module._TIERS[0].model: cheap_eps,
+        check_module._TIERS[1].model: cheap_eps,
+        check_module._TIERS[2].model: capable_eps,
+    }
+    monkeypatch.setattr(
+        check_module,
+        "fetch_endpoints",
+        lambda client, model, base_url=None: by_model[model],
+    )
+    summary = tmp_path / "summary.md"
+
+    # Without --fix the run is red on rule 3 ...
+    assert check_module.main(["--repo-root", str(root)]) == 1
+    # ... with --fix the capable tier is re-checked with Sail Research barred.
+    code = check_module.main(
+        ["--fix", "--repo-root", str(root), "--summary-file", str(summary)]
+    )
+    assert code == 0
+    text = summary.read_text()
+    assert "## Applied fixes (--fix)" in text
+    assert "barred Sail Research" in text
+    assert "## After fix" in text
+    assert '"Sail Research",' in (root / check_module._DEEPSEEK_SOURCE).read_text()
+
+
+def test_main_fix_still_fails_on_rule1_and_rule2(check_module, tmp_path, monkeypatch):
+    root = _fixed_source(check_module, tmp_path)
+    # Preferred provider priced above the ceiling, only two healthy endpoints:
+    # nothing --fix can do.
+    eps = [
+        _endpoint("DeepInfra", prompt=0.50, completion=1.00, cache_read=0.015),
+        _endpoint("BaseTen", prompt=0.13, completion=0.26, cache_read=0.028),
+        _endpoint("Venice", prompt=0.13, completion=0.26, cache_read=0.028),
+    ]
+    capable_eps = [
+        _endpoint("StreamLake", prompt=0.66, completion=1.98, cache_read=0.022),
+        _endpoint("Novita", prompt=0.99, completion=2.97, cache_read=0.033),
+        _endpoint("GMICloud", prompt=1.056, completion=3.168, cache_read=0.035),
+    ]
+    by_model = {
+        check_module._TIERS[0].model: eps,
+        check_module._TIERS[1].model: eps,
+        check_module._TIERS[2].model: capable_eps,
+    }
+    monkeypatch.setattr(
+        check_module,
+        "fetch_endpoints",
+        lambda client, model, base_url=None: by_model[model],
+    )
+    assert check_module.main(["--fix", "--repo-root", str(root)]) == 1
+    assert (root / check_module._TIER_SOURCE).read_text() == _TIER_PY
