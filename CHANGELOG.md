@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.7.10](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.9...v0.7.10) (2026-10-13)
+
+
+### Bug Fixes
+
+* CI failure: Price ceiling drift check on main (20261012T063138Z-ci-failure-price-ceiling-drift-check-on-e292) ([#685](https://github.com/damien-robotsix/robotsix-llmio/issues/685)) ([a8d6f00](https://github.com/damien-robotsix/robotsix-llmio/commit/a8d6f00ad57b22c6039481dd8bf52e42ede4bfc3))
+* **ci:** bump bump.yml pin to ghwf 81726d29 (App token scoped to the repo NAME) ([#688](https://github.com/damien-robotsix/robotsix-llmio/issues/688)) ([9f51396](https://github.com/damien-robotsix/robotsix-llmio/commit/9f51396bde2701716d2b36c0659a283de49e314f))
+
 ## [0.7.9](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.8...v0.7.9) (2026-10-06)
 
 
