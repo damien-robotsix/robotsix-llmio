@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -1476,8 +1476,8 @@ docs = [
 
 [[package]]
 name = "robotsix-modules"
-version = "0.2.0"
-source = { git = "https://github.com/damien-robotsix/robotsix-modules.git#926419d834cdc34fdf27223726c6dfdd7bed76a6" }
+version = "0.5.2"
+source = { git = "https://github.com/damien-robotsix/robotsix-modules.git#6a366b9d696ed90dfff0964da2a0fd96a3b86ad0" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pyyaml" },
