@@ -114,6 +114,10 @@ DEFAULT_IGNORE_CAPABLE: tuple[str, ...] = (
     "CoreWeave",
     "Ionstream",
     "Alibaba",
+    # 2026-10-13 drift-fix: cache-read $0.100/M vs StreamLake $0.022/M
+    "Sail Research",
+    # 2026-10-13 drift-fix: cache-read $0.099/M vs StreamLake $0.022/M
+    "Phala",
 )
 
 
