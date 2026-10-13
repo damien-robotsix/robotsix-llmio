@@ -1476,8 +1476,8 @@ docs = [
 
 [[package]]
 name = "robotsix-modules"
-version = "0.2.0"
-source = { git = "https://github.com/damien-robotsix/robotsix-modules.git#926419d834cdc34fdf27223726c6dfdd7bed76a6" }
+version = "0.5.3"
+source = { git = "https://github.com/damien-robotsix/robotsix-modules.git#f983b3310af1914c6a5503f5a4e1f551d32c7910" }
 dependencies = [
     { name = "jsonschema" },
     { name = "pyyaml" },
