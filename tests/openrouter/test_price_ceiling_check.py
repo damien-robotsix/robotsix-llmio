@@ -465,11 +465,15 @@ def test_main_fix_writes_summary_and_exits_zero_when_only_rule3_failed(
         _endpoint("BaseTen", prompt=0.13, completion=0.26, cache_read=0.028),
         _endpoint("Venice", prompt=0.13, completion=0.26, cache_read=0.028),
     ]
+    # A synthetic outlier: the real one (Sail Research, run 38369768361) was
+    # barred by the first auto-fix PR, after which a fixture named after it is
+    # no longer admitted and the "before" run is green — the test must not
+    # depend on the library's live ignore lists.
     capable_eps = [
         _endpoint("StreamLake", prompt=0.66, completion=1.98, cache_read=0.022),
         _endpoint("Novita", prompt=0.99, completion=2.97, cache_read=0.033),
         _endpoint("GMICloud", prompt=1.056, completion=3.168, cache_read=0.035),
-        _endpoint("Sail Research", prompt=0.48, completion=1.98, cache_read=0.100),
+        _endpoint("Sneaky Cache", prompt=0.48, completion=1.98, cache_read=0.100),
     ]
     by_model = {
         check_module._TIERS[0].model: cheap_eps,
@@ -492,9 +496,13 @@ def test_main_fix_writes_summary_and_exits_zero_when_only_rule3_failed(
     assert code == 0
     text = summary.read_text()
     assert "## Applied fixes (--fix)" in text
-    assert "barred Sail Research" in text
+    assert "barred Sneaky Cache" in text
     assert "## After fix" in text
-    assert '"Sail Research",' in (root / check_module._DEEPSEEK_SOURCE).read_text()
+    assert '"Sneaky Cache",' in (root / check_module._DEEPSEEK_SOURCE).read_text()
+    # Guard the premise: none of the fixture providers is in a live ignore list.
+    assert not {"Sneaky Cache", "StreamLake", "Novita", "GMICloud"} & set(
+        check_module._TIERS[2].ignore
+    )
 
 
 def test_main_fix_still_fails_on_rule1_and_rule2(check_module, tmp_path, monkeypatch):
