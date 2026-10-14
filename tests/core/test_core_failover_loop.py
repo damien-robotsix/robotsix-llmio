@@ -15,7 +15,10 @@ from robotsix_llmio.config.tier import (
     TierLevelConfig,
 )
 from robotsix_llmio.core.failover import (
+    _ATTR_MAX_SLOT_SWITCHES,
     _ATTR_SLOT,
+    _ATTR_SLOT_SWITCHES,
+    _MAX_SLOT_SWITCHES,
     _SPAN_FAILOVER_ATTEMPT,
     _SPAN_PRIMARY_ATTEMPT,
     acall_with_failover,
@@ -316,3 +319,54 @@ def test_fallback_slot_attempt_uses_failover_span_name(monkeypatch):
     # The two attempts land under DIFFERENT span names.
     assert recorded[0].name != recorded[1].name
     assert recorded[1].attributes[_ATTR_SLOT] == "fallback"
+
+
+# --------------------------------------------------------------------------- #
+#  One-slot-switch retry cap + telemetry                                      #
+# --------------------------------------------------------------------------- #
+
+
+def test_slot_switch_cap_is_one():
+    """A request attempts the active slot plus at most one fallback."""
+    assert _MAX_SLOT_SWITCHES == 1
+
+
+def test_request_switches_slots_at_most_once(monkeypatch):
+    """Even with both slots failing, the loop makes exactly two attempts
+    (one switch) and records the cap + switch count on the run span."""
+    run_span = _RecordingSpan("run", {})
+    monkeypatch.setattr(failover_mod, "get_recording_span", lambda: run_span)
+
+    calls: list[str] = []
+    with pytest.raises(httpx.ConnectError):
+        call_with_failover(
+            _factory(
+                {
+                    "claudeSDK-opus": [httpx.ReadTimeout("down")],
+                    "openrouter-deepseek/flash": [httpx.ConnectError("also down")],
+                },
+                calls,
+            ),
+            tier_config=_CFG,
+            level=2,
+        )
+    # Exactly one switch: active slot, then the other — never a third attempt.
+    assert calls == ["claudeSDK-opus", "openrouter-deepseek/flash"]
+    assert run_span.attributes[_ATTR_MAX_SLOT_SWITCHES] == 1
+    assert run_span.attributes[_ATTR_SLOT_SWITCHES] == 1
+
+
+def test_default_success_records_no_slot_switch(monkeypatch):
+    run_span = _RecordingSpan("run", {})
+    monkeypatch.setattr(failover_mod, "get_recording_span", lambda: run_span)
+
+    calls: list[str] = []
+    call_with_failover(
+        _factory({"claudeSDK-opus": ["ok"]}, calls),
+        tier_config=_CFG,
+        level=2,
+    )
+    assert calls == ["claudeSDK-opus"]
+    assert run_span.attributes[_ATTR_MAX_SLOT_SWITCHES] == 1
+    # No switch happened, so the switch-count attribute is never written.
+    assert _ATTR_SLOT_SWITCHES not in run_span.attributes

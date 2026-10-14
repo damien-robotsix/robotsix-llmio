@@ -172,7 +172,13 @@ from robotsix_llmio.config import load_tier_config
 
 cfg = load_tier_config({
     "default": {"level2": {"model": "claudeSDK-sonnet"}},
-    "failover": {"failure_threshold": 3, "window_seconds": 900},
+    "failover": {
+        "failure_threshold": 3,
+        "window_seconds": 900,
+        "reattempt_backoff_base": 2.0,
+        "reattempt_backoff_cap_seconds": 14400,
+        "reattempt_backoff_jitter": 0.5,
+    },
 })
 ```
 
@@ -184,6 +190,17 @@ the default slot retries the **same level** on the fallback slot, and after
 `failure_threshold` consecutive default-slot failures (exhaustion arms
 immediately) all calls route straight to the fallback for `window_seconds`
 (default 15 minutes) before automatically returning to the default.
+
+A single request switches provider slots **at most once** — the active slot
+plus one fallback — so a doomed request can never ping-pong between slots and
+multiply spend on duplicate prompts. When the default slot stays degraded
+across windows, each re-arm backs off exponentially with jitter
+(`window_seconds · reattempt_backoff_base ^ n`, capped at
+`reattempt_backoff_cap_seconds`, then a random `reattempt_backoff_jitter`
+fraction subtracted), so a persistently broken primary is re-probed
+exponentially less often instead of churning a doomed attempt every window.
+A parsed quota-reset hint (`resets 1:10pm (UTC)`) is honoured verbatim — never
+grown or jittered.
 
 ```python
 from robotsix_llmio.core import call_with_failover, get_failover_status
@@ -404,6 +421,13 @@ Each span carries these attributes for filtering/grouping:
 - `llmio.tier.model` — Model identifier (e.g. `haiku`, `deepseek-v4-flash`)
 - `llmio.failover.attempt_index` — Index of this attempt in the sequence (0 = first)
 - `llmio.failover.succeeded` — Boolean; whether the attempt succeeded
+
+The enclosing run span additionally carries the retry-cap and backoff telemetry:
+
+- `llmio.failover.max_slot_switches` — The per-request slot-switch cap (always 1)
+- `llmio.failover.slot_switches` — How many times the request actually switched slots (0 or 1)
+- `llmio.failover.reattempt_count` — Arms since the last default-slot success; drives the exponential backoff (recorded when a window arms)
+- `llmio.failover.backoff_seconds` — The (possibly backed-off) failover window applied before the degraded primary is re-probed
 
 Use these attributes in your Langfuse queries to isolate:
 - Primary-tier cost: `span.name == "llmio.attempt.primary"`

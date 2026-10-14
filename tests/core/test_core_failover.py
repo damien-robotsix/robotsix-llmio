@@ -329,3 +329,123 @@ def test_default_success_still_clears_a_hinted_window():
     assert tracker.active_slot(now=1.0) == "fallback"
     tracker.record_success("default")
     assert tracker.active_slot(now=2.0) == "default"
+
+
+# --------------------------------------------------------------------------- #
+#  Exponential backoff on repeated degraded-primary reattempts                #
+# --------------------------------------------------------------------------- #
+
+
+def test_first_arm_uses_base_window_without_backoff():
+    """The first arming since a success is the plain window — no growth."""
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            failure_threshold=1,
+            window_seconds=100.0,
+            reattempt_backoff_base=2.0,
+            reattempt_backoff_jitter=0.0,
+        )
+    )
+    tracker.record_failure("default", _transient(), now=0.0)
+    assert tracker.status(now=0.0).seconds_remaining == pytest.approx(100.0)
+
+
+def test_rearm_grows_window_exponentially():
+    """Each re-arm of a still-degraded default grows the window by the base."""
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            failure_threshold=1,
+            window_seconds=100.0,
+            reattempt_backoff_base=2.0,
+            reattempt_backoff_jitter=0.0,
+        )
+    )
+    tracker.record_failure("default", _transient(), now=0.0)  # arm: 100
+    # Window expired → probe → still broken → re-arm #1: 100 * 2**1 = 200.
+    tracker.record_failure("default", _transient(), now=100.0)
+    assert tracker.status(now=100.0).seconds_remaining == pytest.approx(200.0)
+    # Expired again → re-arm #2: 100 * 2**2 = 400.
+    tracker.record_failure("default", _transient(), now=300.0)
+    assert tracker.status(now=300.0).seconds_remaining == pytest.approx(400.0)
+
+
+def test_rearm_window_is_capped():
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            failure_threshold=1,
+            window_seconds=100.0,
+            reattempt_backoff_base=10.0,
+            reattempt_backoff_cap_seconds=500.0,
+            reattempt_backoff_jitter=0.0,
+        )
+    )
+    tracker.record_failure("default", _transient(), now=0.0)  # 100
+    # Re-arm: min(100 * 10**1, 500) = 500, not 1000.
+    tracker.record_failure("default", _transient(), now=100.0)
+    assert tracker.status(now=100.0).seconds_remaining == pytest.approx(500.0)
+
+
+def test_default_success_resets_the_backoff_escalation():
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            failure_threshold=1,
+            window_seconds=100.0,
+            reattempt_backoff_base=2.0,
+            reattempt_backoff_jitter=0.0,
+        )
+    )
+    tracker.record_failure("default", _transient(), now=0.0)  # 100
+    tracker.record_failure("default", _transient(), now=100.0)  # re-arm: 200
+    assert tracker.status(now=100.0).seconds_remaining == pytest.approx(200.0)
+    tracker.record_success("default")
+    # Next degradation starts from the base window again, not the grown one.
+    tracker.record_failure("default", _transient(), now=400.0)
+    assert tracker.status(now=400.0).seconds_remaining == pytest.approx(100.0)
+
+
+@pytest.mark.parametrize(
+    ("rand", "expected"),
+    [(0.0, 200.0), (1.0, 100.0)],
+)
+def test_rearm_jitter_stays_within_bounds(monkeypatch, rand, expected):
+    """A re-arm's effective window lands in ``[raw*(1-jitter), raw]``.
+
+    With base window 100, base 2 and reattempt #1, ``raw = 200`` and
+    ``jitter_factor = 0.5``: ``random()==0`` yields the upper bound (200) and
+    ``random()==1`` the lower bound (200 - 100 = 100).
+    """
+    import robotsix_llmio.core.failover as fo
+
+    monkeypatch.setattr(fo.random, "random", lambda: rand)
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            failure_threshold=1,
+            window_seconds=100.0,
+            reattempt_backoff_base=2.0,
+            reattempt_backoff_jitter=0.5,
+        )
+    )
+    tracker.record_failure("default", _transient(), now=0.0)  # arm: 100 (no jitter)
+    tracker.record_failure("default", _transient(), now=100.0)  # re-arm: raw 200
+    assert tracker.status(now=100.0).seconds_remaining == pytest.approx(expected)
+
+
+def test_reset_hint_window_ignores_reattempt_backoff():
+    """A parsed quota-reset hint is honoured verbatim across re-arms — never
+    grown or jittered, so the fleet does not probe before the quota is back."""
+    tracker = ProviderFailoverTracker(
+        FailoverConfig(
+            window_seconds=900.0,
+            reattempt_backoff_base=2.0,
+            reattempt_backoff_jitter=0.0,
+        )
+    )
+    wall = datetime(2026, 9, 1, 13, 0, tzinfo=UTC)
+    hint = _Exhausted("resets 3:00pm (UTC)")  # two hours out
+    tracker.record_failure("default", hint, now=0.0, wall_now=wall)
+    first = tracker.status(now=0.0).seconds_remaining
+    # Re-arm with the SAME hint after a probe — the window stays the hinted
+    # duration, NOT grown by the exponential backoff.
+    tracker.record_failure("default", hint, now=10_000.0, wall_now=wall)
+    second = tracker.status(now=10_000.0).seconds_remaining
+    assert second == pytest.approx(first, abs=2.0)

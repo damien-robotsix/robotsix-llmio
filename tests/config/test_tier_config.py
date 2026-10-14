@@ -155,6 +155,29 @@ def test_failover_bounds_enforced(kwargs: dict):
         FailoverConfig(**kwargs)
 
 
+def test_failover_backoff_defaults():
+    cfg = FailoverConfig()
+    assert cfg.reattempt_backoff_base == 2.0
+    assert cfg.reattempt_backoff_cap_seconds == 14400.0
+    assert cfg.reattempt_backoff_jitter == 0.5
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"reattempt_backoff_base": 1.0},  # must be > 1
+        {"reattempt_backoff_base": 0.5},
+        {"reattempt_backoff_cap_seconds": 0},  # must be > 0
+        {"reattempt_backoff_jitter": -0.1},  # must be in [0, 1]
+        {"reattempt_backoff_jitter": 1.1},
+        {"window_seconds": 20000.0},  # cap (default 14400) must be >= window
+    ],
+)
+def test_failover_backoff_bounds_enforced(kwargs: dict):
+    with pytest.raises(ValidationError):
+        FailoverConfig(**kwargs)
+
+
 # --------------------------------------------------------------------------- #
 #  Vision binding                                                             #
 # --------------------------------------------------------------------------- #
