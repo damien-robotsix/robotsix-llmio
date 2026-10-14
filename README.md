@@ -178,6 +178,8 @@ cfg = load_tier_config({
         "reattempt_backoff_base": 2.0,
         "reattempt_backoff_cap_seconds": 14400,
         "reattempt_backoff_jitter": 0.5,
+        "max_request_cost_usd": 0.25,
+        "cost_ratio_threshold": 1.5,
     },
 })
 ```
@@ -345,6 +347,7 @@ except RobotsixLLMIOError as e:
 
 Specific exceptions include:
 - `ProviderExhaustedError` — A provider-wide exhaustion: the backend is out of capacity until a quota resets. The failover loop treats this specially, arming the fallback window immediately instead of waiting for the consecutive-failure threshold.
+- `FailoverCostGuardError` — A failover slot switch was refused by the per-request cost guard because the candidate slot's estimated cost would exceed the configured ceiling or be materially more expensive than the active slot.
 - `ClaudeSDKUsageExhaustedError` — The Claude subscription has exhausted its usage credits. This is a provider-wide exhaustion (inherits from `ProviderExhaustedError`) because all Claude levels draw on the one subscription.
 - `ClaudeSDKTurnLimitError` — Claude Agent SDK loop hit its turn cap without returning an answer.
 - `ClaudeSDKQueryTimeout` — A Claude Agent SDK query exceeded the per-call timeout (a stall, typically transient).
@@ -428,6 +431,8 @@ The enclosing run span additionally carries the retry-cap and backoff telemetry:
 - `llmio.failover.slot_switches` — How many times the request actually switched slots (0 or 1)
 - `llmio.failover.reattempt_count` — Arms since the last default-slot success; drives the exponential backoff (recorded when a window arms)
 - `llmio.failover.backoff_seconds` — The (possibly backed-off) failover window applied before the degraded primary is re-probed
+- `llmio.failover.cost_guard_blocked` — Boolean; whether the per-request cost guard refused a failover slot switch
+- `llmio.failover.cost_guard_reason` — String; the refusal reason (e.g. "estimated fallback cost $X exceeds the per-request ceiling $Y")
 
 Use these attributes in your Langfuse queries to isolate:
 - Primary-tier cost: `span.name == "llmio.attempt.primary"`

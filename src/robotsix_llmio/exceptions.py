@@ -29,3 +29,20 @@ class ProviderExhaustedError(RobotsixLLMIOError):
     rather than a provider-wide outage — rate-limited runs still fall back
     level-by-level as normal.
     """
+
+
+class FailoverCostGuardError(RobotsixLLMIOError):
+    """A failover slot switch was refused because it would cost too much.
+
+    Raised by the failover loop
+    (:func:`~robotsix_llmio.core.failover.acall_with_failover`) when the
+    per-request cost guard estimates that retrying on the candidate slot
+    would exceed the configured per-request ceiling
+    (:attr:`~robotsix_llmio.config.tier.FailoverConfig.max_request_cost_usd`)
+    or be materially more expensive than the active slot
+    (:attr:`~robotsix_llmio.config.tier.FailoverConfig.cost_ratio_threshold`).
+
+    The request fails fast with this error instead of spending money on an
+    expensive retry; the original provider-shaped failure that triggered the
+    switch is chained as the ``__cause__``.
+    """
