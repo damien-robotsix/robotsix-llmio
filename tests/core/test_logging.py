@@ -384,6 +384,39 @@ def test_structlog_replaces_stdlib_handler_on_named_logger(
     assert len(stream.getvalue().strip().splitlines()) == 1
 
 
+def test_structlog_json_interpolates_positional_args(
+    logger_name, monkeypatch, structlog_reset
+):
+    """%-style call sites interpolate; no raw ``positional_args`` key leaks.
+
+    Regression for the missing ``PositionalArgumentsFormatter`` in the shared
+    chain: without it, ``logger.info("warming (%d projects, %d windows)", 3, 5)``
+    rendered the literal ``%d`` tokens plus a raw ``positional_args`` list.
+    """
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="json", stream=stream)
+    logging.getLogger(logger_name).info("warming (%d projects, %d windows)", 3, 5)
+    payload = json.loads(stream.getvalue().strip())
+    assert payload["event"] == "warming (3 projects, 5 windows)"
+    assert "positional_args" not in payload
+    assert "%d" not in payload["event"]
+
+
+def test_structlog_console_interpolates_positional_args(
+    logger_name, monkeypatch, structlog_reset
+):
+    """%-style call sites interpolate in console output too (JSON/console parity)."""
+    monkeypatch.setattr(llmio_logging, "get_recording_span", lambda: None)
+    stream = io.StringIO()
+    setup_structlog(loggers=(logger_name,), fmt="console", stream=stream)
+    logging.getLogger(logger_name).info("warming (%d projects, %d windows)", 3, 5)
+    output = stream.getvalue()
+    assert "warming (3 projects, 5 windows)" in output
+    assert "%d" not in output
+    assert "positional_args=" not in output
+
+
 def test_add_otel_trace_id_processor_tolerates_partial_span(monkeypatch):
     """The structlog trace-id processor degrades to ``-`` on a partial span."""
 
