@@ -61,6 +61,10 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `is_provider_shaped` — classifies whether an exception points at the provider (failover-eligible) or the task
 - `reset_failover_tracker` — resets the singleton (test teardown)
 
+See [Failover cost-reduction validation](failover-cost-validation.md) for the
+repeatable before/after-deploy procedure that proves failover churn cost
+dropped without regressing the request completion rate.
+
 ### Cost recording
 
 - `CostLogSource` — protocol for reading logged cost; single method `fetch_logged_cost(window) -> LoggedCost`

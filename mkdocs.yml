@@ -30,6 +30,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Core: core/index.md
+  - Failover cost validation: core/failover-cost-validation.md
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
   - Claude SDK: claude_sdk/index.md
