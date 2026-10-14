@@ -178,6 +178,33 @@ def test_failover_backoff_bounds_enforced(kwargs: dict):
         FailoverConfig(**kwargs)
 
 
+def test_failover_cost_guard_defaults_disabled():
+    """The per-request cost guard is opt-in — both knobs default to None."""
+    cfg = FailoverConfig()
+    assert cfg.max_request_cost_usd is None
+    assert cfg.cost_ratio_threshold is None
+
+
+def test_failover_cost_guard_is_configurable():
+    cfg = FailoverConfig(max_request_cost_usd=0.25, cost_ratio_threshold=1.5)
+    assert cfg.max_request_cost_usd == 0.25
+    assert cfg.cost_ratio_threshold == 1.5
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"max_request_cost_usd": 0},  # must be > 0
+        {"max_request_cost_usd": -1.0},
+        {"cost_ratio_threshold": 0},  # must be > 0
+        {"cost_ratio_threshold": -0.5},
+    ],
+)
+def test_failover_cost_guard_bounds_enforced(kwargs: dict):
+    with pytest.raises(ValidationError):
+        FailoverConfig(**kwargs)
+
+
 # --------------------------------------------------------------------------- #
 #  Vision binding                                                             #
 # --------------------------------------------------------------------------- #

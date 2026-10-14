@@ -403,6 +403,37 @@ class FailoverConfig(BaseModel):
         ),
     )
 
+    max_request_cost_usd: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Per-request cost ceiling, in USD, for a failover slot switch. "
+            "Before a request fails over to the candidate slot, the loop "
+            "estimates that slot's worst-case per-request cost (its "
+            "``max_price_completion`` ceiling times its ``max_tokens`` output "
+            "cap — see "
+            "``robotsix_llmio.core.failover.estimate_request_cost``); when the "
+            "estimate strictly exceeds this ceiling the switch is refused and "
+            "the request fails fast with a "
+            "``FailoverCostGuardError`` instead of retrying on an expensive "
+            "slot. ``None`` (the default) disables the ceiling check. Slots "
+            "with no price ceiling or output cap cannot be estimated and are "
+            "never blocked."
+        ),
+    )
+    cost_ratio_threshold: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Refuse a failover slot switch when the candidate slot's "
+            "estimated per-request cost strictly exceeds the active slot's "
+            "estimate times this ratio — i.e. the candidate is *materially* "
+            "more expensive than staying put. ``None`` (the default) disables "
+            "the ratio check; it is also skipped when either slot's cost "
+            "cannot be estimated."
+        ),
+    )
+
     @model_validator(mode="after")
     def _cap_not_below_window(self) -> FailoverConfig:
         """Reject a backoff cap that would shrink the base window."""
