@@ -7,6 +7,18 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.8.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.10...v0.8.0) (2026-10-14)
+
+
+### Features
+
+* **price-ceiling:** --fix bars cache-read outliers in source and the weekly check opens a PR with the diff ([#690](https://github.com/damien-robotsix/robotsix-llmio/issues/690)) ([8db705e](https://github.com/damien-robotsix/robotsix-llmio/commit/8db705e1c270fd3e500febd79003bc48802b1dfb))
+
+
+### Bug Fixes
+
+* **tiers:** bar cache-read outlier providers flagged by the price-ceiling drift check ([#691](https://github.com/damien-robotsix/robotsix-llmio/issues/691)) ([d9bda2d](https://github.com/damien-robotsix/robotsix-llmio/commit/d9bda2dd1d0b702ffc7f243820b564f522b7822b))
+
 ## [0.7.10](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.9...v0.7.10) (2026-10-13)
 
 
