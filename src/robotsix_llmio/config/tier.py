@@ -366,6 +366,53 @@ class FailoverConfig(BaseModel):
             "re-arms a fresh window."
         ),
     )
+    reattempt_backoff_base: float = Field(
+        default=2.0,
+        gt=1.0,
+        description=(
+            "Exponential base for backing off repeated degraded-primary "
+            "reattempts. The FIRST arming uses ``window_seconds`` unchanged; "
+            "each subsequent re-arm (a still-degraded default that failed its "
+            "probe after the window expired) grows the window by this base "
+            "raised to the reattempt count, so a persistently broken primary "
+            "is re-probed exponentially less often instead of churning a "
+            "doomed attempt every window."
+        ),
+    )
+    reattempt_backoff_cap_seconds: float = Field(
+        default=14400.0,
+        gt=0,
+        description=(
+            "Ceiling on the backed-off failover window in seconds (default "
+            "14400 = 4 hours), so exponential growth of repeated degraded-"
+            "primary reattempts can never park calls on the fallback slot "
+            "indefinitely. Must be >= ``window_seconds``."
+        ),
+    )
+    reattempt_backoff_jitter: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Fraction of the backed-off window subtracted as random jitter: "
+            "the effective window lands in "
+            "``[window * (1 - jitter), window]``, spreading reattempts so "
+            "fleet instances do not re-probe a recovering primary in "
+            "lockstep. Only applies to backed-off re-arms, never to the first "
+            "window or a quota-reset-hinted window."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _cap_not_below_window(self) -> FailoverConfig:
+        """Reject a backoff cap that would shrink the base window."""
+        if self.reattempt_backoff_cap_seconds < self.window_seconds:
+            raise ValueError(
+                "reattempt_backoff_cap_seconds "
+                f"({self.reattempt_backoff_cap_seconds}) must be >= "
+                f"window_seconds ({self.window_seconds})"
+            )
+        return self
 
 
 # --------------------------------------------------------------------------- #

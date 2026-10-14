@@ -32,6 +32,7 @@ however many internal retries it spent — counts as one provider failure.
 from __future__ import annotations
 
 import logging
+import random
 import re
 import threading
 import time
@@ -71,6 +72,17 @@ _ATTR_MODEL = "llmio.tier.model"
 _ATTR_ATTEMPT_INDEX = "llmio.failover.attempt_index"
 _ATTR_SUCCEEDED = "llmio.failover.succeeded"
 _ATTR_ACTIVATED = "llmio.failover.activated"
+# Retry-cap + backoff observability.
+_ATTR_SLOT_SWITCHES = "llmio.failover.slot_switches"
+_ATTR_MAX_SLOT_SWITCHES = "llmio.failover.max_slot_switches"
+_ATTR_REATTEMPT_COUNT = "llmio.failover.reattempt_count"
+_ATTR_BACKOFF_SECONDS = "llmio.failover.backoff_seconds"
+
+#: Hard cap on provider-slot switches within a SINGLE request: a request may
+#: try its active slot and fail over to the other slot AT MOST once. This
+#: bounds per-request churn so a doomed request can never ping-pong between
+#: slots, multiplying spend on duplicate prompts.
+_MAX_SLOT_SWITCHES: int = 1
 
 # Per-attempt span names, chosen by slot so cost/observability reviews are not
 # misled: a primary-tier (``slot=default``) success is NOT a failover, so it
@@ -246,6 +258,27 @@ class FailoverStatus(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+#  Backoff telemetry                                                          #
+# --------------------------------------------------------------------------- #
+
+
+def _record_backoff_span(reattempt_count: int, window_seconds: float) -> None:
+    """Record failover-window backoff metrics on the current OTel span.
+
+    No-op when no span is recording (mirrors the retry module's
+    ``_record_transient_retry_span``). *reattempt_count* is 1 on the first
+    arm since the last default success and grows by one per consecutive
+    re-arm; *window_seconds* is the (possibly backed-off) window actually
+    applied before the degraded primary is re-probed.
+    """
+    span = get_recording_span()
+    if span is None:
+        return
+    span.set_attribute(_ATTR_REATTEMPT_COUNT, reattempt_count)
+    span.set_attribute(_ATTR_BACKOFF_SECONDS, window_seconds)
+
+
+# --------------------------------------------------------------------------- #
 #  ProviderFailoverTracker                                                    #
 # --------------------------------------------------------------------------- #
 
@@ -267,6 +300,11 @@ class ProviderFailoverTracker:
         self._failover_until_wall: datetime | None = None
         self._last_failure_at: datetime | None = None
         self._last_failure_reason: str | None = None
+        #: Number of times the window has armed since the last default-slot
+        #: success. 1 after the first arm, incrementing per re-arm; drives the
+        #: exponential backoff that delays re-probing a persistently degraded
+        #: primary. Reset to 0 whenever the default slot succeeds.
+        self._reattempt_count = 0
 
     # -- routing ------------------------------------------------------------
 
@@ -351,7 +389,11 @@ class ProviderFailoverTracker:
             window = max(window, self._config.window_seconds)
         else:
             window = self._config.window_seconds
-        self._arm_locked(now, wall_now, window=window)
+        # A parsed reset hint is a KNOWN recovery time — never grow or jitter
+        # it with reattempt backoff (that would probe before the quota is
+        # back, or park the fleet past it). Backoff applies only to the fixed
+        # window, which is the degraded-primary churn this caps.
+        self._arm_locked(now, wall_now, window=window, backoff=hinted is None)
         log.warning(
             "default provider slot exhausted — failover armed for %.0fs%s: %s",
             window,
@@ -373,16 +415,56 @@ class ProviderFailoverTracker:
             self._consecutive_failures = 0
             self._failover_until_monotonic = 0.0
             self._failover_until_wall = None
+            # The primary is healthy again — forget the backoff escalation so
+            # the next degradation starts from the base window.
+            self._reattempt_count = 0
 
     def _arm_locked(
-        self, now: float, wall_now: datetime, window: float | None = None
+        self,
+        now: float,
+        wall_now: datetime,
+        window: float | None = None,
+        backoff: bool = True,
     ) -> None:
-        """Arm the failover window. Caller holds the lock."""
-        if window is None:
-            window = self._config.window_seconds
+        """Arm the failover window. Caller holds the lock.
+
+        The first arming since the last default-slot success uses *window*
+        (or the configured ``window_seconds``) unchanged. Each subsequent
+        re-arm — a still-degraded default that failed its probe after the
+        window expired — grows the window with exponential backoff and jitter
+        (see :meth:`_backoff_window`) when *backoff* is true, so a
+        persistently broken primary is re-probed exponentially less often
+        instead of churning a doomed attempt every window. Pass
+        ``backoff=False`` to honour a deliberate window (e.g. a parsed
+        quota-reset hint) verbatim.
+        """
+        base = self._config.window_seconds if window is None else window
+        if backoff and self._reattempt_count > 0:
+            window = self._backoff_window(base)
+        else:
+            window = base
         self._failover_until_monotonic = now + window
         self._failover_until_wall = wall_now + timedelta(seconds=window)
         self._consecutive_failures = 0
+        self._reattempt_count += 1
+        _record_backoff_span(self._reattempt_count, window)
+
+    def _backoff_window(self, base: float) -> float:
+        """Exponential-backoff-with-jitter window for a repeated reattempt.
+
+        Caller holds the lock; ``_reattempt_count`` is the number of arms
+        already recorded since the last default success (>= 1 here). The raw
+        window is ``min(base * backoff_base ** reattempt_count, cap)``; jitter
+        is then subtracted multiplicatively so the result lands in
+        ``[raw * (1 - jitter), raw]``.
+        """
+        cfg = self._config
+        raw = min(
+            base * cfg.reattempt_backoff_base**self._reattempt_count,
+            cfg.reattempt_backoff_cap_seconds,
+        )
+        jitter = raw * cfg.reattempt_backoff_jitter * random.random()  # noqa: S311
+        return raw - jitter
 
     # -- status -------------------------------------------------------------
 
@@ -414,6 +496,7 @@ class ProviderFailoverTracker:
             self._failover_until_wall = None
             self._last_failure_at = None
             self._last_failure_reason = None
+            self._reattempt_count = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -467,8 +550,16 @@ async def _failover_loop(
     order: list[ProviderSlotName] = [first]
     if failover_enabled:
         order.append("fallback" if first == "default" else "default")
+    # Enforce the one-slot-switch retry cap explicitly: whatever the order
+    # build produced, a single request attempts the active slot plus at most
+    # ``_MAX_SLOT_SWITCHES`` fallbacks — it can never switch slots more than
+    # once, so a doomed request cannot ping-pong between slots.
+    order = order[: 1 + _MAX_SLOT_SWITCHES]
 
     run_span = get_recording_span()
+    if run_span is not None:
+        run_span.set_attribute(_ATTR_MAX_SLOT_SWITCHES, _MAX_SLOT_SWITCHES)
+    slot_switches = 0
 
     for attempt_index, slot_name in enumerate(order):
         tlc = tier_config.for_level(level, slot=slot_name)
@@ -509,6 +600,7 @@ async def _failover_loop(
                 if last_attempt or not provider_shaped:
                     raise
 
+                slot_switches += 1
                 log.warning(
                     "%s: slot=%s failed with %s — retrying on the other slot",
                     what,
@@ -517,6 +609,7 @@ async def _failover_loop(
                 )
                 if run_span is not None:
                     run_span.set_attribute(_ATTR_ACTIVATED, True)
+                    run_span.set_attribute(_ATTR_SLOT_SWITCHES, slot_switches)
                 continue
 
             if span is not None:
