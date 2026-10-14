@@ -32,6 +32,7 @@ nav:
   - Core: core/index.md
   - Failover runbook: core/failover-runbook.md
   - Failover cost validation: core/failover-cost-validation.md
+  - Failover disable & rollback: core/failover-rollback.md
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
   - Claude SDK: claude_sdk/index.md
