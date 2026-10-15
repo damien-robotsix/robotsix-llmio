@@ -7,6 +7,18 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.9.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.8.0...v0.9.0) (2026-10-14)
+
+
+### Features
+
+* Add per-request failover cost guard to block more-expensive retries (20260909T194112Z-add-per-request-failover-cost-guard-to-b-6272) ([#697](https://github.com/damien-robotsix/robotsix-llmio/issues/697)) ([e29e985](https://github.com/damien-robotsix/robotsix-llmio/commit/e29e985090c961da40ce904339db8f647e1c0d48))
+
+
+### Documentation
+
+* Validate failover cost reduction and completion rate via cost-monitor (20260909T194112Z-validate-failover-cost-reduction-and-com-4c9a) ([#699](https://github.com/damien-robotsix/robotsix-llmio/issues/699)) ([3a7341c](https://github.com/damien-robotsix/robotsix-llmio/commit/3a7341c78f4d7af3f113023f096df8fac126903d))
+
 ## [0.8.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.7.10...v0.8.0) (2026-10-14)
 
 
