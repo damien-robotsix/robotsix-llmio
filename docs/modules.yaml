@@ -24,6 +24,8 @@ modules:
       - tests/.env.example
       - tests/__init__.py
       - tests/conftest.py
+      - tests/FIXTURES.md
+      - tests/fixtures/**
       - tests/core/**
       - docs/core/**
       - docs/reference/core.md

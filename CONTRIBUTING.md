@@ -94,6 +94,23 @@ pytest --cov=src/robotsix_llmio --cov-report=term-missing
 the network. Running `-m live` overrides that filter; individual live tests
 still self-skip when `OPENROUTER_API_KEY` is unset.
 
+### 3.1 Fixtures and mock factories
+
+Before writing a new inline mock, check whether a shared helper already
+exists — [`tests/FIXTURES.md`](tests/FIXTURES.md) is the map of every shared
+pytest **fixture** (defined in the per-area `conftest.py` files) and mock
+**factory** (centralized under `tests/fixtures/`):
+
+- `tests/fixtures/responses.py` — `httpx.Response` / `MockTransport` handler
+  builders for the HTTP-backed layers (Langfuse cost, knowledge, refdocs).
+- `tests/fixtures/builders.py` — `SimpleNamespace` / mock-object builders for
+  the pydantic-ai response shapes the cost helpers read (e.g. OpenRouter).
+
+The testing rules in [`AGENT.md`](AGENT.md) are normative. In particular, when
+patching `httpx.Client` via `MockTransport`, use `install_transport` from
+`tests/core/conftest.py` with an explicit `module=` parameter — do **not**
+define a private duplicate helper.
+
 ## 4. Linting, type-checking, and security checks
 
 Reproduce CI locally before pushing:
