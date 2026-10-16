@@ -444,6 +444,14 @@ Run them explicitly with `pytest -m live`; they additionally self-skip
 without `OPENROUTER_API_KEY` (or, for the Claude SDK live path, a
 logged-in `claude` CLI).
 
+**Shared fixtures and factories.** Cross-cutting test helpers live in two
+places: the per-area `conftest.py` files own pytest *fixtures* (autouse
+isolation and the `install_*` transport installers in
+`tests/core/conftest.py`), while `tests/fixtures/` centralizes mock
+*factories* (`responses.py` for `httpx` responses/handlers, `builders.py`
+for `SimpleNamespace` object builders). `tests/FIXTURES.md` documents each
+helper's scope and usage; `CONTRIBUTING.md` §3.1 links the two.
+
 ## Cross-references
 
 - [README.md](README.md) — the usage surface (install, examples,
