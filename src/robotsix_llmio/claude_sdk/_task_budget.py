@@ -116,7 +116,7 @@ async def run_with_task_budget[T](
 
 
 def build_task_budget(
-    max_tokens: int | None, label: str, model: str | None = None
+    max_tokens: int | None, label: str, model: str
 ) -> TaskBudget | None:
     """Build the ``task_budget`` option for *label* from a tier's *max_tokens*.
 
@@ -135,12 +135,12 @@ def build_task_budget(
     required tools"). An unbudgeted loop is bounded by ``max_turns`` and the
     caller's own wall-clock and spend controls.
 
-    *model*, when given, is checked against the set of models already observed
-    rejecting the parameter (see :func:`mark_task_budget_unsupported`); a known
-    rejecter yields ``None`` so the call goes out without a budget instead of
-    re-earning the same ``400``.
+    *model* is checked against the set of models already observed rejecting the
+    parameter (see :func:`mark_task_budget_unsupported`); a known rejecter yields
+    ``None`` so the call goes out without a budget instead of re-earning the same
+    ``400``.
     """
-    if model is not None and not supports_task_budget(model):
+    if not supports_task_budget(model):
         return None
     if max_tokens is None:
         return None
