@@ -19,6 +19,12 @@ from robotsix_llmio.clients.refdocs._async_client import AsyncRefdocsClient
 from robotsix_llmio.clients.refdocs._settings import RefdocsSettings
 from robotsix_llmio.clients.refdocs.factory import build_refdocs_tools
 from tests.core.conftest import install_timeout_transport
+from tests.fixtures import (
+    json_handler,
+    make_error_response,
+    make_refdocs_response,
+    make_refdocs_result,
+)
 
 # --------------------------------------------------------------------------- #
 #  AsyncRefdocsClient — search
@@ -29,14 +35,11 @@ def test_search_returns_results(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/search"
         assert request.url.params["q"] == "how to configure"
-        return httpx.Response(
-            200,
-            json={
-                "results": [
-                    {"path": "config/index", "title": "Configuration guide"},
-                    {"path": "core/factory", "title": "Agent factory"},
-                ]
-            },
+        return make_refdocs_response(
+            [
+                make_refdocs_result(path="config/index", title="Configuration guide"),
+                make_refdocs_result(path="core/factory", title="Agent factory"),
+            ]
         )
 
     install_timeout_transport(monkeypatch, handler, _base_module)
@@ -73,8 +76,7 @@ def test_search_missing_results_key_defaults_to_empty(monkeypatch):
 
 
 def test_search_non_2xx_raises_refdocs_client_error(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={"error": "internal"})
+    handler = json_handler(make_error_response(500, "internal"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -116,8 +118,7 @@ def test_get_doc_missing_content_defaults_to_empty(monkeypatch):
 
 
 def test_get_doc_non_2xx_raises_refdocs_client_error(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": "not found"})
+    handler = json_handler(make_error_response(404, "not found"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -134,7 +135,7 @@ def test_get_doc_non_2xx_raises_refdocs_client_error(monkeypatch):
 def test_api_key_adds_bearer_header(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["Authorization"] == "Bearer secret-key"
-        return httpx.Response(200, json={"results": []})
+        return make_refdocs_response([])
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -145,7 +146,7 @@ def test_api_key_adds_bearer_header(monkeypatch):
 def test_no_api_key_no_auth_header(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         assert "Authorization" not in request.headers
-        return httpx.Response(200, json={"results": []})
+        return make_refdocs_response([])
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -223,8 +224,7 @@ def test_settings_no_api_key_returns_none(monkeypatch):
 
 
 def test_build_refdocs_tools_returns_two_tools(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"results": []})
+    handler = json_handler(make_refdocs_response([]))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -240,15 +240,9 @@ def test_build_refdocs_tools_returns_two_tools(monkeypatch):
 
 
 def test_search_refdocs_tool_calls_search(monkeypatch):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "results": [
-                    {"path": "a", "title": "A"},
-                ]
-            },
-        )
+    handler = json_handler(
+        make_refdocs_response([make_refdocs_result(path="a", title="A")])
+    )
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
