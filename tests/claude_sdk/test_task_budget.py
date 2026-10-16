@@ -28,14 +28,14 @@ def _reset_warn_state():
 
 
 def test_none_max_tokens_yields_no_budget():
-    assert build_task_budget(None, "agent") is None
+    assert build_task_budget(None, "agent", "opus") is None
 
 
 def test_value_at_or_above_floor_passes_through():
-    assert build_task_budget(TASK_BUDGET_MIN_TOTAL, "agent") == {
+    assert build_task_budget(TASK_BUDGET_MIN_TOTAL, "agent", "opus") == {
         "total": TASK_BUDGET_MIN_TOTAL
     }
-    assert build_task_budget(65536, "agent") == {"total": 65536}
+    assert build_task_budget(65536, "agent", "opus") == {"total": 65536}
 
 
 def test_value_below_floor_sends_no_budget(caplog):
@@ -47,7 +47,7 @@ def test_value_below_floor_sends_no_budget(caplog):
     task — which is how agents ended up wrapping up before starting work.
     """
     with caplog.at_level(logging.WARNING):
-        assert build_task_budget(8192, "refine") is None
+        assert build_task_budget(8192, "refine", "opus") is None
     assert "below the Claude Agent SDK task_budget floor" in caplog.text
     assert "refine" in caplog.text
 
@@ -55,9 +55,9 @@ def test_value_below_floor_sends_no_budget(caplog):
 def test_clamp_warning_is_emitted_once_per_label(caplog):
     """The value is static config — warn once, don't flood the log per call."""
     with caplog.at_level(logging.WARNING):
-        build_task_budget(8192, "refine")
-        build_task_budget(8192, "refine")
-        build_task_budget(8192, "retrospect")
+        build_task_budget(8192, "refine", "opus")
+        build_task_budget(8192, "refine", "opus")
+        build_task_budget(8192, "retrospect", "opus")
     assert caplog.text.count("below the Claude Agent SDK task_budget floor") == 2
 
 
@@ -185,8 +185,3 @@ def test_retry_failure_propagates():
                 run, _Opts(task_budget={"total": 20_000}), "sonnet", "claude:sonnet"
             )
         )
-
-
-def test_model_arg_is_optional_and_backward_compatible():
-    """Existing two-arg callers keep working."""
-    assert build_task_budget(50_000, "agent") == {"total": 50_000}
