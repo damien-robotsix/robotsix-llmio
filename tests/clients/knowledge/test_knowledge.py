@@ -19,6 +19,12 @@ from robotsix_llmio.clients.knowledge._client import (
     build_knowledge_tools,
 )
 from tests.core.conftest import install_timeout_transport
+from tests.fixtures import (
+    json_handler,
+    make_error_response,
+    make_knowledge_client_response,
+    make_knowledge_result,
+)
 
 # --------------------------------------------------------------------------- #
 # KnowledgeClient.search
@@ -31,7 +37,7 @@ def test_search_sends_query_and_top_k(monkeypatch: pytest.MonkeyPatch) -> None:
         # httpx stores params as a QueryParams on request.url
         assert "q" in str(request.url.query)
         assert "top_k" in str(request.url.query)
-        return httpx.Response(200, json={"results": []})
+        return make_knowledge_client_response([])
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -41,26 +47,18 @@ def test_search_sends_query_and_top_k(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_search_parses_results(monkeypatch: pytest.MonkeyPatch) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "results": [
-                    {
-                        "id": "doc-1",
-                        "title": "Alpha",
-                        "snippet": "First doc",
-                        "score": 0.95,
-                    },
-                    {
-                        "id": "doc-2",
-                        "title": "Beta",
-                        "snippet": "Second doc",
-                        "score": 0.72,
-                    },
-                ]
-            },
+    handler = json_handler(
+        make_knowledge_client_response(
+            [
+                make_knowledge_result(
+                    id="doc-1", title="Alpha", snippet="First doc", score=0.95
+                ),
+                make_knowledge_result(
+                    id="doc-2", title="Beta", snippet="Second doc", score=0.72
+                ),
+            ]
         )
+    )
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -78,8 +76,7 @@ def test_search_parses_results(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_search_non_2xx_raises_knowledge_client_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={"error": "internal"})
+    handler = json_handler(make_error_response(500, "internal"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -109,7 +106,7 @@ def test_search_network_error_raises_knowledge_client_error(
 def test_search_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["Authorization"] == "Bearer secret-key"
-        return httpx.Response(200, json={"results": []})
+        return make_knowledge_client_response([])
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -120,7 +117,7 @@ def test_search_includes_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_search_no_api_key_omits_auth_header(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert "Authorization" not in request.headers
-        return httpx.Response(200, json={"results": []})
+        return make_knowledge_client_response([])
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -173,8 +170,7 @@ def test_get_document_returns_full_doc(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_get_document_404_raises_knowledge_client_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": "not found"})
+    handler = json_handler(make_error_response(404, "not found"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -209,20 +205,15 @@ def test_build_knowledge_tools_returns_two_functions() -> None:
 def test_search_knowledge_tool_returns_formatted_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "results": [
-                    {
-                        "id": "doc-1",
-                        "title": "Intro",
-                        "snippet": "Welcome...",
-                        "score": 0.99,
-                    },
-                ]
-            },
+    handler = json_handler(
+        make_knowledge_client_response(
+            [
+                make_knowledge_result(
+                    id="doc-1", title="Intro", snippet="Welcome...", score=0.99
+                ),
+            ]
         )
+    )
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -238,8 +229,7 @@ def test_search_knowledge_tool_returns_formatted_results(
 
 
 def test_search_knowledge_tool_no_results(monkeypatch: pytest.MonkeyPatch) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"results": []})
+    handler = json_handler(make_knowledge_client_response([]))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -252,8 +242,7 @@ def test_search_knowledge_tool_no_results(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_search_knowledge_tool_handles_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(503, json={"error": "unavailable"})
+    handler = json_handler(make_error_response(503, "unavailable"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
@@ -312,8 +301,7 @@ def test_get_knowledge_document_tool_empty_content(
 def test_get_knowledge_document_tool_handles_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": "not found"})
+    handler = json_handler(make_error_response(404, "not found"))
 
     install_timeout_transport(monkeypatch, handler, _base_module)
 
