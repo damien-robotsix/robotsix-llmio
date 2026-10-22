@@ -158,6 +158,7 @@ class ClaudeSDKModel(Model):
         )
 
         from ._cli_stderr import record
+        from ._confinement import _CLI_ENV
         from ._stream import _stream_query
         from ._system_prompt import spill_oversized_system_prompt
 
@@ -179,6 +180,7 @@ class ClaudeSDKModel(Model):
             disallowed_tools=["*"],
             permission_mode="bypassPermissions",
             setting_sources=[],  # ignore project/user CLAUDE.md + settings
+            env=dict(_CLI_ENV),  # no claude.ai connectors (see _confinement)
             task_budget=build_task_budget(
                 self._max_tokens, f"claude:{self._model_name}", self._sdk_model
             ),
