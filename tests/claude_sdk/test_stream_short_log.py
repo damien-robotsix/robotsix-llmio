@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import pytest
+
 from robotsix_llmio.claude_sdk._stream import (
     ClaudeSDKActivityEvent,
     _log_stream_message,
@@ -39,6 +41,77 @@ def test_short_non_string_uses_json():
 def test_short_collapses_whitespace():
     result = _short("hello   world\n\tagain", limit=500)
     assert result == "hello world again"
+
+
+# ---------------------------------------------------------------------------
+# credential redaction
+# ---------------------------------------------------------------------------
+
+_GIT_REMOTE_V = (
+    "origin\thttps://oauth2:ghs_3752211_eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiIxMjMifQ"
+    ".sig-Part_x@github.com/robotsix/repo.git (fetch)\n"
+    "origin\thttps://oauth2:ghs_3752211_eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiIxMjMifQ"
+    ".sig-Part_x@github.com/robotsix/repo.git (push)\n"
+)
+
+
+def test_short_redacts_git_remote_oauth2_token():
+    result = _short("Exit code 2 " + _GIT_REMOTE_V, limit=500)
+    assert "ghs_" not in result
+    assert "eyJ" not in result
+    assert result == (
+        "Exit code 2 "
+        "origin https://oauth2:<redacted>@github.com/robotsix/repo.git (fetch) "
+        "origin https://oauth2:<redacted>@github.com/robotsix/repo.git (push)"
+    )
+
+
+def test_short_redacts_before_truncating():
+    result = _short("x" * 190 + " ghp_" + "A" * 40, limit=200)
+    assert "ghp_" not in result
+    assert "AAAA" not in result
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("token ghs_abcDEF123 end", "token <redacted> end"),
+        ("token ghp_abcDEF123 end", "token <redacted> end"),
+        ("pat github_pat_11ABC_def456 end", "pat <redacted> end"),
+        (
+            "Authorization: Bearer abc.def-ghi_jkl= end",
+            "Authorization: Bearer <redacted> end",
+        ),
+        ("key sk-ant-api03-abcdefgh123 end", "key <redacted> end"),
+        ("key sk-or-v1-0123456789abcdef end", "key <redacted> end"),
+    ],
+)
+def test_short_redacts_credential_shapes(raw: str, expected: str):
+    assert _short(raw, limit=500) == expected
+
+
+def test_short_redacts_tool_input_dict():
+    result = _short(
+        {"command": "curl -H 'Authorization: Bearer ghs_secret123' x"}, limit=500
+    )
+    assert "secret123" not in result
+    assert "Bearer <redacted>" in result
+
+
+def test_short_leaves_ordinary_text_alone():
+    s = "pip install scikit-learn; ask-me; ghost_town; Bearer"
+    assert _short(s, limit=500) == s
+
+
+def test_tool_result_log_and_event_are_redacted(caplog):
+    events: list[ClaudeSDKActivityEvent] = []
+    block = _make_msg("ToolResultBlock", content=_GIT_REMOTE_V, is_error=True)
+    msg = _make_msg("UserMessage", content=[block])
+    with caplog.at_level(logging.INFO, logger="robotsix_llmio.claude_sdk"):
+        _log_stream_message(msg, [1], "implement", events.append)
+    assert "ghs_" not in caplog.text
+    assert "oauth2:<redacted>@github.com" in caplog.text
+    assert events and "ghs_" not in events[0].detail
 
 
 # ---------------------------------------------------------------------------
