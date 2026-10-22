@@ -22,3 +22,6 @@ jobs:
         with:
           fail-on-severity: moderate
           allow-licenses: "MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, ISC, 0BSD, Unlicense, Python-2.0"
+          # certifi is MPL-2.0 (unmodified CA bundle, file-level copyleft);
+          # pinned per version as robotsix-chat does.
+          allow-dependencies-licenses: "pkg:pypi/certifi@2026.10.19"
