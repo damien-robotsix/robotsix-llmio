@@ -32,6 +32,7 @@ from ..core.tracing import (
 from ._chat_messages import _chat_messages_input
 from ._cli_stderr import record
 from ._confinement import (
+    _CLI_ENV,
     _EDIT_TOOLS,
     _MCP_TOOLS,
     _make_bash_confine_hook,
@@ -432,6 +433,7 @@ class _SdkToolAgentHandle:
             max_turns=self._max_turns,
             mcp_servers={"milltools": self._server},
             setting_sources=[],
+            env=dict(_CLI_ENV),
             task_budget=build_task_budget(
                 self._max_tokens, self._name, self._sdk_model
             ),

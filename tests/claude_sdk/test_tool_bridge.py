@@ -141,6 +141,10 @@ def test_every_tool_agent_denies_foreign_mcp_connectors(monkeypatch):
             builtin_tools=builtin_tools,
         )
         opts = agent._build_options("sys")  # type: ignore[attr-defined]
+        # 2026-10-22: the deny hook stops calls, but the connectors' server
+        # instructions still rode along in every ToolSearch result — the CLI
+        # is told not to load claude.ai connectors at all.
+        assert opts.env == {"ENABLE_CLAUDEAI_MCP_SERVERS": "false"}
         matchers = opts.hooks["PreToolUse"]
         mcp = [m for m in matchers if m.matcher == "mcp__.*"]
         assert len(mcp) == 1, [m.matcher for m in matchers]

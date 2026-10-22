@@ -95,6 +95,16 @@ def _deny_hook_output(reason: str) -> dict[str, Any]:
 _INJECTED_MCP_PREFIX = "mcp__milltools__"
 _MCP_TOOLS = "mcp__.*"
 
+# Environment for every CLI spawn: opt out of loading the login's claude.ai
+# connectors at all. The deny hook above only stops CALLS — the connectors
+# still reach the session, and their server instructions ("make a doc here
+# first …") ride along in every ToolSearch result. On 2026-10-22 mill scouts
+# (survey, explore, completeness_check, test_gap, docstring_coverage) each
+# spent a turn reasoning about the injected Claude Docs instruction, and one
+# wrote it into its pass notes. The bundled CLI honours this variable
+# (``[claudeai-mcp] Disabled via env var``); the hook stays as a backstop.
+_CLI_ENV: dict[str, str] = {"ENABLE_CLAUDEAI_MCP_SERVERS": "false"}
+
 
 def _make_foreign_mcp_deny_hook(
     allowed_prefixes: tuple[str, ...] = (_INJECTED_MCP_PREFIX,),
