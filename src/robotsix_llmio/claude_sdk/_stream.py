@@ -9,6 +9,7 @@ import asyncio
 import contextvars
 import json
 import logging
+import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -70,10 +71,35 @@ def activity_events(
         _current_on_event.reset(token)
 
 
+_REDACTED = "<redacted>"
+
+# Credential shapes scrubbed from tool_use / tool_result log lines and
+# activity events. Order matters: the ``oauth2:`` URL userinfo is replaced
+# first so the whole embedded token collapses to one placeholder.
+_SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"oauth2:[^@\s]+"), f"oauth2:{_REDACTED}"),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]+"), _REDACTED),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9_.\-]+"), _REDACTED),
+    (re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=\-]+"), f"Bearer {_REDACTED}"),
+    (re.compile(r"\bsk-[A-Za-z0-9_\-]{8,}"), _REDACTED),
+)
+
+
+def _redact(s: str) -> str:
+    """Replace known credential shapes in *s* with ``<redacted>``."""
+    for pattern, repl in _SECRET_PATTERNS:
+        s = pattern.sub(repl, s)
+    return s
+
+
 def _short(value: Any, limit: int = 200) -> str:
-    """One-line, length-capped repr of a tool input / text for logging."""
+    """One-line, length-capped, secret-redacted repr of a tool input / text.
+
+    Redaction runs before truncation so a token straddling the cut is still
+    scrubbed in full.
+    """
     s = value if isinstance(value, str) else json.dumps(value, default=str)
-    s = " ".join(s.split())
+    s = _redact(" ".join(s.split()))
     return s if len(s) <= limit else s[:limit] + "…"
 
 
