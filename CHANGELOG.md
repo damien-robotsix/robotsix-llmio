@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.9.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.0...v0.9.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **claude_sdk:** stop the CLI loading the login's claude.ai connectors ([#710](https://github.com/damien-robotsix/robotsix-llmio/issues/710)) ([3bc5e3f](https://github.com/damien-robotsix/robotsix-llmio/commit/3bc5e3f176647019e0e777c906b84ed31ba1363d))
+* **deps:** bump claude-agent-sdk and certifi past fresh advisories ([#711](https://github.com/damien-robotsix/robotsix-llmio/issues/711)) ([f51fbf8](https://github.com/damien-robotsix/robotsix-llmio/commit/f51fbf82b53de3cb79245e6f7c3cd76e39bd2f54))
+
 ## [0.9.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.8.0...v0.9.0) (2026-10-14)
 
 
