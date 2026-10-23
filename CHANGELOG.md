@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.9.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.1...v0.9.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* CI failure: CI on main (20261023T092155Z-ci-failure-ci-on-main-966a) ([#714](https://github.com/damien-robotsix/robotsix-llmio/issues/714)) ([6986cde](https://github.com/damien-robotsix/robotsix-llmio/commit/6986cde3f3b6e905a159ae5bd023866ff44a771f))
+* **claude_sdk:** stop refusing Bash tokens that cannot name a real path ([#716](https://github.com/damien-robotsix/robotsix-llmio/issues/716)) ([19f120a](https://github.com/damien-robotsix/robotsix-llmio/commit/19f120a59e497e2f6dd95aa74f6f7deb22805c85))
+
 ## [0.9.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.0...v0.9.1) (2026-10-22)
 
 
