@@ -191,6 +191,22 @@ def _cli_scratch_roots(workspace_root: str, root: str) -> tuple[str, ...]:
     return tuple(os.path.join(tmp, f"claude-{uid}", slug) for slug in slugs)
 
 
+def _cannot_leave_workspace(candidate: str) -> bool:
+    """True when *candidate* cannot name anything on this filesystem.
+
+    A pure-slash token (``//`` from a URL) or one whose first component is
+    not an existing top-level entry (``/v1``, ``/archive``, a sed address)
+    is a string fragment the heuristic tokenizer picked up, not a path.
+    Real escapes always start under an existing root (``/tmp``, ``/etc``,
+    ``/data``, ``/home``, …) and stay denied.
+    """
+    stripped = candidate.strip("/")
+    if not stripped:
+        return True
+    top = stripped.split("/", 1)[0]
+    return not os.path.lexists("/" + top)
+
+
 def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
     """PreToolUse hook that denies Bash commands naming absolute paths outside
     *workspace_root*.
@@ -221,6 +237,15 @@ def _make_bash_confine_hook(workspace_root: str) -> HookCallback:
                 # `awk '/^### Job/'`, `sed 's/^a/b/'` — a regex fragment that
                 # happens to start with `/`, not a path (false refusal on
                 # `'/^'`, mill 2026-09-08).
+                continue
+            if _cannot_leave_workspace(candidate):
+                # `//` and `/v1/{namespace}` from a URL or route string,
+                # `/archive`, a sed address `/DEFAULT_EXCLUDED_PATHS/,/`,
+                # `/.pre-commit-config.yaml` as a grep pattern: a leading-slash
+                # token whose top-level directory does not exist on this
+                # machine reaches nothing outside the workspace (mill
+                # 2026-10-23: 6 of 9 refusals in one pass were this shape,
+                # each a wasted implement/review turn).
                 continue
             if candidate in _SAFE_PSEUDO_DEVICES or candidate.startswith("/dev/fd/"):
                 # `2>/dev/null` and friends are ubiquitous shell idioms that
