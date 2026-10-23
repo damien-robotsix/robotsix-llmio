@@ -117,24 +117,24 @@ def test_hook_allows_calls_without_a_path(tmp_path):
 
 
 def test_bash_hook_denies_sed_outside_workspace(tmp_path):
-    out = _run_bash_hook(tmp_path, "sed -i 's/a/b/' /app/src/x.py")
+    out = _run_bash_hook(tmp_path, "sed -i 's/a/b/' /etc/src/x.py")
     assert _denied(out)
     reason = out["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "/app/src/x.py" in reason
+    assert "/etc/src/x.py" in reason
 
 
 def test_bash_hook_denies_redirect_outside_workspace(tmp_path):
-    out = _run_bash_hook(tmp_path, "cat > /app/src/y.py")
+    out = _run_bash_hook(tmp_path, "cat > /etc/src/y.py")
     assert _denied(out)
     reason = out["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "/app/src/y.py" in reason
+    assert "/etc/src/y.py" in reason
 
 
 def test_bash_hook_denies_ln_hardlink_to_outside(tmp_path):
-    out = _run_bash_hook(tmp_path, "ln /app/src/x.py ./link.py")
+    out = _run_bash_hook(tmp_path, "ln /etc/src/x.py ./link.py")
     assert _denied(out)
     reason = out["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "/app/src/x.py" in reason
+    assert "/etc/src/x.py" in reason
 
 
 def test_bash_hook_allows_relative_paths(tmp_path):
@@ -340,3 +340,27 @@ def test_foreign_mcp_hook_honours_custom_allowed_prefixes():
     assert run("mcp__a__x") == {}
     assert run("mcp__b__y") == {}
     assert _denied(run("mcp__milltools__run_command"))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "curl -s http://localhost:8888/v1/default/banks",
+        "grep -n '\"/v1/{namespace}/banks\"' src/app.py",
+        'python - <<EOF\nprint("//")\nEOF',
+        "sed -n '/DEFAULT_EXCLUDED_PATHS/,/p' src/x.py",
+        "grep -rn '\"/archive\"' src/routes.py",
+        'grep -F "/.pre-commit-config.yaml" scripts/check.py',
+    ],
+)
+def test_bash_hook_ignores_tokens_with_no_top_level_dir(tmp_path, command):
+    """A leading-slash fragment whose first component does not exist on this
+    machine (URL path, route string, sed address) is not a path (mill
+    2026-10-23: six false refusals in one pass)."""
+    assert _run_bash_hook(tmp_path, command) == {}
+
+
+def test_bash_hook_still_denies_existing_roots(tmp_path):
+    """The existence rule only skips fragments — real roots stay confined."""
+    assert _denied(_run_bash_hook(tmp_path, "cat /etc/passwd"))
+    assert _denied(_run_bash_hook(tmp_path, "cp x /tmp/out.txt"))
