@@ -26,6 +26,10 @@ See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/
 
 **Rationale:** The README is the discoverable home for the library's configuration interface, while `tests/.env.example` stays a minimal, test-only template; keeping each in sync prevents the recurring documentation drift that has required follow-up tickets to correct.
 
+**Rule:** When changing baked defaults in `src/robotsix_llmio/config/tier.py`, keep the legacy `default`/`fallback` keys mapped to the same slots in both `load_tier_config` (config/loader.py) and `TierConfig` validation (`_legacy_chain`); add a test covering both entry points.
+
+**Rationale:** 2026-10-25 ticket 20261025T134210Z (merged as PR #723): the chain reorder made `{"fallback": ...}` target the Claude SDK slot in `load_tier_config` but the OpenRouter slot in `TierConfig`, which the review flagged as blocking before merge.
+
 ## CI / workflows
 
 **Rule:** When adding a CVE ignore entry for a dependency vulnerability, update **both** ignore mechanisms: `[tool.uv.audit].ignore` in `pyproject.toml` (for the local `audit` job) **and** `pip-audit-ignore-vulns` in `.github/workflows/ci.yml`'s `security` job (for the shared `pip-audit` scan). CONTRIBUTING.md §4 documents this — keep it in sync.
