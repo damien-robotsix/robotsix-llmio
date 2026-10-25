@@ -834,3 +834,159 @@ def test_three_slot_failover_disabled_tries_only_active_slot():
             failover_enabled=False,
         )
     assert calls == [_S0]
+
+
+def test_three_slot_async_cascade_reaches_slot_three():
+    calls: list[str] = []
+    result = asyncio.run(
+        acall_with_failover(
+            _afactory(
+                {
+                    _S0: [httpx.ReadTimeout("down")],
+                    _S1: [_Exhausted("out of credits")],
+                    _S2: ["rescued"],
+                },
+                calls,
+            ),
+            tier_config=_chain_cfg(),
+            level=2,
+        )
+    )
+    assert result == "rescued"
+    assert calls == [_S0, _S1, _S2]
+    assert get_failover_tracker().active_slot() == 2
+
+
+def test_three_slot_async_exhaustion_raises_last_slot_error():
+    calls: list[str] = []
+    with pytest.raises(httpx.RemoteProtocolError):
+        asyncio.run(
+            acall_with_failover(
+                _afactory(
+                    {
+                        _S0: [httpx.ReadTimeout("a")],
+                        _S1: [httpx.ConnectError("b")],
+                        _S2: [httpx.RemoteProtocolError("c")],
+                    },
+                    calls,
+                ),
+                tier_config=_chain_cfg(),
+                level=2,
+            )
+        )
+    assert calls == [_S0, _S1, _S2]
+
+
+def test_three_slot_threshold_arms_each_slot_in_turn():
+    """With a threshold of 3, slot 0 arms only after three consecutive
+    failures; slot 1 then needs its own three before calls skip to slot 2."""
+    cfg = _chain_cfg(FailoverConfig(failure_threshold=3, window_seconds=900.0))
+    tracker = get_failover_tracker()
+    calls: list[str] = []
+    for expected_before in ("default", "default", "default"):
+        assert tracker.active_slot(chain_length=3) == expected_before
+        call_with_failover(
+            _factory({_S0: [httpx.ReadTimeout("flaky")], _S1: ["ok"]}, calls),
+            tier_config=cfg,
+            level=2,
+        )
+    assert tracker.active_slot(chain_length=3) == "fallback"
+    for _ in range(3):
+        assert tracker.active_slot(chain_length=3) == "fallback"
+        call_with_failover(
+            _factory({_S1: [httpx.ReadTimeout("flaky")], _S2: ["ok"]}, calls),
+            tier_config=cfg,
+            level=2,
+        )
+    assert tracker.active_slot(chain_length=3) == 2
+    calls.clear()
+    assert (
+        call_with_failover(_factory({_S2: ["direct"]}, calls), tier_config=cfg, level=2)
+        == "direct"
+    )
+    assert calls == [_S2]
+
+
+# --------------------------------------------------------------------------- #
+#  Baked chain — anthropic → claudeSDK → openrouter                           #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_baked_chain_cascades_anthropic_then_sdk_then_openrouter(level: int) -> None:
+    cfg = TierConfig()
+    models = [cfg.slot(i).for_level(level).model for i in range(3)]
+    assert [m.split("-", 1)[0] for m in models] == [
+        "anthropic",
+        "claudeSDK",
+        "openrouter",
+    ]
+    calls: list[str] = []
+    result = call_with_failover(
+        _factory(
+            {
+                models[0]: [httpx.ReadTimeout("anthropic down")],
+                models[1]: [_Exhausted("seat exhausted")],
+                models[2]: ["rescued"],
+            },
+            calls,
+        ),
+        tier_config=cfg,
+        level=level,
+    )
+    assert result == "rescued"
+    # Same level on every slot, tried in chain order.
+    assert calls == models
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_baked_chain_exhaustion_raises_openrouter_error(level: int) -> None:
+    cfg = TierConfig()
+    models = [cfg.slot(i).for_level(level).model for i in range(3)]
+    calls: list[str] = []
+    with pytest.raises(httpx.RemoteProtocolError):
+        call_with_failover(
+            _factory(
+                {
+                    models[0]: [httpx.ReadTimeout("a")],
+                    models[1]: [httpx.ConnectError("b")],
+                    models[2]: [httpx.RemoteProtocolError("c")],
+                },
+                calls,
+            ),
+            tier_config=cfg,
+            level=level,
+        )
+    assert calls == models
+
+
+# --------------------------------------------------------------------------- #
+#  Legacy two-slot persisted config                                            #
+# --------------------------------------------------------------------------- #
+
+
+def test_legacy_two_slot_loaded_config_fails_over_default_to_fallback():
+    from robotsix_llmio.config.loader import load_tier_config
+
+    cfg = load_tier_config(
+        {
+            "default": {"level2": {"model": "claudeSDK-opus"}},
+            "fallback": {"level2": {"model": "openrouter-deepseek/legacy"}},
+        }
+    )
+    assert len(cfg.chain) == 2
+    assert _max_slot_switches(len(cfg.chain)) == 1
+    calls: list[str] = []
+    result = call_with_failover(
+        _factory(
+            {
+                "claudeSDK-opus": [httpx.ReadTimeout("down")],
+                "openrouter-deepseek/legacy": ["rescued"],
+            },
+            calls,
+        ),
+        tier_config=cfg,
+        level=2,
+    )
+    assert result == "rescued"
+    assert calls == ["claudeSDK-opus", "openrouter-deepseek/legacy"]
