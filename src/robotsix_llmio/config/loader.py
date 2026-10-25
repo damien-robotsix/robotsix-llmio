@@ -43,6 +43,7 @@ in the ``chain`` shape; :func:`save_tier_config_file` /
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -57,6 +58,8 @@ from robotsix_llmio.config.tier import (
     _legacy_chain,
 )
 from robotsix_llmio.exceptions import RobotsixLLMIOError
+
+_logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 #  Exception
@@ -193,7 +196,10 @@ def load_tier_config_file(
     Args:
         path: JSON file holding a :class:`TierConfig`-shaped dict.
         migrate: Rewrite a missing or legacy-shaped file in the ``chain``
-            shape. Pass ``False`` for read-only access.
+            shape. Pass ``False`` for read-only access. The rewrite is
+            best-effort: if it fails with :class:`OSError` (e.g. a
+            read-only config directory) a warning is logged and the loaded
+            config is still returned.
 
     Raises:
         TierConfigLoadError: If the file is not valid JSON, is not a JSON
@@ -204,7 +210,7 @@ def load_tier_config_file(
     if not target.exists():
         config = TierConfig()
         if migrate:
-            save_tier_config_file(config, target)
+            _try_persist(config, target)
         return config
 
     try:
@@ -221,13 +227,27 @@ def load_tier_config_file(
 
     config = load_tier_config(raw)
     if migrate and any(slot in raw for slot in PROVIDER_SLOTS):
-        save_tier_config_file(config, target)
+        _try_persist(config, target)
     return config
 
 
 # --------------------------------------------------------------------------- #
 #  Internal helpers
 # --------------------------------------------------------------------------- #
+
+
+def _try_persist(config: TierConfig, target: Path) -> None:
+    """Best-effort re-persist of *config* at *target*.
+
+    The migration write is a cleanup, not a requirement: on a read-only
+    config directory (ConfigMap/Secret mounts, read-only bind mounts,
+    non-root containers) the ``OSError`` is logged and swallowed so the
+    already-loaded config is still returned instead of failing startup.
+    """
+    try:
+        save_tier_config_file(config, target)
+    except OSError as exc:
+        _logger.warning("Could not persist migrated tier config to %s: %s", target, exc)
 
 
 def _merge_slot(base: dict[str, Any], override: Any) -> None:

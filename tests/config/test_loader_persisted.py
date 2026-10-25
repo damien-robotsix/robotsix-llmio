@@ -140,3 +140,32 @@ def test_malformed_file_raises_load_error(tmp_path, content):
     path.write_text(content)
     with pytest.raises(TierConfigLoadError):
         load_tier_config_file(path)
+
+
+def _readonly_dir(monkeypatch):
+    """Simulate a read-only config directory: every temp-file create fails."""
+
+    def _deny(*_args, **_kwargs):
+        raise PermissionError(13, "Read-only file system")
+
+    monkeypatch.setattr("robotsix_llmio.config.loader.tempfile.mkstemp", _deny)
+
+
+def test_legacy_file_in_readonly_dir_still_loads(tmp_path, monkeypatch, caplog):
+    path = tmp_path / "tiers.json"
+    text = json.dumps({"default": {"level2": {"model": "claudeSDK-sonnet"}}})
+    path.write_text(text)
+    _readonly_dir(monkeypatch)
+    with caplog.at_level("WARNING", logger="robotsix_llmio.config.loader"):
+        cfg = load_tier_config_file(path)
+    assert len(cfg.chain) == 2
+    assert cfg.chain[0].level2.model == "claudeSDK-sonnet"
+    assert path.read_text() == text
+    assert "Could not persist" in caplog.text
+
+
+def test_missing_file_in_readonly_dir_yields_baked(tmp_path, monkeypatch):
+    path = tmp_path / "tiers.json"
+    _readonly_dir(monkeypatch)
+    assert load_tier_config_file(path) == TierConfig()
+    assert not path.exists()
