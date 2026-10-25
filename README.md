@@ -165,6 +165,12 @@ Model selection has two independent axes:
 | 2     | Workhorse: implementing code, main assistant turns | `opus`                   | `deepseek-v4-flash` (xhigh reasoning) |
 | 3     | Frontier: hardest reasoning, long-horizon work  | `claude-fable-5`            | `deepseek-v4-pro`                     |
 
+Provider slots form an ordered chain (`TierConfig.chain`): position 0 serves
+normal operation and later positions are failover targets, tried in order. The
+legacy `default` / `fallback` keys map onto positions 0 and 1, and
+`TierConfig.slot()` / `for_level()` accept either a chain index or those legacy
+names. `load_tier_config` currently accepts only the legacy keys.
+
 Both slots and the failover policy are configurable via `load_tier_config`:
 
 ```python
