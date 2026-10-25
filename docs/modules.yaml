@@ -54,6 +54,16 @@ modules:
       - src/robotsix_llmio/deepseek/**
       - tests/deepseek/**
 
+  - id: anthropic
+    description: >-
+      Direct first-party Anthropic Messages API provider — serves Claude
+      models via api.anthropic.com with ANTHROPIC_API_KEY (pydantic-ai
+      AnthropicModel) and computes cost client-side from sticker prices.
+    paths:
+      - src/robotsix_llmio/anthropic/**
+      - tests/anthropic/**
+      - docs/anthropic/**
+
   - id: claude-sdk
     description: >-
       Claude Agent SDK transport — a sibling of the OpenRouter layer that

@@ -419,6 +419,14 @@ sub-directory for modules that have their own test suite:
     round-trip.
   - `test_deepseek_cost.py` — client-side cost computation + recording unit
     tests (cache-hit/miss split, `record_cost` provider tag, unpriced model).
+- `tests/anthropic/`:
+  - `test_anthropic_provider.py` — direct Anthropic Messages API
+    provider/model unit tests: auth resolution, `anthropic-` prefix
+    resolution, per-level effort settings, and a mocked-endpoint request that
+    records client-side cost.
+  - `test_anthropic_cost.py` — client-side cost computation + recording unit
+    tests (cache read/write split, `record_cost` provider tag, unpriced model,
+    lazy exports).
 - `tests/claude_sdk/`:
   - `test_confine_hook.py` — exercises the workspace-confinement
     `PreToolUse` hook used by the injected-MCP-tools path.

@@ -128,6 +128,7 @@ shell or deployment platform as needed:
 |----------|---------|---------|
 | `OPENROUTER_API_KEY` | Key required by `OpenRouterProvider` and derived providers | — (required) |
 | `DEEPSEEK_API_KEY` | Key required by the direct-API `DeepseekProvider` (`deepseek:` prefix) | — (required for `deepseek:` models) |
+| `ANTHROPIC_API_KEY` | Key required by the first-party Anthropic Messages API `AnthropicProvider` (`anthropic-` prefix, `[anthropic]` extra) | — (required for `anthropic-` models) |
 | `REFDOCS_API_KEY` | Bearer token for the refdocs REST API | — |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Enable Langfuse trace/cost export when **both** are set | unset → tracing off |
 | `LANGFUSE_BASE_URL` | Langfuse endpoint | `https://cloud.langfuse.com` |
