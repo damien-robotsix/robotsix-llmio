@@ -199,8 +199,9 @@ the default slot retries the **same level** on the fallback slot, and after
 immediately) all calls route straight to the fallback for `window_seconds`
 (default 15 minutes) before automatically returning to the default.
 
-A single request switches provider slots **at most once** — the active slot
-plus one fallback — so a doomed request can never ping-pong between slots and
+A single request cascades down the provider chain, trying each slot **at most
+once** (the active slot, then each later slot in order; the baked two-slot
+chain allows one fallback) — so a doomed request can never ping-pong between slots and
 multiply spend on duplicate prompts. When the default slot stays degraded
 across windows, each re-arm backs off exponentially with jitter
 (`window_seconds · reattempt_backoff_base ^ n`, capped at
@@ -424,7 +425,7 @@ group and filter by span name to avoid double-counting.
 
 Each span carries these attributes for filtering/grouping:
 
-- `llmio.failover.slot` — `"default"` or `"fallback"`, the provider slot attempted
+- `llmio.failover.slot` — `"default"` or `"fallback"` for chain positions 0 and 1, the integer chain index for deeper positions, the provider slot attempted
 - `llmio.tier.level` — Capability level (1, 2, or 3)
 - `llmio.tier.provider` — Provider name (e.g. `claudeSDK`, `openrouter`)
 - `llmio.tier.model` — Model identifier (e.g. `haiku`, `deepseek-v4-flash`)
@@ -433,8 +434,8 @@ Each span carries these attributes for filtering/grouping:
 
 The enclosing run span additionally carries the retry-cap and backoff telemetry:
 
-- `llmio.failover.max_slot_switches` — The per-request slot-switch cap (always 1)
-- `llmio.failover.slot_switches` — How many times the request actually switched slots (0 or 1)
+- `llmio.failover.max_slot_switches` — The per-request slot-switch cap (`chain length − 1`; always 1 for the baked two-slot chain)
+- `llmio.failover.slot_switches` — How many times the request actually switched slots (0 up to `chain length − 1`)
 - `llmio.failover.reattempt_count` — Arms since the last default-slot success; drives the exponential backoff (recorded when a window arms)
 - `llmio.failover.backoff_seconds` — The (possibly backed-off) failover window applied before the degraded primary is re-probed
 - `llmio.failover.cost_guard_blocked` — Boolean; whether the per-request cost guard refused a failover slot switch
