@@ -1,13 +1,19 @@
-"""Tier configuration schema — three capability levels across two provider slots.
+"""Tier configuration schema — three capability levels across an ordered
+chain of provider slots.
 
 The canonical path for tier resolution is :meth:`TierConfig.for_level`.
 
-Two *provider slots* each bind all three capability levels:
+:attr:`TierConfig.chain` is an ordered sequence of *provider slots*, each
+binding all three capability levels. Position 0 is used in normal operation;
+later positions are failover targets, in order. The baked chain is:
 
-- ``default`` — the provider used in normal operation (baked: Anthropic via
-  the Claude SDK subscription — haiku / opus / claude-fable-5).
-- ``fallback`` — the provider used while automatic failover is active
-  (baked: DeepSeek via OpenRouter — flash / flash / pro).
+- position 0 (legacy alias ``default``) — Anthropic via the Claude SDK
+  subscription — haiku / opus / claude-fable-5.
+- position 1 (legacy alias ``fallback``) — DeepSeek via OpenRouter —
+  flash / flash / pro.
+
+The legacy two-slot shape (``default`` / ``fallback`` keys) is migrated onto
+the chain by a validator, so persisted configs keep loading.
 
 Capability levels never fall back to one another: a level-2 task is a
 level-2 task on whichever provider slot is active. Failover switches the
@@ -46,16 +52,24 @@ class TierLevel(StrEnum):
     LEVEL3 = "level3"
 
 
-#: Runtime-iterable provider slot names, in canonical order. The single
-#: source for slot names used by :func:`robotsix_llmio.config.loader.load_tier_config`
+#: Legacy provider slot names, in chain order. ``"default"`` is chain
+#: position 0 and ``"fallback"`` chain position 1. :class:`TierConfig` now
+#: holds an ordered N-slot ``chain``; these names survive as aliases for the
+#: first two positions (accepted by :meth:`TierConfig.slot` and migrated by
+#: :class:`TierConfig`'s legacy-shape validator). The single source for the
+#: legacy slot names used by :func:`robotsix_llmio.config.loader.load_tier_config`
 #: (which iterates this tuple and builds its unknown-key error message from
 #: it) — the loader no longer re-declares the slot names.
-#: ``ProviderSlotName`` below mirrors these values as the static type callers
-#: use to pass a slot name as a plain string.
 PROVIDER_SLOTS: tuple[str, ...] = ("default", "fallback")
 
-#: Slot names accepted by :meth:`TierConfig.for_level`.
-ProviderSlotName = Literal["default", "fallback"]
+#: Legacy slot-name aliases (``"default"`` = chain position 0,
+#: ``"fallback"`` = chain position 1).
+LegacyProviderSlotName = Literal["default", "fallback"]
+
+#: Slot references accepted by :meth:`TierConfig.slot` /
+#: :meth:`TierConfig.for_level`: a zero-based chain index, or one of the
+#: legacy slot-name aliases.
+ProviderSlotName = int | LegacyProviderSlotName
 
 
 # --------------------------------------------------------------------------- #
@@ -276,7 +290,7 @@ VISION_DEFAULT = TierLevelConfig(
 class ProviderSlotConfig(BaseModel):
     """One provider slot's binding of all three capability levels.
 
-    A slot is a *role* (``default`` or ``fallback`` in :class:`TierConfig`),
+    A slot is a *role* (a position in :attr:`TierConfig.chain`),
     not a provider name: each level entry carries its own combined
     provider-model identifier, so a slot can technically mix backends. The
     baked configuration keeps each slot on one provider — that is what makes
@@ -447,22 +461,37 @@ class FailoverConfig(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-#  TierConfig — two provider slots + failover policy                          #
+#  TierConfig — ordered provider-slot chain + failover policy                 #
 # --------------------------------------------------------------------------- #
 
 
+def _default_chain() -> list[ProviderSlotConfig]:
+    """Fresh copy of the baked provider chain (default slot, then fallback)."""
+    return [_default_slot(), _fallback_slot()]
+
+
 class TierConfig(BaseModel):
-    """Two-slot, three-level provider+model configuration.
+    """Ordered N-slot, three-level provider+model configuration.
 
-    All fields are optional: each slot falls back to its baked default
-    (Anthropic via the Claude SDK for ``default``, DeepSeek via OpenRouter
-    for ``fallback``), so ``TierConfig()`` yields the fully baked
-    configuration.
+    :attr:`chain` is an ordered sequence of :class:`ProviderSlotConfig`
+    entries: position 0 is the provider used in normal operation, and each
+    later position is the next provider to cascade to while failover is
+    active. Any number of slots (>= 1) is supported.
 
-    Example YAML/JSON (override the default slot's level 2 only; everything
-    else stays baked)::
+    All fields are optional: the baked chain is Anthropic via the Claude SDK
+    (position 0) then DeepSeek via OpenRouter (position 1), so
+    ``TierConfig()`` yields the fully baked configuration.
 
-        {"default": {"level2": {"model": "claudeSDK-sonnet"}}}
+    The legacy two-slot shape (top-level ``default`` / ``fallback`` keys) is
+    still accepted and migrated onto the chain — ``default`` becomes position
+    0 and ``fallback`` position 1; an omitted legacy key keeps its baked
+    slot. Example YAML/JSON (legacy shape)::
+
+        {"default": {"level1": {...}, "level2": {...}, "level3": {...}}}
+
+    or the chain shape::
+
+        {"chain": [{"level1": {...}, ...}, {...}, {...}]}
 
     Use :meth:`for_level` to resolve an integer level to the corresponding
     :class:`TierLevelConfig`; by default it resolves against the slot the
@@ -471,18 +500,15 @@ class TierConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    default: ProviderSlotConfig = Field(
-        default_factory=_default_slot,
+    chain: list[ProviderSlotConfig] = Field(
+        default_factory=_default_chain,
+        min_length=1,
         description=(
-            "Provider slot used in normal operation. Baked: Anthropic via "
-            "the Claude SDK — haiku / opus / claude-fable-5."
-        ),
-    )
-    fallback: ProviderSlotConfig = Field(
-        default_factory=_fallback_slot,
-        description=(
-            "Provider slot used while failover is active. Baked: DeepSeek "
-            "via OpenRouter — flash / flash / pro."
+            "Ordered provider-slot chain. Position 0 is used in normal "
+            "operation; later positions are cascaded to, in order, while "
+            "failover is active. Baked: Anthropic via the Claude SDK "
+            "(haiku / opus / claude-fable-5), then DeepSeek via OpenRouter "
+            "(flash / flash / pro)."
         ),
     )
     failover: FailoverConfig = Field(
@@ -498,13 +524,90 @@ class TierConfig(BaseModel):
         ),
     )
 
+    # -- legacy two-slot migration ------------------------------------------
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_slots(cls, data: Any) -> Any:
+        """Map the legacy ``default`` / ``fallback`` keys onto :attr:`chain`.
+
+        ``default`` becomes chain position 0 and ``fallback`` position 1; a
+        legacy key that is absent keeps its baked slot. Mixing the legacy
+        keys with an explicit ``chain`` is ambiguous and rejected.
+        """
+        if not isinstance(data, dict):
+            return data
+        legacy = [name for name in PROVIDER_SLOTS if name in data]
+        if not legacy:
+            return data
+        if "chain" in data:
+            raise ValueError(
+                "Tier config mixes the legacy slot key(s) "
+                f"{legacy!r} with an explicit 'chain'; use one shape only."
+            )
+        migrated = {k: v for k, v in data.items() if k not in PROVIDER_SLOTS}
+        baked = _default_chain()
+        migrated["chain"] = [
+            data.get(name, baked[index]) for index, name in enumerate(PROVIDER_SLOTS)
+        ]
+        return migrated
+
+    # -- legacy accessors ---------------------------------------------------
+
+    @property
+    def default(self) -> ProviderSlotConfig:
+        """Legacy alias for chain position 0 (the normal-operation slot)."""
+        return self.slot(0)
+
+    @property
+    def fallback(self) -> ProviderSlotConfig:
+        """Legacy alias for chain position 1 (the first failover slot).
+
+        Raises:
+            ValueError: If the chain holds a single slot.
+
+        """
+        return self.slot(1)
+
+    # -- resolution ---------------------------------------------------------
+
+    def slot_index(self, name: ProviderSlotName) -> int:
+        """Return the zero-based chain position designated by *name*.
+
+        Args:
+            name: A chain index (``0 <= name < len(chain)``) or a legacy
+                slot-name alias (``"default"`` = 0, ``"fallback"`` = 1).
+
+        Raises:
+            ValueError: If *name* is not a valid chain index or alias.
+
+        """
+        if isinstance(name, str) and name in PROVIDER_SLOTS:
+            index = PROVIDER_SLOTS.index(name)
+        elif isinstance(name, int) and not isinstance(name, bool):
+            index = name
+        else:
+            index = -1
+        if not 0 <= index < len(self.chain):
+            raise ValueError(
+                f"`slot` must be a chain index in [0, {len(self.chain)}) or a "
+                f"legacy slot name 'default' or 'fallback' resolving inside "
+                f"the chain, got {name!r}"
+            )
+        return index
+
     def slot(self, name: ProviderSlotName) -> ProviderSlotConfig:
-        """Return the :class:`ProviderSlotConfig` named *name*."""
-        if name == "default":
-            return self.default
-        if name == "fallback":
-            return self.fallback
-        raise ValueError(f"`slot` must be 'default' or 'fallback', got {name!r}")
+        """Return the :class:`ProviderSlotConfig` at chain position *name*.
+
+        Args:
+            name: A chain index or a legacy slot-name alias — see
+                :meth:`slot_index`.
+
+        Raises:
+            ValueError: If *name* is not a valid chain index or alias.
+
+        """
+        return self.chain[self.slot_index(name)]
 
     def for_level(
         self,
@@ -515,16 +618,16 @@ class TierConfig(BaseModel):
 
         Args:
             level: Capability level — 1, 2, or 3.
-            slot: Which provider slot to resolve against.  ``None`` (the
-                default) resolves against the slot the process-wide failover
-                tracker currently designates as active — ``default`` in
-                normal operation, ``fallback`` while a failover window is
-                open.  Pass an explicit slot name for pure config access
-                (e.g. to display both bindings in a UI).
+            slot: Which provider slot to resolve against — a zero-based
+                chain index or a legacy alias (``"default"`` / ``"fallback"``).
+                ``None`` (the default) resolves against the slot the
+                process-wide failover tracker currently designates as active.
+                Pass an explicit slot for pure config access (e.g. to display
+                every binding in a UI).
 
         Raises:
             ValueError: If *level* is not 1, 2, or 3, or *slot* is not a
-                valid slot name.
+                valid chain position.
 
         """
         if slot is None:

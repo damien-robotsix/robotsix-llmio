@@ -1,4 +1,4 @@
-"""Unit tests for :class:`TierConfig` — two provider slots, three levels."""
+"""Unit tests for :class:`TierConfig` — ordered provider-slot chain, three levels."""
 
 from __future__ import annotations
 
@@ -133,6 +133,94 @@ def test_for_level_default_slot_is_tracker_driven():
     tests/core/test_core_failover.py)."""
     cfg = TierConfig()
     assert cfg.for_level(2).model == cfg.for_level(2, slot="default").model
+
+
+# --------------------------------------------------------------------------- #
+#  Ordered N-slot chain + legacy two-slot migration                           #
+# --------------------------------------------------------------------------- #
+
+
+def _slot(l1: str, l2: str, l3: str) -> dict[str, dict[str, str]]:
+    return {"level1": {"model": l1}, "level2": {"model": l2}, "level3": {"model": l3}}
+
+
+def test_baked_chain_is_default_then_fallback():
+    cfg = TierConfig()
+    assert len(cfg.chain) == 2
+    assert cfg.chain[0] == cfg.default == cfg.slot(0) == cfg.slot("default")
+    assert cfg.chain[1] == cfg.fallback == cfg.slot(1) == cfg.slot("fallback")
+
+
+def test_three_slot_chain_resolves_every_position():
+    cfg = TierConfig.model_validate(
+        {
+            "chain": [
+                _slot("claudeSDK-haiku", "claudeSDK-opus", "claudeSDK-claude-fable-5"),
+                _slot("claudeSDK-sonnet", "claudeSDK-sonnet", "claudeSDK-opus"),
+                _slot(
+                    FALLBACK_LEVEL1.model, FALLBACK_LEVEL2.model, FALLBACK_LEVEL3.model
+                ),
+            ]
+        }
+    )
+    assert len(cfg.chain) == 3
+    assert cfg.for_level(1, slot=0).model == "claudeSDK-haiku"
+    assert cfg.for_level(3, slot=1).model == "claudeSDK-opus"
+    assert cfg.for_level(2, slot=2).model == FALLBACK_LEVEL2.model
+    assert cfg.slot(2).level3.provider == "openrouter"
+    assert TierConfig.model_validate(cfg.model_dump()) == cfg
+
+
+def test_legacy_keys_migrate_onto_chain():
+    cfg = TierConfig.model_validate(
+        {
+            "default": _slot("claudeSDK-sonnet", "claudeSDK-opus", "claudeSDK-opus"),
+            "fallback": _slot(
+                FALLBACK_LEVEL3.model, FALLBACK_LEVEL3.model, FALLBACK_LEVEL3.model
+            ),
+        }
+    )
+    assert len(cfg.chain) == 2
+    assert cfg.chain[0].level1.model == "claudeSDK-sonnet"
+    assert cfg.chain[1].level1.model == FALLBACK_LEVEL3.model
+
+
+def test_legacy_fallback_only_keeps_baked_default():
+    cfg = TierConfig.model_validate(
+        {"fallback": _slot("claudeSDK-haiku", "claudeSDK-haiku", "claudeSDK-haiku")}
+    )
+    assert cfg.chain[0].level2.model == DEFAULT_LEVEL2.model
+    assert cfg.chain[1].level2.model == "claudeSDK-haiku"
+
+
+def test_legacy_keys_mixed_with_chain_rejected():
+    with pytest.raises(ValidationError, match="legacy slot key"):
+        TierConfig.model_validate(
+            {
+                "default": _slot("claudeSDK-haiku", "claudeSDK-opus", "claudeSDK-opus"),
+                "chain": [_slot("claudeSDK-haiku", "claudeSDK-opus", "claudeSDK-opus")],
+            }
+        )
+
+
+def test_empty_chain_rejected():
+    with pytest.raises(ValidationError):
+        TierConfig.model_validate({"chain": []})
+
+
+@pytest.mark.parametrize("bad_slot", [2, -1, True])
+def test_slot_out_of_chain_rejected(bad_slot: int):
+    with pytest.raises(ValueError, match="chain index"):
+        TierConfig().slot(bad_slot)
+
+
+def test_legacy_fallback_alias_rejected_on_single_slot_chain():
+    cfg = TierConfig.model_validate(
+        {"chain": [_slot("claudeSDK-haiku", "claudeSDK-opus", "claudeSDK-opus")]}
+    )
+    assert cfg.default.level1.model == "claudeSDK-haiku"
+    with pytest.raises(ValueError, match="chain index"):
+        cfg.slot("fallback")
 
 
 # --------------------------------------------------------------------------- #

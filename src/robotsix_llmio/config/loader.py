@@ -88,13 +88,13 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
     merged: dict[str, Any] = baked.model_dump()
 
     try:
-        for slot in PROVIDER_SLOTS:
+        for index, slot in enumerate(PROVIDER_SLOTS):
             if slot not in config_dict:
                 continue
             slot_val = _to_dict(config_dict[slot])
             for tier in (m.value for m in TierLevel):
                 if tier in slot_val:
-                    merged[slot][tier].update(_to_dict(slot_val[tier]))
+                    merged["chain"][index][tier].update(_to_dict(slot_val[tier]))
         if "failover" in config_dict:
             merged["failover"].update(_to_dict(config_dict["failover"]))
         if "vision" in config_dict:
