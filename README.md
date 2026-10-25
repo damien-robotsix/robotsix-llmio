@@ -175,15 +175,17 @@ Provider slots form an ordered chain (`TierConfig.chain`): position 0 serves
 normal operation and later positions are failover targets, tried in order. The
 legacy `default` / `fallback` keys map onto positions 0 and 1, and
 `TierConfig.slot()` / `for_level()` accept either a chain index or those legacy
-names. `load_tier_config` currently accepts only the legacy keys.
+names. `load_tier_config` accepts either a `chain` list (each entry merges
+over the baked slot at that position; the list length sets the chain length)
+or the legacy keys, but not both.
 
-Both slots and the failover policy are configurable via `load_tier_config`:
+The chain and the failover policy are configurable via `load_tier_config`:
 
 ```python
 from robotsix_llmio.config import load_tier_config
 
 cfg = load_tier_config({
-    "default": {"level2": {"model": "claudeSDK-sonnet"}},
+    "chain": [{}, {"level2": {"model": "claudeSDK-sonnet"}}, {}],
     "failover": {
         "failure_threshold": 3,
         "window_seconds": 900,
@@ -195,6 +197,13 @@ cfg = load_tier_config({
     },
 })
 ```
+
+Persisted JSON configs go through `load_tier_config_file(path)`. A missing file
+is written fresh in the `chain` shape. A legacy `default` / `fallback` file is
+migrated onto a two-slot chain and rewritten in the `chain` shape, so a deploy
+over an old on-disk config starts cleanly. Pass `migrate=False` for read-only
+loading. `save_tier_config_file` and `dump_tier_config` always write the
+`chain` shape.
 
 ### Provider failover
 

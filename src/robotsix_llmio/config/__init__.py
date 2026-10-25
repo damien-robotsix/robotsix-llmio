@@ -22,7 +22,13 @@ from typing import TYPE_CHECKING, Any
 # sync with ``__all__`` and ``__getattr__``.
 if TYPE_CHECKING:
     from robotsix_llmio.config.factory import create_model
-    from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
+    from robotsix_llmio.config.loader import (
+        TierConfigLoadError,
+        dump_tier_config,
+        load_tier_config,
+        load_tier_config_file,
+        save_tier_config_file,
+    )
     from robotsix_llmio.config.tier import (
         ANTHROPIC_LEVEL1,
         ANTHROPIC_LEVEL2,
@@ -67,9 +73,12 @@ __all__ = [
     "TierLevel",
     "TierLevelConfig",
     "create_model",
+    "dump_tier_config",
     "get_provider_for_identifier",
     "load_tier_config",
+    "load_tier_config_file",
     "parse_model_identifier",
+    "save_tier_config_file",
 ]
 
 _TIER_NAMES = frozenset(
@@ -98,7 +107,13 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy imports
         from . import tier
 
         return getattr(tier, name)
-    if name in ("TierConfigLoadError", "load_tier_config"):
+    if name in (
+        "TierConfigLoadError",
+        "dump_tier_config",
+        "load_tier_config",
+        "load_tier_config_file",
+        "save_tier_config_file",
+    ):
         from . import loader
 
         return getattr(loader, name)

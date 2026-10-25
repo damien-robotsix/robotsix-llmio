@@ -398,6 +398,8 @@ sub-directory for modules that have their own test suite:
   - `test_config_integration.py` — config integration tests.
   - `test_lazy_imports.py` — lazy imports tests.
   - `test_loader.py` — config loader unit tests.
+  - `test_loader_persisted.py` — `chain`-key loading and persisted-config
+    dump / save / legacy-file migration tests.
   - `test_tier_config.py` — tier config unit tests.
   - `test_tier_level.py` — tier level unit tests.
   - `test_tier_level_config.py` — tier level config unit tests.
