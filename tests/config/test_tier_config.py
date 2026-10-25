@@ -6,6 +6,9 @@ import pytest
 from pydantic import ValidationError
 
 from robotsix_llmio.config.tier import (
+    ANTHROPIC_LEVEL1,
+    ANTHROPIC_LEVEL2,
+    ANTHROPIC_LEVEL3,
     DEFAULT_LEVEL1,
     DEFAULT_LEVEL2,
     DEFAULT_LEVEL3,
@@ -25,28 +28,48 @@ from robotsix_llmio.config.tier import (
 
 def test_no_args_yields_baked_slots():
     cfg = TierConfig()
-    assert cfg.default.level1.model == DEFAULT_LEVEL1.model == "claudeSDK-haiku"
-    assert cfg.default.level2.model == DEFAULT_LEVEL2.model == "claudeSDK-opus"
-    assert (
-        cfg.default.level3.model == DEFAULT_LEVEL3.model == "claudeSDK-claude-fable-5"
-    )
-    assert cfg.fallback.level1.model == FALLBACK_LEVEL1.model
-    assert cfg.fallback.level2.model == FALLBACK_LEVEL2.model
-    assert cfg.fallback.level3.model == FALLBACK_LEVEL3.model
+    anthropic, sdk, openrouter = cfg.chain
+    assert anthropic.level1.model == ANTHROPIC_LEVEL1.model
+    assert anthropic.level2.model == ANTHROPIC_LEVEL2.model
+    assert anthropic.level3.model == ANTHROPIC_LEVEL3.model
+    assert sdk.level1.model == DEFAULT_LEVEL1.model == "claudeSDK-haiku"
+    assert sdk.level2.model == DEFAULT_LEVEL2.model == "claudeSDK-opus"
+    assert sdk.level3.model == DEFAULT_LEVEL3.model == "claudeSDK-claude-fable-5"
+    assert openrouter.level1.model == FALLBACK_LEVEL1.model
+    assert openrouter.level2.model == FALLBACK_LEVEL2.model
+    assert openrouter.level3.model == FALLBACK_LEVEL3.model
     assert cfg.failover == FailoverConfig()
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_baked_chain_order_is_anthropic_claude_sdk_openrouter(level: int):
+    cfg = TierConfig()
+    providers = [slot.for_level(level).provider for slot in cfg.chain]
+    assert providers == ["anthropic", "claudeSDK", "openrouter"]
+
+
+def test_anthropic_slot_mirrors_claude_sdk_bindings():
+    cfg = TierConfig()
+    anthropic, sdk = cfg.chain[0], cfg.chain[1]
+    assert anthropic.level1.model_name == "claude-haiku-5-5"
+    assert sdk.level1.model_name == "haiku"
+    assert anthropic.level2.model_name == "claude-opus-5-5"
+    assert sdk.level2.model_name == "opus"
+    assert anthropic.level3.model_name == sdk.level3.model_name == "claude-fable-5"
 
 
 def test_fallback_slot_is_openrouter_deepseek():
     cfg = TierConfig()
-    assert cfg.fallback.level1.provider == "openrouter"
+    last = cfg.chain[-1]
+    assert last.level1.provider == "openrouter"
     # Operator design (re-confirmed 2026-09-01): levels 1 and 2 bind the SAME
     # flash snapshot (level 2 adds xhigh reasoning + a larger output cap);
     # level 3 is pro. The flash-loop risk at L2 is a recorded, accepted
     # trade-off — see the FALLBACK_LEVEL2 comment in config/tier.py.
-    assert cfg.fallback.level1.model_name == "deepseek/deepseek-v4-flash-20260731"
-    assert cfg.fallback.level2.model_name == "deepseek/deepseek-v4-flash-20260731"
-    assert cfg.fallback.level3.model_name == "deepseek/deepseek-v4-pro-0813"
-    assert cfg.fallback.level2.max_tokens > cfg.fallback.level1.max_tokens
+    assert last.level1.model_name == "deepseek/deepseek-v4-flash-20260731"
+    assert last.level2.model_name == "deepseek/deepseek-v4-flash-20260731"
+    assert last.level3.model_name == "deepseek/deepseek-v4-pro-0813"
+    assert last.level2.max_tokens > last.level1.max_tokens
 
 
 def test_default_factories_do_not_alias():
@@ -107,13 +130,13 @@ def test_unknown_slot_key_rejected():
 
 def test_for_level_explicit_slots():
     cfg = TierConfig()
-    assert cfg.for_level(1, slot="default").model == "claudeSDK-haiku"
-    assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
-    assert cfg.for_level(3, slot="default").model == "claudeSDK-claude-fable-5"
-    assert cfg.for_level(1, slot="fallback").provider == "openrouter"
-    assert (
-        cfg.for_level(3, slot="fallback").model_name == "deepseek/deepseek-v4-pro-0813"
-    )
+    assert cfg.for_level(1, slot="default").model == "anthropic-claude-haiku-5-5"
+    assert cfg.for_level(2, slot="default").model == "anthropic-claude-opus-5-5"
+    assert cfg.for_level(3, slot="default").model == "anthropic-claude-fable-5"
+    assert cfg.for_level(1, slot="fallback").model == "claudeSDK-haiku"
+    assert cfg.for_level(3, slot="fallback").model == "claudeSDK-claude-fable-5"
+    assert cfg.for_level(1, slot=2).provider == "openrouter"
+    assert cfg.for_level(3, slot=2).model_name == "deepseek/deepseek-v4-pro-0813"
 
 
 @pytest.mark.parametrize("bad_level", [0, 4, 5, -1])
@@ -146,9 +169,10 @@ def _slot(l1: str, l2: str, l3: str) -> dict[str, dict[str, str]]:
 
 def test_baked_chain_is_default_then_fallback():
     cfg = TierConfig()
-    assert len(cfg.chain) == 2
+    assert len(cfg.chain) == 3
     assert cfg.chain[0] == cfg.default == cfg.slot(0) == cfg.slot("default")
     assert cfg.chain[1] == cfg.fallback == cfg.slot(1) == cfg.slot("fallback")
+    assert cfg.chain[2] == cfg.slot(2)
 
 
 def test_three_slot_chain_resolves_every_position():
@@ -208,7 +232,7 @@ def test_empty_chain_rejected():
         TierConfig.model_validate({"chain": []})
 
 
-@pytest.mark.parametrize("bad_slot", [2, -1, True])
+@pytest.mark.parametrize("bad_slot", [3, -1, True])
 def test_slot_out_of_chain_rejected(bad_slot: int):
     with pytest.raises(ValueError, match="chain index"):
         TierConfig().slot(bad_slot)

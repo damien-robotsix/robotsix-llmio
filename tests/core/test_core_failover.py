@@ -217,11 +217,13 @@ def test_module_singleton_roundtrip():
 def test_tier_config_for_level_follows_active_slot():
     """``for_level`` with no explicit slot resolves via the tracker."""
     cfg = TierConfig(failover=FailoverConfig(failure_threshold=1))
-    assert cfg.for_level(2).model == "claudeSDK-opus"
-    get_failover_tracker().configure(cfg.failover)
+    assert cfg.for_level(2).model == "anthropic-claude-opus-5-5"
+    get_failover_tracker().configure(cfg.failover, chain_length=len(cfg.chain))
     get_failover_tracker().record_failure("default", _Exhausted("out"))
+    assert cfg.for_level(2).model == "claudeSDK-opus"
+    get_failover_tracker().record_failure("fallback", _Exhausted("out"))
     assert cfg.for_level(2).model == "openrouter-deepseek/deepseek-v4-flash-20260731"
-    assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
+    assert cfg.for_level(2, slot="default").model == "anthropic-claude-opus-5-5"
 
 
 # --------------------------------------------------------------------------- #

@@ -58,8 +58,10 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 
 ### Schema & loader (tier configuration)
 
-- `TierConfig` — pydantic model holding two provider slots (`default`,
-  `fallback`), the `failover` policy, and the `vision` binding (the model
+- `TierConfig` — pydantic model holding an ordered provider-slot `chain`
+  (baked: direct Anthropic API → Claude SDK → OpenRouter; the legacy
+  `default` / `fallback` keys still load, as the Claude SDK and OpenRouter
+  slots of a two-slot chain), the `failover` policy, and the `vision` binding (the model
   answering `ask_image` questions for text-only transports)
 - `ProviderSlotConfig` — one slot's binding of all three levels
   (`level1`, `level2`, `level3`)
@@ -102,19 +104,23 @@ pre-rework flat `level1..level5` shape.
 
 ## Baked defaults
 
-Two provider slots, three levels each; level 1 works out of the box:
+Three provider slots in chain order (direct Anthropic API → Claude SDK →
+OpenRouter), three levels each:
 
 | Slot / level | Identifier | `max_tokens` |
 |--------------|------------|--------------|
-| `default.level1` | `claudeSDK-haiku` | — |
-| `default.level2` | `claudeSDK-opus` | — |
-| `default.level3` | `claudeSDK-claude-fable-5` | — |
-| `fallback.level1` | `openrouter-deepseek/deepseek-v4-flash-20260731` | 16 384 |
-| `fallback.level2` | `openrouter-deepseek/deepseek-v4-flash-20260731` (xhigh reasoning) | 65 536 |
-| `fallback.level3` | `openrouter-deepseek/deepseek-v4-pro-0813` | 131 072 |
+| `chain[0]` (`default`) `.level1` | `anthropic-claude-haiku-5-5` | — |
+| `chain[0]` (`default`) `.level2` | `anthropic-claude-opus-5-5` | — |
+| `chain[0]` (`default`) `.level3` | `anthropic-claude-fable-5` | — |
+| `chain[1]` (`fallback`) `.level1` | `claudeSDK-haiku` | — |
+| `chain[1]` (`fallback`) `.level2` | `claudeSDK-opus` | — |
+| `chain[1]` (`fallback`) `.level3` | `claudeSDK-claude-fable-5` | — |
+| `chain[2].level1` | `openrouter-deepseek/deepseek-v4-flash-20260731` | 16 384 |
+| `chain[2].level2` | `openrouter-deepseek/deepseek-v4-flash-20260731` (xhigh reasoning) | 65 536 |
+| `chain[2].level3` | `openrouter-deepseek/deepseek-v4-pro-0813` | 131 072 |
 | `vision` | `openrouter-deepseek/deepseek-v4-flash-vision-exp` | 8 192 |
 
-The Claude SDK levels deliberately carry no `max_tokens` (the SDK has no
+The Anthropic API and Claude SDK levels carry no `max_tokens`; the Claude SDK levels deliberately so (the SDK has no
 per-response cap; the value could only become an advisory `task_budget`).
 Failover between the slots is handled by
 [`robotsix_llmio.core.failover`](../core/index.md) — after

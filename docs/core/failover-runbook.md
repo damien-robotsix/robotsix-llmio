@@ -59,7 +59,7 @@ per-attempt span names matter: `llmio.attempt.primary` for a
 
 A single request attempts its active slot and cascades down the tier chain,
 trying **each slot at most once** — the cap `_max_slot_switches(len(chain))`
-(`len(chain) - 1`; `1` for a two-slot chain) in `core/failover.py`. This is
+(`len(chain) - 1`; `2` for the baked three-slot chain) in `core/failover.py`. This is
 the mechanism that removes the dominant duplicate-prompt replay cost: a
 doomed request can never ping-pong between slots re-sending the full prompt
 on each hop, so per-request churn spend is bounded to one attempt per slot.
@@ -78,20 +78,20 @@ its active slot and performs **zero** slot switches.
 
 | Attribute (run span) | Meaning | Expected |
 | --- | --- | --- |
-| `llmio.failover.max_slot_switches` | the cap in force | always `1` |
-| `llmio.failover.slot_switches` | slot switches this request | `0` (no switch) or `1` (one escalation) |
-| `llmio.failover.activated` | request routed to the fallback slot | `true` only when a switch happened |
+| `llmio.failover.max_slot_switches` | the cap in force | `len(chain) - 1` (`2` for the baked three-slot chain) |
+| `llmio.failover.slot_switches` | slot switches this request | `0` (no switch) up to the cap (one escalation per later slot) |
+| `llmio.failover.activated` | request routed to a failover slot | `true` only when a switch happened |
 
-Watch the rate of `slot_switches == 1` (equivalently `activated == true`):
+Watch the rate of `slot_switches >= 1` (equivalently `activated == true`):
 a sustained rise means the primary slot is degraded and requests are
-leaning on the fallback. A value above `1` is impossible and signals a
-regression of the cap itself.
+leaning on the later slots. A value above `max_slot_switches` is
+impossible and signals a regression of the cap itself.
 
 ### Troubleshooting
 
 - **Switches look higher than expected across a window:** a per-request
-  value never exceeds `1`; a high *aggregate* is many distinct requests
-  each switching once — look to the primary slot's health
+  value never exceeds `max_slot_switches`; a high *aggregate* is many
+  distinct requests each cascading — look to the primary slot's health
   (`llmio.attempt.primary` failures), not the cap.
 - **No fallback ever happens on a real outage:** confirm the caller did
   not pass `failover_enabled=False`, which disables the single permitted

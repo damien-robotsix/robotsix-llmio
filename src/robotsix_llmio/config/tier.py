@@ -7,13 +7,16 @@ The canonical path for tier resolution is :meth:`TierConfig.for_level`.
 binding all three capability levels. Position 0 is used in normal operation;
 later positions are failover targets, in order. The baked chain is:
 
-- position 0 (legacy alias ``default``) — Anthropic via the Claude SDK
-  subscription — haiku / opus / claude-fable-5.
-- position 1 (legacy alias ``fallback``) — DeepSeek via OpenRouter —
-  flash / flash / pro.
+- position 0 — Anthropic via the direct Messages API (spends the Team
+  subscription's API credit first) — claude-haiku-5-5 / claude-opus-5-5 /
+  claude-fable-5, mirroring the Claude SDK bindings.
+- position 1 — Anthropic via the Claude SDK subscription seat —
+  haiku / opus / claude-fable-5.
+- position 2 — DeepSeek via OpenRouter (last resort) — flash / flash / pro.
 
 The legacy two-slot shape (``default`` / ``fallback`` keys) is migrated onto
-the chain by a validator, so persisted configs keep loading.
+a two-slot chain (Claude SDK, then OpenRouter, by default) by a validator, so
+persisted configs keep loading.
 
 Capability levels never fall back to one another: a level-2 task is a
 level-2 task on whichever provider slot is active. Failover switches the
@@ -152,6 +155,22 @@ class TierLevelConfig(BaseModel):
                 f"{self.model!r}. Known prefixes: {known}."
             )
         return self
+
+
+# --------------------------------------------------------------------------- #
+#  Baked defaults — anthropic slot (direct Anthropic Messages API)            #
+# --------------------------------------------------------------------------- #
+
+# Chain position 0: the direct Messages API spends the Team subscription's
+# monthly API dollar credit before the subscription seat (Claude SDK, next
+# slot) and OpenRouter (last resort). Model ids mirror the Claude SDK levels
+# below: ``haiku`` / ``opus`` aliases pinned to their concrete ids, and the
+# same ``claude-fable-5`` at level 3.
+ANTHROPIC_LEVEL1 = TierLevelConfig(model="anthropic-claude-haiku-5-5")
+
+ANTHROPIC_LEVEL2 = TierLevelConfig(model="anthropic-claude-opus-5-5")
+
+ANTHROPIC_LEVEL3 = TierLevelConfig(model="anthropic-claude-fable-5")
 
 
 # --------------------------------------------------------------------------- #
@@ -325,6 +344,15 @@ class ProviderSlotConfig(BaseModel):
         raise ValueError(f"`level` must be 1, 2, or 3, got {level!r}")
 
 
+def _anthropic_slot() -> ProviderSlotConfig:
+    """Fresh copy of the baked direct-Anthropic (Messages API) slot."""
+    return ProviderSlotConfig(
+        level1=ANTHROPIC_LEVEL1.model_copy(deep=True),
+        level2=ANTHROPIC_LEVEL2.model_copy(deep=True),
+        level3=ANTHROPIC_LEVEL3.model_copy(deep=True),
+    )
+
+
 def _default_slot() -> ProviderSlotConfig:
     """Fresh copy of the baked default (Anthropic / Claude SDK) slot."""
     return ProviderSlotConfig(
@@ -466,7 +494,19 @@ class FailoverConfig(BaseModel):
 
 
 def _default_chain() -> list[ProviderSlotConfig]:
-    """Fresh copy of the baked provider chain (default slot, then fallback)."""
+    """Fresh copy of the baked provider chain.
+
+    Direct Anthropic API, then the Claude SDK slot, then OpenRouter.
+    """
+    return [_anthropic_slot(), _default_slot(), _fallback_slot()]
+
+
+def _legacy_chain() -> list[ProviderSlotConfig]:
+    """Baked slots backing the legacy ``default`` / ``fallback`` keys.
+
+    Keeps the legacy shape's meaning stable: ``default`` is the Claude SDK
+    slot and ``fallback`` the OpenRouter slot.
+    """
     return [_default_slot(), _fallback_slot()]
 
 
@@ -478,14 +518,16 @@ class TierConfig(BaseModel):
     later position is the next provider to cascade to while failover is
     active. Any number of slots (>= 1) is supported.
 
-    All fields are optional: the baked chain is Anthropic via the Claude SDK
-    (position 0) then DeepSeek via OpenRouter (position 1), so
-    ``TierConfig()`` yields the fully baked configuration.
+    All fields are optional: the baked chain is Anthropic via the direct
+    Messages API (position 0), Anthropic via the Claude SDK (position 1),
+    then DeepSeek via OpenRouter (position 2), so ``TierConfig()`` yields the
+    fully baked configuration.
 
     The legacy two-slot shape (top-level ``default`` / ``fallback`` keys) is
     still accepted and migrated onto the chain — ``default`` becomes position
-    0 and ``fallback`` position 1; an omitted legacy key keeps its baked
-    slot. Example YAML/JSON (legacy shape)::
+    0 and ``fallback`` position 1 of a two-slot chain; an omitted legacy
+    key keeps its baked slot (Claude SDK / OpenRouter respectively).
+    Example YAML/JSON (legacy shape)::
 
         {"default": {"level1": {...}, "level2": {...}, "level3": {...}}}
 
@@ -506,9 +548,10 @@ class TierConfig(BaseModel):
         description=(
             "Ordered provider-slot chain. Position 0 is used in normal "
             "operation; later positions are cascaded to, in order, while "
-            "failover is active. Baked: Anthropic via the Claude SDK "
-            "(haiku / opus / claude-fable-5), then DeepSeek via OpenRouter "
-            "(flash / flash / pro)."
+            "failover is active. Baked: Anthropic via the direct Messages "
+            "API (claude-haiku-5-5 / claude-opus-5-5 / claude-fable-5), then "
+            "Anthropic via the Claude SDK (haiku / opus / claude-fable-5), "
+            "then DeepSeek via OpenRouter (flash / flash / pro)."
         ),
     )
     failover: FailoverConfig = Field(
@@ -546,7 +589,7 @@ class TierConfig(BaseModel):
                 f"{legacy!r} with an explicit 'chain'; use one shape only."
             )
         migrated = {k: v for k, v in data.items() if k not in PROVIDER_SLOTS}
-        baked = _default_chain()
+        baked = _legacy_chain()
         migrated["chain"] = [
             data.get(name, baked[index]) for index, name in enumerate(PROVIDER_SLOTS)
         ]

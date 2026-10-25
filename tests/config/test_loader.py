@@ -7,6 +7,7 @@ import pytest
 from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
 from robotsix_llmio.config.tier import (
     DEFAULT_LEVEL2,
+    DEFAULT_LEVEL3,
     FALLBACK_LEVEL1,
     FALLBACK_LEVEL3,
     TierConfig,
@@ -34,19 +35,36 @@ def test_empty_dict_returns_baked_defaults():
 def test_override_one_level_keeps_rest_baked():
     cfg = load_tier_config({"default": {"level2": {"model": "claudeSDK-sonnet"}}})
     assert cfg.default.level2.model == "claudeSDK-sonnet"
+    # Legacy ``default`` is the Claude SDK slot, ``fallback`` OpenRouter.
     assert cfg.default.level1.model == "claudeSDK-haiku"
     assert cfg.fallback.level1.model == FALLBACK_LEVEL1.model
+    assert len(cfg.chain) == 2
 
 
 def test_field_merge_preserves_baked_siblings():
     """Overriding one field of a level keeps that level's other baked fields."""
-    cfg = load_tier_config(
-        {"fallback": {"level3": {"model": "openrouter-deepseek/deepseek-v4-pro"}}}
-    )
-    assert cfg.fallback.level3.model == "openrouter-deepseek/deepseek-v4-pro"
-    # provider_kwargs and max_tokens come from the baked FALLBACK_LEVEL3.
+    cfg = load_tier_config({"fallback": {"level3": {"max_tokens": 4096}}})
+    assert cfg.fallback.level3.max_tokens == 4096
+    # Legacy ``fallback`` keeps targeting the OpenRouter slot.
+    assert cfg.fallback.level3.model == FALLBACK_LEVEL3.model
     assert cfg.fallback.level3.provider_kwargs == FALLBACK_LEVEL3.provider_kwargs
-    assert cfg.fallback.level3.max_tokens == FALLBACK_LEVEL3.max_tokens
+    # Untouched legacy ``default`` keeps the baked Claude SDK slot.
+    assert cfg.default.level3.model == DEFAULT_LEVEL3.model
+
+
+def test_legacy_keys_match_schema_migration():
+    """The loader and TierConfig give the legacy keys the same meaning."""
+    override = {"level1": {"model": "claudeSDK-sonnet"}}
+    loaded = load_tier_config({"fallback": override})
+    assert loaded.fallback.level1.model == "claudeSDK-sonnet"
+    schema = TierConfig.model_validate({"fallback": loaded.fallback.model_dump()})
+    assert loaded.chain == schema.chain
+    assert [s.level2.provider for s in loaded.chain] == ["claudeSDK", "openrouter"]
+
+
+def test_failover_only_keeps_baked_three_slot_chain():
+    cfg = load_tier_config({"failover": {"window_seconds": 120}})
+    assert cfg.chain == TierConfig().chain
 
 
 def test_failover_merges_field_by_field():
@@ -118,7 +136,7 @@ def test_reexport_from_core_package():
 
 def test_default_level2_is_opus():
     """The loader and the schema agree on the baked workhorse binding."""
-    assert load_tier_config({}).default.level2 == DEFAULT_LEVEL2
+    assert load_tier_config({}).chain[1].level2 == DEFAULT_LEVEL2
 
 
 def test_vision_merges_field_by_field():
