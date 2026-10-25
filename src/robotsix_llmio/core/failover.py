@@ -1,19 +1,21 @@
-"""Provider failover — automatic default→fallback slot switching.
+"""Provider failover — automatic cascade down the ordered provider-slot chain.
 
-Capability levels never fall back to one another. When the ``default``
-provider slot (baked: Anthropic via the Claude SDK) fails in a
-provider-shaped way, calls run the *same level* on the ``fallback`` slot
-(baked: DeepSeek via OpenRouter) instead:
+Capability levels never fall back to one another. When a provider slot of
+:attr:`TierConfig.chain` fails in a provider-shaped way, calls run the
+*same level* on the next slot of the chain instead (position 0, then 1, then
+2, …; the legacy names ``default`` / ``fallback`` alias positions 0 / 1):
 
 - **Per call**: a provider-shaped failure on the active slot retries the
-  call once on the other slot, so a single request survives a provider
-  outage.
-- **Sticky window**: after ``failure_threshold`` consecutive provider-shaped
-  failures on the ``default`` slot (a provider-wide exhaustion arms it
-  immediately), the tracker routes *all* calls straight to ``fallback`` for
-  ``window_seconds`` (default 15 minutes), skipping the doomed default
-  attempt. When the window expires the next call probes ``default`` again; a
-  still-broken default re-arms a fresh window. When an exhaustion error
+  call on the next slot, cascading until a slot succeeds or every slot of
+  the chain has been tried once, so a single request survives provider
+  outages. The last slot's error propagates when the chain is exhausted.
+- **Sticky windows**: every slot except the last tracks its own health.
+  After ``failure_threshold`` consecutive provider-shaped failures on a slot
+  (a provider-wide exhaustion arms it immediately), the tracker skips that
+  slot for ``window_seconds`` (default 15 minutes) and routes calls straight
+  to the next slot whose window is not armed. When a window expires the next
+  call probes that slot again; a still-broken slot re-arms a fresh,
+  exponentially backed-off window. When an exhaustion error
   names its quota reset ("resets 1:10pm (UTC)", "resets Sep 5, 7pm (UTC)"),
   the window arms until that time instead (clamped, with a little slack) —
   no probing a provider that said when it comes back.
@@ -38,11 +40,12 @@ import threading
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel
 
 from robotsix_llmio.config.tier import (
+    PROVIDER_SLOTS,
     FailoverConfig,
     ProviderSlotName,
     TierConfig,
@@ -82,16 +85,22 @@ _ATTR_BACKOFF_SECONDS = "llmio.failover.backoff_seconds"
 _ATTR_COST_GUARD_BLOCKED = "llmio.failover.cost_guard_blocked"
 _ATTR_COST_GUARD_REASON = "llmio.failover.cost_guard_reason"
 
-#: Hard cap on provider-slot switches within a SINGLE request: a request may
-#: try its active slot and fail over to the other slot AT MOST once. This
-#: bounds per-request churn so a doomed request can never ping-pong between
-#: slots, multiplying spend on duplicate prompts.
-_MAX_SLOT_SWITCHES: int = 1
+
+def _max_slot_switches(chain_length: int) -> int:
+    """Hard cap on provider-slot switches within a SINGLE request.
+
+    A request cascades through the chain trying each slot AT MOST once, so it
+    switches slots at most ``chain_length - 1`` times (exactly once for the
+    legacy two-slot chain). This bounds per-request churn so a doomed request
+    can never ping-pong between slots, multiplying spend on duplicate prompts.
+    """
+    return max(chain_length - 1, 0)
+
 
 # Per-attempt span names, chosen by slot so cost/observability reviews are not
-# misled: a primary-tier (``slot=default``) success is NOT a failover, so it
-# gets a span name without "failover" in it; the failover name is reserved for
-# genuine escalations (``slot=fallback``).
+# misled: a primary-tier (chain position 0, ``slot=default``) success is NOT a
+# failover, so it gets a span name without "failover" in it; the failover name
+# is reserved for genuine escalations (any later chain position).
 _SPAN_PRIMARY_ATTEMPT = "llmio.attempt.primary"
 _SPAN_FAILOVER_ATTEMPT = "llmio.failover.attempt"
 
@@ -287,8 +296,65 @@ def _record_backoff_span(reattempt_count: int, window_seconds: float) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _slot_index(slot: ProviderSlotName) -> int:
+    """Map a slot reference (chain index or legacy alias) to its chain index."""
+    if isinstance(slot, str):
+        return PROVIDER_SLOTS.index(slot)
+    return slot
+
+
+def _slot_label(index: int) -> ProviderSlotName:
+    """Return the public label for chain position *index*.
+
+    The first two positions keep their legacy names (``"default"`` /
+    ``"fallback"``) so two-slot consumers — status UIs, span filters on
+    ``llmio.failover.slot`` — see exactly what they saw before the chain was
+    generalised; deeper positions are reported by their integer index.
+    """
+    if index < len(PROVIDER_SLOTS):
+        return cast(ProviderSlotName, PROVIDER_SLOTS[index])
+    return index
+
+
+class _SlotHealth:
+    """Mutable per-slot health state. Guarded by the tracker's lock."""
+
+    __slots__ = (
+        "consecutive_failures",
+        "reattempt_count",
+        "until_monotonic",
+        "until_wall",
+    )
+
+    def __init__(self) -> None:
+        self.consecutive_failures = 0
+        #: Monotonic deadline until which calls skip this slot.
+        self.until_monotonic = 0.0
+        #: Wall-clock twin of the deadline, for status display only.
+        self.until_wall: datetime | None = None
+        #: Number of times this slot's window has armed since its last
+        #: success. 1 after the first arm, incrementing per re-arm; drives the
+        #: exponential backoff that delays re-probing a persistently degraded
+        #: slot. Reset to 0 whenever the slot succeeds.
+        self.reattempt_count = 0
+
+    def armed(self, now: float) -> bool:
+        return now < self.until_monotonic
+
+
 class ProviderFailoverTracker:
-    """Track default-slot health and route calls between provider slots.
+    """Track per-slot health and route calls down the provider chain.
+
+    Every slot of the ordered chain (see :attr:`TierConfig.chain`) has its
+    own failure streak and failover window. New calls resolve against the
+    *first* slot whose window is not armed, so failures cascade down the
+    chain — position 0, then 1, then 2, … — and calls climb back up as each
+    earlier slot's window expires (the next call then probes it). The last
+    slot never arms: there is nothing further to cascade to, so its failures
+    only update the last-failure status fields.
+
+    With a two-slot chain this is exactly the historic ``default`` /
+    ``fallback`` behaviour.
 
     Thread-safe: consumers run agents from worker threads and event loops
     concurrently, and status reads come from web handlers.
@@ -297,36 +363,77 @@ class ProviderFailoverTracker:
     def __init__(self, config: FailoverConfig | None = None) -> None:
         self._lock = threading.Lock()
         self._config = config if config is not None else FailoverConfig()
-        self._consecutive_failures = 0
-        #: Monotonic deadline until which calls route to the fallback slot.
-        self._failover_until_monotonic = 0.0
-        #: Wall-clock twin of the deadline, for status display only.
-        self._failover_until_wall: datetime | None = None
+        #: Length of the chain being routed, adopted via :meth:`configure`.
+        #: ``None`` until a chain is known; the legacy two-slot shape is
+        #: assumed for arming decisions in that case.
+        self._chain_length: int | None = None
+        self._health: dict[int, _SlotHealth] = {}
         self._last_failure_at: datetime | None = None
         self._last_failure_reason: str | None = None
-        #: Number of times the window has armed since the last default-slot
-        #: success. 1 after the first arm, incrementing per re-arm; drives the
-        #: exponential backoff that delays re-probing a persistently degraded
-        #: primary. Reset to 0 whenever the default slot succeeds.
-        self._reattempt_count = 0
 
     # -- routing ------------------------------------------------------------
 
-    def configure(self, config: FailoverConfig) -> None:
-        """Adopt *config* as the active threshold + window policy."""
+    def configure(
+        self, config: FailoverConfig, chain_length: int | None = None
+    ) -> None:
+        """Adopt *config* as the active threshold + window policy.
+
+        *chain_length*, when given, is the number of slots in the routed
+        chain: it bounds :meth:`active_slot` and decides which slot is last
+        (and therefore never arms).
+        """
         with self._lock:
             self._config = config
+            if chain_length is not None:
+                self._chain_length = chain_length
 
-    def active_slot(self, now: float | None = None) -> ProviderSlotName:
-        """Return the slot new calls should resolve against."""
+    def _health_locked(self, index: int) -> _SlotHealth:
+        health = self._health.get(index)
+        if health is None:
+            health = self._health[index] = _SlotHealth()
+        return health
+
+    def _active_index_locked(self, now: float, chain_length: int | None) -> int:
+        """First chain position whose window is not armed. Caller holds lock."""
+        if chain_length is None:
+            chain_length = self._chain_length
+        index = 0
+        while (health := self._health.get(index)) is not None and health.armed(now):
+            index += 1
+        if chain_length is not None:
+            index = min(index, chain_length - 1)
+        return index
+
+    def active_index(
+        self, now: float | None = None, chain_length: int | None = None
+    ) -> int:
+        """Return the zero-based chain position new calls should start on.
+
+        *chain_length* clamps the result to the last slot of the routed
+        chain (defaults to the length adopted via :meth:`configure`).
+        """
         if now is None:
             now = time.monotonic()
         with self._lock:
-            if now < self._failover_until_monotonic:
-                return "fallback"
-            return "default"
+            return self._active_index_locked(now, chain_length)
+
+    def active_slot(
+        self, now: float | None = None, chain_length: int | None = None
+    ) -> ProviderSlotName:
+        """Return the slot new calls should resolve against.
+
+        Positions 0 and 1 are reported by their legacy names (``"default"``
+        / ``"fallback"``), deeper positions by their integer index.
+        """
+        return _slot_label(self.active_index(now, chain_length))
 
     # -- health recording ---------------------------------------------------
+
+    def _is_last_locked(self, index: int) -> bool:
+        chain_length = self._chain_length
+        if chain_length is None:
+            chain_length = len(PROVIDER_SLOTS)
+        return index >= chain_length - 1
 
     def record_failure(
         self,
@@ -337,47 +444,55 @@ class ProviderFailoverTracker:
     ) -> None:
         """Record a provider-shaped failure on *slot*.
 
-        Only ``default``-slot failures drive routing: exhaustion arms the
-        failover window immediately, other failures arm it once
-        ``failure_threshold`` consecutive ones accumulate. Fallback-slot
-        failures update the last-failure fields for status display only —
-        the window governs the return to ``default``, not fallback health.
+        Exhaustion arms that slot's failover window immediately, other
+        failures arm it once ``failure_threshold`` consecutive ones
+        accumulate; while armed, calls cascade to the next slot. Failures on
+        the last slot of the chain update the last-failure fields for status
+        display only — there is nowhere further to cascade, and the earlier
+        slots' windows govern the climb back up the chain.
         """
         if now is None:
             now = time.monotonic()
         if wall_now is None:
             wall_now = datetime.now(UTC)
 
+        index = _slot_index(slot)
         reason = f"{type(exc).__name__}: {exc}"[:500]
         with self._lock:
             self._last_failure_at = wall_now
             self._last_failure_reason = reason
-            if slot != "default":
+            if self._is_last_locked(index):
                 return
+            health = self._health_locked(index)
 
             if _is_exhaustion(exc):
-                self._handle_exhaustion_locked(exc, now, wall_now, reason)
+                self._handle_exhaustion_locked(
+                    health, index, exc, now, wall_now, reason
+                )
                 return
 
-            self._consecutive_failures += 1
-            if self._consecutive_failures >= self._config.failure_threshold:
-                self._arm_locked(now, wall_now)
+            health.consecutive_failures += 1
+            if health.consecutive_failures >= self._config.failure_threshold:
+                window = self._arm_locked(health, now, wall_now)
                 log.warning(
-                    "default provider slot failed %d consecutive times — "
+                    "provider slot=%s failed %d consecutive times — "
                     "failover armed for %.0fs: %s",
+                    _slot_label(index),
                     self._config.failure_threshold,
-                    self._config.window_seconds,
+                    window,
                     reason,
                 )
 
     def _handle_exhaustion_locked(
         self,
+        health: _SlotHealth,
+        index: int,
         exc: BaseException,
         now: float,
         wall_now: datetime,
         reason: str,
     ) -> None:
-        """Arm the failover window for a provider-wide exhaustion.
+        """Arm *health*'s failover window for a provider-wide exhaustion.
 
         Caller holds the lock. A parsed quota-reset hint arms the window until
         that time (plus slack, clamped to :data:`_MAX_RESET_WINDOW_SECONDS` and
@@ -396,75 +511,73 @@ class ProviderFailoverTracker:
         # A parsed reset hint is a KNOWN recovery time — never grow or jitter
         # it with reattempt backoff (that would probe before the quota is
         # back, or park the fleet past it). Backoff applies only to the fixed
-        # window, which is the degraded-primary churn this caps.
-        self._arm_locked(now, wall_now, window=window, backoff=hinted is None)
+        # window, which is the degraded-slot churn this caps.
+        applied = self._arm_locked(
+            health, now, wall_now, window=window, backoff=hinted is None
+        )
         log.warning(
-            "default provider slot exhausted — failover armed for %.0fs%s: %s",
-            window,
-            " (until the hinted quota reset)" if hinted is not None else "",
+            "provider slot=%s exhausted — failover armed for %.0fs: %s",
+            _slot_label(index),
+            applied,
             reason,
         )
 
     def record_success(self, slot: ProviderSlotName) -> None:
         """Record a success on *slot*.
 
-        A ``default``-slot success clears the failure streak and any armed
-        window (the provider is demonstrably healthy again). Fallback-slot
-        successes change nothing — the window alone decides when calls
-        return to ``default``.
+        A success clears that slot's failure streak and any armed window (the
+        provider is demonstrably healthy again) and forgets its backoff
+        escalation. Other slots are untouched — an earlier slot's window
+        alone decides when calls climb back to it.
         """
-        if slot != "default":
-            return
+        index = _slot_index(slot)
         with self._lock:
-            self._consecutive_failures = 0
-            self._failover_until_monotonic = 0.0
-            self._failover_until_wall = None
-            # The primary is healthy again — forget the backoff escalation so
-            # the next degradation starts from the base window.
-            self._reattempt_count = 0
+            self._health.pop(index, None)
 
     def _arm_locked(
         self,
+        health: _SlotHealth,
         now: float,
         wall_now: datetime,
         window: float | None = None,
         backoff: bool = True,
-    ) -> None:
-        """Arm the failover window. Caller holds the lock.
+    ) -> float:
+        """Arm *health*'s failover window and return its length.
 
-        The first arming since the last default-slot success uses *window*
-        (or the configured ``window_seconds``) unchanged. Each subsequent
-        re-arm — a still-degraded default that failed its probe after the
-        window expired — grows the window with exponential backoff and jitter
-        (see :meth:`_backoff_window`) when *backoff* is true, so a
-        persistently broken primary is re-probed exponentially less often
+        Caller holds the lock. The first arming since the slot's last success
+        uses *window* (or the configured ``window_seconds``) unchanged. Each
+        subsequent re-arm — a still-degraded slot that failed its probe after
+        the window expired — grows the window with exponential backoff and
+        jitter (see :meth:`_backoff_window`) when *backoff* is true, so a
+        persistently broken slot is re-probed exponentially less often
         instead of churning a doomed attempt every window. Pass
         ``backoff=False`` to honour a deliberate window (e.g. a parsed
         quota-reset hint) verbatim.
         """
         base = self._config.window_seconds if window is None else window
-        if backoff and self._reattempt_count > 0:
-            window = self._backoff_window(base)
+        if backoff and health.reattempt_count > 0:
+            window = self._backoff_window(base, health.reattempt_count)
         else:
             window = base
-        self._failover_until_monotonic = now + window
-        self._failover_until_wall = wall_now + timedelta(seconds=window)
-        self._consecutive_failures = 0
-        self._reattempt_count += 1
-        _record_backoff_span(self._reattempt_count, window)
+        health.until_monotonic = now + window
+        health.until_wall = wall_now + timedelta(seconds=window)
+        health.consecutive_failures = 0
+        health.reattempt_count += 1
+        _record_backoff_span(health.reattempt_count, window)
+        return window
 
-    def _backoff_window(self, base: float) -> float:
+    def _backoff_window(self, base: float, reattempt_count: int) -> float:
         """Exponential-backoff-with-jitter window for a repeated reattempt.
 
-        Caller holds the lock; ``_reattempt_count`` is the number of arms
-        already recorded since the last default success (>= 1 here). The raw
-        window is ``min(base * backoff_base ** reattempt_count, cap)``; jitter
-        is then subtracted multiplicatively so the result lands in
+        Caller holds the lock; *reattempt_count* is the number of arms
+        already recorded on the slot since its last success (>= 1 here). The
+        raw window is ``min(base * backoff_base ** reattempt_count, cap)``;
+        jitter is then subtracted multiplicatively so the result lands in
         ``[raw * (1 - jitter), raw]``.
         """
         cfg = self._config
         raw = min(
-            base * cfg.reattempt_backoff_base**self._reattempt_count,
+            base * cfg.reattempt_backoff_base**reattempt_count,
             cfg.reattempt_backoff_cap_seconds,
         )
         jitter = raw * cfg.reattempt_backoff_jitter * random.random()  # noqa: S311
@@ -473,19 +586,29 @@ class ProviderFailoverTracker:
     # -- status -------------------------------------------------------------
 
     def status(self, now: float | None = None) -> FailoverStatus:
-        """Return a :class:`FailoverStatus` snapshot."""
+        """Return a :class:`FailoverStatus` snapshot.
+
+        ``failover_until`` / ``seconds_remaining`` name the earliest moment
+        calls climb back up the chain (the soonest-expiring window among the
+        armed slots ahead of the active one).
+        """
         if now is None:
             now = time.monotonic()
         with self._lock:
-            active = now < self._failover_until_monotonic
+            index = self._active_index_locked(now, None)
+            ahead = [h for i, h in self._health.items() if i < index and h.armed(now)]
+            soonest = min(ahead, key=lambda h: h.until_monotonic) if ahead else None
+            current = self._health.get(index)
             return FailoverStatus(
-                active_slot="fallback" if active else "default",
-                failover_active=active,
-                failover_until=self._failover_until_wall if active else None,
+                active_slot=_slot_label(index),
+                failover_active=index > 0,
+                failover_until=soonest.until_wall if soonest is not None else None,
                 seconds_remaining=(
-                    self._failover_until_monotonic - now if active else None
+                    soonest.until_monotonic - now if soonest is not None else None
                 ),
-                consecutive_failures=self._consecutive_failures,
+                consecutive_failures=(
+                    current.consecutive_failures if current is not None else 0
+                ),
                 failure_threshold=self._config.failure_threshold,
                 window_seconds=self._config.window_seconds,
                 last_failure_at=self._last_failure_at,
@@ -495,12 +618,9 @@ class ProviderFailoverTracker:
     def reset(self) -> None:
         """Clear all state (useful for tests)."""
         with self._lock:
-            self._consecutive_failures = 0
-            self._failover_until_monotonic = 0.0
-            self._failover_until_wall = None
+            self._health.clear()
             self._last_failure_at = None
             self._last_failure_reason = None
-            self._reattempt_count = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -627,31 +747,42 @@ async def _failover_loop(
     failover_enabled: bool = True,
     what: str = "model call",
 ) -> Any:
-    """Shared failover loop — ``invoke`` adapts sync vs async."""
-    tracker = get_failover_tracker()
-    tracker.configure(tier_config.failover)
+    """Shared failover loop — ``invoke`` adapts sync vs async.
 
-    first: ProviderSlotName = tracker.active_slot()
-    order: list[ProviderSlotName] = [first]
+    Starts on the tracker's active chain position and, on each
+    provider-shaped failure, cascades to the next slot in chain order
+    (wrapping past the end back to the earlier positions), trying every slot
+    at most once. The last attempted slot's error propagates unchanged.
+    """
+    tracker = get_failover_tracker()
+    chain_length = len(tier_config.chain)
+    tracker.configure(tier_config.failover, chain_length=chain_length)
+
+    first = tracker.active_index(chain_length=chain_length)
+    order: list[int] = [first]
     if failover_enabled:
-        order.append("fallback" if first == "default" else "default")
-    # Enforce the one-slot-switch retry cap explicitly: whatever the order
-    # build produced, a single request attempts the active slot plus at most
-    # ``_MAX_SLOT_SWITCHES`` fallbacks — it can never switch slots more than
-    # once, so a doomed request cannot ping-pong between slots.
-    order = order[: 1 + _MAX_SLOT_SWITCHES]
+        order.extend((first + step) % chain_length for step in range(1, chain_length))
+    # Enforce the retry cap explicitly: whatever the order build produced, a
+    # single request attempts each slot at most once — it can never switch
+    # slots more than ``chain_length - 1`` times, so a doomed request cannot
+    # ping-pong between slots.
+    max_switches = _max_slot_switches(chain_length)
+    order = order[: 1 + max_switches]
 
     run_span = get_recording_span()
     if run_span is not None:
-        run_span.set_attribute(_ATTR_MAX_SLOT_SWITCHES, _MAX_SLOT_SWITCHES)
+        run_span.set_attribute(_ATTR_MAX_SLOT_SWITCHES, max_switches)
     slot_switches = 0
+    # Cost guards compare every candidate against the slot the request
+    # started on ("staying put"), so a long cascade cannot ratchet the price
+    # up one tolerable hop at a time.
+    primary_tlc = tier_config.for_level(level, slot=first)
 
-    for attempt_index, slot_name in enumerate(order):
-        tlc = tier_config.for_level(level, slot=slot_name)
+    for attempt_index, slot_index in enumerate(order):
+        slot_name = _slot_label(slot_index)
+        tlc = tier_config.for_level(level, slot=slot_index)
 
-        span_name = (
-            _SPAN_PRIMARY_ATTEMPT if slot_name == "default" else _SPAN_FAILOVER_ATTEMPT
-        )
+        span_name = _SPAN_PRIMARY_ATTEMPT if slot_index == 0 else _SPAN_FAILOVER_ATTEMPT
         with start_span(
             get_tracer(_TRACER_NAME),
             span_name,
@@ -679,7 +810,7 @@ async def _failover_loop(
 
                 provider_shaped = is_provider_shaped(exc)
                 if provider_shaped:
-                    tracker.record_failure(slot_name, exc)
+                    tracker.record_failure(slot_index, exc)
 
                 last_attempt = attempt_index == len(order) - 1
                 if last_attempt or not provider_shaped:
@@ -687,10 +818,13 @@ async def _failover_loop(
 
                 # Cost guard: before spending money retrying on the candidate
                 # slot, refuse the switch when that slot would blow the
-                # per-request ceiling or be materially pricier than this one.
-                candidate_slot = order[attempt_index + 1]
+                # per-request ceiling or be materially pricier than the slot
+                # the request started on.
+                candidate_slot = _slot_label(order[attempt_index + 1])
                 candidate_tlc = tier_config.for_level(level, slot=candidate_slot)
-                refusal = _cost_guard_verdict(tlc, candidate_tlc, tier_config.failover)
+                refusal = _cost_guard_verdict(
+                    primary_tlc, candidate_tlc, tier_config.failover
+                )
                 if refusal is not None:
                     log.warning(
                         "%s: refusing failover slot=%s -> slot=%s: %s",
@@ -709,10 +843,11 @@ async def _failover_loop(
 
                 slot_switches += 1
                 log.warning(
-                    "%s: slot=%s failed with %s — retrying on the other slot",
+                    "%s: slot=%s failed with %s — cascading to slot=%s",
                     what,
                     slot_name,
                     type(exc).__name__,
+                    candidate_slot,
                 )
                 if run_span is not None:
                     run_span.set_attribute(_ATTR_ACTIVATED, True)
@@ -721,7 +856,7 @@ async def _failover_loop(
 
             if span is not None:
                 span.set_attribute(_ATTR_SUCCEEDED, True)
-            tracker.record_success(slot_name)
+            tracker.record_success(slot_index)
             log.info("%s: slot=%s succeeded", what, slot_name)
             return result
 
@@ -749,8 +884,9 @@ def call_with_failover[T](
         level: Capability level (1, 2, or 3). The level never changes
             across attempts — only the provider slot does.
         failover_enabled: When ``True`` (the default), a provider-shaped
-            failure on the active slot retries the same level on the other
-            slot. Pass ``False`` where a caller depends on one specific
+            failure on the active slot retries the same level on the next
+            slot of the chain, cascading until one succeeds or the chain is
+            exhausted. Pass ``False`` where a caller depends on one specific
             provider's behaviour rather than on getting an answer.
         what: Human-readable label for log messages.
 

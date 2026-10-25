@@ -80,13 +80,14 @@ be set to `1.0` (the schema requires `> 1.0`), so the cap is the supported
 way to neutralise growth. The validator also rejects a cap **below**
 `window_seconds`.
 
-### Slot-switch cap (bounded by two slots; disable failover entirely)
+### Slot-switch cap (bounded by the chain length; disable failover entirely)
 
-The per-request slot-switch cap `_MAX_SLOT_SWITCHES = 1` in
-`robotsix_llmio.core.failover` is a hard constant, not a runtime knob. It is
-already the natural maximum: there are exactly two provider slots (`default`,
-`fallback`), so one switch exhausts them — raising the cap would have nothing
-further to switch to, which is why it is not exposed as config.
+The per-request slot-switch cap `_max_slot_switches(len(chain))` in
+`robotsix_llmio.core.failover` (i.e. `len(chain) - 1`) is derived from the
+tier chain, not a runtime knob. It is the natural maximum: each slot is tried
+at most once per request, so `len(chain) - 1` switches exhaust the chain —
+raising the cap would have nothing further to switch to, which is why it is
+not exposed as config.
 
 To remove the *entire* failover attempt (and with it any slot switch), pass
 `failover_enabled=False` to `call_with_failover` / `acall_with_failover` at

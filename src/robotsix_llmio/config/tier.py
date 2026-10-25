@@ -633,5 +633,5 @@ class TierConfig(BaseModel):
         if slot is None:
             from robotsix_llmio.core.failover import get_failover_tracker
 
-            slot = get_failover_tracker().active_slot()
+            slot = get_failover_tracker().active_slot(chain_length=len(self.chain))
         return self.slot(slot).for_level(level)

@@ -20,9 +20,9 @@ from robotsix_llmio.core.failover import (
     _ATTR_MAX_SLOT_SWITCHES,
     _ATTR_SLOT,
     _ATTR_SLOT_SWITCHES,
-    _MAX_SLOT_SWITCHES,
     _SPAN_FAILOVER_ATTEMPT,
     _SPAN_PRIMARY_ATTEMPT,
+    _max_slot_switches,
     acall_with_failover,
     call_with_failover,
     estimate_request_cost,
@@ -329,9 +329,12 @@ def test_fallback_slot_attempt_uses_failover_span_name(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_slot_switch_cap_is_one():
-    """A request attempts the active slot plus at most one fallback."""
-    assert _MAX_SLOT_SWITCHES == 1
+def test_slot_switch_cap_is_one_for_two_slot_chain():
+    """A request attempts each chain slot at most once: one switch for the
+    legacy two-slot chain, ``N - 1`` for an N-slot chain."""
+    assert _max_slot_switches(2) == 1
+    assert _max_slot_switches(3) == 2
+    assert _max_slot_switches(1) == 0
 
 
 def test_request_switches_slots_at_most_once(monkeypatch):
@@ -634,3 +637,200 @@ def test_guard_disabled_by_default_does_not_block():
     )
     assert result == "rescued"
     assert calls == ["claudeSDK-opus", "openrouter-deepseek/pricey"]
+
+
+# --------------------------------------------------------------------------- #
+#  N-slot cascade (>= 3 slots)                                                #
+# --------------------------------------------------------------------------- #
+
+
+def _chain_slot(prefix: str) -> ProviderSlotConfig:
+    return ProviderSlotConfig(
+        level1=TierLevelConfig(model=f"{prefix}-l1"),
+        level2=TierLevelConfig(model=f"{prefix}-l2"),
+        level3=TierLevelConfig(model=f"{prefix}-l3"),
+    )
+
+
+def _chain_cfg(failover: FailoverConfig | None = None, **levels2) -> TierConfig:
+    slots = [
+        _chain_slot("deepseek-direct"),
+        _chain_slot("claudeSDK-sdk"),
+        _chain_slot("openrouter-deepseek/x"),
+    ]
+    for index, tlc in levels2.items():
+        slot = slots[int(index[1:])]
+        slots[int(index[1:])] = slot.model_copy(update={"level2": tlc})
+    return TierConfig(
+        chain=slots,
+        failover=failover
+        if failover is not None
+        else FailoverConfig(failure_threshold=1, window_seconds=900.0),
+    )
+
+
+_S0, _S1, _S2 = "deepseek-direct-l2", "claudeSDK-sdk-l2", "openrouter-deepseek/x-l2"
+
+
+def test_three_slot_cascade_reaches_slot_three(monkeypatch):
+    recorded = _install_span_recorder(monkeypatch)
+    run_span = _RecordingSpan("run", {})
+    monkeypatch.setattr(failover_mod, "get_recording_span", lambda: run_span)
+
+    calls: list[str] = []
+    result = call_with_failover(
+        _factory(
+            {
+                _S0: [httpx.ReadTimeout("down")],
+                _S1: [httpx.ConnectError("down too")],
+                _S2: ["rescued"],
+            },
+            calls,
+        ),
+        tier_config=_chain_cfg(),
+        level=2,
+    )
+    assert result == "rescued"
+    assert calls == [_S0, _S1, _S2]
+    assert [s.attributes[_ATTR_SLOT] for s in recorded] == ["default", "fallback", 2]
+    assert [s.name for s in recorded] == [
+        _SPAN_PRIMARY_ATTEMPT,
+        _SPAN_FAILOVER_ATTEMPT,
+        _SPAN_FAILOVER_ATTEMPT,
+    ]
+    assert run_span.attributes[_ATTR_MAX_SLOT_SWITCHES] == 2
+    assert run_span.attributes[_ATTR_SLOT_SWITCHES] == 2
+
+
+def test_three_slot_exhaustion_raises_last_slot_error():
+    calls: list[str] = []
+    with pytest.raises(httpx.RemoteProtocolError):
+        call_with_failover(
+            _factory(
+                {
+                    _S0: [httpx.ReadTimeout("a")],
+                    _S1: [httpx.ConnectError("b")],
+                    _S2: [httpx.RemoteProtocolError("c")],
+                },
+                calls,
+            ),
+            tier_config=_chain_cfg(),
+            level=2,
+        )
+    # Each slot tried exactly once — no ping-pong.
+    assert calls == [_S0, _S1, _S2]
+
+
+def test_three_slot_windows_route_subsequent_calls_down_the_chain():
+    cfg = _chain_cfg()
+    tracker = get_failover_tracker()
+    calls: list[str] = []
+    call_with_failover(
+        _factory(
+            {_S0: [httpx.ReadTimeout("a")], _S1: [_Exhausted("b")], _S2: ["ok"]},
+            calls,
+        ),
+        tier_config=cfg,
+        level=2,
+    )
+    # Slots 0 and 1 are both armed; the last slot never arms.
+    assert tracker.active_slot() == 2
+    status = tracker.status()
+    assert status.active_slot == 2
+    assert status.failover_active
+
+    calls.clear()
+    result = call_with_failover(
+        _factory({_S2: ["direct"]}, calls), tier_config=cfg, level=2
+    )
+    assert result == "direct"
+    assert calls == [_S2]
+    # Resolution through the config follows the cascade too.
+    assert cfg.for_level(2).model == _S2
+
+
+def test_three_slot_window_expiry_climbs_back_up(monkeypatch):
+    cfg = _chain_cfg(FailoverConfig(failure_threshold=1, window_seconds=100.0))
+    tracker = get_failover_tracker()
+    tracker.configure(cfg.failover, chain_length=3)
+    tracker.record_failure(0, httpx.ReadTimeout("a"), now=0.0)
+    tracker.record_failure(1, httpx.ReadTimeout("b"), now=50.0)
+    assert tracker.active_slot(now=60.0) == 2
+    # Slot 0's window expires first: calls probe position 0 again.
+    assert tracker.active_slot(now=101.0) == "default"
+    tracker.record_failure(0, httpx.ReadTimeout("a again"), now=101.0)
+    # Slot 0 re-armed (backed off); slot 1 still armed until 150.
+    assert tracker.active_slot(now=120.0) == 2
+    # Slot 1 expires before slot 0's backed-off window.
+    assert tracker.active_slot(now=151.0) == "fallback"
+
+
+def test_three_slot_backoff_is_per_slot(monkeypatch):
+    monkeypatch.setattr(failover_mod.random, "random", lambda: 0.0)
+    cfg = FailoverConfig(
+        failure_threshold=1, window_seconds=100.0, reattempt_backoff_base=2.0
+    )
+    tracker = get_failover_tracker()
+    tracker.configure(cfg, chain_length=3)
+    tracker.record_failure(0, httpx.ReadTimeout("a"), now=0.0)
+    tracker.record_failure(0, httpx.ReadTimeout("a"), now=100.0)  # re-arm: 200s
+    # Slot 1's first arm uses the plain window — slot 0's escalation is its own.
+    tracker.record_failure(1, httpx.ReadTimeout("b"), now=100.0)
+    assert tracker.active_slot(now=199.0) == 2
+    assert tracker.active_slot(now=201.0) == "fallback"
+    assert tracker.active_slot(now=301.0) == "default"
+
+
+def test_three_slot_cost_guard_applies_at_each_hop():
+    """The ceiling is checked before every switch — a cheap hop to slot 2
+    proceeds, an expensive hop to slot 3 is refused."""
+    cfg = _chain_cfg(
+        FailoverConfig(failure_threshold=3, max_request_cost_usd=1.0),
+        s1=_priced(_S1, price_completion=1.0, max_tokens=1000),
+        s2=_priced(_S2, price_completion=10.0, max_tokens=1_000_000),
+    )
+    calls: list[str] = []
+    with pytest.raises(FailoverCostGuardError):
+        call_with_failover(
+            _factory(
+                {_S0: [httpx.ReadTimeout("a")], _S1: [httpx.ReadTimeout("b")]},
+                calls,
+            ),
+            tier_config=cfg,
+            level=2,
+        )
+    assert calls == [_S0, _S1]
+
+
+def test_three_slot_ratio_guard_compares_against_starting_slot():
+    """The ratio is measured against the slot the request started on, so a
+    cascade cannot ratchet the price up one tolerable hop at a time."""
+    cfg = _chain_cfg(
+        FailoverConfig(failure_threshold=3, cost_ratio_threshold=2.0),
+        s0=_priced(_S0, price_completion=1.0, max_tokens=1000),
+        s1=_priced(_S1, price_completion=2.0, max_tokens=1000),
+        s2=_priced(_S2, price_completion=3.0, max_tokens=1000),
+    )
+    calls: list[str] = []
+    with pytest.raises(FailoverCostGuardError):
+        call_with_failover(
+            _factory(
+                {_S0: [httpx.ReadTimeout("a")], _S1: [httpx.ReadTimeout("b")]},
+                calls,
+            ),
+            tier_config=cfg,
+            level=2,
+        )
+    assert calls == [_S0, _S1]
+
+
+def test_three_slot_failover_disabled_tries_only_active_slot():
+    calls: list[str] = []
+    with pytest.raises(httpx.ReadTimeout):
+        call_with_failover(
+            _factory({_S0: [httpx.ReadTimeout("a")]}, calls),
+            tier_config=_chain_cfg(),
+            level=2,
+            failover_enabled=False,
+        )
+    assert calls == [_S0]
