@@ -18,7 +18,11 @@ The dict shape mirrors :class:`~robotsix_llmio.config.tier.TierConfig`::
 
 Every key is optional; each per-level dict is merged field-by-field over the
 corresponding baked default, so overriding one field (say ``model``) keeps
-the default's ``provider_kwargs`` and ``max_tokens``. Unknown keys fail
+the default's ``provider_kwargs`` and ``max_tokens``. As with
+:class:`TierConfig`'s legacy-shape migration, supplying either legacy slot
+key yields a two-slot chain whose baked bases are the Claude SDK
+(``default``) and OpenRouter (``fallback``) slots; without them the baked
+three-slot chain is used. Unknown keys fail
 validation loudly (``extra="forbid"`` on the schema) — there is no
 environment-variable overlay.
 """
@@ -29,7 +33,12 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from robotsix_llmio.config.tier import PROVIDER_SLOTS, TierConfig, TierLevel
+from robotsix_llmio.config.tier import (
+    PROVIDER_SLOTS,
+    TierConfig,
+    TierLevel,
+    _legacy_chain,
+)
 from robotsix_llmio.exceptions import RobotsixLLMIOError
 
 # --------------------------------------------------------------------------- #
@@ -62,7 +71,9 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
             yields the fully baked configuration.
 
     Returns:
-        TierConfig: A fully-validated two-slot configuration.
+        TierConfig: A fully-validated configuration — the baked three-slot
+        chain, or a two-slot (Claude SDK / OpenRouter) chain when the legacy
+        ``default`` / ``fallback`` keys are supplied.
 
     Raises:
         TierConfigLoadError: If the merged configuration fails validation —
@@ -86,6 +97,12 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
 
     baked = TierConfig()
     merged: dict[str, Any] = baked.model_dump()
+    if any(slot in config_dict for slot in PROVIDER_SLOTS):
+        # Legacy slot keys keep their legacy meaning — ``default`` is the
+        # Claude SDK slot and ``fallback`` the OpenRouter slot — exactly as
+        # TierConfig's legacy-shape validator migrates them, so an existing
+        # ``{"fallback": ...}`` override never lands on a different provider.
+        merged["chain"] = [slot.model_dump() for slot in _legacy_chain()]
 
     try:
         for index, slot in enumerate(PROVIDER_SLOTS):

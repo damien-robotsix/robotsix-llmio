@@ -133,16 +133,14 @@ class TestYamlRoundTrip:
 
         create_model(level=1, tier_config=cfg)
 
-        # The default slot is untouched by a fallback-slot override, and no
-        # failover is armed — level 1 still resolves the direct Anthropic haiku.
-        mock_get_provider_for_identifier.assert_called_once_with(
-            "anthropic-claude-haiku-5-5"
-        )
-        # The override IS present in the fallback (Claude SDK) slot; the last
-        # (OpenRouter) slot keeps every baked field.
+        # The legacy default slot (Claude SDK) is untouched by a fallback-slot
+        # override, and no failover is armed — level 1 resolves its haiku.
+        mock_get_provider_for_identifier.assert_called_once_with("claudeSDK-haiku")
+        # The override IS present in the legacy fallback (OpenRouter) slot,
+        # which keeps its other baked fields.
         assert cfg.fallback.level1.model == "claudeSDK-sonnet"
-        assert cfg.chain[2].level1.max_tokens == 16384
-        assert cfg.chain[2].level1.provider_kwargs == {
+        assert cfg.fallback.level1.max_tokens == 16384
+        assert cfg.fallback.level1.provider_kwargs == {
             "preferred_provider": "DeepInfra",
             "ignore_providers": ["Wafer"],
         }

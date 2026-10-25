@@ -16,7 +16,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 - `ANTHROPIC_LEVEL1..3` — baked `TierLevelConfig` per level of chain position 0 (direct Anthropic API: claude-haiku-5-5 / claude-opus-5-5 / claude-fable-5)
 - `DEFAULT_LEVEL1..3` — baked `TierLevelConfig` per level of chain position 1 (Claude SDK: haiku / opus / claude-fable-5)
 - `FALLBACK_LEVEL1..3` — baked `TierLevelConfig` per level of chain position 2 (OpenRouter DeepSeek: flash / flash / pro)
-- `TierConfig` — pydantic model holding two provider slots (`default`, `fallback`) plus the `failover` policy
+- `TierConfig` — pydantic model holding an ordered provider-slot `chain` (baked: direct Anthropic API → Claude SDK → OpenRouter; the legacy `default` / `fallback` keys still load) plus the `failover` policy
 - `ProviderSlotConfig` — one slot's binding of all three levels
 - `FailoverConfig` — provider-failover policy (`failure_threshold`, `window_seconds`)
 - `TierConfigLoadError` — raised when tier configuration cannot be loaded

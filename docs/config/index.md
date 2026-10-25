@@ -58,8 +58,10 @@ first hyphen) selects the backend known to `get_provider_for_identifier`:
 
 ### Schema & loader (tier configuration)
 
-- `TierConfig` — pydantic model holding two provider slots (`default`,
-  `fallback`), the `failover` policy, and the `vision` binding (the model
+- `TierConfig` — pydantic model holding an ordered provider-slot `chain`
+  (baked: direct Anthropic API → Claude SDK → OpenRouter; the legacy
+  `default` / `fallback` keys still load, as the Claude SDK and OpenRouter
+  slots of a two-slot chain), the `failover` policy, and the `vision` binding (the model
   answering `ask_image` questions for text-only transports)
 - `ProviderSlotConfig` — one slot's binding of all three levels
   (`level1`, `level2`, `level3`)
