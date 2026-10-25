@@ -212,7 +212,6 @@ def test_on_export_result_hook_reports_outcomes(monkeypatch):
     same way the rest of the offline suite avoids hard-depending on it.
     """
     pytest.importorskip("opentelemetry.exporter.otlp.proto.http.trace_exporter")
-    from opentelemetry.exporter.otlp.proto.http import trace_exporter as _te
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SpanExportResult
 
@@ -232,8 +231,6 @@ def test_on_export_result_hook_reports_outcomes(monkeypatch):
                 else SpanExportResult.FAILURE
             )
 
-        monkeypatch.setattr(_te.OTLPSpanExporter, "export", fake_export)
-
         events: list[tuple] = []
         assert (
             setup_langfuse_tracing(
@@ -252,6 +249,12 @@ def test_on_export_result_hook_reports_outcomes(monkeypatch):
             for p in procs
             if hasattr(getattr(p, "span_exporter", None), "_hook")
         )
+        # Patch ``export`` on the wrapper's *actual* base class rather than on
+        # the imported ``OTLPSpanExporter``: if an earlier test in the same
+        # worker re-imported the exporter module, the two can be distinct
+        # class objects and the patch would silently miss (order-dependent
+        # flake under xdist).
+        monkeypatch.setattr(type(reporting).__mro__[1], "export", fake_export)
 
         behavior["mode"] = "success"
         reporting.export([])
