@@ -91,6 +91,13 @@ openrouter = []
 # the local `claude login` subscription by spawning the `claude` CLI. Requires
 # Node.js + a logged-in `claude` CLI at runtime (not pip-installable).
 claude_sdk = ["claude-agent-sdk>=0.2.97"]
+# Layer 2 (sibling) — direct first-party Anthropic Messages API transport
+# (api.anthropic.com, ANTHROPIC_API_KEY). Pulls the `anthropic` SDK via the
+# pydantic-ai-slim extra; the transport only imports pydantic-ai's Anthropic
+# model/provider, never `anthropic` directly. `anthropic` is capped below 2:
+# anthropic 2.x turned `BetaMessageParam` into a Union, which pydantic-ai
+# 2.55's AnthropicModel still calls as a constructor (TypeError on request).
+anthropic = ["pydantic-ai-slim[anthropic]>=2.53", "anthropic>=1.12.1,<2"]
 # Optional: emit cost/usage onto the active OpenTelemetry span AND export the
 # resulting traces to Langfuse (core.setup_langfuse_tracing). Trace export is
 # pure OTLP — no langfuse SDK needed.
@@ -148,7 +155,10 @@ known_first_party = ["robotsix_llmio"]
 # opentelemetry-api (a transitive dependency of pydantic-ai-slim).  deptry
 # attributes all `opentelemetry.*` imports to opentelemetry-api and cannot
 # detect usage of the sub-namespace packages when they are not installed.
-DEP002 = ["starlette", "anyio", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http"]
+#
+# anthropic is declared in the [anthropic] extra only as a version cap for
+# pydantic-ai's Anthropic model; it is never imported directly.
+DEP002 = ["starlette", "anyio", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http", "anthropic"]
 
 [tool.vulture]
 # Pydantic validators are invoked by the metaclass, never by direct name
