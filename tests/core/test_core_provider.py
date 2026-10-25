@@ -158,9 +158,10 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_build_agent", fake_build_agent)
     p.build_agent(system_prompt="sys")
-    # Default level=1 → default slot's DEFAULT_LEVEL1.model = "claudeSDK-haiku"
+    # Default level=1 → default slot's ANTHROPIC_LEVEL1.model
+    # = "anthropic-claude-haiku-5-5"
     assert p.new_model_calls == [
-        {"model": "haiku", "level": 1},
+        {"model": "claude-haiku-5-5", "level": 1},
     ]
     assert captured["model"] is p.model_obj
     assert captured["http_client"] is p.http_client_obj
@@ -170,8 +171,8 @@ def test_build_agent_calls_new_model_with_model_name(monkeypatch):
 @pytest.mark.parametrize(
     ("level", "expected_model"),
     [
-        (1, "haiku"),
-        (2, "opus"),
+        (1, "claude-haiku-5-5"),
+        (2, "claude-opus-5-5"),
         (3, "claude-fable-5"),
     ],
 )
@@ -267,9 +268,9 @@ def test_build_agent_model_none_still_resolves_from_tier_config(mock_build_agent
     """When ``model=None`` (the default), tier_config resolution works as before."""
     p = _MockProvider()
     p.build_agent(level=1, system_prompt="sys")
-    # Default slot's DEFAULT_LEVEL1.model = "claudeSDK-haiku"
+    # Default slot's ANTHROPIC_LEVEL1.model = "anthropic-claude-haiku-5-5"
     assert p.new_model_calls == [
-        {"model": "haiku", "level": 1},
+        {"model": "claude-haiku-5-5", "level": 1},
     ]
 
 

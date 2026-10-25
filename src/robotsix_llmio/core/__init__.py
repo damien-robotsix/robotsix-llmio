@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from robotsix_llmio.config.factory import create_model
     from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
     from robotsix_llmio.config.tier import (
+        ANTHROPIC_LEVEL1,
+        ANTHROPIC_LEVEL2,
+        ANTHROPIC_LEVEL3,
         DEFAULT_LEVEL1,
         DEFAULT_LEVEL2,
         DEFAULT_LEVEL3,
@@ -108,6 +111,9 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "ANTHROPIC_LEVEL1",
+    "ANTHROPIC_LEVEL2",
+    "ANTHROPIC_LEVEL3",
     "DEFAULT_LEVEL1",
     "DEFAULT_LEVEL2",
     "DEFAULT_LEVEL3",
@@ -273,6 +279,9 @@ _SUBMODULE_ATTRS: dict[str, tuple[str, str]] = {
     "start_span": (".tracing", "start_span"),
     "start_trace": (".tracing", "start_trace"),
     # -- robotsix_llmio.config (full dotted paths)
+    "ANTHROPIC_LEVEL1": ("robotsix_llmio.config.tier", "ANTHROPIC_LEVEL1"),
+    "ANTHROPIC_LEVEL2": ("robotsix_llmio.config.tier", "ANTHROPIC_LEVEL2"),
+    "ANTHROPIC_LEVEL3": ("robotsix_llmio.config.tier", "ANTHROPIC_LEVEL3"),
     "DEFAULT_LEVEL1": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL1"),
     "DEFAULT_LEVEL2": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL2"),
     "DEFAULT_LEVEL3": ("robotsix_llmio.config.tier", "DEFAULT_LEVEL3"),

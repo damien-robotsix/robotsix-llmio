@@ -7,6 +7,7 @@ import pytest
 from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
 from robotsix_llmio.config.tier import (
     DEFAULT_LEVEL2,
+    DEFAULT_LEVEL3,
     FALLBACK_LEVEL1,
     FALLBACK_LEVEL3,
     TierConfig,
@@ -34,19 +35,20 @@ def test_empty_dict_returns_baked_defaults():
 def test_override_one_level_keeps_rest_baked():
     cfg = load_tier_config({"default": {"level2": {"model": "claudeSDK-sonnet"}}})
     assert cfg.default.level2.model == "claudeSDK-sonnet"
-    assert cfg.default.level1.model == "claudeSDK-haiku"
-    assert cfg.fallback.level1.model == FALLBACK_LEVEL1.model
+    assert cfg.default.level1.model == "anthropic-claude-haiku-5-5"
+    assert cfg.fallback.level1.model == "claudeSDK-haiku"
+    assert cfg.chain[2].level1.model == FALLBACK_LEVEL1.model
 
 
 def test_field_merge_preserves_baked_siblings():
     """Overriding one field of a level keeps that level's other baked fields."""
-    cfg = load_tier_config(
-        {"fallback": {"level3": {"model": "openrouter-deepseek/deepseek-v4-pro"}}}
-    )
-    assert cfg.fallback.level3.model == "openrouter-deepseek/deepseek-v4-pro"
-    # provider_kwargs and max_tokens come from the baked FALLBACK_LEVEL3.
-    assert cfg.fallback.level3.provider_kwargs == FALLBACK_LEVEL3.provider_kwargs
-    assert cfg.fallback.level3.max_tokens == FALLBACK_LEVEL3.max_tokens
+    cfg = load_tier_config({"fallback": {"level3": {"max_tokens": 4096}}})
+    assert cfg.fallback.level3.max_tokens == 4096
+    # model comes from the baked DEFAULT_LEVEL3 (chain position 1).
+    assert cfg.fallback.level3.model == DEFAULT_LEVEL3.model
+    # Untouched later slots keep every baked field.
+    assert cfg.chain[2].level3.provider_kwargs == FALLBACK_LEVEL3.provider_kwargs
+    assert cfg.chain[2].level3.max_tokens == FALLBACK_LEVEL3.max_tokens
 
 
 def test_failover_merges_field_by_field():
@@ -118,7 +120,7 @@ def test_reexport_from_core_package():
 
 def test_default_level2_is_opus():
     """The loader and the schema agree on the baked workhorse binding."""
-    assert load_tier_config({}).default.level2 == DEFAULT_LEVEL2
+    assert load_tier_config({}).chain[1].level2 == DEFAULT_LEVEL2
 
 
 def test_vision_merges_field_by_field():

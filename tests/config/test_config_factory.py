@@ -39,18 +39,17 @@ class TestCreateModelHappyPath:
     @pytest.mark.parametrize(
         ("level", "identifier"),
         [
-            (1, "claudeSDK-haiku"),
-            (2, "claudeSDK-opus"),
-            (3, "claudeSDK-claude-fable-5"),
+            (1, "anthropic-claude-haiku-5-5"),
+            (2, "anthropic-claude-opus-5-5"),
+            (3, "anthropic-claude-fable-5"),
         ],
     )
     def test_default_slot_resolution(
         self, level: int, identifier: str, mock_get_provider_for_identifier: MagicMock
     ):
         """With no ``tier_config`` and no failover armed, each level resolves
-        the baked default (Claude SDK) slot. No max_tokens kwarg: the Claude
-        SDK levels carry none, because the SDK has no per-response cap and
-        the value could only become an advisory task_budget (see tier.py)."""
+        the baked default (direct Anthropic API) slot. No max_tokens kwarg:
+        the baked Anthropic levels carry none."""
         result = create_model(level=level)
         mock_get_provider_for_identifier.assert_called_once_with(identifier)
         assert result is mock_get_provider_for_identifier.return_value
@@ -58,15 +57,17 @@ class TestCreateModelHappyPath:
     def test_fallback_slot_resolves_when_failover_armed(
         self, mock_get_provider_for_identifier: MagicMock
     ):
-        """Once the failover tracker arms, the same level resolves the
-        fallback (OpenRouter) slot — max_tokens IS forwarded there (a real
-        per-response cap)."""
+        """Once the failover tracker arms the first two slots, the same level
+        resolves the last (OpenRouter) slot — max_tokens IS forwarded there (a
+        real per-response cap)."""
+        from robotsix_llmio.config.tier import FailoverConfig
         from robotsix_llmio.core.failover import get_failover_tracker
         from robotsix_llmio.exceptions import ProviderExhaustedError
 
-        get_failover_tracker().record_failure(
-            "default", ProviderExhaustedError("out of credits")
-        )
+        tracker = get_failover_tracker()
+        tracker.configure(FailoverConfig(), chain_length=3)
+        for slot in (0, 1):
+            tracker.record_failure(slot, ProviderExhaustedError("out of credits"))
 
         create_model(level=3)
         mock_get_provider_for_identifier.assert_called_once_with(

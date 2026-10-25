@@ -71,33 +71,35 @@ def _slot_with_level1(level1: TierLevelConfig) -> ProviderSlotConfig:
 def test_default_tier_config_bakes_per_level_defaults() -> None:
     cfg = default_tier_config()
 
-    # Default slot: Anthropic via the Claude SDK.
-    assert cfg.for_level(1, slot="default").model == "claudeSDK-haiku"
-    assert cfg.for_level(2, slot="default").model == "claudeSDK-opus"
-    assert cfg.for_level(3, slot="default").model == "claudeSDK-claude-fable-5"
+    # Position 0 (``default``): Anthropic via the direct Messages API.
+    assert cfg.for_level(1, slot="default").model == "anthropic-claude-haiku-5-5"
+    assert cfg.for_level(2, slot="default").model == "anthropic-claude-opus-5-5"
+    assert cfg.for_level(3, slot="default").model == "anthropic-claude-fable-5"
 
-    # Fallback slot: DeepSeek via OpenRouter (flash / flash / pro).
+    # Position 1 (``fallback``): Anthropic via the Claude SDK.
+    assert cfg.for_level(1, slot="fallback").model == "claudeSDK-haiku"
+    assert cfg.for_level(2, slot="fallback").model == "claudeSDK-opus"
+    assert cfg.for_level(3, slot="fallback").model == "claudeSDK-claude-fable-5"
+
+    # Position 2: DeepSeek via OpenRouter (flash / flash / pro).
     assert (
-        cfg.for_level(1, slot="fallback").model
+        cfg.for_level(1, slot=2).model
         == "openrouter-deepseek/deepseek-v4-flash-20260731"
     )
     assert (
-        cfg.for_level(2, slot="fallback").model
+        cfg.for_level(2, slot=2).model
         == "openrouter-deepseek/deepseek-v4-flash-20260731"
     )
-    assert (
-        cfg.for_level(3, slot="fallback").model
-        == "openrouter-deepseek/deepseek-v4-pro-0813"
-    )
+    assert cfg.for_level(3, slot=2).model == "openrouter-deepseek/deepseek-v4-pro-0813"
 
 
 def test_default_tier_config_active_slot_is_default() -> None:
     """With no failover armed, slot-less resolution follows the default slot."""
     cfg = default_tier_config()
 
-    assert cfg.for_level(1).model == "claudeSDK-haiku"
-    assert cfg.for_level(2).model == "claudeSDK-opus"
-    assert cfg.for_level(3).model == "claudeSDK-claude-fable-5"
+    assert cfg.for_level(1).model == "anthropic-claude-haiku-5-5"
+    assert cfg.for_level(2).model == "anthropic-claude-opus-5-5"
+    assert cfg.for_level(3).model == "anthropic-claude-fable-5"
 
 
 # -- get_provider_for_level -------------------------------------------------
@@ -111,9 +113,9 @@ def test_get_provider_for_level_resolves_per_level_identifier(
     assert get_provider_for_level(1) is provider
     assert get_provider_for_level(2) is provider
 
-    # Both default-slot levels resolve claudeSDK identifiers.
-    assert calls[0][0] == "claudeSDK-haiku"
-    assert calls[1][0] == "claudeSDK-opus"
+    # Both default-slot levels resolve direct-Anthropic identifiers.
+    assert calls[0][0] == "anthropic-claude-haiku-5-5"
+    assert calls[1][0] == "anthropic-claude-opus-5-5"
 
 
 def test_get_provider_for_level_merges_provider_kwargs(
@@ -159,12 +161,12 @@ def test_build_agent_for_level_default_level1(
     )
 
     assert handle == "agent-handle"
-    # ClaudeSDK provider resolved from the default slot's level-1 identifier.
-    assert calls[0][0] == "claudeSDK-haiku"
+    # Anthropic provider resolved from the default slot's level-1 identifier.
+    assert calls[0][0] == "anthropic-claude-haiku-5-5"
     # build_agent got level= and the bare level-1 model name.
     call = provider.build_agent_calls[0]
     assert call["level"] == 1
-    assert call["model"] == "haiku"
+    assert call["model"] == "claude-haiku-5-5"
     assert call["system_prompt"] == "cheap task"
     assert call["name"] == "lvl1"
 
@@ -176,11 +178,11 @@ def test_build_agent_for_level_default_level2_opus(
 
     build_agent_for_level(2, system_prompt="workhorse", tools=[], output_type=str)
 
-    # ClaudeSDK provider resolved from the level-2 identifier.
-    assert calls[0][0] == "claudeSDK-opus"
+    # Anthropic provider resolved from the level-2 identifier.
+    assert calls[0][0] == "anthropic-claude-opus-5-5"
     call = provider.build_agent_calls[0]
     assert call["level"] == 2
-    assert call["model"] == "opus"
+    assert call["model"] == "claude-opus-5-5"
 
 
 def test_build_agent_for_level_default_level3(
@@ -190,8 +192,8 @@ def test_build_agent_for_level_default_level3(
 
     build_agent_for_level(3, system_prompt="frontier task", output_type=str)
 
-    # ClaudeSDK provider resolved from the level-3 identifier.
-    assert calls[0][0] == "claudeSDK-claude-fable-5"
+    # Anthropic provider resolved from the level-3 identifier.
+    assert calls[0][0] == "anthropic-claude-fable-5"
     call = provider.build_agent_calls[0]
     assert call["level"] == 3
     assert call["model"] == "claude-fable-5"
@@ -204,8 +206,8 @@ def test_build_agent_for_level_model_override_keeps_provider(
 
     build_agent_for_level(1, model="sonnet", system_prompt="x")
 
-    # Provider still resolved from the level's identifier (claudeSDK).
-    assert calls[0][0] == "claudeSDK-haiku"
+    # Provider still resolved from the level's identifier (anthropic).
+    assert calls[0][0] == "anthropic-claude-haiku-5-5"
     # Only the model name is overridden.
     assert provider.build_agent_calls[0]["model"] == "sonnet"
 
@@ -310,9 +312,9 @@ def test_level_helpers_exported_top_level() -> None:
 
 
 def test_get_provider_for_level_explicit_slot(monkeypatch):
-    """``slot="fallback"`` resolves the fallback binding even while the
-    tracker's active slot is ``default`` — the seam a consumer's failover
-    loop uses for its cross-slot attempt."""
+    """An explicit ``slot`` resolves that chain position's binding even
+    while the tracker's active slot is ``default`` — the seam a consumer's
+    failover loop uses for its cross-slot attempt."""
     from unittest.mock import MagicMock
 
     from robotsix_llmio.core import factory as core_factory
@@ -320,7 +322,7 @@ def test_get_provider_for_level_explicit_slot(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr(core_factory, "get_provider_for_identifier", mock)
 
-    core_factory.get_provider_for_level(2, slot="fallback")
+    core_factory.get_provider_for_level(2, slot=2)
 
     identifier = mock.call_args.args[0]
     assert identifier == FALLBACK_LEVEL2.model
@@ -334,6 +336,6 @@ def test_create_model_explicit_slot(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr(config_factory, "get_provider_for_identifier", mock)
 
-    config_factory.create_model(level=3, slot="fallback")
+    config_factory.create_model(level=3, slot=2)
 
     assert mock.call_args.args[0] == FALLBACK_LEVEL3.model

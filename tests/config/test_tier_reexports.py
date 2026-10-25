@@ -4,6 +4,9 @@ the canonical tier symbols."""
 from __future__ import annotations
 
 from robotsix_llmio.config.tier import (
+    ANTHROPIC_LEVEL1,
+    ANTHROPIC_LEVEL2,
+    ANTHROPIC_LEVEL3,
     DEFAULT_LEVEL1,
     DEFAULT_LEVEL2,
     DEFAULT_LEVEL3,
@@ -45,6 +48,9 @@ def test_core_reexports_schema_types():
 def test_core_reexports_baked_defaults():
     from robotsix_llmio import core
 
+    assert core.ANTHROPIC_LEVEL1 is ANTHROPIC_LEVEL1
+    assert core.ANTHROPIC_LEVEL2 is ANTHROPIC_LEVEL2
+    assert core.ANTHROPIC_LEVEL3 is ANTHROPIC_LEVEL3
     assert core.DEFAULT_LEVEL1 is DEFAULT_LEVEL1
     assert core.DEFAULT_LEVEL2 is DEFAULT_LEVEL2
     assert core.DEFAULT_LEVEL3 is DEFAULT_LEVEL3

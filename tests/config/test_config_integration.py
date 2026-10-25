@@ -58,14 +58,14 @@ class TestLoaderToFactoryChain:
     def test_loaded_level3_resolves_to_claude_sdk(
         self, mock_get_provider_for_identifier: MagicMock
     ) -> None:
-        """The baked default-slot level3 (``claudeSDK-claude-fable-5``)
-        resolves with no max_tokens (Claude SDK levels carry none)."""
+        """The baked default-slot level3 (``anthropic-claude-fable-5``)
+        resolves with no max_tokens (the baked Anthropic levels carry none)."""
         cfg = load_tier_config({})
 
         create_model(level=3, tier_config=cfg)
 
         mock_get_provider_for_identifier.assert_called_once_with(
-            "claudeSDK-claude-fable-5",
+            "anthropic-claude-fable-5",
         )
 
 
@@ -127,22 +127,22 @@ class TestYamlRoundTrip:
         yaml_text = """
         fallback:
           level1:
-            model: "openrouter-deepseek/deepseek-v4-flash-latest"
+            model: "claudeSDK-sonnet"
         """
         cfg = load_tier_config(yaml.safe_load(yaml_text))
 
         create_model(level=1, tier_config=cfg)
 
         # The default slot is untouched by a fallback-slot override, and no
-        # failover is armed — level 1 still resolves claudeSDK-haiku.
-        mock_get_provider_for_identifier.assert_called_once_with("claudeSDK-haiku")
-        # The override IS present in the fallback slot, inheriting the baked
-        # max_tokens and preferred_provider it did not restate.
-        assert (
-            cfg.fallback.level1.model == "openrouter-deepseek/deepseek-v4-flash-latest"
+        # failover is armed — level 1 still resolves the direct Anthropic haiku.
+        mock_get_provider_for_identifier.assert_called_once_with(
+            "anthropic-claude-haiku-5-5"
         )
-        assert cfg.fallback.level1.max_tokens == 16384
-        assert cfg.fallback.level1.provider_kwargs == {
+        # The override IS present in the fallback (Claude SDK) slot; the last
+        # (OpenRouter) slot keeps every baked field.
+        assert cfg.fallback.level1.model == "claudeSDK-sonnet"
+        assert cfg.chain[2].level1.max_tokens == 16384
+        assert cfg.chain[2].level1.provider_kwargs == {
             "preferred_provider": "DeepInfra",
             "ignore_providers": ["Wafer"],
         }

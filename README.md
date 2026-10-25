@@ -6,9 +6,9 @@ LLM provider abstraction — capability levels, cost tracking, tracing.
 Provider-agnostic LLM I/O for [pydantic-ai](https://ai.pydantic.dev) agents,
 with derived per-provider layers that bake in the known-working settings so a
 consumer only ever picks a **level** (1, 2, or 3). Provider redundancy is a
-separate axis: a **default** provider slot (Anthropic via the Claude SDK) and a
-**fallback** slot (DeepSeek via OpenRouter) each bind all three levels, with
-automatic failover between them.
+separate axis: an ordered provider chain — Anthropic via the direct Messages
+API, then Anthropic via the Claude SDK, then DeepSeek via OpenRouter — where
+each slot binds all three levels, with automatic failover down the chain.
 
 This repo is a **library** — imported by other stack packages, no runnable
 service — and follows the
@@ -55,7 +55,8 @@ uv run pytest      # offline suite; live tests are opt-in (pytest -m live)
 from `core.LLMProvider`) that needs **no API key**: it drives the local `claude`
 CLI through the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk),
 so it authenticates with your `claude login` (Claude Code subscription / OAuth)
-credentials. This transport is the baked **default** provider slot:
+credentials. This transport is the baked **second** provider slot (after the
+direct Anthropic Messages API, before OpenRouter):
 `level 1` → `claudeSDK-haiku` (cheap, frequent: monitors, classification),
 `level 2` → `claudeSDK-opus` (workhorse) and `level 3` →
 `claudeSDK-claude-fable-5` (Claude Fable 5, the frontier tier).
@@ -160,11 +161,15 @@ Model selection has two independent axes:
   normal operation; the `fallback` slot takes over automatically while the
   default provider is unhealthy.
 
-| Level | Intended use                                    | `default` slot (Claude SDK) | `fallback` slot (OpenRouter)          |
-|-------|-------------------------------------------------|-----------------------------|---------------------------------------|
-| 1     | Cheap, frequent: monitors, classifiers, summaries | `haiku`                   | `deepseek-v4-flash` (no reasoning)    |
-| 2     | Workhorse: implementing code, main assistant turns | `opus`                   | `deepseek-v4-flash` (xhigh reasoning) |
-| 3     | Frontier: hardest reasoning, long-horizon work  | `claude-fable-5`            | `deepseek-v4-pro`                     |
+| Level | Intended use                                    | Slot 0 (`default`, Anthropic API) | Slot 1 (`fallback`, Claude SDK) | Slot 2 (OpenRouter)                   |
+|-------|-------------------------------------------------|-----------------------------------|---------------------------------|---------------------------------------|
+| 1     | Cheap, frequent: monitors, classifiers, summaries | `claude-haiku-5-5`              | `haiku`                         | `deepseek-v4-flash` (no reasoning)    |
+| 2     | Workhorse: implementing code, main assistant turns | `claude-opus-5-5`              | `opus`                          | `deepseek-v4-flash` (xhigh reasoning) |
+| 3     | Frontier: hardest reasoning, long-horizon work  | `claude-fable-5`                  | `claude-fable-5`                | `deepseek-v4-pro`                     |
+
+The baked order spends the Team subscription's monthly API credit first
+(direct Anthropic API), then the subscription seat (Claude SDK), with
+OpenRouter as the last resort.
 
 Provider slots form an ordered chain (`TierConfig.chain`): position 0 serves
 normal operation and later positions are failover targets, tried in order. The
@@ -201,8 +206,8 @@ immediately) all calls route straight to the fallback for `window_seconds`
 (default 15 minutes) before automatically returning to the default.
 
 A single request cascades down the provider chain, trying each slot **at most
-once** (the active slot, then each later slot in order; the baked two-slot
-chain allows one fallback) — so a doomed request can never ping-pong between slots and
+once** (the active slot, then each later slot in order; the baked three-slot
+chain allows two switches) — so a doomed request can never ping-pong between slots and
 multiply spend on duplicate prompts. When the default slot stays degraded
 across windows, each re-arm backs off exponentially with jitter
 (`window_seconds · reattempt_backoff_base ^ n`, capped at
@@ -269,15 +274,15 @@ binding, lazy-imports the right backend, and returns a ready-to-run agent:
 ```python
 from robotsix_llmio import build_agent_for_level
 
-# Level 1 → Claude SDK (haiku): cheap and frequent.
+# Level 1 → Anthropic API (claude-haiku-5-5): cheap and frequent.
 cheap = build_agent_for_level(1, system_prompt="Classify this.", name="classify")
 
-# Level 2 → Claude SDK (opus): the workhorse.
+# Level 2 → Anthropic API (claude-opus-5-5): the workhorse.
 worker = build_agent_for_level(
     2, system_prompt="Implement this.", tools=[], name="implement"
 )
 
-# Level 3 → Claude SDK (claude-fable-5): frontier tier for the hardest
+# Level 3 → Anthropic API (claude-fable-5): frontier tier for the hardest
 # reasoning and long-horizon work.
 architect = build_agent_for_level(
     3, system_prompt="Design the migration strategy.", name="architect"
@@ -435,7 +440,7 @@ Each span carries these attributes for filtering/grouping:
 
 The enclosing run span additionally carries the retry-cap and backoff telemetry:
 
-- `llmio.failover.max_slot_switches` — The per-request slot-switch cap (`chain length − 1`; always 1 for the baked two-slot chain)
+- `llmio.failover.max_slot_switches` — The per-request slot-switch cap (`chain length − 1`; 2 for the baked three-slot chain)
 - `llmio.failover.slot_switches` — How many times the request actually switched slots (0 up to `chain length − 1`)
 - `llmio.failover.reattempt_count` — Arms since the last default-slot success; drives the exponential backoff (recorded when a window arms)
 - `llmio.failover.backoff_seconds` — The (possibly backed-off) failover window applied before the degraded primary is re-probed

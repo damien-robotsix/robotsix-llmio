@@ -24,6 +24,9 @@ if TYPE_CHECKING:
     from robotsix_llmio.config.factory import create_model
     from robotsix_llmio.config.loader import TierConfigLoadError, load_tier_config
     from robotsix_llmio.config.tier import (
+        ANTHROPIC_LEVEL1,
+        ANTHROPIC_LEVEL2,
+        ANTHROPIC_LEVEL3,
         DEFAULT_LEVEL1,
         DEFAULT_LEVEL2,
         DEFAULT_LEVEL3,
@@ -45,6 +48,9 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "ANTHROPIC_LEVEL1",
+    "ANTHROPIC_LEVEL2",
+    "ANTHROPIC_LEVEL3",
     "DEFAULT_LEVEL1",
     "DEFAULT_LEVEL2",
     "DEFAULT_LEVEL3",
@@ -68,6 +74,9 @@ __all__ = [
 
 _TIER_NAMES = frozenset(
     {
+        "ANTHROPIC_LEVEL1",
+        "ANTHROPIC_LEVEL2",
+        "ANTHROPIC_LEVEL3",
         "DEFAULT_LEVEL1",
         "DEFAULT_LEVEL2",
         "DEFAULT_LEVEL3",
