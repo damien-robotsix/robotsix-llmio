@@ -22,6 +22,18 @@ _SDK_TRANSIENT_NAMES = {
     "ClaudeSDKQueryTimeout",  # our per-call wall-clock cap tripped (stalled run)
 }
 
+# The SDK's wording when a control-protocol request to the CLI subprocess gets
+# no answer within its 60 s window: ``Exception("Control request timeout:
+# initialize")`` (claude_agent_sdk ``_internal/query.py``). It is raised as a
+# BARE ``Exception``, so type-name matching never sees it. Observed on
+# robotsix-chat 2026-10-26 10:01-10:05Z: the deploy host's daily 10:00Z IO
+# storm (PSI io full about 26 %) kept the freshly spawned CLI from answering
+# ``initialize`` in time, every chat turn in the window failed on its FIRST
+# attempt with no retry, and the operator saw "chat is down" while the
+# container was healthy. A re-run a few seconds later succeeds once the host
+# catches up, so this is transient by definition.
+_CONTROL_REQUEST_TIMEOUT_SIGNATURE = "control request timeout"
+
 # The SDK's wording when its agent loop exhausts ``max_turns`` without producing
 # a final answer ("Reached maximum number of turns (N)").
 _TURN_LIMIT_SIGNATURE = "maximum number of turns"
@@ -290,8 +302,22 @@ def is_claude_sdk_transient(exc: BaseException) -> bool:
         return False
     if is_claude_sdk_degenerate_success(exc):
         return True
+    if is_claude_sdk_control_request_timeout(exc):
+        return True
     if _core_is_transient(exc):
         return True
     return any(
         type(cur).__name__ in _SDK_TRANSIENT_NAMES for cur in _walk_cause_chain(exc)
+    )
+
+
+def is_claude_sdk_control_request_timeout(exc: BaseException) -> bool:
+    """Whether *exc* (or a cause) is the SDK's bare ``Control request timeout``.
+
+    Walks the cause chain because the stream layer wraps it in
+    ``ClaudeSDKAPIError`` before the retry loop sees it.
+    """
+    return any(
+        _CONTROL_REQUEST_TIMEOUT_SIGNATURE in str(cur).lower()
+        for cur in _walk_cause_chain(exc)
     )

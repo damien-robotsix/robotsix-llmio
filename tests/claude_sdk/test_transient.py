@@ -87,6 +87,26 @@ def test_plain_value_error_not_transient():
     assert is_claude_sdk_transient(ValueError("nope")) is False
 
 
+def test_control_request_timeout_is_transient():
+    """The SDK raises ``Exception("Control request timeout: initialize")`` as a
+    BARE Exception (claude_agent_sdk ``_internal/query.py``), so the type-name
+    set never matches it. 2026-10-26: every robotsix-chat turn during the deploy
+    host's daily IO storm failed on its first attempt because of that."""
+    bare = Exception("Control request timeout: initialize")
+    assert is_claude_sdk_transient(bare) is True
+
+    # Wrapped the way ``_stream_query`` re-raises it.
+    wrapped = RuntimeError(
+        "Claude Agent SDK transport/process failure (x): "
+        "Control request timeout: initialize"
+    )
+    wrapped.__cause__ = bare
+    assert is_claude_sdk_transient(wrapped) is True
+
+    # A different bare Exception stays non-transient.
+    assert is_claude_sdk_transient(Exception("something else broke")) is False
+
+
 def test_degenerate_success_is_transient_but_not_turn_limit():
     # The upstream SDK collapses a self-contradictory frame
     # (is_error=True, errors=[], subtype="success") into a bare
