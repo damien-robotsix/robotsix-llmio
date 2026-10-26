@@ -128,7 +128,7 @@ constraint-dependencies = ["typing-extensions<4.16.0"]
 
 [tool.uv.sources]
 robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "3672b3c3cd21534419d9233a3c980e140e89b131" }
 
 [tool.uv.audit]
 # CVE-2026-59950 (GHSA-vj7q-gjh5-988w) in mcp 1.27.2, transitively pulled
