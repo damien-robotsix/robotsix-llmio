@@ -7,6 +7,23 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.10.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.2...v0.10.0) (2026-10-26)
+
+
+### Features
+
+* Add a direct Anthropic Messages API transport (anthropic/ subpackage, "anthropic" provider prefix) (20261025T134107Z-add-a-direct-anthropic-messages-api-tran-f572) ([#720](https://github.com/damien-robotsix/robotsix-llmio/issues/720)) ([572c4fc](https://github.com/damien-robotsix/robotsix-llmio/commit/572c4fc4569273fa1b093f02bd0688c58908d12b))
+* Generalise TierConfig to an ordered N-slot provider chain with 2-slot back-compat migration (20261025T134210Z-generalise-tierconfig-to-an-ordered-n-sl-1168) ([#719](https://github.com/damien-robotsix/robotsix-llmio/issues/719)) ([d98c2d1](https://github.com/damien-robotsix/robotsix-llmio/commit/d98c2d1acfde69bb0334498f0e1f014477d99fb2))
+* Rework core/failover.py to cascade through the full provider slot chain (20261025T134210Z-rework-core-failover-py-to-cascade-throu-8657) ([#722](https://github.com/damien-robotsix/robotsix-llmio/issues/722)) ([e81db23](https://github.com/damien-robotsix/robotsix-llmio/commit/e81db230ad1de2477bb779259dc4bf722f708573))
+* Set baked default slot order to anthropic → claudeSDK → openrouter for all capability levels (20261025T134210Z-set-baked-default-slot-order-to-anthropi-5a97) ([#723](https://github.com/damien-robotsix/robotsix-llmio/issues/723)) ([baf15eb](https://github.com/damien-robotsix/robotsix-llmio/commit/baf15ebdd355dcb690b520a9ac039fd23a3ae30d))
+* Update config loader and add persisted-config migration for old slot keys (20261025T134210Z-update-config-loader-and-add-persisted-c-21e8) ([#724](https://github.com/damien-robotsix/robotsix-llmio/issues/724)) ([e6fd9dc](https://github.com/damien-robotsix/robotsix-llmio/commit/e6fd9dc423a1f0838f349cf1c4a9fa15e7406e52))
+
+
+### Documentation
+
+* AGENT.md: Configuration conventions — When changing baked defaults in `src/robotsix_llmio/config/tier.py`, keep the l… (20261025T175444Z-agent-md-configuration-conventions-when-5d0e) ([#725](https://github.com/damien-robotsix/robotsix-llmio/issues/725)) ([4d570be](https://github.com/damien-robotsix/robotsix-llmio/commit/4d570bea6923fc52d8b4d1ec1c8798c3c56bd52b))
+* Update docs and CHANGELOG for the 3-slot provider failover chain (20261025T134210Z-update-docs-and-changelog-for-the-3-slot-634b) ([#727](https://github.com/damien-robotsix/robotsix-llmio/issues/727)) ([14fbf96](https://github.com/damien-robotsix/robotsix-llmio/commit/14fbf96d134dc32cfda3e17e00adf2dd6970eaef))
+
 ## [0.9.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.1...v0.9.2) (2026-10-23)
 
 
