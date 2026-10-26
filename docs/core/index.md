@@ -55,7 +55,7 @@ provider-cost reconciliation, tracing, and Langfuse integration.
 
 ### Provider failover
 
-- `call_with_failover` — runs a callable at a fixed capability level with automatic provider-slot failover: a provider-shaped failure on the active slot retries the SAME level on the other slot; after `failure_threshold` consecutive default-slot failures (exhaustion immediately) all calls route to the fallback slot for `window_seconds`, then return to the default
+- `call_with_failover` — runs a callable at a fixed capability level with automatic failover down the ordered `TierConfig.chain`: a provider-shaped failure on the active slot retries the SAME level on the next slot, trying each slot at most once per request; after `failure_threshold` consecutive failures on a slot (exhaustion immediately) that slot is skipped for `window_seconds` (exponentially backed off on repeated re-arms) and calls route to the next healthy slot; the optional per-request cost guards (`max_request_cost_usd`, `cost_ratio_threshold`) can refuse a switch with `FailoverCostGuardError`. See [Config — failover down the chain](../config/index.md#failover-down-the-chain)
 - `acall_with_failover` — async mirror of `call_with_failover`
 - `ProviderFailoverTracker` — process-wide tracker holding failover state (singleton via `get_failover_tracker`)
 - `get_failover_status` / `FailoverStatus` — snapshot of the failover state, shaped for consumer status endpoints and UIs
