@@ -169,3 +169,38 @@ def test_request_records_client_side_cost(monkeypatch: pytest.MonkeyPatch) -> No
     ) / 1_000_000
     assert captured["provider"] == "anthropic"
     assert captured["cost"] == pytest.approx(expected)
+
+
+# --- baked default chain: first slot dispatches to this transport -----------
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_baked_first_slot_dispatches_to_anthropic_transport(
+    level: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The baked chain's position-0 slot reaches the real direct-API transport.
+
+    Resolves through ``get_provider_for_level`` (the active slot after the
+    autouse tracker reset is position 0) — no factory mocking — and checks
+    the resolved provider is :class:`AnthropicProvider`, builds an
+    :class:`AnthropicModel` for the level's model, and has baked pricing.
+    """
+    from robotsix_llmio.config.tier import TierConfig
+    from robotsix_llmio.core.factory import get_provider_for_level
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    cfg = TierConfig()
+    tlc = cfg.for_level(level)
+    assert tlc is cfg.chain[0].for_level(level)
+    assert tlc.provider == "anthropic"
+
+    provider = get_provider_for_level(level, tier_config=cfg)
+    assert isinstance(provider, AnthropicProvider)
+
+    model, http_client = provider.new_model(model=tlc.model_name, level=level)
+    try:
+        assert isinstance(model, AnthropicModel)
+        assert model.model_name == tlc.model_name
+        assert provider._pricing.for_model(tlc.model_name) is not None
+    finally:
+        asyncio.run(http_client.aclose())
