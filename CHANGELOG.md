@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.10.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.10.0...v0.10.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **claude_sdk:** retry the SDK's bare "Control request timeout" as transient ([#729](https://github.com/damien-robotsix/robotsix-llmio/issues/729)) ([3fb688b](https://github.com/damien-robotsix/robotsix-llmio/commit/3fb688be8cea3dbcb95430b5c72fdca096d710a6))
+
 ## [0.10.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.9.2...v0.10.0) (2026-10-26)
 
 
