@@ -1,0 +1,29 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"  # weekly, Monday 04:17 UTC
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL
+    permissions:
+      security-events: write  # upload CodeQL results to code scanning
+      contents: read
+      actions: read  # CodeQL reads workflow run metadata
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/codeql.yml@47523e8aa2d34d41da060d29b57f75ab262cb840 # v1.4.0
+    with:
+      languages: python
+      build-mode: none
+      queries: security-and-quality
+      # Documented PEP-562 false-positive suppressions and test-path excludes.
+      config-file: ./.github/codeql/codeql-config.yml

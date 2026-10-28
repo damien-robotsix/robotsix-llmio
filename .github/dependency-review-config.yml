@@ -1,0 +1,10 @@
+# actions/dependency-review-action configuration, read by the shared
+# dependency-review.yml caller in .github/workflows/dependency-review.yml.
+# fail-on-severity and allow-licenses are passed inline there (inline inputs
+# take precedence); this file only carries the per-package exception the
+# shared workflow has no input for.
+
+# certifi is MPL-2.0 (unmodified CA bundle, file-level copyleft);
+# pinned per version as robotsix-chat does.
+allow-dependencies-licenses:
+  - pkg:pypi/certifi@2026.10.19
