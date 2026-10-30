@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import logging
 import random
-import re
 import threading
 import time
 from collections.abc import Awaitable, Callable
@@ -53,7 +52,14 @@ from robotsix_llmio.config.tier import (
 )
 from robotsix_llmio.exceptions import FailoverCostGuardError, ProviderExhaustedError
 
+from ._cost_guard import _cost_guard_verdict
+from ._cost_guard import estimate_request_cost as estimate_request_cost
 from ._otel import get_recording_span, get_tracer, start_span
+from ._reset_hint import (
+    _MAX_RESET_WINDOW_SECONDS,
+    _RESET_SLACK_SECONDS,
+    _parse_reset_delay,
+)
 from .retry import (
     _drive_sync,
     _walk_cause_chain,
@@ -149,101 +155,6 @@ def _is_exhaustion(exc: BaseException) -> bool:
         if type(cur).__name__ in _PROVIDER_DEAD_NAMES:
             return True
     return is_usage_exhausted(exc)
-
-
-# --------------------------------------------------------------------------- #
-#  Reset-hint parsing                                                         #
-# --------------------------------------------------------------------------- #
-
-# The Claude CLI names the quota reset inside the exhaustion text, in two
-# shapes: the rolling cap ("resets 1:10pm (UTC)", same day or tomorrow) and
-# the weekly cap ("resets Sep 5, 7pm (UTC)"). When a hint parses, the
-# failover window arms until that time instead of the fixed
-# ``window_seconds`` — probing a provider that TOLD us when it comes back
-# just burns a failed CLI spawn every window and makes status UIs blink.
-_RESET_HINT_RE = re.compile(
-    r"resets\s+(?:(?P<month>[a-z]{3,9})\s+(?P<day>\d{1,2}),?\s+)?"
-    r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*(?P<meridiem>am|pm)\s*\(utc\)",
-    re.IGNORECASE,
-)
-
-_MONTHS = {
-    m: i
-    for i, names in enumerate(
-        (
-            ("jan", "january"),
-            ("feb", "february"),
-            ("mar", "march"),
-            ("apr", "april"),
-            ("may",),
-            ("jun", "june"),
-            ("jul", "july"),
-            ("aug", "august"),
-            ("sep", "september"),
-            ("oct", "october"),
-            ("nov", "november"),
-            ("dec", "december"),
-        ),
-        start=1,
-    )
-    for m in names
-}
-
-#: Defensive ceiling on a hint-derived window: a mis-parsed or hostile
-#: "resets" value can never park the fleet on the paid slot for more than a
-#: worst-case weekly cycle (+ slack).
-_MAX_RESET_WINDOW_SECONDS: float = 8 * 24 * 3600.0
-
-#: Armed windows end this long AFTER the hinted reset, so the first probe
-#: lands when the quota is actually back rather than seconds before.
-_RESET_SLACK_SECONDS: float = 120.0
-
-
-def _parse_reset_delay(text: str, wall_now: datetime) -> float | None:
-    """Seconds from *wall_now* until the reset named in *text*, or ``None``.
-
-    Handles both CLI shapes: time-only rolls forward to the next occurrence
-    (today or tomorrow); a month+day form pins that calendar date (rolling to
-    next year when it already passed, e.g. "resets Jan 2" seen in late Dec).
-    All times are interpreted as UTC per the ``(UTC)`` marker.
-    """
-    match = _RESET_HINT_RE.search(text)
-    if match is None:
-        return None
-
-    hour = int(match.group("hour"))
-    minute = int(match.group("minute") or 0)
-    if not (1 <= hour <= 12) or minute > 59:
-        return None
-    hour24 = hour % 12
-    if match.group("meridiem").lower() == "pm":
-        hour24 += 12
-
-    month_name = match.group("month")
-    if month_name is not None:
-        month = _MONTHS.get(month_name.lower())
-        day = int(match.group("day"))
-        if month is None:
-            return None
-        try:
-            target = wall_now.replace(
-                month=month,
-                day=day,
-                hour=hour24,
-                minute=minute,
-                second=0,
-                microsecond=0,
-            )
-        except ValueError:
-            return None
-        if target <= wall_now:
-            target = target.replace(year=target.year + 1)
-    else:
-        target = wall_now.replace(hour=hour24, minute=minute, second=0, microsecond=0)
-        if target <= wall_now:
-            target += timedelta(days=1)
-
-    return (target - wall_now).total_seconds()
 
 
 # --------------------------------------------------------------------------- #
@@ -650,87 +561,6 @@ def reset_failover_tracker() -> None:
 def get_failover_status() -> FailoverStatus:
     """Snapshot the process-wide failover state — the consumer-UI surface."""
     return get_failover_tracker().status()
-
-
-# --------------------------------------------------------------------------- #
-#  Per-request cost guard                                                     #
-# --------------------------------------------------------------------------- #
-
-#: Scale factor turning a per-1M-token price into a per-token price.
-_TOKENS_PER_PRICE_UNIT: float = 1_000_000.0
-
-
-def estimate_request_cost(tlc: TierLevelConfig) -> float | None:
-    """Best-effort worst-case USD cost of one request on *tlc*.
-
-    Derived from the slot's configured price ceiling and output cap: the
-    ``max_price_completion`` provider kwarg (USD per 1M completion tokens)
-    times the ``max_tokens`` output cap. This is the knowable worst-case
-    spend for a single request on that slot.
-
-    Returns ``None`` when the slot carries no completion price ceiling or no
-    output cap — the Claude SDK ``default`` slots, for instance, expose
-    neither — so callers can treat the estimate as *unavailable* rather than
-    as a free (zero-cost) slot.
-    """
-    max_tokens = tlc.max_tokens
-    price_completion = tlc.provider_kwargs.get("max_price_completion")
-    if max_tokens is None or price_completion is None:
-        return None
-    try:
-        return float(price_completion) * max_tokens / _TOKENS_PER_PRICE_UNIT
-    except TypeError, ValueError:
-        return None
-
-
-def _cost_guard_verdict(
-    primary: TierLevelConfig,
-    candidate: TierLevelConfig,
-    config: FailoverConfig,
-) -> str | None:
-    """Return a refusal reason when failover to *candidate* is too expensive.
-
-    Two independent, config-driven checks run against the estimated
-    worst-case per-request cost of *candidate* (see
-    :func:`estimate_request_cost`):
-
-    * the per-request **ceiling** ``max_request_cost_usd`` — refuse when the
-      candidate estimate *strictly* exceeds it;
-    * the **ratio** ``cost_ratio_threshold`` — refuse when the candidate
-      estimate *strictly* exceeds the *primary* estimate times the threshold
-      (the candidate is materially more expensive than staying put).
-
-    Returns ``None`` (failover allowed) when neither check is configured,
-    when the candidate cost cannot be estimated (nothing to price), or when
-    the candidate is same-or-cheaper. A missing *primary* estimate disables
-    only the ratio check; the ceiling check still applies. The boundary is
-    inclusive — an estimate exactly equal to the ceiling (or exactly the
-    primary times the ratio) is allowed.
-    """
-    ceiling = config.max_request_cost_usd
-    ratio = config.cost_ratio_threshold
-    if ceiling is None and ratio is None:
-        return None
-
-    candidate_cost = estimate_request_cost(candidate)
-    if candidate_cost is None:
-        return None
-
-    if ceiling is not None and candidate_cost > ceiling:
-        return (
-            f"estimated fallback cost ${candidate_cost:.4f} exceeds the "
-            f"per-request ceiling ${ceiling:.4f}"
-        )
-
-    if ratio is not None:
-        primary_cost = estimate_request_cost(primary)
-        if primary_cost is not None and candidate_cost > primary_cost * ratio:
-            return (
-                f"estimated fallback cost ${candidate_cost:.4f} is more than "
-                f"{ratio:g}x the primary slot's ${primary_cost:.4f}"
-            )
-
-    return None
 
 
 # --------------------------------------------------------------------------- #
