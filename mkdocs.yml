@@ -43,7 +43,7 @@ nav:
   - API Reference:
       - Core: reference/core.md
       - Logging: reference/logging.md
-      - OpenRouter: reference/openrouter.md
+      - OpenRouter: openrouter/reference.md
       - Claude SDK: reference/claude_sdk.md
 
       - Config: reference/config.md
