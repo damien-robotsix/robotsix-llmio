@@ -44,7 +44,7 @@ nav:
       - Core: core/reference.md
       - Logging: reference/logging.md
       - OpenRouter: openrouter/reference.md
-      - Claude SDK: reference/claude_sdk.md
+      - Claude SDK: claude_sdk/reference.md
 
       - Config: reference/config.md
       - Exceptions: reference/exceptions.md

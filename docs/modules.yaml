@@ -73,7 +73,6 @@ modules:
       - src/robotsix_llmio/claude_sdk/**
       - tests/claude_sdk/**
       - docs/claude_sdk/**
-      - docs/reference/claude_sdk.md
 
   - id: clients
     description: >-
