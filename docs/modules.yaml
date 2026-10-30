@@ -28,7 +28,6 @@ modules:
       - tests/fixtures/**
       - tests/core/**
       - docs/core/**
-      - docs/reference/core.md
       - docs/reference/logging.md
       - docs/reference/exceptions.md
       - docs/index.md

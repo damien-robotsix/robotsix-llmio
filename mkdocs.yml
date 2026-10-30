@@ -41,7 +41,7 @@ nav:
   - Self-Review: clients/self_review/index.md
 
   - API Reference:
-      - Core: reference/core.md
+      - Core: core/reference.md
       - Logging: reference/logging.md
       - OpenRouter: openrouter/reference.md
       - Claude SDK: reference/claude_sdk.md
