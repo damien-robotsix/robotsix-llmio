@@ -83,7 +83,7 @@ way to neutralise growth. The validator also rejects a cap **below**
 ### Slot-switch cap (bounded by the chain length; disable failover entirely)
 
 The per-request slot-switch cap `_max_slot_switches(len(chain))` in
-`robotsix_llmio.core.failover` (i.e. `len(chain) - 1`) is derived from the
+`robotsix_llmio.core._failover_policy` (i.e. `len(chain) - 1`) is derived from the
 tier chain, not a runtime knob. It is the natural maximum: each slot is tried
 at most once per request, so `len(chain) - 1` switches exhaust the chain —
 raising the cap would have nothing further to switch to, which is why it is

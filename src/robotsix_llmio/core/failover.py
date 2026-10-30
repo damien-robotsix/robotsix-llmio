@@ -23,7 +23,11 @@ Capability levels never fall back to one another. When a provider slot of
 The process-wide :class:`ProviderFailoverTracker` singleton holds this state,
 and :func:`get_failover_status` exposes it for consumer UIs (which provider
 is active, whether failover is armed, and until when). Both live in
-:mod:`robotsix_llmio.core._failover_state` and are re-exported here.
+:mod:`robotsix_llmio.core._failover_state` and are re-exported here. The
+stateless policy — failure classification (:func:`is_provider_shaped`), the
+per-request slot-switch cap and the cost-guard wiring — lives in
+:mod:`robotsix_llmio.core._failover_policy` and is re-exported here too. This
+module keeps only the call loop and its public entry points.
 
 This module does **not** perform local retries — those remain the
 responsibility of the callable produced by *fn_factory* (which typically
@@ -42,13 +46,19 @@ import logging
 import random as random
 from collections.abc import Awaitable, Callable
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from robotsix_llmio.config.tier import TierConfig, TierLevelConfig
-from robotsix_llmio.exceptions import FailoverCostGuardError, ProviderExhaustedError
 
-from ._cost_guard import _cost_guard_verdict
 from ._cost_guard import estimate_request_cost as estimate_request_cost
+from ._failover_policy import _ATTR_COST_GUARD_BLOCKED as _ATTR_COST_GUARD_BLOCKED
+from ._failover_policy import _ATTR_COST_GUARD_REASON as _ATTR_COST_GUARD_REASON
+from ._failover_policy import _attempt_order as _attempt_order
+from ._failover_policy import _enforce_cost_guard as _enforce_cost_guard
+from ._failover_policy import _is_exhaustion as _is_exhaustion
+from ._failover_policy import _max_slot_switches as _max_slot_switches
+from ._failover_policy import is_provider_shaped as is_provider_shaped
 from ._failover_state import FailoverStatus as FailoverStatus
 from ._failover_state import ProviderFailoverTracker as ProviderFailoverTracker
 from ._failover_state import _slot_label
@@ -58,13 +68,7 @@ from ._failover_state import reset_failover_tracker as reset_failover_tracker
 from ._otel import get_recording_span, get_tracer, start_span
 from ._reset_hint import _MAX_RESET_WINDOW_SECONDS as _MAX_RESET_WINDOW_SECONDS
 from ._reset_hint import _parse_reset_delay as _parse_reset_delay
-from .retry import (
-    _drive_sync,
-    _walk_cause_chain,
-    is_rate_limited,
-    is_transient,
-    is_usage_exhausted,
-)
+from .retry import _drive_sync
 
 log = logging.getLogger("robotsix_llmio.failover")
 
@@ -83,21 +87,6 @@ _ATTR_ACTIVATED = "llmio.failover.activated"
 # ``_failover_state``).
 _ATTR_SLOT_SWITCHES = "llmio.failover.slot_switches"
 _ATTR_MAX_SLOT_SWITCHES = "llmio.failover.max_slot_switches"
-# Per-request cost-guard observability: set when a slot switch is refused
-# because the candidate slot would cost too much.
-_ATTR_COST_GUARD_BLOCKED = "llmio.failover.cost_guard_blocked"
-_ATTR_COST_GUARD_REASON = "llmio.failover.cost_guard_reason"
-
-
-def _max_slot_switches(chain_length: int) -> int:
-    """Hard cap on provider-slot switches within a SINGLE request.
-
-    A request cascades through the chain trying each slot AT MOST once, so it
-    switches slots at most ``chain_length - 1`` times (exactly once for the
-    legacy two-slot chain). This bounds per-request churn so a doomed request
-    can never ping-pong between slots, multiplying spend on duplicate prompts.
-    """
-    return max(chain_length - 1, 0)
 
 
 # Per-attempt span names, chosen by slot so cost/observability reviews are not
@@ -111,45 +100,8 @@ T = TypeVar("T")
 
 
 # --------------------------------------------------------------------------- #
-#  Failure classification                                                     #
-# --------------------------------------------------------------------------- #
-
-
-def is_provider_shaped(exc: BaseException) -> bool:
-    """True when *exc* points at the provider rather than the task.
-
-    A provider-shaped failure is one where running the same request on a
-    *different provider* can plausibly succeed: transient transport errors
-    that outlived their retries, rate limits, usage exhaustion, and
-    provider-wide exhaustion (:class:`ProviderExhaustedError`). Task-shaped
-    failures — a turn-limit blowout, a validation error in the caller's own
-    output type — raise straight through: re-running a doomed task on the
-    other provider would only spend money twice.
-    """
-    if any(isinstance(cur, ProviderExhaustedError) for cur in _walk_cause_chain(exc)):
-        return True
-    return is_transient(exc) or is_rate_limited(exc) or is_usage_exhausted(exc)
-
-
-# --------------------------------------------------------------------------- #
 #  The failover call loop                                                     #
 # --------------------------------------------------------------------------- #
-
-
-def _attempt_order(first: int, chain_length: int, failover_enabled: bool) -> list[int]:
-    """Chain positions a single request tries, in order.
-
-    Starts on *first* and, when failover is enabled, cascades through the
-    remaining slots in chain order (wrapping past the end back to the earlier
-    positions). The retry cap is enforced explicitly: whatever the order
-    build produced, a single request attempts each slot at most once — it can
-    never switch slots more than ``chain_length - 1`` times, so a doomed
-    request cannot ping-pong between slots.
-    """
-    order: list[int] = [first]
-    if failover_enabled:
-        order.extend((first + step) % chain_length for step in range(1, chain_length))
-    return order[: 1 + _max_slot_switches(chain_length)]
 
 
 def _attempt_span(
@@ -187,45 +139,6 @@ def _should_cascade(
     return provider_shaped and not last_attempt
 
 
-def _enforce_cost_guard(
-    exc: BaseException,
-    *,
-    primary_tlc: TierLevelConfig,
-    tier_config: TierConfig,
-    level: int,
-    slot_name: object,
-    candidate_index: int,
-    run_span: Any,
-    what: str,
-) -> None:
-    """Refuse a slot switch the per-request cost guard rejects.
-
-    Before spending money retrying on the candidate slot, refuse the switch
-    when that slot would blow the per-request ceiling or be materially
-    pricier than the slot the request started on. Raises
-    :class:`FailoverCostGuardError` chained from *exc* on refusal.
-    """
-    candidate_slot = _slot_label(candidate_index)
-    candidate_tlc = tier_config.for_level(level, slot=candidate_slot)
-    refusal = _cost_guard_verdict(primary_tlc, candidate_tlc, tier_config.failover)
-    if refusal is None:
-        return
-    log.warning(
-        "%s: refusing failover slot=%s -> slot=%s: %s",
-        what,
-        slot_name,
-        candidate_slot,
-        refusal,
-    )
-    if run_span is not None:
-        run_span.set_attribute(_ATTR_COST_GUARD_BLOCKED, True)
-        run_span.set_attribute(_ATTR_COST_GUARD_REASON, refusal)
-    raise FailoverCostGuardError(
-        f"{what}: failover to slot={candidate_slot} refused "
-        f"by the per-request cost guard ({refusal})"
-    ) from exc
-
-
 def _report_cascade(
     exc: BaseException,
     *,
@@ -248,6 +161,80 @@ def _report_cascade(
         run_span.set_attribute(_ATTR_SLOT_SWITCHES, slot_switches)
 
 
+@dataclass(frozen=True, slots=True)
+class _FailoverRun:
+    """Per-request context shared by the loop's helpers."""
+
+    tier_config: TierConfig
+    level: int
+    what: str
+    tracker: ProviderFailoverTracker
+    order: list[int]
+    run_span: Any
+    # Cost guards compare every candidate against the slot the request
+    # started on ("staying put"), so a long cascade cannot ratchet the price
+    # up one tolerable hop at a time.
+    primary_tlc: TierLevelConfig
+
+
+def _start_run(
+    tier_config: TierConfig, *, level: int, failover_enabled: bool, what: str
+) -> _FailoverRun:
+    """Adopt the failover policy and plan the slots this request will try."""
+    tracker = get_failover_tracker()
+    chain_length = len(tier_config.chain)
+    tracker.configure(tier_config.failover, chain_length=chain_length)
+
+    first = tracker.active_index(chain_length=chain_length)
+    run_span = get_recording_span()
+    if run_span is not None:
+        run_span.set_attribute(
+            _ATTR_MAX_SLOT_SWITCHES, _max_slot_switches(chain_length)
+        )
+    return _FailoverRun(
+        tier_config=tier_config,
+        level=level,
+        what=what,
+        tracker=tracker,
+        order=_attempt_order(first, chain_length, failover_enabled),
+        run_span=run_span,
+        primary_tlc=tier_config.for_level(level, slot=first),
+    )
+
+
+def _switch_slot(
+    run: _FailoverRun,
+    exc: BaseException,
+    *,
+    attempt_index: int,
+    slot_switches: int,
+) -> None:
+    """Cost-guard and report the switch from *attempt_index* to the next slot.
+
+    Raises :class:`FailoverCostGuardError` when the cost guard refuses it.
+    """
+    slot_name = _slot_label(run.order[attempt_index])
+    candidate_index = run.order[attempt_index + 1]
+    _enforce_cost_guard(
+        exc,
+        primary_tlc=run.primary_tlc,
+        tier_config=run.tier_config,
+        level=run.level,
+        slot_name=slot_name,
+        candidate_slot=_slot_label(candidate_index),
+        run_span=run.run_span,
+        what=run.what,
+    )
+    _report_cascade(
+        exc,
+        slot_name=slot_name,
+        candidate_index=candidate_index,
+        slot_switches=slot_switches,
+        run_span=run.run_span,
+        what=run.what,
+    )
+
+
 async def _failover_loop(
     fn_factory: Callable[[TierLevelConfig], Callable[[], Any]],
     *,
@@ -264,25 +251,11 @@ async def _failover_loop(
     (wrapping past the end back to the earlier positions), trying every slot
     at most once. The last attempted slot's error propagates unchanged.
     """
-    tracker = get_failover_tracker()
-    chain_length = len(tier_config.chain)
-    tracker.configure(tier_config.failover, chain_length=chain_length)
-
-    first = tracker.active_index(chain_length=chain_length)
-    order = _attempt_order(first, chain_length, failover_enabled)
-
-    run_span = get_recording_span()
-    if run_span is not None:
-        run_span.set_attribute(
-            _ATTR_MAX_SLOT_SWITCHES, _max_slot_switches(chain_length)
-        )
+    run = _start_run(
+        tier_config, level=level, failover_enabled=failover_enabled, what=what
+    )
     slot_switches = 0
-    # Cost guards compare every candidate against the slot the request
-    # started on ("staying put"), so a long cascade cannot ratchet the price
-    # up one tolerable hop at a time.
-    primary_tlc = tier_config.for_level(level, slot=first)
-
-    for attempt_index, slot_index in enumerate(order):
+    for attempt_index, slot_index in enumerate(run.order):
         slot_name = _slot_label(slot_index)
         tlc = tier_config.for_level(level, slot=slot_index)
         with _attempt_span(level, slot_index, attempt_index, tlc) as span:
@@ -299,36 +272,20 @@ async def _failover_loop(
             except Exception as exc:
                 if span is not None:
                     span.set_attribute(_ATTR_SUCCEEDED, False)
-                last_attempt = attempt_index == len(order) - 1
+                last_attempt = attempt_index == len(run.order) - 1
                 if not _should_cascade(
-                    exc, tracker, slot_index, last_attempt=last_attempt
+                    exc, run.tracker, slot_index, last_attempt=last_attempt
                 ):
                     raise
-                candidate_index = order[attempt_index + 1]
-                _enforce_cost_guard(
-                    exc,
-                    primary_tlc=primary_tlc,
-                    tier_config=tier_config,
-                    level=level,
-                    slot_name=slot_name,
-                    candidate_index=candidate_index,
-                    run_span=run_span,
-                    what=what,
-                )
                 slot_switches += 1
-                _report_cascade(
-                    exc,
-                    slot_name=slot_name,
-                    candidate_index=candidate_index,
-                    slot_switches=slot_switches,
-                    run_span=run_span,
-                    what=what,
+                _switch_slot(
+                    run, exc, attempt_index=attempt_index, slot_switches=slot_switches
                 )
                 continue
 
             if span is not None:
                 span.set_attribute(_ATTR_SUCCEEDED, True)
-            tracker.record_success(slot_index)
+            run.tracker.record_success(slot_index)
             log.info("%s: slot=%s succeeded", what, slot_name)
             return result
 

@@ -59,7 +59,7 @@ per-attempt span names matter: `llmio.attempt.primary` for a
 
 A single request attempts its active slot and cascades down the tier chain,
 trying **each slot at most once** — the cap `_max_slot_switches(len(chain))`
-(`len(chain) - 1`; `2` for the baked three-slot chain) in `core/failover.py`. This is
+(`len(chain) - 1`; `2` for the baked three-slot chain) in `core/_failover_policy.py`. This is
 the mechanism that removes the dominant duplicate-prompt replay cost: a
 doomed request can never ping-pong between slots re-sending the full prompt
 on each hop, so per-request churn spend is bounded to one attempt per slot.
