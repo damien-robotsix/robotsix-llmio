@@ -181,6 +181,21 @@ two scans stay in sync.
   full meta-package (see the comment in `pyproject.toml`). Don't add a new
   top-level dependency unless it's genuinely required.
 
+### Deprecations
+
+Legacy shapes kept for backward compatibility emit a `DeprecationWarning`
+instead of being accepted silently — currently the two-slot tier config
+(top-level `default` / `fallback` keys, accepted by both `load_tier_config`
+and `TierConfig` validation) and the `TierConfig.default` /
+`TierConfig.fallback` accessors (use `TierConfig.slot(0)` / `slot(1)` or
+`chain`). Use `warnings.deprecated` (PEP 702) for callables and
+`warnings.warn(..., DeprecationWarning, stacklevel=2)` for non-callable forms
+such as config keys. A deprecated shape keeps working until the **next major
+version**, where it may be removed. Introducing a deprecation needs no
+hand-written changelog entry — a conventional-commit title (`feat:`/`fix:`)
+is enough; the removal itself must ship as a `break:` change so release-please
+records it.
+
 ## 7. Reporting issues
 
 Open a [GitHub issue](https://github.com/damien-robotsix/robotsix-llmio/issues)

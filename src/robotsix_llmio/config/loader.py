@@ -46,6 +46,7 @@ import json
 import logging
 import os
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -125,6 +126,13 @@ def load_tier_config(config_dict: dict[str, Any] | None = None) -> TierConfig:
     baked = TierConfig()
     merged: dict[str, Any] = baked.model_dump()
     if legacy_keys:
+        warnings.warn(
+            f"Legacy tier config key(s) {legacy_keys!r} are deprecated; use "
+            "'chain' instead. The legacy shape will be removed in the next "
+            "major version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Legacy slot keys keep their legacy meaning — ``default`` is the
         # Claude SDK slot and ``fallback`` the OpenRouter slot — exactly as
         # TierConfig's legacy-shape validator migrates them, so an existing
