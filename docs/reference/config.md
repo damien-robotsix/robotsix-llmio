@@ -40,11 +40,11 @@ only lists each setting once.
 | `reattempt_backoff_base` | `float` (> 1) | `2.0` | — | `core/_failover_state.py` | Each time a slot that is still failing arms its window again, the window is multiplied by this factor. |
 | `reattempt_backoff_cap_seconds` | `float` (> 0, ≥ `window_seconds`) | `14400.0` (4 h) | — | `core/_failover_state.py` | Maximum length of a backed-off window. |
 | `reattempt_backoff_jitter` | `float` (0–1) | `0.5` | — | `core/_failover_state.py` | Random reduction applied to a backed-off window, as a fraction of its length. |
-| `max_request_cost_usd` | `float \| None` (> 0) | `None` (off) | — | `core/failover.py` via `core/_cost_guard.py` | Blocks a switch to the next slot when that slot's estimated worst-case cost per request is above this limit. |
-| `cost_ratio_threshold` | `float \| None` (> 0) | `None` (off) | — | `core/failover.py` via `core/_cost_guard.py` | Blocks a switch when the candidate slot would cost more than this multiple of the slot the request started on. |
+| `max_request_cost_usd` | `float \| None` (> 0) | `None` (off) | — | `core/_failover_policy.py` via `core/_cost_guard.py` | Blocks a switch to the next slot when that slot's estimated worst-case cost per request is above this limit. |
+| `cost_ratio_threshold` | `float \| None` (> 0) | `None` (off) | — | `core/_failover_policy.py` via `core/_cost_guard.py` | Blocks a switch when the candidate slot would cost more than this multiple of the slot the request started on. |
 
 Hard-coded failover limit (not configurable): each request switches slots at
-most `len(chain) - 1` times (`_max_slot_switches` in `core/failover.py`).
+most `len(chain) - 1` times (`_max_slot_switches` in `core/_failover_policy.py`).
 
 Details: [Failover down the chain](../config/index.md#failover-down-the-chain),
 [Failover runbook](../core/failover-runbook.md),

@@ -5,7 +5,9 @@ public names (:class:`ProviderFailoverTracker`, :class:`FailoverStatus`,
 :func:`get_failover_tracker`, :func:`reset_failover_tracker`,
 :func:`get_failover_status`) so ``robotsix_llmio.core.failover`` stays the
 import surface. This module holds the mutable routing state only; the call
-loop that consults it lives in :mod:`robotsix_llmio.core.failover`.
+loop that consults it lives in :mod:`robotsix_llmio.core.failover`, and the
+stateless classification it relies on (:func:`_is_exhaustion`) in
+:mod:`robotsix_llmio.core._failover_policy`.
 """
 
 from __future__ import annotations
@@ -20,49 +22,20 @@ from typing import cast
 from pydantic import BaseModel
 
 from robotsix_llmio.config.tier import PROVIDER_SLOTS, FailoverConfig, ProviderSlotName
-from robotsix_llmio.exceptions import ProviderExhaustedError
 
+from ._failover_policy import _is_exhaustion
 from ._otel import get_recording_span
 from ._reset_hint import (
     _MAX_RESET_WINDOW_SECONDS,
     _RESET_SLACK_SECONDS,
     _parse_reset_delay,
 )
-from .retry import _walk_cause_chain, is_usage_exhausted
 
 log = logging.getLogger("robotsix_llmio.failover")
 
 # OTel span attribute keys for failover-window backoff observability.
 _ATTR_REATTEMPT_COUNT = "llmio.failover.reattempt_count"
 _ATTR_BACKOFF_SECONDS = "llmio.failover.backoff_seconds"
-
-
-# --------------------------------------------------------------------------- #
-#  Exhaustion classification                                                  #
-# --------------------------------------------------------------------------- #
-
-
-#: Exception class names that doom every future call on the provider until an
-#: external fix, matched by name so the lightweight core does not import the
-#: claude_sdk package. ``ClaudeSDKAuthError``: a dead OAuth credential fails
-#: every call on the subscription exactly like exhaustion does — waiting for
-#: the consecutive-failure threshold just burns doomed attempts.
-_PROVIDER_DEAD_NAMES: frozenset[str] = frozenset({"ClaudeSDKAuthError"})
-
-
-def _is_exhaustion(exc: BaseException) -> bool:
-    """True when *exc* signals provider-wide exhaustion or a dead credential.
-
-    Either way every future call on the same provider is also doomed until an
-    external fix (quota reset, credential refresh), so failover arms
-    immediately instead of waiting for the consecutive-failure threshold.
-    """
-    for cur in _walk_cause_chain(exc):
-        if isinstance(cur, ProviderExhaustedError):
-            return True
-        if type(cur).__name__ in _PROVIDER_DEAD_NAMES:
-            return True
-    return is_usage_exhausted(exc)
 
 
 # --------------------------------------------------------------------------- #

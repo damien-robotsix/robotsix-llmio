@@ -236,8 +236,12 @@ short rationale grounded in the source.
     slot for `window_seconds` (default 15 minutes), then automatically
     returns to the default. `get_failover_status()` snapshots the state
     for consumer status endpoints and UIs. `core/failover.py` keeps the
-    call loop (a short coordinator over attempt-order, span, cost-guard and
-    cascade-reporting helpers); the tracker, per-slot health, the
+    call loop (a short coordinator over run-setup, span, slot-switch and
+    cascade-reporting helpers); the stateless policy — failure
+    classification (`is_provider_shaped`, `_is_exhaustion`), the per-request
+    slot-switch cap and attempt order (`_max_slot_switches`,
+    `_attempt_order`) and the cost-guard wiring (`_enforce_cost_guard`) —
+    lives in `core/_failover_policy.py`; the tracker, per-slot health, the
     process-wide singleton and `FailoverStatus` live in
     `core/_failover_state.py`. Stateless leaf helpers live in
     private siblings: `core/_reset_hint.py` (quota-reset hint parsing) and
