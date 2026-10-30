@@ -43,7 +43,7 @@ modules:
       - src/robotsix_llmio/openrouter/**
       - tests/openrouter/**
       - docs/openrouter/**
-      - docs/reference/openrouter.md
+      - docs/openrouter/reference.md
 
   - id: deepseek
     description: >-
