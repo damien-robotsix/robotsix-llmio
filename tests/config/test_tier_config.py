@@ -332,3 +332,31 @@ def test_vision_binding_baked_default():
 def test_vision_binding_override():
     cfg = TierConfig(vision=TierLevelConfig(model="openrouter-google/gemini-2-flash"))
     assert cfg.vision.model == "openrouter-google/gemini-2-flash"
+
+
+# --------------------------------------------------------------------------- #
+#  Legacy-shape deprecation                                                   #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("key", ["default", "fallback"])
+def test_legacy_slot_key_emits_deprecation_warning(key):
+    with pytest.warns(DeprecationWarning, match="Legacy tier config key"):
+        cfg = TierConfig.model_validate({key: TierConfig().slot(1).model_dump()})
+    assert len(cfg.chain) == 2
+
+
+def test_chain_shape_emits_no_deprecation_warning():
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        TierConfig.model_validate({"chain": TierConfig().model_dump()["chain"]})
+
+
+@pytest.mark.parametrize(("attr", "index"), [("default", 0), ("fallback", 1)])
+def test_legacy_accessors_emit_deprecation_warning(attr, index):
+    cfg = TierConfig()
+    with pytest.warns(DeprecationWarning, match=f"TierConfig.{attr}"):
+        value = getattr(cfg, attr)
+    assert value == cfg.slot(index)

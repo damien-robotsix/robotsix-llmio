@@ -272,6 +272,11 @@ filterwarnings = [
     # point. Quarantine just this runtime noise; keep `error` for everything
     # else.
     "ignore:unclosed event loop:ResourceWarning",
+    # The legacy two-slot tier config shape (default/fallback keys and
+    # accessors) emits a DeprecationWarning but must keep working; existing
+    # back-compat tests exercise it on purpose. New tests assert the warning
+    # explicitly with pytest.warns (which overrides this filter).
+    "ignore:Legacy tier config:DeprecationWarning",
 ]
 markers = [
     "live: tests that require a live API connection and OPENROUTER_API_KEY",

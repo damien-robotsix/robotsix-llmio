@@ -26,6 +26,7 @@ level-2 task on whichever provider slot is active. Failover switches the
 
 from __future__ import annotations
 
+import warnings
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -588,6 +589,12 @@ class TierConfig(BaseModel):
                 "Tier config mixes the legacy slot key(s) "
                 f"{legacy!r} with an explicit 'chain'; use one shape only."
             )
+        warnings.warn(
+            f"Legacy tier config key(s) {legacy!r} are deprecated; use 'chain' "
+            "instead. The legacy shape will be removed in the next major version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         migrated = {k: v for k, v in data.items() if k not in PROVIDER_SLOTS}
         baked = _legacy_chain()
         migrated["chain"] = [
@@ -598,11 +605,19 @@ class TierConfig(BaseModel):
     # -- legacy accessors ---------------------------------------------------
 
     @property
+    @warnings.deprecated(
+        "Legacy tier config accessor 'TierConfig.default' is deprecated; "
+        "use TierConfig.slot(0) (or chain[0]) instead."
+    )
     def default(self) -> ProviderSlotConfig:
         """Legacy alias for chain position 0 (the normal-operation slot)."""
         return self.slot(0)
 
     @property
+    @warnings.deprecated(
+        "Legacy tier config accessor 'TierConfig.fallback' is deprecated; "
+        "use TierConfig.slot(1) (or chain[1]) instead."
+    )
     def fallback(self) -> ProviderSlotConfig:
         """Legacy alias for chain position 1 (the first failover slot).
 

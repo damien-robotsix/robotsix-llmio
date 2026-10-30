@@ -144,3 +144,23 @@ def test_vision_merges_field_by_field():
     assert cfg.vision.model == "openrouter-google/gemini-2-flash"
     # max_tokens inherits the baked vision default.
     assert cfg.vision.max_tokens == 8192
+
+
+# --------------------------------------------------------------------------- #
+#  Legacy-shape deprecation                                                   #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("key", ["default", "fallback"])
+def test_legacy_slot_key_emits_deprecation_warning(key):
+    with pytest.warns(DeprecationWarning, match="Legacy tier config key"):
+        cfg = load_tier_config({key: {"level1": {"model": "claudeSDK-sonnet"}}})
+    assert cfg.slot(0 if key == "default" else 1).level1.model == "claudeSDK-sonnet"
+
+
+def test_chain_shape_emits_no_deprecation_warning():
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        load_tier_config({"chain": [{"level1": {"model": "claudeSDK-sonnet"}}]})
