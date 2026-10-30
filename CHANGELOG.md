@@ -7,6 +7,20 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.11.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.10.1...v0.11.0) (2026-10-30)
+
+
+### Features
+
+* Emit DeprecationWarning for legacy default/fallback tier-config keys and document a shim removal policy (20261030T040153Z-emit-deprecationwarning-for-legacy-defau-8914) ([#736](https://github.com/damien-robotsix/robotsix-llmio/issues/736)) ([95d5125](https://github.com/damien-robotsix/robotsix-llmio/commit/95d5125b76fe4e926cc627f3d532e6b668d7b3b0))
+
+
+### Documentation
+
+* Reorganize module claude-sdk: align to per-module layout (src/docs/tests) (20261030T041900Z-reorganize-module-claude-sdk-align-to-pe-ccec) ([#740](https://github.com/damien-robotsix/robotsix-llmio/issues/740)) ([ce57018](https://github.com/damien-robotsix/robotsix-llmio/commit/ce57018cf2aeedb7679df784d0834554a096f26e))
+* Reorganize module core: align to per-module layout (src/docs/tests) (20261030T041900Z-reorganize-module-core-align-to-per-modu-879d) ([#739](https://github.com/damien-robotsix/robotsix-llmio/issues/739)) ([ee3f29e](https://github.com/damien-robotsix/robotsix-llmio/commit/ee3f29efe2f604f59bcc52676c57061be6d0f3fc))
+* Reorganize module openrouter: align to per-module layout (src/docs/tests) (20261030T041900Z-reorganize-module-openrouter-align-to-pe-9a8c) ([#738](https://github.com/damien-robotsix/robotsix-llmio/issues/738)) ([3040ada](https://github.com/damien-robotsix/robotsix-llmio/commit/3040adafdb4e26bd8526940094efb33a2973fee5))
+
 ## [0.10.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.10.0...v0.10.1) (2026-10-26)
 
 
