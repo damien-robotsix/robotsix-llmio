@@ -235,10 +235,14 @@ short rationale grounded in the source.
     `ProviderFailoverTracker` routes every call straight to the fallback
     slot for `window_seconds` (default 15 minutes), then automatically
     returns to the default. `get_failover_status()` snapshots the state
-    for consumer status endpoints and UIs. Stateless leaf helpers live in
+    for consumer status endpoints and UIs. `core/failover.py` keeps the
+    call loop (a short coordinator over attempt-order, span, cost-guard and
+    cascade-reporting helpers); the tracker, per-slot health, the
+    process-wide singleton and `FailoverStatus` live in
+    `core/_failover_state.py`. Stateless leaf helpers live in
     private siblings: `core/_reset_hint.py` (quota-reset hint parsing) and
     `core/_cost_guard.py` (per-request cost estimation and the cost-guard
-    verdict), re-exported from `core/failover.py`.
+    verdict). All are re-exported from `core/failover.py`.
 - **Images: native on Anthropic, the ask_image tool on OpenRouter
     (`core/image_tool.py`).** `build_agent(images=[...])` keeps the caller's
     prompt text-only. The Claude SDK transport delivers the attachments as
