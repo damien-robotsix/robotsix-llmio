@@ -12,7 +12,7 @@ jobs:
     permissions:
       contents: write  # push the release commit + tag
       pull-requests: write  # protected-branch PR fallback
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/auto-release.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/auto-release.yml@86a722f2938c1dda343bbf8d3c5989613cbf1794 # v1.5.0
     # Authenticates as the fleet GitHub App — the installation token is
     # minted inside the reusable workflow; no PAT to rotate. On this
     # squash-only protected repo the release lands via a squash
