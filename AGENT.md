@@ -40,4 +40,8 @@ See [python.md — Tests](https://github.com/damien-robotsix/robotsix-standards/
 
 **Rationale:** On 2026-07-31 the implement stage of ticket 20260731T133725Z-remove-claude-sdk-model-py-backward-comp-78ca added `changelog.d/*.md` to the `core` module's paths in docs/modules.yaml (commit f3dd455), overlapping project-root's existing `changelog.d/**`; the modules check failed and a fixing_ci cycle reverted the one-line addition (commit 6b86b9a) — a net-zero round-trip. `core` has owned `changelog.d/*.md` since the structural fix on 20260731T134949Z; `project-root` retains only `changelog.d/.gitkeep`.
 
+**Rule:** When a PR replaces, renames, or removes a CI job, update the repo's required status checks in branch protection in the same change, and list the old and new check contexts in the PR description.
+
+**Rationale:** robotsix-llmio PR #732 (inline CodeQL context replaced by CodeQL / Analyze) left the PR blocked until required checks were repointed. PR #746 (inline checks job removed) had its deleted status context flagged in review as possibly required, with no branch-protection update recorded before merge.
+
 See [repo-baseline.md — CI gates](https://github.com/damien-robotsix/robotsix-standards/blob/main/repo-baseline.md) for the required-artifact `if: always()` rule.
