@@ -16,7 +16,7 @@ jobs:
     permissions:
       contents: read
       security-events: write  # upload SARIF from the scan
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@86a722f2938c1dda343bbf8d3c5989613cbf1794 # v1.5.0
     with:
       python-version: "3.14"
       install-extras: "openrouter claude_sdk anthropic tracing"
@@ -24,41 +24,15 @@ jobs:
       coverage-threshold: "80"
       pytest-args: '-m "not live" -n 4'
       mypy-advisory: false
-
-  checks:
-    name: Checks (vulture + deptry + modules)
-    # Hand-rolled gate, justified: vulture, deptry, and modules-registration
-    # are pre-commit hooks in the standard set, but CI does not run
-    # `pre-commit run --all-files` yet and no shared workflow carries these
-    # checks — keep this job until one of the two exists (tracked as a
-    # standards gap).
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      UV_MALWARE_CHECK: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup-repo
-        with:
-          python-version: '3.14'
-      - name: uv lock --check (lockfile consistency)
-        run: uv lock --check
-      - run: uv sync --frozen
-      - name: vulture (dead code)
-        run: uv run vulture --ignore-decorators "@field_validator,@model_validator" src/ vulture_whitelist.py
-      - name: deptry (dependency hygiene)
-        run: uv run deptry src
-      - name: modules (registration check)
-        run: uv run robotsix-modules check-registration docs/modules.yaml --root .
+      check-lock: true
+      run-vulture: true
+      vulture-args: '--ignore-decorators "@field_validator,@model_validator" src/ vulture_whitelist.py'
 
   security:
     permissions:
       contents: read
       security-events: write  # upload SARIF from the scan
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@8e713c7c8867caa653483a934e2b74a62e31fc0b # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@86a722f2938c1dda343bbf8d3c5989613cbf1794 # v1.5.0
     with:
       install-extras: "openrouter claude_sdk anthropic"
       trufflehog-pr-diff: true
