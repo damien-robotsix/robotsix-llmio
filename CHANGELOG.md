@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.11.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.11.0...v0.11.1) (2026-11-02)
+
+
+### Documentation
+
+* AGENT.md: CI / workflows — When a PR replaces, renames, or removes a CI job, update the repo's required st… (20261102T125450Z-agent-md-ci-workflows-when-a-pr-replaces-7763) ([#748](https://github.com/damien-robotsix/robotsix-llmio/issues/748)) ([b184b96](https://github.com/damien-robotsix/robotsix-llmio/commit/b184b96ec5eedec48cc577147e6563908c896c4b))
+
 ## [0.11.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.10.1...v0.11.0) (2026-10-30)
 
 
