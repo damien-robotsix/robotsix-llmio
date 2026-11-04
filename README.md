@@ -377,6 +377,8 @@ Specific exceptions include:
 - `ClaudeSDKAPIError` — A terminal Claude Agent SDK transport or process failure that survived the retry loop; the original SDK exception is preserved as `__cause__`.
 - `ClaudeSDKPermanentAPIError` — The Anthropic API rejected the request itself with a `400` (malformed or out-of-range parameter); never retried.
 - `ClaudeSDKAuthError` — The `claude` CLI could not authenticate (`401`: expired, revoked or rejected OAuth credential); never retried at the same tier.
+- `TierConfigLoadError` — A tier configuration could not be loaded or validated (malformed `chain`/legacy keys, unreadable persisted file).
+- `MalformedIdentifierError` — A provider-model identifier string is malformed.
 
 ## Tracing & cost (Langfuse)
 
