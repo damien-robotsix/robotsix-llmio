@@ -115,6 +115,7 @@ modules:
       - .editorconfig
       - .gitignore
       - .secrets.baseline
+      - .secrets-patterns-excluded
       - .zizmor.yml
       - vulture_whitelist.py
       - mkdocs.yml
