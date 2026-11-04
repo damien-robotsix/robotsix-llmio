@@ -19,6 +19,14 @@ from .exceptions import (
 # block in sync with ``__all__`` and ``__getattr__``.
 if TYPE_CHECKING:
     from .anthropic import AnthropicAPIError
+    from .claude_sdk._errors import (
+        ClaudeSDKAPIError,
+        ClaudeSDKAuthError,
+        ClaudeSDKPermanentAPIError,
+        ClaudeSDKQueryTimeout,
+        ClaudeSDKTurnLimitError,
+        ClaudeSDKUsageExhaustedError,
+    )
     from .clients.knowledge import (
         KnowledgeClient,
         KnowledgeClientError,
@@ -54,6 +62,12 @@ if TYPE_CHECKING:
 __all__ = [
     "AnthropicAPIError",
     "AsyncRefdocsClient",
+    "ClaudeSDKAPIError",
+    "ClaudeSDKAuthError",
+    "ClaudeSDKPermanentAPIError",
+    "ClaudeSDKQueryTimeout",
+    "ClaudeSDKTurnLimitError",
+    "ClaudeSDKUsageExhaustedError",
     "DeepseekAPIError",
     "FailoverCostGuardError",
     "KnowledgeClient",
@@ -113,6 +127,17 @@ def __getattr__(name: str) -> Any:  # PEP 562 — lazy heavy imports
         from . import anthropic
 
         return anthropic.AnthropicAPIError
+    if name in (
+        "ClaudeSDKAPIError",
+        "ClaudeSDKAuthError",
+        "ClaudeSDKPermanentAPIError",
+        "ClaudeSDKQueryTimeout",
+        "ClaudeSDKTurnLimitError",
+        "ClaudeSDKUsageExhaustedError",
+    ):
+        from .claude_sdk import _errors as claude_sdk_errors
+
+        return getattr(claude_sdk_errors, name)
     if name == "DeepseekAPIError":
         from . import deepseek
 
