@@ -62,3 +62,18 @@ def test_claude_sdk_api_error_preserves_cause() -> None:
     wrapped.__cause__ = original
     assert wrapped.__cause__ is original
     assert isinstance(wrapped, RobotsixLLMIOError)
+
+
+def test_failover_cost_guard_error_exported_from_root() -> None:
+    """``FailoverCostGuardError`` is importable from the package root and
+    listed in ``robotsix_llmio.__all__``, beside ``ProviderExhaustedError``."""
+    import robotsix_llmio
+    from robotsix_llmio import FailoverCostGuardError
+    from robotsix_llmio.exceptions import (
+        FailoverCostGuardError as DeepFailoverCostGuardError,
+    )
+
+    assert FailoverCostGuardError is DeepFailoverCostGuardError
+    assert "FailoverCostGuardError" in robotsix_llmio.__all__
+    assert "ProviderExhaustedError" in robotsix_llmio.__all__
+    assert issubclass(FailoverCostGuardError, RobotsixLLMIOError)
