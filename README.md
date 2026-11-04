@@ -370,6 +370,7 @@ except RobotsixLLMIOError as e:
 Specific exceptions include:
 - `ProviderExhaustedError` — A provider-wide exhaustion: the backend is out of capacity until a quota resets. The failover loop treats this specially, arming the fallback window immediately instead of waiting for the consecutive-failure threshold.
 - `FailoverCostGuardError` (importable from `robotsix_llmio`, beside `ProviderExhaustedError`) — A failover slot switch was refused by the per-request cost guard because the candidate slot's estimated cost would exceed the configured ceiling or be materially more expensive than the active slot.
+- `AnthropicAPIError` (importable from `robotsix_llmio`, beside `OpenRouterAPIError` and `DeepseekAPIError`) — A configuration or authentication error from the direct Anthropic API transport (e.g. a missing `ANTHROPIC_API_KEY`).
 - `ClaudeSDKUsageExhaustedError` — The Claude subscription has exhausted its usage credits. This is a provider-wide exhaustion (inherits from `ProviderExhaustedError`) because all Claude levels draw on the one subscription.
 - `ClaudeSDKTurnLimitError` — Claude Agent SDK loop hit its turn cap without returning an answer.
 - `ClaudeSDKQueryTimeout` — A Claude Agent SDK query exceeded the per-call timeout (a stall, typically transient).
