@@ -77,3 +77,43 @@ def test_failover_cost_guard_error_exported_from_root() -> None:
     assert "FailoverCostGuardError" in robotsix_llmio.__all__
     assert "ProviderExhaustedError" in robotsix_llmio.__all__
     assert issubclass(FailoverCostGuardError, RobotsixLLMIOError)
+
+
+def test_anthropic_api_error_root_export() -> None:
+    """``AnthropicAPIError`` is importable from the package root and listed in
+    ``robotsix_llmio.__all__``, beside its provider peers ``OpenRouterAPIError``
+    and ``DeepseekAPIError``."""
+    import robotsix_llmio
+    from robotsix_llmio import AnthropicAPIError
+    from robotsix_llmio.anthropic import AnthropicAPIError as DeepAnthropicAPIError
+
+    assert AnthropicAPIError is DeepAnthropicAPIError
+    assert "AnthropicAPIError" in robotsix_llmio.__all__
+    assert "OpenRouterAPIError" in robotsix_llmio.__all__
+    assert "DeepseekAPIError" in robotsix_llmio.__all__
+    assert issubclass(AnthropicAPIError, RobotsixLLMIOError)
+
+
+def test_claude_sdk_errors_root_export() -> None:
+    """The Claude SDK error family is importable from the package root and
+    listed in ``robotsix_llmio.__all__``, beside its provider peers."""
+    import robotsix_llmio
+    from robotsix_llmio import ProviderExhaustedError
+    from robotsix_llmio.claude_sdk import _errors
+
+    names = (
+        "ClaudeSDKAPIError",
+        "ClaudeSDKAuthError",
+        "ClaudeSDKPermanentAPIError",
+        "ClaudeSDKQueryTimeout",
+        "ClaudeSDKTurnLimitError",
+        "ClaudeSDKUsageExhaustedError",
+    )
+    for name in names:
+        root_cls = getattr(robotsix_llmio, name)
+        assert root_cls is getattr(_errors, name)
+        assert name in robotsix_llmio.__all__
+        assert issubclass(root_cls, RobotsixLLMIOError)
+    assert issubclass(
+        robotsix_llmio.ClaudeSDKUsageExhaustedError, ProviderExhaustedError
+    )
