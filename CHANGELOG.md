@@ -7,6 +7,14 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.12.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.11.1...v0.12.0) (2026-11-04)
+
+
+### Features
+
+* Export FailoverCostGuardError from the root robotsix_llmio package like its exception peers (20261104T172617Z-export-failovercostguarderror-from-the-r-a683) ([#752](https://github.com/damien-robotsix/robotsix-llmio/issues/752)) ([b681843](https://github.com/damien-robotsix/robotsix-llmio/commit/b681843d6bf5fe02a0501b308e3043e87d4f1874))
+* Sweep robotsix_llmio root package for exception peers missing from the top-level exports (20261104T175316Z-sweep-robotsix-llmio-root-package-for-ex-734f) ([#755](https://github.com/damien-robotsix/robotsix-llmio/issues/755)) ([9ce7f88](https://github.com/damien-robotsix/robotsix-llmio/commit/9ce7f8897b6cb50bfbb22af109e706515725bbae))
+
 ## [0.11.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.11.0...v0.11.1) (2026-11-02)
 
 
