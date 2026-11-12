@@ -111,7 +111,8 @@ def test_tool_result_log_and_event_are_redacted(caplog):
         _log_stream_message(msg, [1], "implement", events.append)
     assert "ghs_" not in caplog.text
     assert "oauth2:<redacted>@github.com" in caplog.text
-    assert events and "ghs_" not in events[0].detail
+    assert events
+    assert "ghs_" not in events[0].detail
 
 
 # ---------------------------------------------------------------------------

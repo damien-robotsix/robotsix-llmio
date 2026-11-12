@@ -29,7 +29,8 @@ def test_reconcile_within_tolerance():
     assert d.delta == round(abs(11.20 - 10.40), 10) or abs(d.delta - 0.80) < 1e-9
     assert d.within_tolerance is True
     assert d.tolerance == DEFAULT_TOLERANCE
-    assert d.logged_total == 10.40 and d.provider_total == 11.20
+    assert d.logged_total == 10.40
+    assert d.provider_total == 11.20
 
 
 def test_reconcile_over_tolerance():

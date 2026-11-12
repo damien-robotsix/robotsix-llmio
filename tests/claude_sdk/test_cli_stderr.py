@@ -134,7 +134,7 @@ def test_wrapped_transport_error_carries_the_cli_diagnosis(
     monkeypatch.setattr(claude_agent_sdk, "query", _query)
 
     options = claude_agent_sdk.ClaudeAgentOptions(stderr=record)
-    with pytest.raises(Exception) as caught:
+    with pytest.raises(Exception, match="No conversation found") as caught:
         asyncio.run(_stream._stream_query("hi", options, "test-label"))
 
     message = str(caught.value)

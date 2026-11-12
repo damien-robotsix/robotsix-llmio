@@ -167,5 +167,5 @@ def test_flush_current_provider_propagates_other_errors(monkeypatch):
 
     _patch_tracer_provider(monkeypatch, types.SimpleNamespace(force_flush=_raise_value))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="programming error"):
         flush_current_provider()

@@ -109,10 +109,11 @@ def test_tier_level_config_unknown_model_succeeds():
 
 def test_tier_level_config_missing_model_raises():
     """``model`` is required — omitting it raises ValidationError."""
-    with pytest.raises(ValueError):  # pydantic v2 raises ValidationError ⊆ ValueError
+    # pydantic v2 raises ValidationError ⊆ ValueError
+    with pytest.raises(ValueError, match="Field required"):
         TierLevelConfig()  # type: ignore[call-arg]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Field required"):
         TierLevelConfig(provider_kwargs={})  # type: ignore[call-arg]
 
 

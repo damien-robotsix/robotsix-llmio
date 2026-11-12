@@ -87,7 +87,8 @@ def test_hook_denies_edit_outside_workspace(tmp_path):
     )
     assert _denied(out)
     reason = out["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "confined" in reason and "/app/src" in reason
+    assert "confined" in reason
+    assert "/app/src" in reason
 
 
 def test_hook_denies_write_and_multiedit_and_notebook(tmp_path):

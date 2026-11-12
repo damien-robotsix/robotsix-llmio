@@ -135,7 +135,8 @@ def test_current_session_and_make_session_id():
     with langfuse_session("s-1"):
         assert current_session() == "s-1"
     sid = make_session_id("review")
-    assert sid.startswith("review-") and len(sid) > len("review-")
+    assert sid.startswith("review-")
+    assert len(sid) > len("review-")
 
 
 # --- root-span handle + flush ----------------------------------------------
@@ -264,8 +265,10 @@ def test_on_export_result_hook_reports_outcomes(monkeypatch):
         reporting.export([])
 
         assert events[0] == ("pk-hook", True, None)
-        assert events[1][:2] == ("pk-hook", False) and events[1][2]
-        assert events[2][:2] == ("pk-hook", False) and "RuntimeError" in events[2][2]
+        assert events[1][:2] == ("pk-hook", False)
+        assert events[1][2]
+        assert events[2][:2] == ("pk-hook", False)
+        assert "RuntimeError" in events[2][2]
     finally:
         fresh.shutdown()
 

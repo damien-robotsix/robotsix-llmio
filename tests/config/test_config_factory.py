@@ -26,7 +26,7 @@ class TestCreateModelValidation:
 
     def test_invalid_level_raises_valueerror(self):
         for bad_level in (0, 4, 5, -1, 99):
-            with pytest.raises(ValueError) as excinfo:
+            with pytest.raises(ValueError, match="level") as excinfo:
                 create_model(level=bad_level)
             message = str(excinfo.value)
             assert "level" in message

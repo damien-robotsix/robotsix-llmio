@@ -217,7 +217,8 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
     from robotsix_llmio.openrouter._deepseek_provider import OpenRouterDeepseekProvider
 
     projects = _langfuse_get("/api/public/projects", {})
-    assert projects and projects.get("data"), "could not discover the Langfuse project"
+    assert projects, "could not discover the Langfuse project"
+    assert projects.get("data"), "could not discover the Langfuse project"
     project_id = projects["data"][0]["id"]
 
     # Register (or backfill) the project id so langfuse_trace_url can use it.
@@ -255,7 +256,8 @@ def test_langfuse_trace_url_resolves_to_real_trace() -> None:
         if found:
             break
         time.sleep(4)
-    assert found and found.get("id") == trace_id, "URL points at a missing trace"
+    assert found, "URL points at a missing trace"
+    assert found.get("id") == trace_id, "URL points at a missing trace"
 
 
 @pytest.mark.live

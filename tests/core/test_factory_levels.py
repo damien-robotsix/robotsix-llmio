@@ -144,7 +144,7 @@ def test_get_provider_for_level_invalid_level_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_factory(monkeypatch)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="must be 1, 2, or 3"):
         get_provider_for_level(4)
 
 
@@ -288,7 +288,7 @@ def test_build_agent_for_level_invalid_level_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _patch_factory(monkeypatch)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="must be 1, 2, or 3"):
         build_agent_for_level(4, system_prompt="x")
 
 

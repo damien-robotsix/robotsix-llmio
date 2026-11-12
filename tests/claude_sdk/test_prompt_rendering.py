@@ -110,7 +110,8 @@ def test_system_text_combines_instructions_and_system_parts():
         )
     ]
     sys = m._system_text(msgs, _params())
-    assert "be terse" in sys and "answer in french" in sys
+    assert "be terse" in sys
+    assert "answer in french" in sys
 
 
 # --- native image support ---------------------------------------------------
@@ -146,7 +147,8 @@ def test_build_sdk_prompt_with_images_builds_streaming_input():
     raw = b"\x89PNGfake"
     messages = build_sdk_prompt("look", [("image/png", raw)])
 
-    assert isinstance(messages, list) and len(messages) == 1
+    assert isinstance(messages, list)
+    assert len(messages) == 1
     content = messages[0]["message"]["content"]
     assert content[0] == {"type": "text", "text": "look"}
     assert content[1]["type"] == "image"

@@ -162,7 +162,7 @@ def test_ashould_fallback_false_reraises_primary_without_fallback():
         calls["fallback"] += 1
         return "fallback-ok"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="nope"):
         asyncio.run(
             acall_with_retry_and_fallback(
                 primary,

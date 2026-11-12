@@ -223,4 +223,4 @@ def otel_exporter_tracer():
     provider_obj = TracerProvider()
     provider_obj.add_span_processor(SimpleSpanProcessor(exporter))
     tracer = provider_obj.get_tracer("test")
-    yield exporter, tracer
+    return exporter, tracer

@@ -48,7 +48,8 @@ def test_extract_fenced_json_after_prose():
     )
     v = _parse_output(text, _Verdict)
     assert isinstance(v, _Verdict)
-    assert v.verdict == "APPROVE" and v.auto_merge_eligible is True
+    assert v.verdict == "APPROVE"
+    assert v.auto_merge_eligible is True
 
 
 def test_extract_ignores_stray_prose_brace():
