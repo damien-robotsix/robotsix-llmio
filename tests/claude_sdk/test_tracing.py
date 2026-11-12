@@ -81,16 +81,20 @@ def test_generation_span_input_includes_system_prompt(
 
     # The child generation span carries system + user...
     chat = _input_messages(lambda s: s.name.startswith("chat "))
-    assert chat[0]["role"] == "system" and "SYS_MARKER" in chat[0]["content"]
-    assert chat[1]["role"] == "user" and "USER_MARKER" in chat[1]["content"]
+    assert chat[0]["role"] == "system"
+    assert "SYS_MARKER" in chat[0]["content"]
+    assert chat[1]["role"] == "user"
+    assert "USER_MARKER" in chat[1]["content"]
 
     # ...and so does the root agent-run span (which becomes the trace), so the
     # system prompt is visible at the trace root, not only on the generation.
     root = _input_messages(
         lambda s: s.attributes.get(GEN_AI_OPERATION_NAME) == OP_INVOKE_AGENT
     )
-    assert root[0]["role"] == "system" and "SYS_MARKER" in root[0]["content"]
-    assert root[1]["role"] == "user" and "USER_MARKER" in root[1]["content"]
+    assert root[0]["role"] == "system"
+    assert "SYS_MARKER" in root[0]["content"]
+    assert root[1]["role"] == "user"
+    assert "USER_MARKER" in root[1]["content"]
 
 
 def test_spans_set_gen_ai_provider_name(monkeypatch, otel_exporter_tracer):
@@ -171,7 +175,8 @@ def test_tool_path_stamps_token_usage_on_generation_span(
 
     # Core invariant: when content was produced, token usage MUST be non-zero.
     output = chat.attributes.get(LANGFUSE_OBSERVATION_OUTPUT)
-    assert output and output.strip(), "chat span has no output"
+    assert output, "chat span has no output"
+    assert output.strip(), "chat span has no output"
     in_tok = chat.attributes.get(GEN_AI_USAGE_INPUT_TOKENS)
     out_tok = chat.attributes.get(GEN_AI_USAGE_OUTPUT_TOKENS)
     assert in_tok == 42, f"expected input_tokens=42, got {in_tok}"

@@ -114,7 +114,7 @@ def test_provider_shaped_failure_retries_same_level_on_fallback():
 
 def test_task_shaped_failure_raises_without_failover():
     calls: list[str] = []
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="caller bug"):
         call_with_failover(
             _factory({"claudeSDK-opus": [ValueError("caller bug")]}, calls),
             tier_config=_CFG,

@@ -37,7 +37,8 @@ _PER_MILLION = 1_000_000
 def check_module() -> ModuleType:
     """Load the drift-guard script once per test module."""
     spec = importlib.util.spec_from_file_location("check_price_ceilings", _SCRIPT)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     # Register under the spec name so dataclass annotations (and anything else
     # that looks itself up via ``sys.modules[__name__]``) resolve.
@@ -328,7 +329,8 @@ def test_extend_ignore_list_in_block_appends_to_existing_list(check_module):
     )
     block = out.split("FALLBACK_LEVEL2")[0]
     assert '"ignore_providers": [' in block
-    assert '"Wafer",' in block and '"Sail Research",' in block
+    assert '"Wafer",' in block
+    assert '"Sail Research",' in block
     assert "# 2026-10-13 drift-fix: cache-read $0.100/M vs DeepInfra $0.015/M" in block
     # Level 2 untouched, and the module still parses.
     assert out.split("FALLBACK_LEVEL2")[1].count("ignore_providers") == 0

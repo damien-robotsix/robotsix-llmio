@@ -75,8 +75,8 @@ _USAGE_EXHAUSTED_SIGNATURES = (
 )
 
 
-# The Claude CLI's wording when the Anthropic API rejects the request itself
-# ("API Error: 400 `task_budget.total` must be at least 20,000 tokens..."). Like
+# The Claude CLI's wording when the Anthropic API rejects the request itself,
+# e.g. "API Error: 400 `task_budget.total` must be at least 20,000 tokens...". Like
 # usage exhaustion this arrives as ordinary assistant TEXT inside an
 # is_error=True ResultMessage, not as a raised exception — same best-effort
 # string-matching tradeoff, since the CLI's phrasing isn't a documented

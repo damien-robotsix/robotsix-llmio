@@ -73,7 +73,7 @@ def test_identifier_unknown_prefix_raises(
     """An unknown provider prefix raises ValueError listing known prefixes."""
     monkeypatch.delenv("LLMIO_PROVIDER", raising=False)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError, match="Unknown provider prefix") as excinfo:
         get_provider_for_identifier("bogusPrefix-opus")
 
     message = str(excinfo.value)

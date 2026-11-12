@@ -44,7 +44,7 @@ def test_parse_timestamp(input, expected):
     if expected is None and not isinstance(input, str):
         assert _parse_timestamp(input) is input
     elif expected is None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="isoformat"):
             _parse_timestamp(input)
     else:
         assert _parse_timestamp(input) == expected
@@ -367,7 +367,7 @@ def test_prune_before_http_error(monkeypatch, error_on):
     def handler(request: httpx.Request) -> httpx.Response:
         if error_on == "get":
             return httpx.Response(503, text="unavailable")
-        # error_on == "delete"
+        # Otherwise the failure is injected on the DELETE phase.
         if request.method == "GET":
             return httpx.Response(200, json={"data": [{"id": "t1"}]})
         return httpx.Response(500, text="delete-failed")

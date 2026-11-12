@@ -320,7 +320,7 @@ def test_call_with_retry_default_predicate_does_not_retry_valueerror():
         calls["n"] += 1
         raise ValueError("not transient by default")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not transient by default"):
         p.call_with_retry(fn, sleep=lambda _d: None)
     assert calls["n"] == 1
 

@@ -200,12 +200,16 @@ def test_langfuse_trace_claude_sdk_tool_and_subagent() -> None:
 
     # A tool call (consult_expert) and a subagent run, both traced.
     assert types.get("TOOL", 0) >= 1, f"expected a tool span, got {types}"
-    assert "consult_expert" in names and "subagent-physics run" in names, names
+    assert "consult_expert" in names, names
+    assert "subagent-physics run" in names, names
 
     # The subagent must nest under the tool that invoked it.
     sub = next(o for o in obs if o.get("name") == "subagent-physics run")
     parent = by_id.get(sub.get("parentObservationId"))
-    assert parent is not None and parent.get("name") == "consult_expert", (
+    assert parent is not None, (
+        f"subagent should nest under consult_expert, parent={parent}"
+    )
+    assert parent.get("name") == "consult_expert", (
         f"subagent should nest under consult_expert, parent={parent}"
     )
 

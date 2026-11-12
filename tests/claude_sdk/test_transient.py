@@ -128,10 +128,9 @@ def test_genuine_error_subtypes_not_transient():
 def test_degenerate_success_matched_case_insensitively_through_chain():
     # Detected case-insensitively and through the cause/context chain.
     cause = RuntimeError("Claude Code RETURNED AN ERROR RESULT: SUCCESS")
-    try:
-        raise Exception("wrapper") from cause
-    except Exception as e:
-        assert is_claude_sdk_transient(e) is True
+    e = Exception("wrapper")
+    e.__cause__ = cause
+    assert is_claude_sdk_transient(e) is True
 
 
 # --- turn-limit: hard failure, never retried -------------------------------
@@ -186,11 +185,10 @@ def test_usage_exhausted_detected_through_chain():
     from robotsix_llmio.claude_sdk.transient import is_claude_sdk_usage_exhausted
 
     cause = ClaudeSDKUsageExhaustedError("out of usage credits")
-    try:
-        raise Exception("wrapper") from cause
-    except Exception as e:
-        assert is_claude_sdk_usage_exhausted(e) is True
-        assert is_claude_sdk_transient(e) is False
+    e = Exception("wrapper")
+    e.__cause__ = cause
+    assert is_claude_sdk_usage_exhausted(e) is True
+    assert is_claude_sdk_transient(e) is False
 
 
 def test_non_usage_exhausted_runtime_error_unaffected():
@@ -346,12 +344,11 @@ def test_permanent_api_error_beats_degenerate_success_wrapper():
     cause = ClaudeSDKPermanentAPIError(
         "API Error: 400 `task_budget.total` must be at least 20,000 tokens"
     )
-    try:
-        raise Exception("Claude Code returned an error result: success") from cause
-    except Exception as e:
-        assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
-        assert is_claude_sdk_permanent_api_error(e) is True  # ...but permanent wins
-        assert is_claude_sdk_transient(e) is False
+    e = Exception("Claude Code returned an error result: success")
+    e.__cause__ = cause
+    assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
+    assert is_claude_sdk_permanent_api_error(e) is True  # ...but permanent wins
+    assert is_claude_sdk_transient(e) is False
 
 
 def test_non_permanent_api_error_runtime_error_unaffected():
@@ -407,12 +404,11 @@ def test_auth_error_beats_degenerate_success_wrapper():
     cause = ClaudeSDKAuthError(
         "Failed to authenticate. API Error: 401 OAuth access token has expired."
     )
-    try:
-        raise Exception("Claude Code returned an error result: success") from cause
-    except Exception as e:
-        assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
-        assert is_claude_sdk_auth_error(e) is True  # ...but auth wins
-        assert is_claude_sdk_transient(e) is False
+    e = Exception("Claude Code returned an error result: success")
+    e.__cause__ = cause
+    assert is_claude_sdk_degenerate_success(e) is True  # transient signature...
+    assert is_claude_sdk_auth_error(e) is True  # ...but auth wins
+    assert is_claude_sdk_transient(e) is False
 
 
 def test_non_auth_runtime_error_unaffected():

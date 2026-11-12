@@ -187,7 +187,16 @@ select = [
     "D413",     # blank line after last section
     "D414",     # non-empty returns section
     "D417",     # documented args match signature
+    "W",        # pycodestyle warnings (standards baseline)
+    "LOG",      # flake8-logging
+    "G",        # flake8-logging-format
+    "ERA",      # eradicate — commented-out code
+    "PGH",      # pygrep-hooks
+    "PT",       # flake8-pytest-style
 ]
+# PT006: parametrize names-type style is not enforced (robotsix-standards
+# ruff-lint-rules.md Tier 2 ignore).
+ignore = ["PT006"]
 
 # Every ignore carries a justification (robotsix-standards python.md).
 [tool.ruff.lint.per-file-ignores]

@@ -59,7 +59,8 @@ def test_dump_round_trips_in_chain_shape():
     cfg = load_tier_config({"fallback": {"level1": {"model": "claudeSDK-sonnet"}}})
     dumped = dump_tier_config(cfg)
     assert "chain" in dumped
-    assert "default" not in dumped and "fallback" not in dumped
+    assert "default" not in dumped
+    assert "fallback" not in dumped
     json.dumps(dumped)  # JSON-compatible
     assert load_tier_config(dumped) == cfg
     assert TierConfig.model_validate(dumped) == cfg
@@ -103,7 +104,8 @@ def test_legacy_file_loads_and_is_repersisted_in_chain_shape(tmp_path):
     assert cfg.failover.window_seconds == 120
 
     on_disk = json.loads(path.read_text())
-    assert "default" not in on_disk and "fallback" not in on_disk
+    assert "default" not in on_disk
+    assert "fallback" not in on_disk
     assert len(on_disk["chain"]) == 2
     # Second startup reads the migrated file and gets the same config.
     assert load_tier_config_file(path) == cfg

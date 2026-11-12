@@ -107,7 +107,7 @@ def test_should_fallback_is_usage_exhausted_gates_fallback():
     assert calls["fallback"] == 1
 
     # genuine bug -> re-raised, fallback NOT run
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="real bug"):
         call_with_retry_and_fallback(
             _buggy_primary,
             _fallback,
@@ -235,7 +235,7 @@ def test_should_fallback_false_reraises_primary_without_fallback():
         calls["fallback"] += 1
         return "fallback-ok"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="nope"):
         call_with_retry_and_fallback(
             primary, fallback, sleep=_noop_sleep, should_fallback=lambda _e: False
         )

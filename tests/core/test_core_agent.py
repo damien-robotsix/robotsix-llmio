@@ -200,7 +200,8 @@ def test_build_agent_tools_none_yields_fresh_list(monkeypatch):
 
     tools_a = handle_a._agent.kwargs["tools"]
     tools_b = handle_b._agent.kwargs["tools"]
-    assert tools_a == [] and tools_b == []
+    assert tools_a == []
+    assert tools_b == []
     assert tools_a is not tools_b
 
 
