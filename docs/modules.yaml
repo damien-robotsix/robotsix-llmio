@@ -96,7 +96,6 @@ modules:
       - src/robotsix_llmio/config/**
       - tests/config/**
       - docs/config/**
-      - docs/reference/config.md
 
   - id: dev-tooling
     description: >-
