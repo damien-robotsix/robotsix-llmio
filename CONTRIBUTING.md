@@ -180,6 +180,15 @@ two scans stay in sync.
 - Keep the dependency surface minimal. Prefer `pydantic-ai-slim` extras over the
   full meta-package (see the comment in `pyproject.toml`). Don't add a new
   top-level dependency unless it's genuinely required.
+- **Keep ARCHITECTURE.md in sync.** Update `ARCHITECTURE.md` in the same PR
+  whenever you change the project structure or module boundaries — adding,
+  splitting, renaming, or removing a subpackage or module, moving
+  responsibilities between modules, or adding/splitting/removing test files
+  (refresh the `tests/` tree in its "Test coverage strategy" section). This is
+  part of the PR checklist; don't defer it to a follow-up doc-only PR.
+- **Keep the README configuration table in sync.** If you add, rename, or
+  remove an environment variable read at runtime, update the README's
+  "Configuration" table (purpose and default) in the same PR.
 
 ### Deprecations
 
