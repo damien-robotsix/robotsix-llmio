@@ -84,9 +84,6 @@ modules:
       - src/robotsix_llmio/clients/**
       - tests/clients/**
       - docs/clients/**
-      - docs/reference/refdocs.md
-      - docs/reference/knowledge.md
-      - docs/reference/self_review.md
 
   - id: config
     description: >-

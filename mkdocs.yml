@@ -48,8 +48,8 @@ nav:
 
       - Config: config/reference.md
       - Exceptions: core/exceptions.md
-      - Knowledge: reference/knowledge.md
-      - Refdocs: reference/refdocs.md
-      - Self-Review: reference/self_review.md
+      - Knowledge: clients/knowledge/reference.md
+      - Refdocs: clients/refdocs/reference.md
+      - Self-Review: clients/self_review/reference.md
   - Contributing: contributing.md
   - Changelog: changelog.md
