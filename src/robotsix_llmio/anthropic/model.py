@@ -37,6 +37,20 @@ class AnthropicModel(_PydAnthropicModel):
 
     @asynccontextmanager
     async def request_stream(self, *args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        """Open a streamed request and record its client-side cost on exit.
+
+        Delegates to the pydantic-ai ``request_stream``. Usage is cumulative over
+        the stream, so cost is recorded in a ``finally`` once the stream is
+        consumed or abandoned, while the request span is still active.
+
+        Args:
+            *args: Forwarded to the parent ``request_stream``.
+            **kwargs: Forwarded to the parent ``request_stream``.
+
+        Yields:
+            The parent stream object.
+
+        """
         async with super().request_stream(*args, **kwargs) as stream:
             try:
                 yield stream
