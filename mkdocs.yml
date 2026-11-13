@@ -42,12 +42,12 @@ nav:
 
   - API Reference:
       - Core: core/reference.md
-      - Logging: reference/logging.md
+      - Logging: core/logging.md
       - OpenRouter: openrouter/reference.md
       - Claude SDK: claude_sdk/reference.md
 
       - Config: reference/config.md
-      - Exceptions: reference/exceptions.md
+      - Exceptions: core/exceptions.md
       - Knowledge: reference/knowledge.md
       - Refdocs: reference/refdocs.md
       - Self-Review: reference/self_review.md
