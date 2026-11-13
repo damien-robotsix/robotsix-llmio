@@ -7,6 +7,17 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.12.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.12.0...v0.12.1) (2026-11-13)
+
+
+### Documentation
+
+* docstring gap: add docstring to AnthropicModel.request_stream in src/robotsix_llmio/anthropic/model.py:39 (20261113T014937Z-docstring-gap-add-docstring-to-anthropic-149e) ([#761](https://github.com/damien-robotsix/robotsix-llmio/issues/761)) ([c3c7960](https://github.com/damien-robotsix/robotsix-llmio/commit/c3c7960e8cbbbc84e18a0585de28ec250b74b354))
+* Document ARCHITECTURE.md update expectation and env-var coverage in CONTRIBUTING.md and README (20261113T044900Z-document-architecture-md-update-expectat-e2e9) ([#764](https://github.com/damien-robotsix/robotsix-llmio/issues/764)) ([b73ac03](https://github.com/damien-robotsix/robotsix-llmio/commit/b73ac037bf737b5c7a4a9954343e46349cef2b0f))
+* Reorganize module clients: align to per-module layout (src/docs/tests) (20261113T050656Z-reorganize-module-clients-align-to-per-m-5e0e) ([#766](https://github.com/damien-robotsix/robotsix-llmio/issues/766)) ([57d589c](https://github.com/damien-robotsix/robotsix-llmio/commit/57d589cbf15a1f189e93858b02c916b0d30adfaa))
+* Reorganize module config: align to per-module layout (src/docs/tests) (20261113T050656Z-reorganize-module-config-align-to-per-mo-2ad2) ([#767](https://github.com/damien-robotsix/robotsix-llmio/issues/767)) ([d9bbda6](https://github.com/damien-robotsix/robotsix-llmio/commit/d9bbda62f6220fb852e2a617ca7bdd4f873a334a))
+* Reorganize module core: align to per-module layout (src/docs/tests) (20261113T050656Z-reorganize-module-core-align-to-per-modu-de3d) ([#765](https://github.com/damien-robotsix/robotsix-llmio/issues/765)) ([d5752a0](https://github.com/damien-robotsix/robotsix-llmio/commit/d5752a03f263686c967b24ad1b5231ff76f3c6a0))
+
 ## [0.12.0](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.11.1...v0.12.0) (2026-11-04)
 
 
