@@ -235,7 +235,11 @@ FALLBACK_LEVEL1 = TierLevelConfig(
     max_tokens=16384,
     provider_kwargs={
         "preferred_provider": "DeepInfra",
-        "ignore_providers": ["Wafer"],
+        "ignore_providers": [
+            "Wafer",
+            # 2026-11-23 drift-fix: cache-read $0.050/M vs DeepInfra $0.012/M
+            "Cohere",
+        ],
     },
 )
 
@@ -259,7 +263,11 @@ FALLBACK_LEVEL2 = TierLevelConfig(
         "max_price_completion": 0.26,
         # See FALLBACK_LEVEL1: Wafer's cache-read ($0.120/1M) is ~8x
         # DeepInfra's, invisible to max_price — barred via provider.ignore.
-        "ignore_providers": ["Wafer"],
+        "ignore_providers": [
+            "Wafer",
+            # 2026-11-23 drift-fix: cache-read $0.050/M vs DeepInfra $0.012/M
+            "Cohere",
+        ],
     },
 )
 
