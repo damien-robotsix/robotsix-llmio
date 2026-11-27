@@ -8,7 +8,7 @@ from __future__ import annotations
 import base64
 import inspect
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.exceptions import UserError
@@ -126,6 +126,61 @@ def _span_output(blocks: list[dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
+async def _call_tool_under_span(
+    name: str,
+    fn: Callable[..., Any],
+    is_async: bool,
+    args: dict[str, Any],
+) -> dict[str, Any]:
+    """Run one tool call under a TOOL span and return its MCP content payload.
+
+    Owns the per-call plumbing the SDK-facing wrapper used to inline: opening
+    the span around the actual call (so the tool — and any subagent it runs —
+    nests under the agent-run span in traces), dispatching to the sync or
+    async implementation, stamping the observation input/output attributes,
+    and mapping the result onto MCP content blocks. Returns the
+    ``{"content": blocks}`` dict every wrapper must produce.
+    """
+    with start_span(
+        get_tracer(_TRACER_NAME),
+        name,
+        {
+            GEN_AI_OPERATION_NAME: OP_EXECUTE_TOOL,
+            GEN_AI_TOOL_NAME: name,
+            LANGFUSE_OBSERVATION_INPUT: json.dumps(args, default=str),
+        },
+    ) as sp:
+        if is_async:
+            result = await fn(**args)
+        else:
+            result = fn(**args)
+        blocks = _mcp_content_blocks(result)
+        if sp is not None:
+            sp.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, _span_output(blocks))
+        return {"content": blocks}
+
+
+def _make_tool_wrapper(
+    name: str,
+    fn: Callable[..., Any],
+    is_async: bool,
+) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
+    """Bind one tool's identity into a thin SDK-facing async callable.
+
+    The closure must be built here rather than inline in the conversion loop:
+    a closure defined inside ``for t in tools:`` would capture the loop
+    variables by reference, so every tool would resolve ``name``/``fn``/
+    ``is_async`` to the last iteration's values. Binding them as factory
+    arguments gives each wrapper a stable copy — no default-argument capture
+    needed. All real work is forwarded to :func:`_call_tool_under_span`.
+    """
+
+    async def _wrapper(args: dict[str, Any]) -> dict[str, Any]:
+        return await _call_tool_under_span(name, fn, is_async, args)
+
+    return _wrapper
+
+
 def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
     """Convert pydantic-ai tools into SDK MCP tools.
 
@@ -195,34 +250,11 @@ def _convert_tools(tools: list[Any]) -> tuple[list[str], Any]:
             callable(fn) and inspect.iscoroutinefunction(fn.__call__)  # type: ignore[operator]
         )
 
-        @sdk_tool(name, description, schema)  # type: ignore[untyped-decorator, unused-ignore]
-        async def _wrapper(
-            args: dict[str, Any],
-            _fn: Any = fn,
-            _is_async: bool = is_async,
-            _name: str = name,
-        ) -> dict[str, Any]:
-            # Emit a TOOL span around the actual call, so the tool (and any
-            # subagent it runs) nests under the agent-run span in traces.
-            with start_span(
-                get_tracer(_TRACER_NAME),
-                _name,
-                {
-                    GEN_AI_OPERATION_NAME: OP_EXECUTE_TOOL,
-                    GEN_AI_TOOL_NAME: _name,
-                    LANGFUSE_OBSERVATION_INPUT: json.dumps(args, default=str),
-                },
-            ) as sp:
-                if _is_async:
-                    result = await _fn(**args)
-                else:
-                    result = _fn(**args)
-                blocks = _mcp_content_blocks(result)
-                if sp is not None:
-                    sp.set_attribute(LANGFUSE_OBSERVATION_OUTPUT, _span_output(blocks))
-                return {"content": blocks}
-
-        wrapped.append(_wrapper)
+        wrapped.append(
+            sdk_tool(name, description, schema)(  # type: ignore[untyped-decorator, unused-ignore]
+                _make_tool_wrapper(name, fn, is_async)
+            )
+        )
         allowed.append(f"mcp__milltools__{name}")
 
     server = create_sdk_mcp_server(name="milltools", tools=wrapped)
