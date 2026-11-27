@@ -44,10 +44,10 @@ EXPECTED: dict[str, str] = {
     # Langfuse OTLP wire path.
     "_LANGFUSE_OTEL_TRACES_PATH": "/api/public/otel/v1/traces",
     # Environment-variable names (consumed by tracing.py for credentials).
-    "ENV_LANGFUSE_PUBLIC_KEY": "LANGFUSE_PUBLIC_KEY",
-    "ENV_LANGFUSE_SECRET_KEY": "LANGFUSE_SECRET_KEY",
-    "ENV_LANGFUSE_BASE_URL": "LANGFUSE_BASE_URL",
-    "ENV_LANGFUSE_PROJECT_ID": "LANGFUSE_PROJECT_ID",
+    "_ENV_LANGFUSE_PUBLIC_KEY": "LANGFUSE_PUBLIC_KEY",
+    "_ENV_LANGFUSE_SECRET_KEY": "LANGFUSE_SECRET_KEY",
+    "_ENV_LANGFUSE_BASE_URL": "LANGFUSE_BASE_URL",
+    "_ENV_LANGFUSE_PROJECT_ID": "LANGFUSE_PROJECT_ID",
 }
 
 
@@ -67,9 +67,9 @@ def test_env_example_documents_langfuse_live_test_credentials() -> None:
     import pathlib
 
     env_constants = {
-        _otel.ENV_LANGFUSE_PUBLIC_KEY,
-        _otel.ENV_LANGFUSE_SECRET_KEY,
-        _otel.ENV_LANGFUSE_BASE_URL,
+        _otel._ENV_LANGFUSE_PUBLIC_KEY,
+        _otel._ENV_LANGFUSE_SECRET_KEY,
+        _otel._ENV_LANGFUSE_BASE_URL,
     }
     env_example_path = pathlib.Path(__file__).parents[1] / ".env.example"
     env_example = env_example_path.read_text()

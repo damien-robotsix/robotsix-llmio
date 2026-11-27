@@ -41,10 +41,10 @@ LANGFUSE_OBSERVATION_METADATA_REASONING = "langfuse.observation.metadata.reasoni
 # Environment-variable names consumed by tracing.py for Langfuse credentials.
 # Centralised here so a rename is a one-line change, not a scattered edit
 # across tracing.py, README.md, and tests/.env.example.
-ENV_LANGFUSE_PUBLIC_KEY = "LANGFUSE_PUBLIC_KEY"
-ENV_LANGFUSE_SECRET_KEY = "LANGFUSE_SECRET_KEY"  # noqa: S105 (env-var name, not a secret)
-ENV_LANGFUSE_BASE_URL = "LANGFUSE_BASE_URL"
-ENV_LANGFUSE_PROJECT_ID = "LANGFUSE_PROJECT_ID"
+_ENV_LANGFUSE_PUBLIC_KEY = "LANGFUSE_PUBLIC_KEY"
+_ENV_LANGFUSE_SECRET_KEY = "LANGFUSE_SECRET_KEY"  # noqa: S105 (env-var name, not a secret)
+_ENV_LANGFUSE_BASE_URL = "LANGFUSE_BASE_URL"
+_ENV_LANGFUSE_PROJECT_ID = "LANGFUSE_PROJECT_ID"
 
 _DEFAULT_LANGFUSE_BASE_URL = "https://cloud.langfuse.com"
 _LANGFUSE_OTEL_TRACES_PATH = "/api/public/otel/v1/traces"

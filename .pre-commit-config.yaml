@@ -60,6 +60,11 @@ repos:
         entry: robotsix-modules check-registration docs/modules.yaml --root .
         language: system
         pass_filenames: false
+      - id: env-var-docs
+        name: env-var-docs drift check
+        entry: pytest tests/core/test_env_var_docs.py -q
+        language: system
+        pass_filenames: false
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
