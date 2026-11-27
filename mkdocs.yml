@@ -35,6 +35,7 @@ nav:
   - Failover disable & rollback: core/failover-rollback.md
   - Config: config/index.md
   - OpenRouter: openrouter/index.md
+  - DeepSeek: deepseek/index.md
   - Claude SDK: claude_sdk/index.md
   - Knowledge: clients/knowledge/index.md
   - Refdocs: clients/refdocs/index.md
@@ -44,6 +45,7 @@ nav:
       - Core: core/reference.md
       - Logging: core/logging.md
       - OpenRouter: openrouter/reference.md
+      - DeepSeek: deepseek/reference.md
       - Claude SDK: claude_sdk/reference.md
 
       - Config: config/reference.md

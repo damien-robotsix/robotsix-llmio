@@ -50,6 +50,7 @@ modules:
     paths:
       - src/robotsix_llmio/deepseek/**
       - tests/deepseek/**
+      - docs/deepseek/**
 
   - id: anthropic
     description: >-
