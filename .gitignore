@@ -13,3 +13,6 @@ build/
 
 # MkDocs build output
 site/
+
+# Doc-agent result byproduct (not a repo artifact)
+_doc_result.json
