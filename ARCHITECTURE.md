@@ -390,6 +390,7 @@ sub-directory for modules that have their own test suite:
   - `test_langfuse_cost.py` — Langfuse cost tracking.
   - `test_logging.py` — logging configuration unit tests.
   - `test_otel.py` — OpenTelemetry setup unit tests.
+  - `test_env_var_docs.py` — env-var README/docs-reference drift check.
   - `test_sqlite_utils.py` — SQLite utility unit tests.
   - `test_text_utils.py` — text utility unit tests.
   - `test_tracing_filtered_batch.py` — filtered batch unit tests.
