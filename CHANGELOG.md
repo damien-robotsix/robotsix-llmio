@@ -7,6 +7,13 @@ do not edit it by hand — add a newsfragment under `changelog.d/` instead.
 
 <!-- towncrier release notes start -->
 
+## [0.12.2](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.12.1...v0.12.2) (2026-11-27)
+
+
+### Documentation
+
+* Add docs/deepseek/ module documentation and mkdocs nav entries for the direct DeepSeek provider (20261127T133140Z-add-docs-deepseek-module-documentation-a-d9a4) ([#776](https://github.com/damien-robotsix/robotsix-llmio/issues/776)) ([69ea39b](https://github.com/damien-robotsix/robotsix-llmio/commit/69ea39b64632f34b402c5b9e0ce3a76c647fa9fd))
+
 ## [0.12.1](https://github.com/damien-robotsix/robotsix-llmio/compare/v0.12.0...v0.12.1) (2026-11-13)
 
 
